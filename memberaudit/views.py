@@ -1,8 +1,10 @@
 from django.db import transaction
+from django.db.models import Count, Q
+from django.http import HttpResponse, Http404, JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required, permission_required
 
-from allianceauth.authentication.models import CharacterOwnership
+from allianceauth.authentication.models import CharacterOwnership, User
 from allianceauth.eveonline.models import EveCharacter
 from esi.decorators import token_required
 
@@ -89,3 +91,51 @@ def add_owner(request, token):
     )
     
     return redirect('memberaudit:index')
+
+
+@login_required
+@permission_required('memberaudit.basic_access')
+def compliance_report(request):
+    context = {        
+        'app_title': __title__        
+    }        
+
+    return render(request, 'memberaudit/compliance_report.html', context)
+
+
+@login_required
+@permission_required('memberaudit.basic_access')
+def compliance_report_data(request):
+        
+    member_users = User.objects\
+        .filter(profile__state__name='Member')\
+        .annotate(total_chars=Count('character_ownerships'))\
+        .annotate(unregistered_chars=Count(
+            'character_ownerships', 
+            filter=Q(character_ownerships__memberaudit_owner=None
+        )))\
+        .select_related()
+
+        #.annotate(registered_chars=Count('character_ownerships__memberaudit_owner'))
+
+    user_data = list()
+    for user in member_users:
+        if user.profile.main_character:
+            portrait_html = '<img class="ra-avatar img-circle" src="{}">'.format(
+                user.profile.main_character.portrait_url()
+            )
+            user_data.append({
+                'portrait': portrait_html,
+                'name': user.username,
+                'main': user.profile.main_character.character_name,
+                'corporation': user.profile.main_character.corporation_name,
+                'alliance': user.profile.main_character.alliance_name,
+                'total_chars': user.total_chars,
+                'unregistered_chars': user.unregistered_chars,
+                'is_compliant': user.unregistered_chars == 0,
+                'compliance_str': 'yes' \
+                    if user.unregistered_chars == 0 else 'no'
+            })
+    
+
+    return JsonResponse(user_data, safe=False)
