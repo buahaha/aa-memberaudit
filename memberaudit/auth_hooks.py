@@ -3,7 +3,7 @@ from django.utils.translation import ugettext_lazy as _
 from allianceauth.services.hooks import MenuItemHook, UrlHook
 from allianceauth import hooks
 
-from . import urls
+from . import urls, __title__
 
 
 class MemberauditMenuItem(MenuItemHook):
@@ -12,8 +12,8 @@ class MemberauditMenuItem(MenuItemHook):
         # setup menu entry for sidebar
         MenuItemHook.__init__(
             self,
-            _('memberaudit'),
-            'fa fa-cube fa-fw',
+            _(__title__),
+            'fa fa-check-circle fa-fw',
             'memberaudit:index',
             navactive=['memberaudit:index']
         )

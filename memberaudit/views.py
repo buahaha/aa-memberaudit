@@ -8,16 +8,48 @@ from esi.decorators import token_required
 
 from .models import *
 from .utils import messages_plus
-from . import tasks
+from . import tasks, __title__
+
 
 @login_required
 @permission_required('memberaudit.basic_access')
 def index(request):
+     return redirect('memberaudit:registration')
+
+@login_required
+@permission_required('memberaudit.basic_access')
+def registration(request):
+            
+    owned_chars_query = CharacterOwnership.objects\
+        .filter(user=request.user)\
+        .order_by('character__character_name')        
+
+    has_registered_chars = owned_chars_query.count() > 0
+
+    characters = list()
+    unregistered_chars = 0
+    for owned_char in owned_chars_query:                        
+
+        is_registered = hasattr(owned_char, 'memberaudit_owner')
+        if not is_registered:
+            unregistered_chars += 1
         
-    context = {
-        'text': 'Hello, World!'
-    }    
-    return render(request, 'memberaudit/index.html', context)
+        characters.append({
+            'portrait_url': owned_char.character.portrait_url,
+            'name': owned_char.character.character_name,
+            'is_registered': is_registered,
+            'pk': owned_char.character.pk
+        })
+    
+    context = {        
+        'app_title': __title__,
+        'characters': characters,
+        'has_registered_chars' : has_registered_chars,
+        'unregistered_chars' : unregistered_chars
+    }        
+
+    return render(request, 'memberaudit/register.html', context)
+
 
 @login_required
 @permission_required('memberaudit.basic_access')
@@ -34,7 +66,7 @@ def add_owner(request, token):
     except CharacterOwnership.DoesNotExist:
         messages_plus.error(
             request,
-            'You can add your main or alt characters.'
+            'You can register your main or alt characters.'
             + 'However, character <strong>{}</strong> is neither. '.format(
                 token_char.character_name
             )
@@ -53,7 +85,7 @@ def add_owner(request, token):
     )        
     messages_plus.success(
         request,             
-        '<strong>{}</strong> has been added '.format(owner)        
+        '<strong>{}</strong> has been registered '.format(owner)        
     )
     
     return redirect('memberaudit:index')
