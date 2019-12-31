@@ -1,0 +1,179 @@
+{    
+    "EveRegion":
+    [
+        {
+            "id": 10000005,
+            "name": "Detorid"
+        },
+        {
+            "id": 10000030,
+            "name": "Heimatar"
+        }
+    ],
+    "EveConstellation":
+    [
+        {
+            "id": 20000069,
+            "name": "1RG-GU",
+            "eve_region_id": 10000005
+        },
+        {
+            "id": 20000372,
+            "name": "Hed",
+            "eve_region_id": 10000030
+        }
+    ],
+    "EveSolarSystem":
+    [
+        {
+            "id": 30002537,
+            "name": "Amamake",
+            "security_status": 0.438761234283447,
+            "eve_constellation_id": 20000372
+        },
+        {
+            "id": 30000474,
+            "name": "1-PGSG",
+            "security_status": -0.496552765369415,
+            "eve_constellation_id": 20000069
+        }
+    ],
+    "EveMoon":
+    [
+        {
+            "id": 40161465,
+            "name": "Amamake II - Moon 1",
+            "eve_solar_system_id": 30002537
+        }
+    ],
+    "EveGroup":
+    [
+        {
+            "id": 1657,
+            "name": "Citadel"
+        },
+        {
+            "id": 1406,
+            "name": "Refinery"
+        }
+    ],
+    "EveType":
+    [
+        {
+            "id": 35832,
+            "name": "Astrahus",
+            "eve_group_id": 1657
+        },
+        {
+            "id": 35835,
+            "name": "Athanor",
+            "eve_group_id": 1406
+        }
+    ],
+    "EveAllianceInfo":
+    [
+        {
+            "alliance_id": 3001,
+            "alliance_name": "Wayne Enterprises",
+            "alliance_ticker": "WYE",            
+            "executor_corp_id": 2001
+        }
+    ],
+    "EveCorporationInfo":
+    [
+        {
+            "corporation_id": 2001,
+            "corporation_name": "Wayne Technologies",
+            "corporation_ticker": "WYT",
+            "member_count": 4200
+        },
+        {
+            "corporation_id": 2002,
+            "corporation_name": "Wayne Foods",
+            "corporation_ticker": "WYF",
+            "member_count": 8875
+        },
+        {
+            "corporation_id": 2102,
+            "corporation_name": "Lexcorp",
+            "corporation_ticker": "LEX",
+            "member_count": 2500
+        }
+    ],    
+    "EveCharacter":
+    [
+        {
+            "character_id": 1001,
+            "character_name": "Bruce Wayne",
+            "corporation_id": 2001,
+            "corporation_name": "Wayne Technologies",
+            "corporation_ticker": "WYE"
+        },
+        {
+            "character_id": 1002,
+            "character_name": "Lex Luther",
+            "corporation_id": 2102,
+            "corporation_name": "Lexcorp",
+            "corporation_ticker": "LEX"
+        }
+    ],
+    "EveEntity":
+    [
+        {
+            "id": 3011,
+            "category": 3,
+            "name": "Big Bad Alliance"
+        },
+        {
+            "id": 2011,
+            "category": 2,
+            "name": "Bad Company"
+        },
+        {
+            "id": 1011,
+            "category": 1,
+            "name": "Bad Dude"
+        },
+        {
+            "id": 2021,
+            "category": 2,
+            "name": "Dummy Corp 1"
+        },
+        {
+            "id": 2022,
+            "category": 2,
+            "name": "Dummy Corp 2"
+        }
+    ],
+   
+    "Structure":
+    [
+        {
+            "id": 1000000000001,            
+            "name": "Test Structure Alpha",
+            "eve_type_id": 35832,
+            "eve_solar_system_id": 30002537,            
+            "reinforce_hour": 12,
+            "state": 11,
+            "owner_corporation_id": 2001
+        },
+        {
+            "id": 1000000000002,  
+            "name": "Test Structure Bravo",
+            "eve_type_id": 35835,
+            "eve_solar_system_id": 30002537,            
+            "reinforce_hour": 12,
+            "state": 11,
+            "owner_corporation_id": 2002
+        },
+        {
+            "id": 1000000000003,  
+            "name": "Test Structure Charlie",
+            "eve_type_id": 35832,
+            "eve_solar_system_id": 30002537,            
+            "reinforce_hour": 12,
+            "state": 11,
+            "owner_corporation_id": 2102
+        }
+    ]
+}

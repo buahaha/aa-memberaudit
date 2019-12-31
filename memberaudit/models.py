@@ -52,6 +52,7 @@ class EveEntity(models.Model):
 
 
 class Owner(models.Model):
+    """Character who owns mails or wallet or ... """
     character = models.OneToOneField(
         CharacterOwnership,
         related_name='memberaudit_owner',
@@ -80,6 +81,7 @@ class Owner(models.Model):
 
 
 class MailingList(models.Model):
+    """Mailing list of a character"""
     owner = models.ForeignKey(
         Owner,
         on_delete=models.CASCADE,
@@ -100,6 +102,7 @@ class MailingList(models.Model):
 
 
 class Mail(models.Model):
+    """Mail of a character"""
     owner = models.ForeignKey(
         Owner,
         on_delete=models.CASCADE,
@@ -155,6 +158,7 @@ class Mail(models.Model):
 
 
 class MailLabels(models.Model):    
+    """Mail label used in a mail"""
     mail = models.ForeignKey(
         Mail,
         on_delete=models.CASCADE
@@ -169,12 +173,13 @@ class MailLabels(models.Model):
 
     def __str__(self):
         return '{}-{}'.format(
-            self.mail.mail_id,
+            self.mail,
             self.label_id
         )
 
 
-class MailRecipient(models.Model):    
+class MailRecipient(models.Model):   
+    """Mail recipient used in a mail""" 
     mail = models.ForeignKey(
         Mail,
         on_delete=models.CASCADE
@@ -189,6 +194,6 @@ class MailRecipient(models.Model):
 
     def __str__(self):        
         return '{}-{}'.format(
-            self.mail.mail_id,
+            self.mail,
             self.recipient
         )

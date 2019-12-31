@@ -1,0 +1,13 @@
+{
+    "get_characters_character_id_mail_lists":
+    [
+        {
+            "mailing_list_id": 1,
+            "name": "Dummy 1"
+        },
+        {
+            "mailing_list_id": 2,
+            "name": "Dummy 2"
+        }
+    ]
+}

@@ -63,9 +63,10 @@ def _get_token_for_owner(owner: Owner, add_prefix: make_logger_prefix) -> list:
 
 def sync_mailinglists(
     owner: Owner, 
-    esi_client: object, 
-    add_prefix: make_logger_prefix
+    esi_client: object
 ):    
+    add_prefix = make_logger_prefix(owner)
+
     mailing_lists = \
         esi_client.Mail.get_characters_character_id_mail_lists(
             character_id=owner.character.character.character_id
@@ -226,7 +227,7 @@ def sync_mails(
                     mail_obj.body = mail['body']
                     mail_obj.save()
                     body_count += 1
-        
+
         except Exception as ex:    
             logger.exception(add_prefix(
                 'Unexpected error ocurred while processing mail {}'.\
