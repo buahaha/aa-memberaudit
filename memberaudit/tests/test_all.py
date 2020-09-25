@@ -3,21 +3,19 @@ import inspect
 import json
 import logging
 import sys
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 from django.test import TestCase
-from django.contrib.auth.models import User, Permission
+from django.contrib.auth.models import User
 
 from allianceauth.eveonline.models import (
     EveCharacter,
     EveCorporationInfo,
-    EveAllianceInfo,
 )
 from allianceauth.authentication.models import CharacterOwnership
-from bravado.client import SwaggerClient
 
-from .models import Owner
-from . import tasks
+from ..models import Owner
+from .. import tasks
 
 
 # reconfigure logger so we get logging from tasks to console during test

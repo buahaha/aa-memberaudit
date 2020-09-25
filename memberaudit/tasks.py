@@ -9,11 +9,11 @@ from django.conf import settings
 from django.core.serializers.json import DjangoJSONEncoder
 
 from esi.clients import esi_client_factory
-from esi.errors import TokenExpiredError, TokenInvalidError, TokenError
+from esi.errors import TokenExpiredError, TokenInvalidError
 from esi.models import Token
 
 from .app_settings import MEMBERAUDIT_MAX_MAILS
-from .models import *
+from .models import Owner, MailingList, EveEntity, MailRecipient, Mail, MailLabels
 from .utils import LoggerAddTag, make_logger_prefix, get_swagger_spec_path
 
 
@@ -87,7 +87,9 @@ def sync_mailinglists(owner: Owner, esi_client: object):
         logger.info(add_prefix("Added/Updated {} mailing lists".format(created_count)))
 
 
-def sync_mails(owner: Owner, esi_client: object, add_prefix: make_logger_prefix):
+def sync_mails(owner: Owner, esi_client: object):
+    add_prefix = make_logger_prefix(owner)
+
     # fetch mail headers
     last_mail_id = None
     mail_headers_all = list()
@@ -203,7 +205,7 @@ def sync_mails(owner: Owner, esi_client: object, add_prefix: make_logger_prefix)
         except Exception as ex:
             logger.exception(
                 add_prefix(
-                    "Unexpected error ocurred while processing mail {}".format(
+                    "Unexpected error ocurred while processing mail {}: {}".format(
                         header["mail_id"], ex
                     )
                 )
@@ -240,8 +242,8 @@ def sync_owner(owner_pk, force_sync: bool = False):
             esi_client = esi_client_factory(
                 token=token, spec_file=get_swagger_spec_path()
             )
-            sync_mailinglists(owner, esi_client, add_prefix)
-            sync_mails(owner, esi_client, add_prefix)
+            sync_mailinglists(owner, esi_client)
+            sync_mails(owner, esi_client)
 
         except Exception as ex:
             error = "Unexpected error ocurred {}".format(ex)
@@ -250,11 +252,9 @@ def sync_owner(owner_pk, force_sync: bool = False):
             owner.save()
             raise ex
 
-    except Exception as ex:
+    except Exception:
         success = False
-        error_code = str(ex)
     else:
         success = True
-        error_code = None
 
     return success

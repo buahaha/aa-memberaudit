@@ -1,6 +1,6 @@
 from django.db import transaction
 from django.db.models import Count, Q
-from django.http import HttpResponse, Http404, JsonResponse
+from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required, permission_required
 
@@ -8,7 +8,7 @@ from allianceauth.authentication.models import CharacterOwnership, User
 from allianceauth.eveonline.models import EveCharacter
 from esi.decorators import token_required
 
-from .models import *
+from .models import Owner
 from .utils import messages_plus
 from . import tasks, __title__
 
@@ -62,7 +62,6 @@ def registration(request):
 def add_owner(request, token):
     token_char = EveCharacter.objects.get(character_id=token.character_id)
 
-    success = True
     try:
         owned_char = CharacterOwnership.objects.get(
             user=request.user, character=token_char
@@ -75,15 +74,14 @@ def add_owner(request, token):
                 token_char.character_name
             ),
         )
-        success = False
+    else:
+        with transaction.atomic():
+            owner, _ = Owner.objects.update_or_create(character=owned_char)
 
-    with transaction.atomic():
-        owner, created = Owner.objects.update_or_create(character=owned_char)
-
-    tasks.sync_owner.delay(owner_pk=owner.pk, force_sync=True)
-    messages_plus.success(
-        request, "<strong>{}</strong> has been registered ".format(owner)
-    )
+        tasks.sync_owner.delay(owner_pk=owner.pk, force_sync=True)
+        messages_plus.success(
+            request, "<strong>{}</strong> has been registered ".format(owner)
+        )
 
     return redirect("memberaudit:index")
 

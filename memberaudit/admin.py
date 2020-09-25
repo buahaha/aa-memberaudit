@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import *
+from .models import Owner, Mail, MailLabels, MailRecipient, EveEntity, MailingList
 from .tasks import sync_owner
 
 
