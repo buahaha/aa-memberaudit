@@ -3,19 +3,7 @@
 {% load humanize %}
 
 {% block details %}
-
-    <div class="panel panel-primary">
-        <div class="panel-heading" style="display:flex;">
-            <h3 class="panel-title">{% trans 'Your status' %}</h3>
-        </div>
-        <div class="panel-body">
-        {% if unregistered_chars == 0 %}
-            <p class="text-success">All characters registered</p>
-        {% else %}
-            <p class="text-danger">You have {{ unregistered_chars }} unregistered characters.</p>
-        {% endif %}
-        </div>
-    </div>
+    
     <div class="panel panel-primary">
         <div class="panel-heading" style="display:flex;">
             <h3 class="panel-title">{% trans 'Your characters' %}</h3>

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Owner, Mail, MailLabels, MailRecipient, EveEntity, MailingList
+from .models import Owner, Mail, MailLabels, MailRecipient, MailingList
 from .tasks import sync_owner
 
 
@@ -40,11 +40,6 @@ class MailLabelsAdmin(admin.ModelAdmin):
 
 @admin.register(MailRecipient)
 class MailRecipientAdmin(admin.ModelAdmin):
-    pass
-
-
-@admin.register(EveEntity)
-class EveEntityAdmin(admin.ModelAdmin):
     pass
 
 

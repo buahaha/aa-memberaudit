@@ -1,8 +1,9 @@
+from django.contrib.auth.decorators import login_required, permission_required
 from django.db import transaction
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required, permission_required
+from django.utils.html import format_html
 
 from allianceauth.authentication.models import CharacterOwnership, User
 from allianceauth.eveonline.models import EveCharacter
@@ -16,12 +17,12 @@ from . import tasks, __title__
 @login_required
 @permission_required("memberaudit.basic_access")
 def index(request):
-    return redirect("memberaudit:registration")
+    return redirect("memberaudit:launcher")
 
 
 @login_required
 @permission_required("memberaudit.basic_access")
-def registration(request):
+def launcher(request):
 
     owned_chars_query = CharacterOwnership.objects.filter(user=request.user).order_by(
         "character__character_name"
@@ -53,7 +54,7 @@ def registration(request):
         "unregistered_chars": unregistered_chars,
     }
 
-    return render(request, "memberaudit/register.html", context)
+    return render(request, "memberaudit/launcher.html", context)
 
 
 @login_required
@@ -69,9 +70,10 @@ def add_owner(request, token):
     except CharacterOwnership.DoesNotExist:
         messages_plus.error(
             request,
-            "You can register your main or alt characters."
-            + "However, character <strong>{}</strong> is neither. ".format(
-                token_char.character_name
+            format_html(
+                "You can register your main or alt characters."
+                "However, character <strong>{}</strong> is neither. ",
+                token_char.character_name,
             ),
         )
     else:
@@ -80,7 +82,7 @@ def add_owner(request, token):
 
         tasks.sync_owner.delay(owner_pk=owner.pk, force_sync=True)
         messages_plus.success(
-            request, "<strong>{}</strong> has been registered ".format(owner)
+            request, format_html("<strong>{}</strong> has been registered ", owner)
         )
 
     return redirect("memberaudit:index")
