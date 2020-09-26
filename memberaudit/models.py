@@ -2,6 +2,7 @@ import json
 from typing import Optional
 
 from django.core.serializers.json import DjangoJSONEncoder
+from django.core.validators import MinValueValidator
 from django.conf import settings
 from django.db import models, transaction
 from django.utils.html import strip_tags
@@ -19,6 +20,7 @@ from eveuniverse.models import (
     EveRace,
     EveSolarSystem,
     EveStation,
+    EveType,
 )
 from eveuniverse.providers import esi
 
@@ -211,6 +213,40 @@ class Owner(models.Model):
                     "start_date": row.get("start_date"),
                 },
             )
+
+    def sync_skills(self):
+        """syncs the character's skill"""
+        add_prefix = make_logger_prefix(self)
+        logger.info(add_prefix("Fetching skills from ESI"))
+        token = self.token()
+        if not token:
+            return
+
+        skills = esi.client.Skills.get_characters_character_id_skills(
+            character_id=self.character_ownership.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+        owner_skills, _ = OwnerSkills.objects.update_or_create(
+            owner=self,
+            defaults={
+                "total_sp": skills.get("total_sp"),
+                "unallocated_sp": skills.get("unallocated_sp"),
+            },
+        )
+
+        with transaction.atomic():
+            Skill.objects.filter(owner_skills=owner_skills).delete()
+            for skill in skills.get("skills"):
+                eve_type, _ = EveType.objects.get_or_create_esi(
+                    id=skill.get("skill_id")
+                )
+                Skill.objects.create(
+                    owner_skills=owner_skills,
+                    eve_type=eve_type,
+                    active_skill_level=skill.get("active_skill_level"),
+                    skillpoints_in_skill=skill.get("skillpoints_in_skill"),
+                    trained_skill_level=skill.get("trained_skill_level"),
+                )
 
     def sync_mailinglists(self):
         """syncs the mailing list for the given owner"""
@@ -411,7 +447,11 @@ class Owner(models.Model):
 
     @classmethod
     def get_esi_scopes(cls) -> list:
-        return ["esi-mail.read_mail.v1", "esi-location.read_location.v1"]
+        return [
+            "esi-mail.read_mail.v1",
+            "esi-location.read_location.v1",
+            "esi-skills.read_skills.v1",
+        ]
 
 
 class CharacterDetail(models.Model):
@@ -430,6 +470,8 @@ class CharacterDetail(models.Model):
         related_name="owner_characters_detail",
         help_text="character this mailling list belongs to",
     )
+
+    # character public info
     alliance = models.ForeignKey(
         EveEntity,
         on_delete=models.SET_DEFAULT,
@@ -468,15 +510,42 @@ class CharacterDetail(models.Model):
 
 
 class CorporationHistory(models.Model):
-
     owner = models.ForeignKey(Owner, on_delete=models.CASCADE)
     record_id = models.PositiveIntegerField(db_index=True)
     corporation = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
     is_deleted = models.BooleanField(null=True, default=None, blank=True, db_index=True)
     start_date = models.DateTimeField(db_index=True)
 
+    # TODO: Add combined PK
+
     def __str__(self):
         return str(f"{self.owner}-{self.record_id}")
+
+
+class OwnerSkills(models.Model):
+    owner = models.OneToOneField(
+        Owner, primary_key=True, on_delete=models.CASCADE, related_name="skills"
+    )
+    total_sp = models.BigIntegerField(validators=[MinValueValidator(0)])
+    unallocated_sp = models.PositiveIntegerField(default=None, null=True, blank=True)
+
+
+class Skill(models.Model):
+    owner_skills = models.ForeignKey(OwnerSkills, on_delete=models.CASCADE)
+    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
+    active_skill_level = models.PositiveIntegerField()
+    skillpoints_in_skill = models.BigIntegerField(validators=[MinValueValidator(0)])
+    trained_skill_level = models.PositiveIntegerField()
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner_skills", "skill"], name="functional_pk_skills"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.owner_skills}-{self.eve_type.name}"
 
 
 class MailingList(models.Model):

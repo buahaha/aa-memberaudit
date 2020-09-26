@@ -40,68 +40,71 @@
     <!--load JS for filterDropDown plugin -->
     <script type="text/javascript" src="{% static 'memberaudit/filterDropDown.min.js' %}">
     </script>
+    
+    <script>
+        $(document).ready(function() {
+            $('#tab_contracts').DataTable({            
+                ajax: {
+                    url: '{% url 'memberaudit:compliance_report_data' %}',
+                    dataSrc: '',
+                    cache: false
+                },
+
+                columns: [
+                    { data: 'portrait' },
+                    { data: 'name' },
+                    { data: 'main' },                
+                    { data: 'corporation' },
+                    { data: 'alliance' },
+                    { data: 'total_chars' },
+                    { data: 'unregistered_chars' },
+                    { data: 'compliance_str' }
+                ],
+
+                columnDefs: [														
+                    { "orderable": false, "targets": [ 0 ] },                
+                ],
+
+                order: [ [ 1, "asc" ] ],
+
+                filterDropDown: {										
+                    columns: [	                                                          
+                        {
+                            idx: 1
+                        },
+                        {
+                            idx: 2
+                        },
+                        {
+                            idx: 3
+                        },
+                        {
+                            idx: 4
+                        },
+                        {
+                            idx: 7
+                        }
+                    ],
+                    bootstrap: true
+                },
+                
+                createdRow: function( row, data, dataIndex ) 
+                {
+                    if (!data['is_compliant'])
+                    {
+                        $(row).addClass('danger');
+                    }                
+                }            
+            });       
+        });
+    </script>
 {% endblock %}
 
 {% block extra_css %}
-    {% include 'bundles/datatables-css.html' %}    
-
+    {% include 'bundles/datatables-css.html' %}
     <link href="{% static 'memberaudit/contracts.css' %}" type="text/css" rel="stylesheet">
 {% endblock %}
 
 {% block extra_script %}
-    $(document).ready(function(){
-        $('#tab_contracts').DataTable({            
-            ajax: {
-                url: '{% url 'memberaudit:compliance_report_data' %}',
-                dataSrc: '',
-                cache: false
-            },
-
-            columns: [
-                { data: 'portrait' },
-                { data: 'name' },
-                { data: 'main' },                
-                { data: 'corporation' },
-                { data: 'alliance' },
-                { data: 'total_chars' },
-                { data: 'unregistered_chars' },
-                { data: 'compliance_str' }
-            ],
-
-            columnDefs: [														
-                { "orderable": false, "targets": [ 0 ] },                
-            ],
-
-            order: [ [ 1, "asc" ] ],
-
-            filterDropDown: {										
-                columns: [	                                                          
-                    {
-                        idx: 1
-                    },
-                    {
-                        idx: 2
-                    },
-                    {
-                        idx: 3
-                    },
-                    {
-                        idx: 4
-                    },
-                    {
-                        idx: 7
-                    }
-                ],
-                bootstrap: true
-            },
-            
-            createdRow: function( row, data, dataIndex ) 
-            {
-                if (!data['is_compliant'])
-                {
-                    $(row).addClass('danger');
-                }                
-            }            
-        });       
-    });
+    
 {% endblock %}

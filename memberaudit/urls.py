@@ -19,6 +19,11 @@ urlpatterns = [
         views.character_location_data,
         name="character_location_data",
     ),
+    path(
+        "character_skills_data/<int:character_id>/",
+        views.character_skills_data,
+        name="character_skills_data",
+    ),
     path("compliance_report", views.compliance_report, name="compliance_report"),
     path(
         "compliance_report_data",

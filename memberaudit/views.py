@@ -143,7 +143,6 @@ def character_main(request):
         raise Http404()
 
     corporation_history = list()
-
     for entry in owner.corporationhistory_set.exclude(is_deleted=True).order_by(
         "start_date"
     ):
@@ -174,6 +173,31 @@ def character_main(request):
 
 @login_required
 @permission_required("memberaudit.basic_access")
+def character_skills_data(request, character_id: int):
+    try:
+        owner = Owner.objects.select_related(
+            "character_ownership",
+            "character_ownership__character",
+            "skills",
+        ).get(character_ownership__character__character_id=character_id)
+    except Owner.DoesNotExist:
+        raise Http404()
+
+    skills_data = list()
+    for skill in owner.skills.skill_set.all():
+        skills_data.append(
+            {
+                "group": skill.eve_type.eve_group.name,
+                "skill": skill.eve_type.name,
+                "level": skill.trained_skill_level,
+            }
+        )
+
+    return JsonResponse(skills_data, safe=False)
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
 def compliance_report(request):
     context = {
         "page_title": "Compliance Report",
@@ -188,7 +212,6 @@ def compliance_report(request):
 @login_required
 @permission_required("memberaudit.basic_access")
 def compliance_report_data(request):
-
     member_users = (
         User.objects.filter(profile__state__name="Member")
         .annotate(total_chars=Count("character_ownerships"))

@@ -47,10 +47,10 @@
                         <dd><div id="div_location">Loading...</div></dd>
                         <dt>Location</dt>
                         <dd>{{ character.corporation_name }}</dd>
-                        <dt>Ship</dt>
-                        <dd>{{ character.alliance_name }}</dd>
                         <dt>Race</dt>
-                        <dd>{{ character_details.eve_bloodline.eve_race }} / {{ character_details.eve_bloodline }}</dd>
+                        <dd>{{ character_details.eve_bloodline.eve_race }}</dd>
+                        <dt>Achestry</dt>
+                        <dd>{{ character_details.eve_bloodline }}</dd>
                     </dl>
                 </div>
 
@@ -64,10 +64,18 @@
             <div>
                 <!-- Nav tabs -->
                 <ul class="nav nav-tabs" role="tablist">
-                    <li role="presentation" class="active"><a href="#bio" aria-controls="bio" role="tab" data-toggle="tab">Bio</a></li>
-                    <li role="presentation"><a href="#history" aria-controls="history" role="tab" data-toggle="tab">Corporation History</a></li>
-                    <li role="presentation" class="disabled"><a href="#clones" aria-controls="clones" role="tab" data-toggle="tab">Clones</a></li>
-                    <li role="presentation" class="disabled"><a href="#skills" aria-controls="skills" role="tab" data-toggle="tab">Skills</a></li>
+                    <li role="presentation">
+                        <a href="#bio" aria-controls="bio" role="tab" data-toggle="tab">Bio</a>
+                    </li>
+                    <li role="presentation">
+                        <a href="#history" aria-controls="history" role="tab" data-toggle="tab">Corporation History</a>
+                    </li>
+                    <li role="presentation" class="disabled">
+                        <a href="#clones" aria-controls="clones" role="tab" data-toggle="tab">Clones</a>
+                    </li>
+                    <li role="presentation" class="active">
+                        <a href="#skills" aria-controls="skills" role="tab" data-toggle="tab">Skills</a>
+                    </li>
                     <li role="presentation" class="disabled"><a href="#skillqueue" aria-controls="skillqueue" role="tab" data-toggle="tab">Skillqueue</a></li>
                     <li role="presentation" class="disabled"><a href="#mail" aria-controls="mail" role="tab" data-toggle="tab">Mail</a></li>
                     <li role="presentation" class="disabled"><a href="#wallet" aria-controls="wallet" role="tab" data-toggle="tab">Wallet</a></li>
@@ -79,7 +87,7 @@
 
                 <!-- Tab panes -->
                 <div class="tab-content">
-                    <div role="tabpanel" class="tab-pane active" id="bio">{{ character_details.description_plain|default:"-" }}</div>
+                    <div role="tabpanel" class="tab-pane" id="bio">{{ character_details.description_plain|default:"-" }}</div>
                     <div role="tabpanel" class="tab-pane" id="history">                        
                         <dl class="dl-horizontal">
                             {% for entry in corporation_history %}                                                     
@@ -89,7 +97,21 @@
                         </dl>      
                     </div>
                     <div role="tabpanel" class="tab-pane" id="clones">TBD</div>
-                    <div role="tabpanel" class="tab-pane" id="skills">TBD</div>
+                    <div role="tabpanel" class="tab-pane active" id="skills">
+                         <div class="table-responsive">
+                            <table class="table" id="tab_skills">
+                                <thead>
+                                    <tr>                                        
+                                        <th>Group</th>
+                                        <th>Skill</th>                        
+                                        <th>Level</th>
+                                    </tr>
+                                </thead>
+                                <tbody>                   
+                                </tbody>                
+                            </table>
+                        </div>
+                    </div>
                     <div role="tabpanel" class="tab-pane" id="skillqueue">TBD</div>
                     <div role="tabpanel" class="tab-pane" id="mail">TBD</div>
                     <div role="tabpanel" class="tab-pane" id="wallet">TBD</div>
@@ -105,16 +127,41 @@
 {% endblock details %}
 
 {% block extra_javascript %}
-    <script>
+    {% include 'bundles/datatables-js.html' %}
+    <script type="application/javascript" src="https://cdn.datatables.net/rowgroup/1.0.2/js/dataTables.rowGroup.min.js"></script>
+    <script type="application/javascript">
         $(document).ready(function() {            
             $("#div_location").load (
-                "{% url 'memberaudit:character_location_data' %}?character_id=" + {{ character.character_id }});
-        
+                "{% url 'memberaudit:character_location_data' %}?character_id=" + {{ character.character_id }}
+            );
+
+            $('#tab_skills').DataTable({            
+                ajax: {
+                    url: '{% url 'memberaudit:character_skills_data' character.character_id %}',
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    { data: 'group' },
+                    { data: 'skill' },
+                    { data: 'level' },                    
+                ],
+                order: [ [0, "asc"], [1, "asc"] ],
+                rowGroup: {
+                    dataSrc: 'group'
+                },
+                columnDefs: [							
+                    { "visible": false, "targets": [ 0 ] }
+                ],	
+            });
+
         });
     </script>
 {% endblock extra_javascript %}
 
 {% block extra_css %}
+    {% include 'bundles/datatables-css.html' %}
+    <link href="https://cdn.datatables.net/rowgroup/1.0.2/css/rowGroup.bootstrap.min.css" type="text/css">
     <link href="{% static 'memberaudit/character_main.css' %}" type="text/css">
 {% endblock extra_css %}
 
