@@ -1,6 +1,7 @@
 import json
 from typing import Optional
 
+from django.contrib.auth.models import User
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinValueValidator
 from django.conf import settings
@@ -37,6 +38,8 @@ from .utils import LoggerAddTag, make_logger_prefix
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
+CURRENCY_MAX_DIGITS = 17
+
 
 class Memberaudit(models.Model):
     """Meta model for app permissions"""
@@ -70,6 +73,13 @@ class Owner(models.Model):
 
     def __str__(self):
         return str(self.character_ownership)
+
+    def user_can_access(self, user: User) -> bool:
+        """Return True if given user has permission to view this owner"""
+        if self.character_ownership.user == user:
+            return True
+
+        return False
 
     def notify_user_about_last_sync(self) -> None:
         """Notify user about the last character sync"""
@@ -247,6 +257,67 @@ class Owner(models.Model):
                     skillpoints_in_skill=skill.get("skillpoints_in_skill"),
                     trained_skill_level=skill.get("trained_skill_level"),
                 )
+
+    def sync_wallet_balance(self):
+        """syncs the character's wallet balance"""
+        add_prefix = make_logger_prefix(self)
+        logger.info(add_prefix("Fetching corporation history from ESI"))
+        token = self.token()
+        if not token:
+            return
+
+        balance = esi.client.Wallet.get_characters_character_id_wallet(
+            character_id=self.character_ownership.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+        WalletBalance.objects.update_or_create(owner=self, defaults={"amount": balance})
+
+    def sync_wallet_journal(self):
+        """syncs the character's wallet journal"""
+        add_prefix = make_logger_prefix(self)
+        logger.info(add_prefix("Fetching wallet journal from ESI"))
+        token = self.token()
+        if not token:
+            return
+
+        journal = esi.client.Wallet.get_characters_character_id_wallet_journal(
+            character_id=self.character_ownership.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+        for row in journal:
+            if row.get("first_party_id"):
+                first_party, _ = EveEntity.objects.get_or_create_esi(
+                    id=row.get("first_party_id")
+                )
+            else:
+                first_party = None
+
+            if row.get("second_party_id"):
+                second_party, _ = EveEntity.objects.get_or_create_esi(
+                    id=row.get("second_party_id")
+                )
+            else:
+                second_party = None
+
+            WalletJournalEntry.objects.update_or_create(
+                owner=self,
+                entry_id=row.get("id"),
+                defaults={
+                    "amount": row.get("amount"),
+                    "balance": row.get("balance"),
+                    "context_id": row.get("context_id"),
+                    "context_id_type": WalletJournalEntry.match_context_type_id(
+                        row.get("context_id_type")
+                    ),
+                    "date": row.get("date"),
+                    "description": row.get("description"),
+                    "first_party": first_party,
+                    "ref_type": row.get("ref_type"),
+                    "second_party": second_party,
+                    "tax": row.get("tax"),
+                    "tax_receiver": row.get("tax_receiver"),
+                },
+            )
 
     def sync_mailinglists(self):
         """syncs the mailing list for the given owner"""
@@ -451,6 +522,7 @@ class Owner(models.Model):
             "esi-mail.read_mail.v1",
             "esi-location.read_location.v1",
             "esi-skills.read_skills.v1",
+            "esi-wallet.read_character_wallet.v1",
         ]
 
 
@@ -546,6 +618,117 @@ class Skill(models.Model):
 
     def __str__(self):
         return f"{self.owner_skills}-{self.eve_type.name}"
+
+
+class WalletBalance(models.Model):
+    owner = models.OneToOneField(Owner, primary_key=True, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=CURRENCY_MAX_DIGITS, decimal_places=2)
+
+    def __str__(self):
+        return f"{self.owner}-{self.amount}"
+
+
+class WalletJournalEntry(models.Model):
+    CONTEXT_ID_TYPE_UNDEFINED = "NON"
+    CONTEXT_ID_TYPE_STRUCTURE_ID = "STR"
+    CONTEXT_ID_TYPE_STATION_ID = "STA"
+    CONTEXT_ID_TYPE_MARKET_TRANSACTION_ID = "MTR"
+    CONTEXT_ID_TYPE_CHARACTER_ID = "CHR"
+    CONTEXT_ID_TYPE_CORPORATION_ID = "COR"
+    CONTEXT_ID_TYPE_ALLIANCE_ID = "ALL"
+    CONTEXT_ID_TYPE_EVE_SYSTEM = "EVE"
+    CONTEXT_ID_TYPE_INDUSTRY_JOB_ID = "INJ"
+    CONTEXT_ID_TYPE_CONTRACT_ID = "CNT"
+    CONTEXT_ID_TYPE_PLANET_ID = "PLN"
+    CONTEXT_ID_TYPE_SYSTEM_ID = "SYS"
+    CONTEXT_ID_TYPE_TYPE_ID = "TYP"
+    CONTEXT_ID_CHOICES = (
+        (CONTEXT_ID_TYPE_UNDEFINED, "undefined"),
+        (CONTEXT_ID_TYPE_STATION_ID, "station_id"),
+        (CONTEXT_ID_TYPE_MARKET_TRANSACTION_ID, "market_transaction_id"),
+        (CONTEXT_ID_TYPE_CHARACTER_ID, "character_id"),
+        (CONTEXT_ID_TYPE_CORPORATION_ID, "corporation_id"),
+        (CONTEXT_ID_TYPE_ALLIANCE_ID, "alliance_id"),
+        (CONTEXT_ID_TYPE_EVE_SYSTEM, "eve_system"),
+        (CONTEXT_ID_TYPE_INDUSTRY_JOB_ID, "industry_job_id"),
+        (CONTEXT_ID_TYPE_CONTRACT_ID, "contract_id"),
+        (CONTEXT_ID_TYPE_PLANET_ID, "planet_id"),
+        (CONTEXT_ID_TYPE_SYSTEM_ID, "system_id"),
+        (CONTEXT_ID_TYPE_TYPE_ID, "type_id "),
+    )
+
+    owner = models.ForeignKey(Owner, on_delete=models.CASCADE)
+    entry_id = models.BigIntegerField(validators=[MinValueValidator(0)])
+    amount = models.DecimalField(
+        max_digits=CURRENCY_MAX_DIGITS,
+        decimal_places=2,
+        default=None,
+        null=True,
+        blank=True,
+    )
+    balance = models.DecimalField(
+        max_digits=CURRENCY_MAX_DIGITS,
+        decimal_places=2,
+        default=None,
+        null=True,
+        blank=True,
+    )
+    context_id = models.BigIntegerField(default=None, null=True, blank=True)
+    context_id_type = models.CharField(max_length=3, choices=CONTEXT_ID_CHOICES)
+    date = models.DateTimeField()
+    description = models.TextField()
+    first_party = models.ForeignKey(
+        EveEntity,
+        on_delete=models.SET_DEFAULT,
+        default=None,
+        null=True,
+        blank=True,
+        related_name="wallet_journal_entry_first_party_set",
+    )
+    reason = models.TextField(default="", blank=True)
+    ref_type = models.CharField(max_length=32)
+    second_party = models.ForeignKey(
+        EveEntity,
+        on_delete=models.SET_DEFAULT,
+        default=None,
+        null=True,
+        blank=True,
+        related_name="wallet_journal_entry_second_party_set",
+    )
+    tax = models.DecimalField(
+        max_digits=CURRENCY_MAX_DIGITS,
+        decimal_places=2,
+        default=None,
+        null=True,
+        blank=True,
+    )
+    tax_receiver = models.ForeignKey(
+        EveEntity,
+        on_delete=models.SET_DEFAULT,
+        default=None,
+        null=True,
+        blank=True,
+        related_name="wallet_journal_entry_tax_receiver_set",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["owner", "entry_id"], name="functional_pk_walletjournalentry"
+            )
+        ]
+
+    def __str__(self):
+        return str(self.owner) + " " + str(self.entry_id)
+
+    @classmethod
+    def match_context_type_id(cls, query: str) -> str:
+        if query is not None:
+            for id_type, id_type_value in cls.CONTEXT_ID_CHOICES:
+                if id_type_value == query:
+                    return id_type
+
+        return cls.CONTEXT_ID_TYPE_UNDEFINED
 
 
 class MailingList(models.Model):

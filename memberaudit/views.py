@@ -1,7 +1,8 @@
+from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import transaction
 from django.db.models import Count, Q
-from django.http import JsonResponse, HttpResponse, Http404
+from django.http import JsonResponse, HttpResponse, Http404, HttpResponseForbidden
 from django.shortcuts import render, redirect
 from django.utils.html import format_html
 from django.utils.timezone import now
@@ -17,7 +18,7 @@ from allianceauth.services.hooks import get_extension_logger
 
 from . import tasks, __title__
 from .models import Owner
-from .utils import messages_plus, LoggerAddTag, create_link_html
+from .utils import messages_plus, LoggerAddTag, create_link_html, DATETIME_FORMAT
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -59,6 +60,7 @@ def launcher(request):
         if not is_registered:
             unregistered_chars += 1
 
+        owner_pk = character_ownership.memberaudit_owner.pk if is_registered else 0
         characters.append(
             {
                 "portrait_url": character_ownership.character.portrait_url,
@@ -66,6 +68,7 @@ def launcher(request):
                 "is_registered": is_registered,
                 "pk": character_ownership.character.pk,
                 "character_id": character_ownership.character.character_id,
+                "owner_pk": owner_pk,
             }
         )
 
@@ -123,24 +126,32 @@ def add_owner(request, token):
 
 @login_required
 @permission_required("memberaudit.basic_access")
-def activate_character(request, character_id: int):
-    request.session["character_id"] = int(character_id)
+def activate_character(request, owner_pk: int):
+    request.session["owner_pk"] = int(owner_pk)
     return redirect("memberaudit:character_main")
 
 
 @login_required
 @permission_required("memberaudit.basic_access")
 def character_main(request):
-    character_id = request.session.get("character_id")
+    owner_pk = request.session.get("owner_pk")
     try:
         owner = Owner.objects.select_related(
             "character_ownership",
             "character_ownership__character",
             "owner_characters_detail",
             # "corporationhistory_set"
-        ).get(character_ownership__character__character_id=character_id)
+        ).get(pk=owner_pk)
     except Owner.DoesNotExist:
         raise Http404()
+
+    if not owner.user_can_access(request.user):
+        return HttpResponseForbidden()
+
+    try:
+        wallet_balance = owner.walletbalance.amount
+    except ObjectDoesNotExist:
+        wallet_balance = "(no data)"
 
     corporation_history = list()
     for entry in owner.corporationhistory_set.exclude(is_deleted=True).order_by(
@@ -162,8 +173,10 @@ def character_main(request):
 
     context = {
         "page_title": "Character",
+        "owner_pk": owner.pk,
         "character": owner.character_ownership.character,
         "character_details": owner.owner_characters_detail,
+        "wallet_balance": wallet_balance,
         "corporation_history": reversed(corporation_history),
     }
     return render(
@@ -173,27 +186,62 @@ def character_main(request):
 
 @login_required
 @permission_required("memberaudit.basic_access")
-def character_skills_data(request, character_id: int):
+def character_skills_data(request, owner_pk: int):
     try:
-        owner = Owner.objects.select_related(
-            "character_ownership",
-            "character_ownership__character",
-            "skills",
-        ).get(character_ownership__character__character_id=character_id)
+        owner = Owner.objects.select_related("skills").get(pk=owner_pk)
     except Owner.DoesNotExist:
         raise Http404()
 
+    if not owner.user_can_access(request.user):
+        return HttpResponseForbidden()
+
     skills_data = list()
-    for skill in owner.skills.skill_set.all():
-        skills_data.append(
-            {
-                "group": skill.eve_type.eve_group.name,
-                "skill": skill.eve_type.name,
-                "level": skill.trained_skill_level,
-            }
-        )
+    try:
+        for skill in owner.skills.skill_set.all():
+            skills_data.append(
+                {
+                    "group": skill.eve_type.eve_group.name,
+                    "skill": skill.eve_type.name,
+                    "level": skill.trained_skill_level,
+                }
+            )
+    except ObjectDoesNotExist:
+        pass
 
     return JsonResponse(skills_data, safe=False)
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+def character_wallet_journal_data(request, owner_pk: int):
+    try:
+        owner = Owner.objects.select_related("skills").get(pk=owner_pk)
+    except Owner.DoesNotExist:
+        raise Http404()
+
+    if not owner.user_can_access(request.user):
+        return HttpResponseForbidden()
+
+    wallet_data = list()
+    try:
+        for row in owner.walletjournalentry_set.all():
+            first_party = row.first_party.name if row.first_party else "-"
+            second_party = row.second_party.name if row.second_party else "-"
+            wallet_data.append(
+                {
+                    "date": row.date.strftime(DATETIME_FORMAT),
+                    "ref_type": row.ref_type.replace("_", " ").title(),
+                    "first_party": first_party,
+                    "second_party": second_party,
+                    "amount": row.amount,
+                    "balance": row.balance,
+                    "description": row.description,
+                }
+            )
+    except ObjectDoesNotExist:
+        pass
+
+    return JsonResponse(wallet_data, safe=False)
 
 
 @login_required
@@ -253,28 +301,29 @@ def compliance_report_data(request):
 @login_required
 @permission_required("memberaudit.basic_access")
 def character_location_data(request) -> HttpResponse:
-    character_id = request.GET.get("character_id")
+    owner_pk = request.GET.get("owner_pk")
     try:
-        owner = Owner.objects.select_related("character_ownership").get(
-            character_ownership__character__character_id=character_id
-        )
+        owner = Owner.objects.select_related("character_ownership").get(pk=owner_pk)
     except Owner.DoesNotExist:
         html = '<p class="text-danger">Character not registered</p>'
     else:
-        try:
-            solar_system, _ = owner.fetch_location()
-        except HTTPError:
-            logger.warning("Network error", exc_info=True)
-            html = '<p class="text-danger">Network error</p>'
-        except Exception:
-            logger.warning("Unexpected error", exc_info=True)
-            html = '<p class="text-danger">Unexpected error</p>'
+        if not owner.user_can_access(request.user):
+            html = '<p class="text-danger">Permission denied</p>'
         else:
-            html = format_html(
-                "{} {} / {}",
-                solar_system.name,
-                round(solar_system.security_status, 1),
-                solar_system.eve_constellation.eve_region.name,
-            )
+            try:
+                solar_system, _ = owner.fetch_location()
+            except HTTPError:
+                logger.warning("Network error", exc_info=True)
+                html = '<p class="text-danger">Network error</p>'
+            except Exception:
+                logger.warning("Unexpected error", exc_info=True)
+                html = '<p class="text-danger">Unexpected error</p>'
+            else:
+                html = format_html(
+                    "{} {} / {}",
+                    solar_system.name,
+                    round(solar_system.security_status, 1),
+                    solar_system.eve_constellation.eve_region.name,
+                )
 
     return HttpResponse(html)

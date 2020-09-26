@@ -27,8 +27,10 @@ def sync_owner(owner_pk, force_sync: bool = False) -> None:
             owner.sync_character_details()
             owner.sync_corporation_history()
             owner.sync_skills()
-            owner.sync_mailinglists()
-            owner.sync_mails()
+            owner.sync_wallet_balance()
+            owner.sync_wallet_journal()
+            # owner.sync_mailinglists()
+            # owner.sync_mails()
             owner.last_sync = now()
             owner.last_error = ""
             owner.save()

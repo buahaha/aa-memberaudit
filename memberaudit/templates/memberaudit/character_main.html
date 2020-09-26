@@ -35,7 +35,7 @@
                         <dt>Skillpoints</dt>
                         <dd>{{ character.corporation_name }}</dd>
                         <dt>Wallet</dt>
-                        <dd>{{ character.alliance_name }}</dd>
+                        <dd>{{ wallet_balance|intcomma }}</dd>
                         <dt>Sec. Status</dt>
                         <dd>{{ character_details.security_status|floatformat|default:"-" }}</dd>
                     </dl>
@@ -73,12 +73,18 @@
                     <li role="presentation" class="disabled">
                         <a href="#clones" aria-controls="clones" role="tab" data-toggle="tab">Clones</a>
                     </li>
-                    <li role="presentation" class="active">
+                    <li role="presentation">
                         <a href="#skills" aria-controls="skills" role="tab" data-toggle="tab">Skills</a>
                     </li>
-                    <li role="presentation" class="disabled"><a href="#skillqueue" aria-controls="skillqueue" role="tab" data-toggle="tab">Skillqueue</a></li>
-                    <li role="presentation" class="disabled"><a href="#mail" aria-controls="mail" role="tab" data-toggle="tab">Mail</a></li>
-                    <li role="presentation" class="disabled"><a href="#wallet" aria-controls="wallet" role="tab" data-toggle="tab">Wallet</a></li>
+                    <li role="presentation" class="disabled">
+                        <a href="#skillqueue" aria-controls="skillqueue" role="tab" data-toggle="tab">Skillqueue</a>
+                    </li>
+                    <li role="presentation" class="disabled">
+                        <a href="#mail" aria-controls="mail" role="tab" data-toggle="tab">Mail</a>
+                    </li>
+                    <li role="presentation" class="active">
+                        <a href="#wallet" aria-controls="wallet" role="tab" data-toggle="tab">Wallet</a>
+                    </li>
                     <li role="presentation" class="disabled"><a href="#contracts" aria-controls="contracts" role="tab" data-toggle="tab">Contracts</a></li>
                     <li role="presentation" class="disabled"><a href="#contacts" aria-controls="contacts" role="tab" data-toggle="tab">Contacts</a></li>
                     <li role="presentation" class="disabled"><a href="#assets" aria-controls="assets" role="tab" data-toggle="tab">Assets</a></li>
@@ -87,8 +93,12 @@
 
                 <!-- Tab panes -->
                 <div class="tab-content">
-                    <div role="tabpanel" class="tab-pane" id="bio">{{ character_details.description_plain|default:"-" }}</div>
-                    <div role="tabpanel" class="tab-pane" id="history">                        
+                    
+                    <div role="tabpanel" class="tab-pane" id="bio">
+                        {{ character_details.description_plain|default:"-" }}
+                    </div>
+
+                    <div role="tabpanel" class="tab-pane" id="history">
                         <dl class="dl-horizontal">
                             {% for entry in corporation_history %}                                                     
                                 <dt>{{ entry.corporation_html }}</dt>  
@@ -96,10 +106,12 @@
                             {% endfor %}              
                         </dl>      
                     </div>
+
                     <div role="tabpanel" class="tab-pane" id="clones">TBD</div>
-                    <div role="tabpanel" class="tab-pane active" id="skills">
+                    
+                    <div role="tabpanel" class="tab-pane" id="skills">
                          <div class="table-responsive">
-                            <table class="table" id="tab_skills">
+                            <table class="table" id="tab_skills" style="width:100%;">
                                 <thead>
                                     <tr>                                        
                                         <th>Group</th>
@@ -112,9 +124,28 @@
                             </table>
                         </div>
                     </div>
+
                     <div role="tabpanel" class="tab-pane" id="skillqueue">TBD</div>
                     <div role="tabpanel" class="tab-pane" id="mail">TBD</div>
-                    <div role="tabpanel" class="tab-pane" id="wallet">TBD</div>
+                    <div role="tabpanel" class="tab-pane active" id="wallet">
+                        <div class="table-responsive">
+                            <table class="table" id="tab_wallet" style="width:100%;">
+                                <thead>
+                                    <tr> 
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>First party</th>
+                                        <th>Second party</th>
+                                        <th>Amount</th>
+                                        <th>Balance</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>                   
+                                </tbody>                
+                            </table>
+                        </div>
+                    </div>
                     <div role="tabpanel" class="tab-pane" id="contracts">TBD</div>
                     <div role="tabpanel" class="tab-pane" id="contacts">TBD</div>
                     <div role="tabpanel" class="tab-pane" id="assets">TBD</div>
@@ -132,12 +163,12 @@
     <script type="application/javascript">
         $(document).ready(function() {            
             $("#div_location").load (
-                "{% url 'memberaudit:character_location_data' %}?character_id=" + {{ character.character_id }}
+                "{% url 'memberaudit:character_location_data' %}?owner_pk=" + {{ owner_pk }}
             );
 
             $('#tab_skills').DataTable({            
                 ajax: {
-                    url: '{% url 'memberaudit:character_skills_data' character.character_id %}',
+                    url: '{% url 'memberaudit:character_skills_data' owner_pk %}',
                     dataSrc: '',
                     cache: false
                 },
@@ -154,7 +185,24 @@
                     { "visible": false, "targets": [ 0 ] }
                 ],	
             });
-
+            
+            $('#tab_wallet').DataTable({            
+                ajax: {
+                    url: '{% url 'memberaudit:character_wallet_journal_data' owner_pk %}',
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    { data: 'date' },
+                    { data: 'ref_type' },
+                    { data: 'first_party' },
+                    { data: 'second_party' },
+                    { data: 'amount' },
+                    { data: 'balance' },
+                    { data: 'description' },
+                ],
+                order: [ [0, "desc"] ],                
+            });
         });
     </script>
 {% endblock extra_javascript %}

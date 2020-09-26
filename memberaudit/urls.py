@@ -9,7 +9,7 @@ urlpatterns = [
     path("launcher", views.launcher, name="launcher"),
     path("character_main", views.character_main, name="character_main"),
     path(
-        "activate_character/<int:character_id>/",
+        "activate_character/<int:owner_pk>/",
         views.activate_character,
         name="activate_character",
     ),
@@ -20,9 +20,14 @@ urlpatterns = [
         name="character_location_data",
     ),
     path(
-        "character_skills_data/<int:character_id>/",
+        "character_skills_data/<int:owner_pk>/",
         views.character_skills_data,
         name="character_skills_data",
+    ),
+    path(
+        "character_wallet_journal_data/<int:owner_pk>/",
+        views.character_wallet_journal_data,
+        name="character_wallet_journal_data",
     ),
     path("compliance_report", views.compliance_report, name="compliance_report"),
     path(
