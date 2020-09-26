@@ -1,10 +1,10 @@
 {% extends 'memberaudit/base.html' %}
 {% load i18n %}
-{% load humanize %}
+{% load static %}
 
 {% block details %}
     
-    <div class="panel panel-primary">
+    <div class="panel panel-default">
         <div class="panel-heading" style="display:flex;">
             <h3 class="panel-title">{% trans 'Your characters' %}</h3>
         </div>
@@ -15,6 +15,8 @@
                         <tr>
                             <th></th>
                             <th>Name</th>
+                            <th></th>
+                            <th>Location</th>
                             <th>Registered?</th>
                         </tr>
                     </thead>
@@ -24,6 +26,28 @@
                                 <td class="text-center"><img class="ra-avatar img-circle" src="{{ character.portrait_url }}">
                                 </td>
                                 <td>{{ character.name }}</td>
+                                <td>
+                                    <a 
+                                        class="btn btn-primary" 
+                                        href="{% url 'memberaudit:activate_character' character.character_id %}" 
+                                        role="button" title="Open character details" 
+                                        {% if not character.is_registered%}disabled="disabled"{% endif %}>
+                                        <i class="fas fa-search"></i>
+                                    </a>
+                                    <a 
+                                        class="btn btn-danger" 
+                                        href="{% url 'memberaudit:activate_character' character.character_id %}" 
+                                        role="button" 
+                                        title="Remove this character from the launcher"
+                                        {% if not character.is_registered%}disabled="disabled"{% endif %}>
+                                        <i class="far fa-trash-alt"></i>
+                                    </a>
+                                </td>
+                                <td>
+                                    <div id="location_{{ character.character_id }}">
+                                        Loading... 
+                                    </div>
+                                </td>
                                 <td> 
                                     <span style="font-size: 125%">
                                     {% if character.is_registered %}
@@ -44,14 +68,24 @@
     </div>
 
     <a
-        class="btn btn-default navbar-btn pull-right" 
+        class="btn btn-primary" 
         href="{% url 'memberaudit:add_owner' %}">
         Register character
     </a>
+    <p>By registering your character you agree that the alliance can access your data</p>
     
-{% endblock %}
+{% endblock details %}
 
-{% block extra_javascript %}    
+{% block extra_javascript %}
+    <script>
+        $(document).ready(function(){
+            {% for character in characters %}
+                character_id = {{ character.character_id }}
+                $("#location_" + character_id).load(
+                    "{% url 'memberaudit:character_location_data' %}?character_id=" + character_id);
+            {% endfor %}
+        });
+    </script>
 {% endblock %}
 
 {% block extra_css %}    

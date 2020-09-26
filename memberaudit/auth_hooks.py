@@ -4,6 +4,7 @@ from allianceauth.services.hooks import MenuItemHook, UrlHook
 from allianceauth import hooks
 
 from . import urls, __title__
+from .models import Owner
 
 
 class MemberauditMenuItem(MenuItemHook):
@@ -21,6 +22,10 @@ class MemberauditMenuItem(MenuItemHook):
 
     def render(self, request):
         if request.user.has_perm("memberaudit.basic_access"):
+            app_count = Owner.objects.unregistered_characters_of_user_count(
+                request.user
+            )
+            self.count = app_count if app_count and app_count > 0 else None
             return MenuItemHook.render(self, request)
         return ""
 

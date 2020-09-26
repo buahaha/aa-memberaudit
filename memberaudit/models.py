@@ -4,6 +4,9 @@ from typing import Optional
 from django.core.serializers.json import DjangoJSONEncoder
 from django.conf import settings
 from django.db import models, transaction
+from django.utils.html import strip_tags
+from django.utils.safestring import mark_safe
+from django.utils.translation import gettext_lazy as _
 
 from esi.models import Token
 from esi.errors import TokenExpiredError, TokenInvalidError
@@ -11,12 +14,20 @@ from esi.errors import TokenExpiredError, TokenInvalidError
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.services.hooks import get_extension_logger
 
-from eveuniverse.models import EveEntity
+from eveuniverse.models import (
+    EveAncestry,
+    EveBloodline,
+    EveEntity,
+    EveFaction,
+    EveRace,
+    EveSolarSystem,
+    EveStation,
+)
 from eveuniverse.providers import esi
 
 from . import __title__
 from .app_settings import MEMBERAUDIT_MAX_MAILS
-from .managers import MailManager, MailingListManager
+from .managers import OwnerManager
 from .utils import LoggerAddTag, make_logger_prefix
 
 
@@ -51,6 +62,8 @@ class Owner(models.Model):
         default=None,
         blank=True,
     )
+
+    objects = OwnerManager()
 
     def __str__(self):
         return str(self.character)
@@ -96,6 +109,68 @@ class Owner(models.Model):
             logger.debug(add_prefix("Using token: {}".format(token)))
 
         return token
+
+    def sync_character_details(self):
+        """syncs the character details for the given owner"""
+        # add_prefix = make_logger_prefix(self)
+        token = self.token()
+        if not token:
+            return
+
+        details = esi.client.Character.get_characters_character_id(
+            character_id=self.character.character.character_id,
+        ).results()
+        if details.get("alliance_id"):
+            alliance, _ = EveEntity.objects.get_or_create_esi(
+                id=details.get("alliance_id")
+            )
+        else:
+            alliance = None
+
+        if details.get("ancestry_id"):
+            eve_ancestry, _ = EveAncestry.objects.get_or_create_esi(
+                id=details.get("ancestry_id")
+            )
+        else:
+            eve_ancestry = None
+
+        eve_bloodline, _ = EveBloodline.objects.get_or_create_esi(
+            id=details.get("bloodline_id")
+        )
+        corporation, _ = EveEntity.objects.get_or_create_esi(
+            id=details.get("corporation_id")
+        )
+        description = details.get("description") if details.get("description") else ""
+        if details.get("faction_id"):
+            faction, _ = EveFaction.objects.get_or_create_esi(
+                id=details.get("faction_id")
+            )
+        else:
+            faction = None
+
+        if details.get("gender") == "male":
+            gender = CharacterDetail.GENDER_MALE
+        else:
+            gender = CharacterDetail.GENDER_FEMALE
+
+        race, _ = EveRace.objects.get_or_create_esi(id=details.get("race_id"))
+        title = details.get("title") if details.get("title") else ""
+        CharacterDetail.objects.update_or_create(
+            owner=self,
+            defaults={
+                "alliance": alliance,
+                "eve_ancestry": eve_ancestry,
+                "birthday": details.get("birthday"),
+                "eve_bloodline": eve_bloodline,
+                "corporation": corporation,
+                "description": description,
+                "faction": faction,
+                "gender": gender,
+                "race": race,
+                "security_status": details.get("security_status"),
+                "title": title,
+            },
+        )
 
     def sync_mailinglists(self):
         """syncs the mailing list for the given owner"""
@@ -269,9 +344,84 @@ class Owner(models.Model):
         if body_count > 0:
             logger.info("loaded {} mail bodies".format(body_count))
 
+    def fetch_location(self) -> Optional[dict]:
+        token = self.token()
+        if not token:
+            raise Token.DoesNotExist()
+
+        location_info = esi.client.Location.get_characters_character_id_location(
+            character_id=self.character.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+
+        solar_system, _ = EveSolarSystem.objects.get_or_create_esi(
+            id=location_info.get("solar_system_id")
+        )
+        if location_info.get("station_id"):
+            station, _ = EveStation.objects.get_or_create_esi(
+                id=location_info.get("station_id")
+            )
+        else:
+            station = None
+
+        return solar_system, station
+
     @classmethod
     def get_esi_scopes(cls) -> list:
         return ["esi-mail.read_mail.v1", "esi-location.read_location.v1"]
+
+
+class CharacterDetail(models.Model):
+    """Details for a character"""
+
+    GENDER_MALE = "m"
+    GENDER_FEMALE = "f"
+    GENDER_CHOICES = (
+        (GENDER_MALE, _("male")),
+        (GENDER_FEMALE, _("female")),
+    )
+    owner = models.OneToOneField(
+        Owner,
+        primary_key=True,
+        on_delete=models.CASCADE,
+        related_name="owner_characters_detail",
+        help_text="character this mailling list belongs to",
+    )
+    alliance = models.ForeignKey(
+        EveEntity,
+        on_delete=models.SET_DEFAULT,
+        default=None,
+        null=True,
+        blank=True,
+        related_name="owner_alliances",
+    )
+    eve_ancestry = models.ForeignKey(
+        EveAncestry, on_delete=models.SET_DEFAULT, default=None, null=True, blank=True
+    )
+    birthday = models.DateTimeField()
+    eve_bloodline = models.ForeignKey(EveBloodline, on_delete=models.CASCADE)
+    corporation = models.ForeignKey(
+        EveEntity, on_delete=models.CASCADE, related_name="owner_corporations"
+    )
+    description = models.TextField(default="", blank=True)
+    faction = models.ForeignKey(
+        EveFaction, on_delete=models.SET_DEFAULT, default=None, null=True, blank=True
+    )
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
+    race = models.ForeignKey(EveRace, on_delete=models.CASCADE)
+    security_status = models.FloatField(default=None, null=True, blank=True)
+    title = models.TextField(default="", blank=True)
+
+    def __str__(self):
+        return str(self.owner)
+
+    @property
+    def description_plain(self) -> str:
+        """returns the description without tags"""
+        x = self.description.replace("<br>", "\n")
+        x = strip_tags(x)
+        x = x.replace("\n", "<br>")
+        return mark_safe(x)
 
 
 class MailingList(models.Model):
@@ -284,8 +434,6 @@ class MailingList(models.Model):
     )
     list_id = models.PositiveIntegerField()
     name = models.CharField(max_length=254)
-
-    objects = MailingListManager()
 
     class Meta:
         unique_together = (("owner", "list_id"),)
@@ -311,8 +459,6 @@ class Mail(models.Model):
     subject = models.CharField(max_length=255, null=True, default=None, blank=True)
     body = models.TextField(null=True, default=None, blank=True)
     timestamp = models.DateTimeField(null=True, default=None, blank=True)
-
-    objects = MailManager()
 
     class Meta:
         unique_together = (("owner", "mail_id"),)
