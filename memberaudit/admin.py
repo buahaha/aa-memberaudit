@@ -6,7 +6,7 @@ from .tasks import sync_owner
 
 @admin.register(Owner)
 class OwnerAdmin(admin.ModelAdmin):
-    list_display = ("character", "last_sync", "last_sync_ok")
+    list_display = ("character_ownership", "last_sync", "last_sync_ok")
 
     def last_sync_ok(self, obj):
         return obj.last_error is None

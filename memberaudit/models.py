@@ -12,6 +12,7 @@ from esi.models import Token
 from esi.errors import TokenExpiredError, TokenInvalidError
 
 from allianceauth.authentication.models import CharacterOwnership
+from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
 
 from eveuniverse.models import (
@@ -44,9 +45,9 @@ class Memberaudit(models.Model):
 
 
 class Owner(models.Model):
-    """Character who owns mails or wallet or ... """
+    """A owned character synced by this app"""
 
-    character = models.OneToOneField(
+    character_ownership = models.OneToOneField(
         CharacterOwnership,
         related_name="memberaudit_owner",
         on_delete=models.CASCADE,
@@ -58,22 +59,42 @@ class Owner(models.Model):
         blank=True,
     )
     last_error = models.TextField(
-        null=True,
-        default=None,
+        default="",
         blank=True,
     )
 
     objects = OwnerManager()
 
     def __str__(self):
-        return str(self.character)
+        return str(self.character_ownership)
+
+    def notify_user_about_last_sync(self) -> None:
+        """Notify user about the last character sync"""
+        if self.last_error:
+            level = "danger"
+            result = "ERROR"
+            message = (
+                f"Last sync failed with the following error: '{self.last_error}' "
+                "Please check log files for details."
+            )
+        else:
+            level = "success"
+            result = "OK"
+            message = "Last sync was successful"
+        title = f"Result for syncing {self.character_ownership.character}: {result}"
+        notify(
+            user=self.character_ownership.user,
+            title=title,
+            message=message,
+            level=level,
+        )
 
     def token(self) -> Optional[Token]:
         add_prefix = make_logger_prefix(self)
         token = None
 
         # abort if character does not have sufficient permissions
-        if not self.character.user.has_perm("memberaudit.basic_access"):
+        if not self.character_ownership.user.has_perm("memberaudit.basic_access"):
             error = "Character does not have sufficient permission to sync"
 
         else:
@@ -81,8 +102,8 @@ class Owner(models.Model):
                 # get token
                 token = (
                     Token.objects.filter(
-                        user=self.character.user,
-                        character_id=self.character.character.character_id,
+                        user=self.character_ownership.user,
+                        character_id=self.character_ownership.character.character_id,
                     )
                     .require_scopes(self.get_esi_scopes())
                     .require_valid()
@@ -118,7 +139,7 @@ class Owner(models.Model):
             return
 
         details = esi.client.Character.get_characters_character_id(
-            character_id=self.character.character.character_id,
+            character_id=self.character_ownership.character.character_id,
         ).results()
         if details.get("alliance_id"):
             alliance, _ = EveEntity.objects.get_or_create_esi(
@@ -180,7 +201,7 @@ class Owner(models.Model):
             return
 
         mailing_lists = esi.client.Mail.get_characters_character_id_mail_lists(
-            character_id=self.character.character.character_id,
+            character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
 
@@ -219,7 +240,7 @@ class Owner(models.Model):
                 add_prefix("Fetching mail headers from ESI - page {}".format(page))
             )
             mail_headers = esi.client.Mail.get_characters_character_id_mail(
-                character_id=self.character.character.character_id,
+                character_id=self.character_ownership.character.character_id,
                 last_mail_id=last_mail_id,
                 token=token.valid_access_token(),
             ).results()
@@ -242,7 +263,7 @@ class Owner(models.Model):
             # store to disk (for debugging)
             with open(
                 "mail_headers_raw_{}.json".format(
-                    self.character.character.character_id
+                    self.character_ownership.character.character_id
                 ),
                 "w",
                 encoding="utf-8",
@@ -325,7 +346,7 @@ class Owner(models.Model):
                             )
                         )
                         mail = esi.client.Mail.get_characters_character_id_mail_mail_id(
-                            character_id=self.character.character.character_id,
+                            character_id=self.character_ownership.character.character_id,
                             mail_id=mail_obj.mail_id,
                             token=token.valid_access_token(),
                         ).result()
@@ -350,7 +371,7 @@ class Owner(models.Model):
             raise Token.DoesNotExist()
 
         location_info = esi.client.Location.get_characters_character_id_location(
-            character_id=self.character.character.character_id,
+            character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
 
@@ -422,6 +443,12 @@ class CharacterDetail(models.Model):
         x = strip_tags(x)
         x = x.replace("\n", "<br>")
         return mark_safe(x)
+
+
+"""
+class CorporationHistory(models.Model):
+    pass
+"""
 
 
 class MailingList(models.Model):

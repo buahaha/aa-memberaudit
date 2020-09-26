@@ -51,19 +51,19 @@ def launcher(request):
 
     characters = list()
     unregistered_chars = 0
-    for owned_char in owned_chars_query:
+    for character_ownership in owned_chars_query:
 
-        is_registered = hasattr(owned_char, "memberaudit_owner")
+        is_registered = hasattr(character_ownership, "memberaudit_owner")
         if not is_registered:
             unregistered_chars += 1
 
         characters.append(
             {
-                "portrait_url": owned_char.character.portrait_url,
-                "name": owned_char.character.character_name,
+                "portrait_url": character_ownership.character.portrait_url,
+                "name": character_ownership.character.character_name,
                 "is_registered": is_registered,
-                "pk": owned_char.character.pk,
-                "character_id": owned_char.character.character_id,
+                "pk": character_ownership.character.pk,
+                "character_id": character_ownership.character.character_id,
             }
         )
 
@@ -86,7 +86,7 @@ def add_owner(request, token):
     token_char = EveCharacter.objects.get(character_id=token.character_id)
 
     try:
-        owned_char = CharacterOwnership.objects.get(
+        character_ownership = CharacterOwnership.objects.get(
             user=request.user, character=token_char
         )
     except CharacterOwnership.DoesNotExist:
@@ -100,11 +100,20 @@ def add_owner(request, token):
         )
     else:
         with transaction.atomic():
-            owner, _ = Owner.objects.update_or_create(character=owned_char)
+            owner, _ = Owner.objects.update_or_create(
+                character_ownership=character_ownership
+            )
 
         tasks.sync_owner.delay(owner_pk=owner.pk, force_sync=True)
         messages_plus.success(
-            request, format_html("<strong>{}</strong> has been registered ", owner)
+            request,
+            format_html(
+                "<strong>{}</strong> has been registered and sync for this character "
+                "has started. "
+                "Syncing can take a while and "
+                "you will receive a notification once sync has completed.",
+                owner.character_ownership.character,
+            ),
         )
 
     return redirect("memberaudit:index")
@@ -123,12 +132,14 @@ def character_main(request):
     character_id = request.session.get("character_id")
     try:
         owner = Owner.objects.select_related(
-            "character", "character__character", "owner_characters_detail"
-        ).get(character__character__character_id=character_id)
+            "character_ownership",
+            "character_ownership__character",
+            "owner_characters_detail",
+        ).get(character_ownership__character__character_id=character_id)
     except Owner.DoesNotExist:
         raise Http404()
 
-    character = owner.character.character
+    character = owner.character_ownership.character
     character_details = owner.owner_characters_detail
     context = {
         "page_title": "Character",
@@ -200,8 +211,8 @@ def compliance_report_data(request):
 def character_location_data(request) -> HttpResponse:
     character_id = request.GET.get("character_id")
     try:
-        owner = Owner.objects.select_related("character").get(
-            character__character__character_id=character_id
+        owner = Owner.objects.select_related("character_ownership").get(
+            character_ownership__character__character_id=character_id
         )
     except Owner.DoesNotExist:
         html = '<p class="text-danger">Character not registered</p>'

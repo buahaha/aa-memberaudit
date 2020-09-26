@@ -28,11 +28,13 @@ def sync_owner(owner_pk, force_sync: bool = False) -> None:
             owner.sync_mailinglists()
             owner.sync_mails()
             owner.last_sync = now()
-            owner.last_error = None
+            owner.last_error = ""
             owner.save()
+            owner.notify_user_about_last_sync()
         except Exception as ex:
             error = f"Unexpected error ocurred: {type(ex).__name__}"
             logger.exception(add_prefix(error))
             owner.last_error = error
             owner.save()
+            owner.notify_user_about_last_sync()
             raise ex
