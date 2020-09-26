@@ -11,10 +11,6 @@ from django.utils.translation import gettext_lazy as _
 from esi.models import Token
 from esi.errors import TokenExpiredError, TokenInvalidError
 
-from allianceauth.authentication.models import CharacterOwnership
-from allianceauth.notifications import notify
-from allianceauth.services.hooks import get_extension_logger
-
 from eveuniverse.models import (
     EveAncestry,
     EveBloodline,
@@ -25,6 +21,11 @@ from eveuniverse.models import (
     EveStation,
 )
 from eveuniverse.providers import esi
+
+
+from allianceauth.authentication.models import CharacterOwnership
+from allianceauth.notifications import notify
+from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
 from .app_settings import MEMBERAUDIT_MAX_MAILS
@@ -45,7 +46,7 @@ class Memberaudit(models.Model):
 
 
 class Owner(models.Model):
-    """A owned character synced by this app"""
+    """An owned character synced by this app"""
 
     character_ownership = models.OneToOneField(
         CharacterOwnership,
@@ -133,11 +134,8 @@ class Owner(models.Model):
 
     def sync_character_details(self):
         """syncs the character details for the given owner"""
-        # add_prefix = make_logger_prefix(self)
-        token = self.token()
-        if not token:
-            return
-
+        add_prefix = make_logger_prefix(self)
+        logger.info(add_prefix("Fetching character details from ESI"))
         details = esi.client.Character.get_characters_character_id(
             character_id=self.character_ownership.character.character_id,
         ).results()
@@ -193,9 +191,31 @@ class Owner(models.Model):
             },
         )
 
+    def sync_corporation_history(self):
+        """syncs the character's corporation history"""
+        add_prefix = make_logger_prefix(self)
+        logger.info(add_prefix("Fetching corporation history from ESI"))
+        history = esi.client.Character.get_characters_character_id_corporationhistory(
+            character_id=self.character_ownership.character.character_id,
+        ).results()
+        for row in history:
+            corporation, _ = EveEntity.objects.get_or_create_esi(
+                id=row.get("corporation_id")
+            )
+            CorporationHistory.objects.update_or_create(
+                owner=self,
+                record_id=row.get("record_id"),
+                defaults={
+                    "corporation": corporation,
+                    "is_deleted": row.get("is_deleted"),
+                    "start_date": row.get("start_date"),
+                },
+            )
+
     def sync_mailinglists(self):
         """syncs the mailing list for the given owner"""
         add_prefix = make_logger_prefix(self)
+        logger.info(add_prefix("Fetching mailing lists from ESI"))
         token = self.token()
         if not token:
             return
@@ -366,6 +386,8 @@ class Owner(models.Model):
             logger.info("loaded {} mail bodies".format(body_count))
 
     def fetch_location(self) -> Optional[dict]:
+        add_prefix = make_logger_prefix(self)
+        logger.info(add_prefix("Fetching character location ESI"))
         token = self.token()
         if not token:
             raise Token.DoesNotExist()
@@ -445,10 +467,16 @@ class CharacterDetail(models.Model):
         return mark_safe(x)
 
 
-"""
 class CorporationHistory(models.Model):
-    pass
-"""
+
+    owner = models.ForeignKey(Owner, on_delete=models.CASCADE)
+    record_id = models.PositiveIntegerField(db_index=True)
+    corporation = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
+    is_deleted = models.BooleanField(null=True, default=None, blank=True, db_index=True)
+    start_date = models.DateTimeField(db_index=True)
+
+    def __str__(self):
+        return str(f"{self.owner}-{self.record_id}")
 
 
 class MailingList(models.Model):

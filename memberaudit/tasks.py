@@ -25,6 +25,7 @@ def sync_owner(owner_pk, force_sync: bool = False) -> None:
         add_prefix = make_logger_prefix(owner)
         try:
             owner.sync_character_details()
+            owner.sync_corporation_history()
             owner.sync_mailinglists()
             owner.sync_mails()
             owner.last_sync = now()

@@ -4,6 +4,7 @@ from django.db.models import Count, Q
 from django.http import JsonResponse, HttpResponse, Http404
 from django.shortcuts import render, redirect
 from django.utils.html import format_html
+from django.utils.timezone import now
 from django.views.decorators.cache import cache_page
 
 from bravado.exception import HTTPError
@@ -11,11 +12,12 @@ from esi.decorators import token_required
 
 from allianceauth.authentication.models import CharacterOwnership, User
 from allianceauth.eveonline.models import EveCharacter
+from allianceauth.eveonline.evelinks import dotlan
 from allianceauth.services.hooks import get_extension_logger
 
 from . import tasks, __title__
 from .models import Owner
-from .utils import messages_plus, LoggerAddTag
+from .utils import messages_plus, LoggerAddTag, create_link_html
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -135,16 +137,35 @@ def character_main(request):
             "character_ownership",
             "character_ownership__character",
             "owner_characters_detail",
+            # "corporationhistory_set"
         ).get(character_ownership__character__character_id=character_id)
     except Owner.DoesNotExist:
         raise Http404()
 
-    character = owner.character_ownership.character
-    character_details = owner.owner_characters_detail
+    corporation_history = list()
+
+    for entry in owner.corporationhistory_set.exclude(is_deleted=True).order_by(
+        "start_date"
+    ):
+        if len(corporation_history) > 0:
+            corporation_history[-1]["end_date"] = entry.start_date
+
+        corporation_history.append(
+            {
+                "corporation_html": create_link_html(
+                    dotlan.corporation_url(entry.corporation.name),
+                    entry.corporation.name,
+                ),
+                "start_date": entry.start_date,
+                "end_date": now(),
+            }
+        )
+
     context = {
         "page_title": "Character",
-        "character": character,
-        "character_details": character_details,
+        "character": owner.character_ownership.character,
+        "character_details": owner.owner_characters_detail,
+        "corporation_history": reversed(corporation_history),
     }
     return render(
         request, "memberaudit/character_main.html", add_common_context(request, context)

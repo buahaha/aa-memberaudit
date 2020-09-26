@@ -49,8 +49,8 @@
                         <dd>{{ character.corporation_name }}</dd>
                         <dt>Ship</dt>
                         <dd>{{ character.alliance_name }}</dd>
-                        <dt>Online</dt>
-                        <dd>{{ character.character_name }}</dd>
+                        <dt>Race</dt>
+                        <dd>{{ character_details.eve_bloodline.eve_race }} / {{ character_details.eve_bloodline }}</dd>
                     </dl>
                 </div>
 
@@ -65,22 +65,29 @@
                 <!-- Nav tabs -->
                 <ul class="nav nav-tabs" role="tablist">
                     <li role="presentation" class="active"><a href="#bio" aria-controls="bio" role="tab" data-toggle="tab">Bio</a></li>
-                    <li role="presentation"><a href="#history" aria-controls="history" role="tab" data-toggle="tab">Employee History</a></li>
-                    <li role="presentation"><a href="#clones" aria-controls="clones" role="tab" data-toggle="tab">Clones</a></li>
-                    <li role="presentation"><a href="#skills" aria-controls="skills" role="tab" data-toggle="tab">Skills</a></li>
-                    <li role="presentation"><a href="#skillqueue" aria-controls="skillqueue" role="tab" data-toggle="tab">Skillqueue</a></li>
-                    <li role="presentation"><a href="#mail" aria-controls="mail" role="tab" data-toggle="tab">Mail</a></li>
-                    <li role="presentation"><a href="#wallet" aria-controls="wallet" role="tab" data-toggle="tab">Wallet</a></li>
-                    <li role="presentation"><a href="#contracts" aria-controls="contracts" role="tab" data-toggle="tab">Contracts</a></li>
-                    <li role="presentation"><a href="#contacts" aria-controls="contacts" role="tab" data-toggle="tab">Contacts</a></li>
-                    <li role="presentation"><a href="#assets" aria-controls="assets" role="tab" data-toggle="tab">Assets</a></li>
+                    <li role="presentation"><a href="#history" aria-controls="history" role="tab" data-toggle="tab">Corporation History</a></li>
+                    <li role="presentation" class="disabled"><a href="#clones" aria-controls="clones" role="tab" data-toggle="tab">Clones</a></li>
+                    <li role="presentation" class="disabled"><a href="#skills" aria-controls="skills" role="tab" data-toggle="tab">Skills</a></li>
+                    <li role="presentation" class="disabled"><a href="#skillqueue" aria-controls="skillqueue" role="tab" data-toggle="tab">Skillqueue</a></li>
+                    <li role="presentation" class="disabled"><a href="#mail" aria-controls="mail" role="tab" data-toggle="tab">Mail</a></li>
+                    <li role="presentation" class="disabled"><a href="#wallet" aria-controls="wallet" role="tab" data-toggle="tab">Wallet</a></li>
+                    <li role="presentation" class="disabled"><a href="#contracts" aria-controls="contracts" role="tab" data-toggle="tab">Contracts</a></li>
+                    <li role="presentation" class="disabled"><a href="#contacts" aria-controls="contacts" role="tab" data-toggle="tab">Contacts</a></li>
+                    <li role="presentation" class="disabled"><a href="#assets" aria-controls="assets" role="tab" data-toggle="tab">Assets</a></li>
                 </ul>
                 <br>
 
                 <!-- Tab panes -->
                 <div class="tab-content">
                     <div role="tabpanel" class="tab-pane active" id="bio">{{ character_details.description_plain|default:"-" }}</div>
-                    <div role="tabpanel" class="tab-pane" id="history">TBD</div>
+                    <div role="tabpanel" class="tab-pane" id="history">                        
+                        <dl class="dl-horizontal">
+                            {% for entry in corporation_history %}                                                     
+                                <dt>{{ entry.corporation_html }}</dt>  
+                                <dd>{{ entry.start_date|naturalday }} - {{ entry.end_date|naturalday }}</dd>
+                            {% endfor %}              
+                        </dl>      
+                    </div>
                     <div role="tabpanel" class="tab-pane" id="clones">TBD</div>
                     <div role="tabpanel" class="tab-pane" id="skills">TBD</div>
                     <div role="tabpanel" class="tab-pane" id="skillqueue">TBD</div>
