@@ -11,7 +11,7 @@
 
         <div class="rows">
 
-            <div class="col-md-1">
+            <div class="col-md-2">
                 <img src="{{ character|character_portrait_url:128 }}" />
             </div>
 
@@ -116,7 +116,7 @@
 
                 <div role="tabpanel" class="tab-pane" id="skills">
                     <div class="table-responsive">
-                        <table class="table" id="tab_skills" style="width:100%;">
+                        <table class="table table-striped" id="tab_skills" style="width:100%;">
                             <thead>
                                 <tr>
                                     <th>Group</th>
@@ -163,60 +163,67 @@
 {% endblock details %}
 
 {% block extra_javascript %}
-{% include 'bundles/datatables-js.html' %}
-<script type="application/javascript"
-    src="https://cdn.datatables.net/rowgroup/1.0.2/js/dataTables.rowGroup.min.js"></script>
-<script type="application/javascript">
-    $(document).ready(function () {
-        $("#div_location").load(
-            "{% url 'memberaudit:character_location_data' owner_pk %}"
-        );
+    {% include 'bundles/datatables-js.html' %}
+    <script type="application/javascript"
+        src="https://cdn.datatables.net/rowgroup/1.1.2/js/dataTables.rowGroup.min.js"></script>
+    <script type="application/javascript">
+        $(document).ready(function () {
+            $("#div_location").load(
+                "{% url 'memberaudit:character_location_data' owner_pk %}"
+            );
 
-        $('#tab_skills').DataTable({
-            ajax: {
-                url: "{% url 'memberaudit:character_skills_data' owner_pk %}",
-                dataSrc: '',
-                cache: false
-            },
-            columns: [
-                { data: 'group' },
-                { data: 'skill' },
-                { data: 'level' },
-            ],
-            order: [[0, "asc"], [1, "asc"]],
-            rowGroup: {
-                dataSrc: 'group'
-            },
-            columnDefs: [
-                { "visible": false, "targets": [0] }
-            ],
-        });
+            $('#tab_skills').DataTable({
+                ajax: {
+                    url: "{% url 'memberaudit:character_skills_data' owner_pk %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    { data: 'group' },
+                    { data: 'skill' },
+                    { data: 'level' },
+                ],
+                order: [[0, "asc"], [1, "asc"]],
+                rowGroup: {
+                    dataSrc: 'group',
+                    className: 'table-group'
+                },
+                columnDefs: [
+                    { "visible": false, "targets": [0] }
+                ],    
+                createdRow: function( row, data, dataIndex ) 
+                {
+                    if (data[1]) {
+                        $(row).addClass('danger');
+                    }                
+                }  
+            });
 
-        $('#tab_wallet').DataTable({
-            ajax: {
-                url: "{% url 'memberaudit:character_wallet_journal_data' owner_pk %}",
-                dataSrc: '',
-                cache: false
-            },
-            columns: [
-                { data: 'date' },
-                { data: 'ref_type' },
-                { data: 'first_party' },
-                { data: 'second_party' },
-                { data: 'amount' },
-                { data: 'balance' },
-                { data: 'description' },
-            ],
-            order: [[0, "desc"]],
+            $('#tab_wallet').DataTable({
+                ajax: {
+                    url: "{% url 'memberaudit:character_wallet_journal_data' owner_pk %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    { data: 'date' },
+                    { data: 'ref_type' },
+                    { data: 'first_party' },
+                    { data: 'second_party' },
+                    { data: 'amount' },
+                    { data: 'balance' },
+                    { data: 'description' },
+                ],
+                order: [[0, "desc"]],
+            });
         });
-    });
-</script>
+    </script>
 {% endblock extra_javascript %}
 
 {% block extra_css %}
-{% include 'bundles/datatables-css.html' %}
-<link href="https://cdn.datatables.net/rowgroup/1.0.2/css/rowGroup.bootstrap.min.css" type="text/css">
-<link href="{% static 'memberaudit/character_main.css' %}" type="text/css">
+    {% include 'bundles/datatables-css.html' %}
+    <link rel="stylesheet" href="https://cdn.datatables.net/rowgroup/1.1.2/css/rowGroup.bootstrap.min.css" type="text/css">
+    <link rel="stylesheet" href="{% static 'memberaudit/character_main.css' %}" type="text/css">
 {% endblock extra_css %}
 
 {% block extra_script %}

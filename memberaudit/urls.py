@@ -7,12 +7,7 @@ app_name = "memberaudit"
 urlpatterns = [
     path("", views.index, name="index"),
     path("launcher", views.launcher, name="launcher"),
-    path("character_main", views.character_main, name="character_main"),
-    path(
-        "activate_character/<int:owner_pk>/",
-        views.activate_character,
-        name="activate_character",
-    ),
+    path("character_main/<int:owner_pk>/", views.character_main, name="character_main"),
     path("add_owner", views.add_owner, name="add_owner"),
     path(
         "character_location_data/<int:owner_pk>/",
@@ -34,5 +29,11 @@ urlpatterns = [
         "compliance_report_data",
         views.compliance_report_data,
         name="compliance_report_data",
+    ),
+    path("character_finder", views.character_finder, name="character_finder"),
+    path(
+        "character_finder_data",
+        views.character_finder_data,
+        name="character_finder_data",
     ),
 ]

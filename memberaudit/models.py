@@ -47,7 +47,10 @@ class Memberaudit(models.Model):
     class Meta:
         managed = False
         default_permissions = ()
-        permissions = (("basic_access", "Can access this app"),)
+        permissions = (
+            ("basic_access", "Can access this app"),
+            ("unrestricted_access", "Can view all characters and data"),
+        )
 
 
 class Owner(models.Model):
@@ -59,24 +62,19 @@ class Owner(models.Model):
         on_delete=models.CASCADE,
         help_text="character registered to member audit",
     )
-    last_sync = models.DateTimeField(
-        null=True,
-        default=None,
-        blank=True,
-    )
-    last_error = models.TextField(
-        default="",
-        blank=True,
-    )
+    last_sync = models.DateTimeField(null=True, default=None, blank=True,)
+    last_error = models.TextField(default="", blank=True,)
 
     objects = OwnerManager()
 
     def __str__(self):
         return str(self.character_ownership)
 
-    def user_can_access(self, user: User) -> bool:
+    def user_has_access(self, user: User) -> bool:
         """Return True if given user has permission to view this owner"""
         if self.character_ownership.user == user:
+            return True
+        elif user.has_perm("memberaudit.unrestricted_access"):
             return True
 
         return False

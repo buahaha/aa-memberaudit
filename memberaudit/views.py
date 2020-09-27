@@ -2,13 +2,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import transaction
 from django.db.models import Count, Q
-from django.http import (
-    JsonResponse,
-    HttpResponse,
-    HttpResponseForbidden,
-    HttpResponseNotFound,
-)
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect
+from django.urls.base import reverse
 from django.utils.html import format_html
 from django.utils.timezone import now
 from django.views.decorators.cache import cache_page
@@ -24,10 +20,21 @@ from allianceauth.services.hooks import get_extension_logger
 from . import tasks, __title__
 from .decorators import fetch_owner_if_allowed
 from .models import Owner
-from .utils import messages_plus, LoggerAddTag, create_link_html, DATETIME_FORMAT
+from .utils import (
+    messages_plus,
+    LoggerAddTag,
+    create_link_html,
+    DATETIME_FORMAT,
+    create_fa_button_html,
+)
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+
+
+def create_img_html(src: str, classes: list) -> str:
+    classes_str = 'class="{}"'.format(" ".join(classes)) if classes else ""
+    return f'<img {classes_str}src="{str(src)}">'
 
 
 def add_common_context(request, context: dict) -> dict:
@@ -79,11 +86,21 @@ def launcher(request):
         )
 
     context = {
-        "page_title": "Launcher",
+        "page_title": "My Characters",
         "characters": characters,
         "has_registered_chars": has_registered_chars,
         "unregistered_chars": unregistered_chars,
     }
+
+    if has_registered_chars:
+        messages_plus.warning(
+            request,
+            format_html(
+                "Please register all your characters. "
+                "You currently have <strong>{}</strong> unregistered characters.",
+                unregistered_chars,
+            ),
+        )
 
     return render(
         request, "memberaudit/launcher.html", add_common_context(request, context)
@@ -129,31 +146,39 @@ def add_owner(request, token):
     return redirect("memberaudit:index")
 
 
+@cache_page(30)
 @login_required
 @permission_required("memberaudit.basic_access")
-def activate_character(request, owner_pk: int):
-    request.session["owner_pk"] = int(owner_pk)
-    return redirect("memberaudit:character_main")
-
-
-@login_required
-@permission_required("memberaudit.basic_access")
-def character_main(request):
-    owner_pk = request.session.get("owner_pk")
+@fetch_owner_if_allowed()
+def character_location_data(request, owner_pk: int, owner: Owner) -> HttpResponse:
     try:
-        owner = Owner.objects.select_related(
-            "character_ownership",
-            "character_ownership__character",
-            "owner_characters_detail",
-            "walletbalance",
-            "skills",
-        ).get(pk=owner_pk)
-    except Owner.DoesNotExist:
-        return HttpResponseNotFound()
+        solar_system, _ = owner.fetch_location()
+    except HTTPError:
+        logger.warning("Network error", exc_info=True)
+        html = '<p class="text-danger">Network error</p>'
+    except Exception:
+        logger.warning("Unexpected error", exc_info=True)
+        html = '<p class="text-danger">Unexpected error</p>'
+    else:
+        html = format_html(
+            "{} {} / {}",
+            solar_system.name,
+            round(solar_system.security_status, 1),
+            solar_system.eve_constellation.eve_region.name,
+        )
 
-    if not owner.user_can_access(request.user):
-        return HttpResponseForbidden()
+    return HttpResponse(html)
 
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_owner_if_allowed(
+    "character_ownership__character",
+    "owner_characters_detail",
+    "walletbalance",
+    "skills",
+)
+def character_main(request, owner_pk: int, owner: Owner):
     try:
         wallet_balance = owner.walletbalance.amount
     except ObjectDoesNotExist:
@@ -243,7 +268,7 @@ def character_wallet_journal_data(request, owner_pk: int, owner: Owner):
 
 
 @login_required
-@permission_required("memberaudit.basic_access")
+@permission_required("memberaudit.unrestricted_access")
 def compliance_report(request):
     context = {
         "page_title": "Compliance Report",
@@ -256,7 +281,7 @@ def compliance_report(request):
 
 
 @login_required
-@permission_required("memberaudit.basic_access")
+@permission_required("memberaudit.unrestricted_access")
 def compliance_report_data(request):
     member_users = (
         User.objects.filter(profile__state__name="Member")
@@ -275,8 +300,8 @@ def compliance_report_data(request):
     user_data = list()
     for user in member_users:
         if user.profile.main_character:
-            portrait_html = '<img class="ra-avatar img-circle" src="{}">'.format(
-                user.profile.main_character.portrait_url()
+            portrait_html = create_img_html(
+                user.profile.main_character.portrait_url(), ["ra-avatar", "img-circle"]
             )
             user_data.append(
                 {
@@ -295,25 +320,48 @@ def compliance_report_data(request):
     return JsonResponse(user_data, safe=False)
 
 
-@cache_page(30)
 @login_required
-@permission_required("memberaudit.basic_access")
-@fetch_owner_if_allowed()
-def character_location_data(request, owner_pk: int, owner: Owner) -> HttpResponse:
-    try:
-        solar_system, _ = owner.fetch_location()
-    except HTTPError:
-        logger.warning("Network error", exc_info=True)
-        html = '<p class="text-danger">Network error</p>'
-    except Exception:
-        logger.warning("Unexpected error", exc_info=True)
-        html = '<p class="text-danger">Unexpected error</p>'
-    else:
-        html = format_html(
-            "{} {} / {}",
-            solar_system.name,
-            round(solar_system.security_status, 1),
-            solar_system.eve_constellation.eve_region.name,
-        )
+@permission_required("memberaudit.unrestricted_access")
+def character_finder(request):
+    context = {
+        "page_title": "Character Finder",
+    }
+    return render(
+        request,
+        "memberaudit/character_finder.html",
+        add_common_context(request, context),
+    )
 
-    return HttpResponse(html)
+
+@login_required
+@permission_required("memberaudit.unrestricted_access")
+def character_finder_data(request):
+    character_list = list()
+    for owner in Owner.objects.all():
+        character = owner.character_ownership.character
+        user_profile = owner.character_ownership.user.profile
+        portrait_html = create_img_html(
+            character.portrait_url(), ["ra-avatar", "img-circle"]
+        )
+        actions_html = create_fa_button_html(
+            url=reverse("memberaudit:character_main", args=[owner.pk]),
+            fa_code="fas fa-search",
+            button_type="primary",
+        )
+        alliance = (
+            owner.owner_characters_detail.alliance.name
+            if owner.owner_characters_detail.alliance
+            else "-"
+        )
+        character_list.append(
+            {
+                "portrait": portrait_html,
+                "character": character.character_name,
+                "corporation": owner.owner_characters_detail.corporation.name,
+                "alliance": alliance,
+                "main": user_profile.main_character.character_name,
+                "state": user_profile.state.name,
+                "actions": actions_html,
+            }
+        )
+    return JsonResponse(character_list, safe=False)

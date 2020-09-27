@@ -13,14 +13,20 @@ DUMMY_URL = "http://www.example.com"
 
 
 class TestFetchOwnerIfAllowed(TestCase):
-    def setUp(self) -> None:
-        self.factory = RequestFactory()
-        self.user = AuthUtils.create_user("Bruce Wanye")
-        character = AuthUtils.add_main_character_2(self.user, "Bruce Wayne", 1001)
-        character_ownership = CharacterOwnership.objects.create(
-            user=self.user, character=character, owner_hash="123456"
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.factory = RequestFactory()
+        cls.user = AuthUtils.create_user("Bruce Wanye")
+        cls.character = AuthUtils.add_main_character_2(cls.user, "Bruce Wayne", 1001)
+        CharacterOwnership.objects.create(
+            user=cls.user, character=cls.character, owner_hash="123456"
         )
-        self.owner = Owner.objects.create(character_ownership=character_ownership)
+
+    def setUp(self) -> None:
+        self.owner = Owner.objects.create(
+            character_ownership=self.character.character_ownership
+        )
 
     def test_passthrough_when_fetch_owner_if_allowed(self):
         @fetch_owner_if_allowed()
@@ -66,16 +72,3 @@ class TestFetchOwnerIfAllowed(TestCase):
         request = self.factory.get(DUMMY_URL)
         request.user = self.user
         dummy(request, self.owner.pk)
-
-    """
-    def test_normal_fetch_owner_pk_from_session(self):
-        @fetch_owner_if_allowed()
-        def dummy(request, owner):
-            self.assertEqual(owner, self.owner)
-            return HttpResponse("ok")
-
-        request = self.factory.get(DUMMY_URL)
-        request.user = self.user
-        response = dummy(request, self.owner.pk)
-        self.assertEqual(response.status_code, 200)
-    """

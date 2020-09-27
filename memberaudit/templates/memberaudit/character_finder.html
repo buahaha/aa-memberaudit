@@ -8,21 +8,20 @@
     
     <div class="panel panel-default">   
         <div class="panel-heading">
-            <h3 class="panel-title">User Compliance</h3>
+            <h3 class="panel-title">Characters</h3>
         </div>
         <div class="panel-body">        
             <div class="table-responsive">
-                <table class="table table-striped" id="tab_contracts">
+                <table class="table table-striped" id="tab_characters">
                     <thead>
                         <tr>
                             <th></th>
-                            <th>User</th>
-                            <th>Main</th>                        
+                            <th>Character</th>                        
                             <th>Corporation</th>
                             <th>Alliance</th>
-                            <th>Total Chars</th>
-                            <th>Unregistered Chars</th>
-                            <th>Compliant?</th>                            
+                            <th>Main</th>
+                            <th>State</th>
+                            <th></th>                            
                         </tr>
                     </thead>
                     <tbody>                   
@@ -43,22 +42,21 @@
     
     <script>
         $(document).ready(function() {
-            $('#tab_contracts').DataTable({            
+            $('#tab_characters').DataTable({            
                 ajax: {
-                    url: '{% url 'memberaudit:compliance_report_data' %}',
+                    url: '{% url 'memberaudit:character_finder_data' %}',
                     dataSrc: '',
                     cache: false
                 },
 
                 columns: [
                     { data: 'portrait' },
-                    { data: 'name' },
-                    { data: 'main' },                
-                    { data: 'corporation' },
+                    { data: 'character' },
+                    { data: 'corporation' },                
                     { data: 'alliance' },
-                    { data: 'total_chars' },
-                    { data: 'unregistered_chars' },
-                    { data: 'compliance_str' }
+                    { data: 'main' },
+                    { data: 'state' },
+                    { data: 'actions' },
                 ],
 
                 columnDefs: [														
@@ -68,10 +66,7 @@
                 order: [ [ 1, "asc" ] ],
 
                 filterDropDown: {										
-                    columns: [	                                                          
-                        {
-                            idx: 1
-                        },
+                    columns: [
                         {
                             idx: 2
                         },
@@ -82,19 +77,11 @@
                             idx: 4
                         },
                         {
-                            idx: 7
-                        }
+                            idx: 5
+                        },
                     ],
                     bootstrap: true
-                },
-                
-                createdRow: function( row, data, dataIndex ) 
-                {
-                    if (!data['is_compliant'])
-                    {
-                        $(row).addClass('danger');
-                    }                
-                }            
+                }
             });       
         });
     </script>

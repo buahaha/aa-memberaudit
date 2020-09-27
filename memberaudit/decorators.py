@@ -29,7 +29,7 @@ def fetch_owner_if_allowed(*args_select_related):
             except Owner.DoesNotExist:
                 return HttpResponseNotFound()
 
-            if not owner.user_can_access(request.user):
+            if not owner.user_has_access(request.user):
                 return HttpResponseForbidden()
 
             return view_func(request, owner_pk, owner, *args, **kwargs)
