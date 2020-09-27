@@ -1,0 +1,143 @@
+{% extends 'memberaudit/base.html' %}
+{% load i18n %}
+{% load humanize %}
+{% load static %}
+
+
+{% block details %}
+    
+    <div class="panel panel-default">   
+        <div class="panel-body">        
+            <div>
+                <!-- Nav tabs -->
+                <ul class="nav nav-tabs" role="tablist">
+                    <li role="presentation" class="active">
+                        <a href="#compliance" aria-controls="compliance" role="tab" data-toggle="tab">
+                            User Compliance
+                        </a>
+                    </li>
+                    <li role="presentation" class="disabled">
+                        <a href="#profile" aria-controls="profile" role="tab" data-toggle="tab">
+                            Dummy 1
+                        </a>
+                    </li>
+                    <li role="presentation" class="disabled">
+                        <a href="#messages" aria-controls="messages" role="tab" data-toggle="tab">
+                            Dummy 2
+                        </a>
+                    </li>
+                    <li role="presentation" class="disabled">
+                        <a href="#settings" aria-controls="settings" role="tab" data-toggle="tab">
+                            Dummy 3
+                        </a>
+                    </li>
+                </ul>
+
+                <!-- Tab panes -->
+                <div class="tab-content">
+                    <div role="tabpanel" class="tab-pane active" id="compliance">
+                        <h3>User Compliance</h3>
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="tab_contracts">
+                                <thead>
+                                    <tr>
+                                        <th></th>
+                                        <th>User</th>
+                                        <th>Main</th>                        
+                                        <th>Corporation</th>
+                                        <th>Alliance</th>
+                                        <th>Total Chars</th>
+                                        <th>Unregistered Chars</th>
+                                        <th>Compliant?</th>                            
+                                    </tr>
+                                </thead>
+                                <tbody>                   
+                                </tbody>                
+                            </table>
+                        </div>
+                    </div>
+                    <div role="tabpanel" class="tab-pane" id="profile">...</div>
+                    <div role="tabpanel" class="tab-pane" id="messages">...</div>
+                    <div role="tabpanel" class="tab-pane" id="settings">...</div>
+                </div>
+            </div>
+            
+        </div>
+    </div>        
+    
+{% endblock details %}
+
+{% block extra_javascript %}
+    {% include 'bundles/datatables-js.html' %}    
+    
+    <!--load JS for filterDropDown plugin -->
+    <script type="text/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}">
+    </script>
+    
+    <script>
+        $(document).ready(function() {
+            $('#tab_contracts').DataTable({            
+                ajax: {
+                    url: '{% url 'memberaudit:compliance_report_data' %}',
+                    dataSrc: '',
+                    cache: false
+                },
+
+                columns: [
+                    { data: 'portrait' },
+                    { data: 'name' },
+                    { data: 'main' },                
+                    { data: 'corporation' },
+                    { data: 'alliance' },
+                    { data: 'total_chars' },
+                    { data: 'unregistered_chars' },
+                    { data: 'compliance_str' }
+                ],
+
+                columnDefs: [														
+                    { "orderable": false, "targets": [ 0 ] },                
+                ],
+
+                order: [ [ 1, "asc" ] ],
+
+                filterDropDown: {										
+                    columns: [	                                                          
+                        {
+                            idx: 1
+                        },
+                        {
+                            idx: 2
+                        },
+                        {
+                            idx: 3
+                        },
+                        {
+                            idx: 4
+                        },
+                        {
+                            idx: 7
+                        }
+                    ],
+                    bootstrap: true
+                },
+                
+                createdRow: function( row, data, dataIndex ) 
+                {
+                    if (!data['is_compliant'])
+                    {
+                        $(row).addClass('danger');
+                    }                
+                }            
+            });       
+        });
+    </script>
+{% endblock %}
+
+{% block extra_css %}
+    {% include 'bundles/datatables-css.html' %}
+    <link href="{% static 'memberaudit/contracts.css' %}" type="text/css" rel="stylesheet">
+{% endblock %}
+
+{% block extra_script %}
+    
+{% endblock %}

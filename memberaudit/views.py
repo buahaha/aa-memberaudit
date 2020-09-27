@@ -269,14 +269,12 @@ def character_wallet_journal_data(request, owner_pk: int, owner: Owner):
 
 @login_required
 @permission_required("memberaudit.unrestricted_access")
-def compliance_report(request):
+def reports(request):
     context = {
-        "page_title": "Compliance Report",
+        "page_title": "Reports",
     }
     return render(
-        request,
-        "memberaudit/compliance_report.html",
-        add_common_context(request, context),
+        request, "memberaudit/reports.html", add_common_context(request, context),
     )
 
 
@@ -303,13 +301,14 @@ def compliance_report_data(request):
             portrait_html = create_img_html(
                 user.profile.main_character.portrait_url(), ["ra-avatar", "img-circle"]
             )
+            main_character = user.profile.main_character
             user_data.append(
                 {
                     "portrait": portrait_html,
                     "name": user.username,
-                    "main": user.profile.main_character.character_name,
-                    "corporation": user.profile.main_character.corporation_name,
-                    "alliance": user.profile.main_character.alliance_name,
+                    "main": main_character.character_name,
+                    "corporation": main_character.corporation_name,
+                    "alliance": main_character.alliance_name,
                     "total_chars": user.total_chars,
                     "unregistered_chars": user.unregistered_chars,
                     "is_compliant": user.unregistered_chars == 0,
@@ -348,16 +347,12 @@ def character_finder_data(request):
             fa_code="fas fa-search",
             button_type="primary",
         )
-        alliance = (
-            owner.owner_characters_detail.alliance.name
-            if owner.owner_characters_detail.alliance
-            else "-"
-        )
+        alliance = character.alliance_name if character.alliance_name else "-"
         character_list.append(
             {
                 "portrait": portrait_html,
                 "character": character.character_name,
-                "corporation": owner.owner_characters_detail.corporation.name,
+                "corporation": character.corporation_name,
                 "alliance": alliance,
                 "main": user_profile.main_character.character_name,
                 "state": user_profile.state.name,

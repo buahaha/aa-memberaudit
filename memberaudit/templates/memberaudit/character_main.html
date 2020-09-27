@@ -5,7 +5,6 @@
 {% load evelinks %}
 
 {% block details %}
-
 <div class="panel panel-default">
     <div class="panel-body">
 
@@ -20,9 +19,9 @@
                     <dt>Character</dt>
                     <dd>{{ character.character_name}}</dd>
                     <dt>Corporation</dt>
-                    <dd>{{ character_details.corporation }}</dd>
+                    <dd>{{ character.corporation }}</dd>
                     <dt>Alliance</dt>
-                    <dd>{{ character_details.alliance|default:"-" }}</dd>
+                    <dd>{{ character.alliance|default:"-" }}</dd>
                     <dt>Faction</dt>
                     <dd>{{ character_details.faction|default:"-" }}</dd>
                 </dl>

@@ -24,7 +24,7 @@ urlpatterns = [
         views.character_wallet_journal_data,
         name="character_wallet_journal_data",
     ),
-    path("compliance_report", views.compliance_report, name="compliance_report"),
+    path("reports", views.reports, name="reports"),
     path(
         "compliance_report_data",
         views.compliance_report_data,

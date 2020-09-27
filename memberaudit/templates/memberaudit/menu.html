@@ -20,7 +20,7 @@
                     <a href="{% url 'memberaudit:launcher' %}">
                         My Characters
                         {%  if unregistered_count > 0 %}
-                        &nbsp;<span class="badge">{{ unregistered_count }}</span>
+                            <span class="badge">{{ unregistered_count }}</span>
                         {% endif %}
                     </a>
                 </li>
@@ -30,9 +30,18 @@
                             Character Finder
                         </a>
                     </li>
-                    <li class="{% navactive request 'memberaudit:compliance_report' %}">
-                        <a href="{% url 'memberaudit:compliance_report' %}">
-                            Compliance Report
+                    <li class="{% navactive request 'memberaudit:reports' %}">
+                        <a href="{% url 'memberaudit:reports' %}">
+                            Reports
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+            <ul class="nav navbar-nav navbar-right">
+                {% if "character_main" in request.path %}
+                    <li class="{% navactive request 'memberaudit:character_main' %}">
+                        <a href="#">
+                            Character
                         </a>
                     </li>
                 {% endif %}
