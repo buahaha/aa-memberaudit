@@ -3,98 +3,92 @@
 {% load static %}
 
 {% block details %}
-    
-    <div class="panel panel-default">
-        <div class="panel-heading" style="display:flex;">
-            <h3 class="panel-title">{% trans 'Your characters' %}</h3>
-        </div>
-        <div class="panel-body">            
-            {% if has_registered_chars %}
-                <table class="table" id="tab_standingssync">
-                    <thead>                        
-                        <tr>
-                            <th></th>
-                            <th>Name</th>
-                            <th></th>
-                            <th>Location</th>
-                            <th>Registered?</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for character in characters %}                            
-                            <tr>                                
-                                <td class="text-center"><img class="ra-avatar img-circle" src="{{ character.portrait_url }}">
-                                </td>
-                                <td>{{ character.name }}</td>
-                                <td>
-                                    {% if character.is_registered %}
-                                        <a 
-                                            class="btn btn-primary" 
-                                            href="{% url 'memberaudit:activate_character' character.owner_pk %}" 
-                                            role="button" title="Open character details" >
-                                            <i class="fas fa-search"></i>
-                                        </a>
-                                        <a 
-                                            class="btn btn-danger" 
-                                            href="{% url 'memberaudit:activate_character' character.owner_pk %}" 
-                                            role="button" 
-                                            title="Remove this character from the launcher">
-                                            <i class="far fa-trash-alt"></i>
-                                        </a>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if character.is_registered %}
-                                        <div id="location_{{ character.owner_pk }}">
-                                            Loading... 
-                                        </div>
-                                    {% else %}
-                                        Not registered
-                                    {% endif %}
-                                </td>
-                                <td> 
-                                    <span style="font-size: 125%">
-                                    {% if character.is_registered %}
-                                        <span class="text-success"><i class="fa fa-check-circle fa-fw"></i></span>
-                                    {% else %}
-                                        <span class="text-danger"><i class="fa fa-times-circle fa-fw"></i></span>
-                                    {% endif %}
-                                    </span>
-                                </td>                                
-                            </tr>
-                        {% endfor %}
-                    </tbody>                        
-                </table>
-            {% else %}
-                <p>None</p>
-            {% endif %}
-        </div>
-    </div>
 
-    <a
-        class="btn btn-primary" 
-        href="{% url 'memberaudit:add_owner' %}">
-        Register character
-    </a>
-    <p class="text-muted">By registering your character you agree that the alliance can access your data</p>
-    
+<div class="panel panel-default">
+    <div class="panel-heading" style="display:flex;">
+        <h3 class="panel-title">{% trans 'Your characters' %}</h3>
+    </div>
+    <div class="panel-body">
+        {% if has_registered_chars %}
+        <table class="table" id="tab_standingssync">
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Name</th>
+                    <th></th>
+                    <th>Location</th>
+                    <th>Registered?</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for character in characters %}
+                <tr>
+                    <td class="text-center"><img class="ra-avatar img-circle" src="{{ character.portrait_url }}">
+                    </td>
+                    <td>{{ character.name }}</td>
+                    <td>
+                        {% if character.is_registered %}
+                        <a class="btn btn-primary" href="{% url 'memberaudit:activate_character' character.owner_pk %}"
+                            role="button" title="Open character details">
+                            <i class="fas fa-search"></i>
+                        </a>
+                        <a class="btn btn-danger" href="{% url 'memberaudit:activate_character' character.owner_pk %}"
+                            role="button" title="Remove this character from the launcher">
+                            <i class="far fa-trash-alt"></i>
+                        </a>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if character.is_registered %}
+                        <div id="location_{{ character.owner_pk }}">
+                            Loading...
+                        </div>
+                        {% else %}
+                        Not registered
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span style="font-size: 125%">
+                            {% if character.is_registered %}
+                            <span class="text-success"><i class="fa fa-check-circle fa-fw"></i></span>
+                            {% else %}
+                            <span class="text-danger"><i class="fa fa-times-circle fa-fw"></i></span>
+                            {% endif %}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>None</p>
+        {% endif %}
+    </div>
+</div>
+
+<a class="btn btn-primary" href="{% url 'memberaudit:add_owner' %}">
+    Register character
+</a>
+<p class="text-muted">By registering your character you agree that the alliance can access your data</p>
+
 {% endblock details %}
 
 {% block extra_javascript %}
-    <script>
-        $(document).ready(function(){
-            {% for character in characters %}
-                {% if character.is_registered %}                    
-                    $("#location_" + {{ character.owner_pk }}).load(
-                        "{% url 'memberaudit:character_location_data' %}?owner_pk=" + {{ character.owner_pk }});
-                {% endif %}
-            {% endfor %}
+<script>
+    $(document).ready(function () {
+        {% for character in characters %}
+        {% if character.is_registered %}
+        $("#location_" + {{ character.owner_pk }}).load(
+            "{% url 'memberaudit:character_location_data' character.owner_pk %}"
+        );
+    {% endif %}
+    {% endfor %}
         });
-    </script>
+</script>
 {% endblock %}
 
-{% block extra_css %}    
+{% block extra_css %}
 {% endblock %}
 
-{% block extra_script %}    
+{% block extra_script %}
 {% endblock %}

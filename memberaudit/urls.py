@@ -15,7 +15,7 @@ urlpatterns = [
     ),
     path("add_owner", views.add_owner, name="add_owner"),
     path(
-        "character_location_data",
+        "character_location_data/<int:owner_pk>/",
         views.character_location_data,
         name="character_location_data",
     ),

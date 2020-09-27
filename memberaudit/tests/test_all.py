@@ -24,7 +24,7 @@ logger = logging.getLogger("memberaudit.tasks")
 logger.level = logging.DEBUG
 logger.addHandler(c_handler)
 
-
+"""
 class TestTasks(TestCase):
     @classmethod
     def setUpClass(cls):
@@ -69,3 +69,4 @@ class TestTasks(TestCase):
             []
         )
         tasks.sync_mailinglists(self.owner, esi_client)
+"""
