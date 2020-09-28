@@ -1,6 +1,7 @@
 {% load static %}
 {% load i18n %}
 {% load navactive %}
+{% load memberaudit %}
 
 <nav class="navbar navbar-default">
     <div class="container-fluid">
@@ -26,15 +27,16 @@
                         {% endif %}
                     </a>
                 </li>
-            </ul>
-            <ul class="nav navbar-nav navbar-right">
-                {% if "character_main" in request.path %}
-                    <li class="{% navactive request 'memberaudit:character_main' %}">
-                        <a href="#">
-                            Character
-                        </a>
-                    </li>
-                {% endif %}
+                
+                    {% for character in registered_characters %}
+                        <li class="{% navactive_2 request 'memberaudit:character_main' character.pk %}">
+                            <a href="{% url 'memberaudit:character_main' character.pk %}">
+                                {{ character.name }}
+                            </a>
+                        </li>
+                    
+                    {% endfor %}
+                
             </ul>
         </div>
     </div>

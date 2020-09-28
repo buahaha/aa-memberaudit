@@ -11,9 +11,11 @@ class TestOwnerUserHasAccess(TestCase):
     @classmethod
     def setUp(self) -> None:
         self.user = AuthUtils.create_user("Bruce Wanye")
-        self.character = AuthUtils.add_main_character_2(self.user, "Bruce Wayne", 1001)
+        self.auth_character = AuthUtils.add_main_character_2(
+            self.user, "Bruce Wayne", 1001
+        )
         character_ownership = CharacterOwnership.objects.create(
-            user=self.user, character=self.character, owner_hash="123456"
+            user=self.user, character=self.auth_character, owner_hash="123456"
         )
         self.owner = Owner.objects.create(character_ownership=character_ownership)
 

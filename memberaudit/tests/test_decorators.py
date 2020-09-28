@@ -18,14 +18,16 @@ class TestFetchOwnerIfAllowed(TestCase):
         super().setUpClass()
         cls.factory = RequestFactory()
         cls.user = AuthUtils.create_user("Bruce Wanye")
-        cls.character = AuthUtils.add_main_character_2(cls.user, "Bruce Wayne", 1001)
+        cls.auth_character = AuthUtils.add_main_character_2(
+            cls.user, "Bruce Wayne", 1001
+        )
         CharacterOwnership.objects.create(
-            user=cls.user, character=cls.character, owner_hash="123456"
+            user=cls.user, character=cls.auth_character, owner_hash="123456"
         )
 
     def setUp(self) -> None:
         self.owner = Owner.objects.create(
-            character_ownership=self.character.character_ownership
+            character_ownership=self.auth_character.character_ownership
         )
 
     def test_passthrough_when_fetch_owner_if_allowed(self):

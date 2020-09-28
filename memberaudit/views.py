@@ -1,10 +1,10 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import transaction
-from django.db.models import Count, Q
+from django.db.models import Count, Q, F
 from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect
-from django.urls.base import reverse
+from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.timezone import now
 from django.views.decorators.cache import cache_page
@@ -42,8 +42,20 @@ def add_common_context(request, context: dict) -> dict:
     unregistered_count = Owner.objects.unregistered_characters_of_user_count(
         request.user
     )
+    registered_characters = list(
+        Owner.objects.select_related(
+            "character_ownership", "character_ownership__character"
+        )
+        .filter(character_ownership__user=request.user)
+        .order_by("character_ownership__character__character_name")
+        .values("pk", name=F("character_ownership__character__character_name"))
+    )
     new_context = {
-        **{"app_title": __title__, "unregistered_count": unregistered_count},
+        **{
+            "app_title": __title__,
+            "unregistered_count": unregistered_count,
+            "registered_characters": registered_characters,
+        },
         **context,
     }
     return new_context
@@ -97,6 +109,7 @@ def launcher(request):
         "unregistered_chars": unregistered_chars,
     }
 
+    """
     if has_registered_chars:
         messages_plus.warning(
             request,
@@ -106,7 +119,7 @@ def launcher(request):
                 unregistered_chars,
             ),
         )
-
+    """
     return render(
         request,
         "memberaudit/characters/launcher.html",
@@ -211,11 +224,12 @@ def character_main(request, owner_pk: int, owner: Owner):
             }
         )
 
+    auth_character = owner.character_ownership.character
     context = {
         "section_title": SECTION_TITLE_CHARACTERS,
-        "page_title": "Character",
+        "page_title": auth_character.character_name,
         "owner_pk": owner.pk,
-        "character": owner.character_ownership.character,
+        "character": auth_character,
         "character_details": owner.owner_characters_detail,
         "wallet_balance": wallet_balance,
         "corporation_history": reversed(corporation_history),
@@ -355,22 +369,22 @@ def character_finder(request):
 def character_finder_data(request):
     character_list = list()
     for owner in Owner.objects.all():
-        character = owner.character_ownership.character
+        auth_character = owner.character_ownership.character
         user_profile = owner.character_ownership.user.profile
         portrait_html = create_img_html(
-            character.portrait_url(), ["ra-avatar", "img-circle"]
+            auth_character.portrait_url(), ["ra-avatar", "img-circle"]
         )
         actions_html = create_fa_button_html(
             url=reverse("memberaudit:character_main", args=[owner.pk]),
             fa_code="fas fa-search",
             button_type="primary",
         )
-        alliance = character.alliance_name if character.alliance_name else "-"
+        alliance = auth_character.alliance_name if auth_character.alliance_name else "-"
         character_list.append(
             {
                 "portrait": portrait_html,
-                "character": character.character_name,
-                "corporation": character.corporation_name,
+                "character": auth_character.character_name,
+                "corporation": auth_character.corporation_name,
                 "alliance": alliance,
                 "main": user_profile.main_character.character_name,
                 "state": user_profile.state.name,
