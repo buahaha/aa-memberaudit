@@ -10,7 +10,7 @@ from .utils import LoggerAddTag
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
-class OwnerManager(models.Manager):
+class CharacterManager(models.Manager):
     def unregistered_characters_of_user_count(self, user) -> int:
         return CharacterOwnership.objects.filter(
             user=user, memberaudit_owner__isnull=True

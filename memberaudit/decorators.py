@@ -2,12 +2,12 @@ from functools import wraps
 
 from django.http import HttpResponseForbidden, HttpResponseNotFound
 
-from .models import Owner
+from .models import Character
 
 
-def fetch_owner_if_allowed(*args_select_related):
-    """Asserts the current user has access to the owner
-    and loads the given owner if it exists
+def fetch_character_if_allowed(*args_select_related):
+    """Asserts the current user has access to the character
+    and loads the given character if it exists
 
     Args:
     - Optionally add list of parms for select_related. 
@@ -15,24 +15,24 @@ def fetch_owner_if_allowed(*args_select_related):
 
     Returns:
     - 403 if user has no access
-    - 404 if owner does not exist 
+    - 404 if character does not exist 
     """
 
     def decorator(view_func):
         @wraps(view_func)
-        def _wrapped_view(request, owner_pk, *args, **kwargs):
+        def _wrapped_view(request, character_pk, *args, **kwargs):
             try:
                 args_select_related_2 = args_select_related + ("character_ownership",)
-                owner = Owner.objects.select_related(*args_select_related_2).get(
-                    pk=owner_pk
-                )
-            except Owner.DoesNotExist:
+                character = Character.objects.select_related(
+                    *args_select_related_2
+                ).get(pk=character_pk)
+            except Character.DoesNotExist:
                 return HttpResponseNotFound()
 
-            if not owner.user_has_access(request.user):
+            if not character.user_has_access(request.user):
                 return HttpResponseForbidden()
 
-            return view_func(request, owner_pk, owner, *args, **kwargs)
+            return view_func(request, character_pk, character, *args, **kwargs)
 
         return _wrapped_view
 

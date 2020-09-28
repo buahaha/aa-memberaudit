@@ -4,7 +4,7 @@ from allianceauth.services.hooks import MenuItemHook, UrlHook
 from allianceauth import hooks
 
 from . import urls
-from .models import Owner
+from .models import Character
 
 
 class MemberauditMenuItem(MenuItemHook):
@@ -22,7 +22,7 @@ class MemberauditMenuItem(MenuItemHook):
 
     def render(self, request):
         if request.user.has_perm("memberaudit.basic_access"):
-            app_count = Owner.objects.unregistered_characters_of_user_count(
+            app_count = Character.objects.unregistered_characters_of_user_count(
                 request.user
             )
             self.count = app_count if app_count and app_count > 0 else None
@@ -55,7 +55,7 @@ class MemberauditMenuItem2(MenuItemHook):
 
     def render(self, request):
         if request.user.has_perm("memberaudit.basic_access"):
-            app_count = Owner.objects.unregistered_characters_of_user_count(
+            app_count = Character.objects.unregistered_characters_of_user_count(
                 request.user
             )
             self.count = app_count if app_count and app_count > 0 else None
@@ -66,8 +66,3 @@ class MemberauditMenuItem2(MenuItemHook):
 @hooks.register("menu_item_hook")
 def register_menu_2():
     return MemberauditMenuItem2()
-
-
-@hooks.register("url_hook")
-def register_urls_2():
-    return UrlHook(urls, "memberaudit", r"^memberaudit/")

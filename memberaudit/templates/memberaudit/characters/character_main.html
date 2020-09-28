@@ -168,12 +168,12 @@
     <script type="application/javascript">
         $(document).ready(function () {
             $("#div_location").load(
-                "{% url 'memberaudit:character_location_data' owner_pk %}"
+                "{% url 'memberaudit:character_location_data' character_pk %}"
             );
 
             $('#tab_skills').DataTable({
                 ajax: {
-                    url: "{% url 'memberaudit:character_skills_data' owner_pk %}",
+                    url: "{% url 'memberaudit:character_skills_data' character_pk %}",
                     dataSrc: '',
                     cache: false
                 },
@@ -200,7 +200,7 @@
 
             $('#tab_wallet').DataTable({
                 ajax: {
-                    url: "{% url 'memberaudit:character_wallet_journal_data' owner_pk %}",
+                    url: "{% url 'memberaudit:character_wallet_journal_data' character_pk %}",
                     dataSrc: '',
                     cache: false
                 },

@@ -18,8 +18,8 @@ from allianceauth.eveonline.evelinks import dotlan
 from allianceauth.services.hooks import get_extension_logger
 
 from . import tasks, __title__, SECTION_TITLE_CHARACTERS, SECTION_TITLE_ANALYSIS
-from .decorators import fetch_owner_if_allowed
-from .models import Owner
+from .decorators import fetch_character_if_allowed
+from .models import Character
 from .utils import (
     messages_plus,
     LoggerAddTag,
@@ -39,11 +39,11 @@ def create_img_html(src: str, classes: list) -> str:
 
 def add_common_context(request, context: dict) -> dict:
     """adds the common context used by all view"""
-    unregistered_count = Owner.objects.unregistered_characters_of_user_count(
+    unregistered_count = Character.objects.unregistered_characters_of_user_count(
         request.user
     )
     registered_characters = list(
-        Owner.objects.select_related(
+        Character.objects.select_related(
             "character_ownership", "character_ownership__character"
         )
         .filter(character_ownership__user=request.user)
@@ -89,7 +89,7 @@ def launcher(request):
         if not is_registered:
             unregistered_chars += 1
 
-        owner_pk = character_ownership.memberaudit_owner.pk if is_registered else 0
+        character_pk = character_ownership.memberaudit_owner.pk if is_registered else 0
         characters.append(
             {
                 "portrait_url": character_ownership.character.portrait_url,
@@ -97,7 +97,7 @@ def launcher(request):
                 "is_registered": is_registered,
                 "pk": character_ownership.character.pk,
                 "character_id": character_ownership.character.character_id,
-                "owner_pk": owner_pk,
+                "character_pk": character_pk,
             }
         )
 
@@ -129,7 +129,7 @@ def launcher(request):
 
 @login_required
 @permission_required("memberaudit.basic_access")
-@token_required(scopes=Owner.get_esi_scopes())
+@token_required(scopes=Character.get_esi_scopes())
 def add_owner(request, token):
     token_char = EveCharacter.objects.get(character_id=token.character_id)
     try:
@@ -147,11 +147,11 @@ def add_owner(request, token):
         )
     else:
         with transaction.atomic():
-            owner, _ = Owner.objects.update_or_create(
+            character, _ = Character.objects.update_or_create(
                 character_ownership=character_ownership
             )
 
-        tasks.sync_owner.delay(owner_pk=owner.pk, force_sync=True)
+        tasks.update_character.delay(character_pk=character.pk, user_pk=request.user.pk)
         messages_plus.success(
             request,
             format_html(
@@ -159,7 +159,7 @@ def add_owner(request, token):
                 "has started. "
                 "Syncing can take a while and "
                 "you will receive a notification once sync has completed.",
-                owner.character_ownership.character,
+                character.character_ownership.character,
             ),
         )
 
@@ -169,10 +169,12 @@ def add_owner(request, token):
 @cache_page(30)
 @login_required
 @permission_required("memberaudit.basic_access")
-@fetch_owner_if_allowed()
-def character_location_data(request, owner_pk: int, owner: Owner) -> HttpResponse:
+@fetch_character_if_allowed()
+def character_location_data(
+    request, character_pk: int, character: Character
+) -> HttpResponse:
     try:
-        solar_system, _ = owner.fetch_location()
+        solar_system, _ = character.fetch_location()
     except HTTPError:
         logger.warning("Network error", exc_info=True)
         html = '<p class="text-danger">Network error</p>'
@@ -192,21 +194,13 @@ def character_location_data(request, owner_pk: int, owner: Owner) -> HttpRespons
 
 @login_required
 @permission_required("memberaudit.basic_access")
-@fetch_owner_if_allowed(
-    "character_ownership__character",
-    "owner_characters_detail",
-    "walletbalance",
-    "skills",
+@fetch_character_if_allowed(
+    "character_ownership__character", "details",
 )
-def character_main(request, owner_pk: int, owner: Owner):
-    try:
-        wallet_balance = owner.walletbalance.amount
-    except ObjectDoesNotExist:
-        wallet_balance = "(no data)"
-
+def character_main(request, character_pk: int, character: Character):
     corporation_history = list()
     for entry in (
-        owner.corporationhistory_set.exclude(is_deleted=True)
+        character.corporation_history.exclude(is_deleted=True)
         .select_related("corporation")
         .order_by("start_date")
     ):
@@ -224,13 +218,16 @@ def character_main(request, owner_pk: int, owner: Owner):
             }
         )
 
-    auth_character = owner.character_ownership.character
+    wallet_balance = (
+        character.wallet_balance if character.wallet_balance else "(no data)"
+    )
+    auth_character = character.character_ownership.character
     context = {
         "section_title": SECTION_TITLE_CHARACTERS,
         "page_title": auth_character.character_name,
-        "owner_pk": owner.pk,
+        "character_pk": character.pk,
         "character": auth_character,
-        "character_details": owner.owner_characters_detail,
+        "character_details": character.details,
         "wallet_balance": wallet_balance,
         "corporation_history": reversed(corporation_history),
     }
@@ -243,11 +240,11 @@ def character_main(request, owner_pk: int, owner: Owner):
 
 @login_required
 @permission_required("memberaudit.basic_access")
-@fetch_owner_if_allowed("skills")
-def character_skills_data(request, owner_pk: int, owner: Owner):
+@fetch_character_if_allowed()
+def character_skills_data(request, character_pk: int, character: Character):
     skills_data = list()
     try:
-        for skill in owner.skills.skill_set.select_related(
+        for skill in character.skills.select_related(
             "eve_type", "eve_type__eve_group"
         ).all():
             skills_data.append(
@@ -265,11 +262,11 @@ def character_skills_data(request, owner_pk: int, owner: Owner):
 
 @login_required
 @permission_required("memberaudit.basic_access")
-@fetch_owner_if_allowed()
-def character_wallet_journal_data(request, owner_pk: int, owner: Owner):
+@fetch_character_if_allowed()
+def character_wallet_journal_data(request, character_pk: int, character: Character):
     wallet_data = list()
     try:
-        for row in owner.walletjournalentry_set.select_related(
+        for row in character.wallet_journal.select_related(
             "first_party", "second_party"
         ).all():
             first_party = row.first_party.name if row.first_party else "-"
@@ -368,14 +365,14 @@ def character_finder(request):
 @permission_required("memberaudit.unrestricted_access")
 def character_finder_data(request):
     character_list = list()
-    for owner in Owner.objects.all():
-        auth_character = owner.character_ownership.character
-        user_profile = owner.character_ownership.user.profile
+    for character in Character.objects.all():
+        auth_character = character.character_ownership.character
+        user_profile = character.character_ownership.user.profile
         portrait_html = create_img_html(
             auth_character.portrait_url(), ["ra-avatar", "img-circle"]
         )
         actions_html = create_fa_button_html(
-            url=reverse("memberaudit:character_main", args=[owner.pk]),
+            url=reverse("memberaudit:character_main", args=[character.pk]),
             fa_code="fas fa-search",
             button_type="primary",
         )

@@ -1,10 +1,10 @@
 from django.contrib import admin
 
-from .models import Owner, Mail, MailLabels, MailRecipient, MailingList
-from .tasks import sync_owner
+from .models import Character, Mail, MailLabels, MailRecipient, MailingList
+from .tasks import update_character
 
 
-@admin.register(Owner)
+@admin.register(Character)
 class OwnerAdmin(admin.ModelAdmin):
     list_display = ("character_ownership", "last_sync", "last_sync_ok")
 
@@ -18,7 +18,7 @@ class OwnerAdmin(admin.ModelAdmin):
     def update_character(self, request, queryset):
 
         for obj in queryset:
-            sync_owner.delay(obj.pk)
+            update_character.delay(obj.pk)
             text = "Started syncing data for: {}. ".format(obj)
             text += "You will receive a notification once it is completed."
 
@@ -29,8 +29,14 @@ class OwnerAdmin(admin.ModelAdmin):
 
 @admin.register(Mail)
 class MailAdmin(admin.ModelAdmin):
-    list_display = ("mail_id", "owner", "from_entity", "from_mailing_list", "subject")
-    list_filter = ("owner",)
+    list_display = (
+        "mail_id",
+        "character",
+        "from_entity",
+        "from_mailing_list",
+        "subject",
+    )
+    list_filter = ("character",)
 
 
 @admin.register(MailLabels)

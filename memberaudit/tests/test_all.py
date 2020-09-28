@@ -14,7 +14,7 @@ from allianceauth.eveonline.models import (
 )
 from allianceauth.authentication.models import CharacterOwnership
 
-from ..models import Owner
+from ..models import Character
 from .. import tasks
 
 
@@ -61,7 +61,7 @@ class TestTasks(TestCase):
         self.main_ownership = CharacterOwnership.objects.create(
             character=self.character, owner_hash="x1", user=self.user
         )
-        self.owner = Owner.objects.create(character=self.main_ownership)
+        self.owner = Character.objects.create(character=self.main_ownership)
 
     def test_sync_mailinglist(self):
         esi_client = Mock()

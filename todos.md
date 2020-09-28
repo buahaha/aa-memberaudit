@@ -3,8 +3,6 @@
 ## General
 
 - Add tests
-- Maybe rename Owner to Character?
-- Consolidate models?
 - Add more detailed permissions (e.g. corporation, alliance, recruiter)
 - Find better name for the app (people should like to use it)
 - Optimize resolution for EveEntity

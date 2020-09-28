@@ -32,7 +32,7 @@ from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
 from .app_settings import MEMBERAUDIT_MAX_MAILS
-from .managers import OwnerManager
+from .managers import CharacterManager
 from .utils import LoggerAddTag, make_logger_prefix
 
 
@@ -53,8 +53,8 @@ class Memberaudit(models.Model):
         )
 
 
-class Owner(models.Model):
-    """An owned character synced by this app"""
+class Character(models.Model):
+    """A character synced by this app"""
 
     character_ownership = models.OneToOneField(
         CharacterOwnership,
@@ -62,16 +62,29 @@ class Owner(models.Model):
         on_delete=models.CASCADE,
         help_text="character registered to member audit",
     )
+
+    total_sp = models.BigIntegerField(
+        validators=[MinValueValidator(0)], default=None, null=True, blank=True
+    )
+    unallocated_sp = models.PositiveIntegerField(default=None, null=True, blank=True)
+    wallet_balance = models.DecimalField(
+        max_digits=CURRENCY_MAX_DIGITS,
+        decimal_places=2,
+        default=None,
+        null=True,
+        blank=True,
+    )
+
     last_sync = models.DateTimeField(null=True, default=None, blank=True,)
     last_error = models.TextField(default="", blank=True,)
 
-    objects = OwnerManager()
+    objects = CharacterManager()
 
     def __str__(self):
         return str(self.character_ownership)
 
     def user_has_access(self, user: User) -> bool:
-        """Return True if given user has permission to view this owner"""
+        """Return True if given user has permission to view this character"""
         if self.character_ownership.user == user:
             return True
         elif user.has_perm("memberaudit.unrestricted_access"):
@@ -79,7 +92,7 @@ class Owner(models.Model):
 
         return False
 
-    def notify_user_about_last_sync(self) -> None:
+    def notify_user_about_last_sync(self, user: User) -> None:
         """Notify user about the last character sync"""
         if self.last_error:
             level = "danger"
@@ -93,12 +106,7 @@ class Owner(models.Model):
             result = "OK"
             message = "Last sync was successful"
         title = f"Result for syncing {self.character_ownership.character}: {result}"
-        notify(
-            user=self.character_ownership.user,
-            title=title,
-            message=message,
-            level=level,
-        )
+        notify(user=user, title=title, message=message, level=level)
 
     def token(self) -> Optional[Token]:
         add_prefix = make_logger_prefix(self)
@@ -142,8 +150,8 @@ class Owner(models.Model):
 
         return token
 
-    def sync_character_details(self):
-        """syncs the character details for the given owner"""
+    def update_character_details(self):
+        """syncs the character details for the given character"""
         add_prefix = make_logger_prefix(self)
         logger.info(add_prefix("Fetching character details from ESI"))
         details = esi.client.Character.get_characters_character_id(
@@ -185,7 +193,7 @@ class Owner(models.Model):
         race, _ = EveRace.objects.get_or_create_esi(id=details.get("race_id"))
         title = details.get("title") if details.get("title") else ""
         CharacterDetail.objects.update_or_create(
-            owner=self,
+            character=self,
             defaults={
                 "alliance": alliance,
                 "eve_ancestry": eve_ancestry,
@@ -201,7 +209,7 @@ class Owner(models.Model):
             },
         )
 
-    def sync_corporation_history(self):
+    def update_corporation_history(self):
         """syncs the character's corporation history"""
         add_prefix = make_logger_prefix(self)
         logger.info(add_prefix("Fetching corporation history from ESI"))
@@ -213,7 +221,7 @@ class Owner(models.Model):
                 id=row.get("corporation_id")
             )
             CorporationHistory.objects.update_or_create(
-                owner=self,
+                character=self,
                 record_id=row.get("record_id"),
                 defaults={
                     "corporation": corporation,
@@ -222,7 +230,7 @@ class Owner(models.Model):
                 },
             )
 
-    def sync_skills(self):
+    def update_skills(self):
         """syncs the character's skill"""
         add_prefix = make_logger_prefix(self)
         logger.info(add_prefix("Fetching skills from ESI"))
@@ -234,29 +242,25 @@ class Owner(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
-        owner_skills, _ = OwnerSkills.objects.update_or_create(
-            owner=self,
-            defaults={
-                "total_sp": skills.get("total_sp"),
-                "unallocated_sp": skills.get("unallocated_sp"),
-            },
-        )
+        self.total_sp = skills.get("total_sp")
+        self.unallocated_sp = skills.get("unallocated_sp")
+        self.save()
 
         with transaction.atomic():
-            Skill.objects.filter(owner_skills=owner_skills).delete()
+            Skill.objects.filter(character=self).delete()
             for skill in skills.get("skills"):
                 eve_type, _ = EveType.objects.get_or_create_esi(
                     id=skill.get("skill_id")
                 )
                 Skill.objects.create(
-                    owner_skills=owner_skills,
+                    character=self,
                     eve_type=eve_type,
                     active_skill_level=skill.get("active_skill_level"),
                     skillpoints_in_skill=skill.get("skillpoints_in_skill"),
                     trained_skill_level=skill.get("trained_skill_level"),
                 )
 
-    def sync_wallet_balance(self):
+    def update_wallet_balance(self):
         """syncs the character's wallet balance"""
         add_prefix = make_logger_prefix(self)
         logger.info(add_prefix("Fetching corporation history from ESI"))
@@ -268,9 +272,10 @@ class Owner(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
-        WalletBalance.objects.update_or_create(owner=self, defaults={"amount": balance})
+        self.wallet_balance = balance
+        self.save()
 
-    def sync_wallet_journal(self):
+    def update_wallet_journal(self):
         """syncs the character's wallet journal"""
         add_prefix = make_logger_prefix(self)
         logger.info(add_prefix("Fetching wallet journal from ESI"))
@@ -298,7 +303,7 @@ class Owner(models.Model):
                 second_party = None
 
             WalletJournalEntry.objects.update_or_create(
-                owner=self,
+                character=self,
                 entry_id=row.get("id"),
                 defaults={
                     "amount": row.get("amount"),
@@ -317,8 +322,8 @@ class Owner(models.Model):
                 },
             )
 
-    def sync_mailinglists(self):
-        """syncs the mailing list for the given owner"""
+    def update_mailinglists(self):
+        """syncs the mailing list for the given character"""
         add_prefix = make_logger_prefix(self)
         logger.info(add_prefix("Fetching mailing lists from ESI"))
         token = self.token()
@@ -337,7 +342,7 @@ class Owner(models.Model):
         created_count = 0
         for mailing_list in mailing_lists:
             _, created = MailingList.objects.update_or_create(
-                owner=self,
+                character=self,
                 list_id=mailing_list["mailing_list_id"],
                 defaults={"name": mailing_list["name"]},
             )
@@ -349,7 +354,7 @@ class Owner(models.Model):
                 add_prefix("Added/Updated {} mailing lists".format(created_count))
             )
 
-    def sync_mails(self):
+    def update_mails(self):
         add_prefix = make_logger_prefix(self)
         token = self.token()
         if not token:
@@ -401,7 +406,7 @@ class Owner(models.Model):
         ids = set()
         mailing_list_ids = [
             x["list_id"]
-            for x in MailingList.objects.filter(owner=self)
+            for x in MailingList.objects.filter(character=self)
             .select_related()
             .values("list_id")
         ]
@@ -439,7 +444,7 @@ class Owner(models.Model):
                         from_mailing_list = None
 
                     mail_obj, _ = Mail.objects.update_or_create(
-                        owner=self,
+                        character=self,
                         mail_id=header["mail_id"],
                         defaults={
                             "from_entity": from_entity,
@@ -533,12 +538,12 @@ class CharacterDetail(models.Model):
         (GENDER_MALE, _("male")),
         (GENDER_FEMALE, _("female")),
     )
-    owner = models.OneToOneField(
-        Owner,
+    character = models.OneToOneField(
+        Character,
         primary_key=True,
         on_delete=models.CASCADE,
-        related_name="owner_characters_detail",
-        help_text="character this mailling list belongs to",
+        related_name="details",
+        help_text="character this details belongs to",
     )
 
     # character public info
@@ -568,7 +573,7 @@ class CharacterDetail(models.Model):
     title = models.TextField(default="", blank=True)
 
     def __str__(self):
-        return str(self.owner)
+        return str(self.character)
 
     @property
     def description_plain(self) -> str:
@@ -580,7 +585,9 @@ class CharacterDetail(models.Model):
 
 
 class CorporationHistory(models.Model):
-    owner = models.ForeignKey(Owner, on_delete=models.CASCADE)
+    character = models.ForeignKey(
+        Character, on_delete=models.CASCADE, related_name="corporation_history"
+    )
     record_id = models.PositiveIntegerField(db_index=True)
     corporation = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
     is_deleted = models.BooleanField(null=True, default=None, blank=True, db_index=True)
@@ -589,19 +596,13 @@ class CorporationHistory(models.Model):
     # TODO: Add combined PK
 
     def __str__(self):
-        return str(f"{self.owner}-{self.record_id}")
-
-
-class OwnerSkills(models.Model):
-    owner = models.OneToOneField(
-        Owner, primary_key=True, on_delete=models.CASCADE, related_name="skills"
-    )
-    total_sp = models.BigIntegerField(validators=[MinValueValidator(0)])
-    unallocated_sp = models.PositiveIntegerField(default=None, null=True, blank=True)
+        return str(f"{self.character}-{self.record_id}")
 
 
 class Skill(models.Model):
-    owner_skills = models.ForeignKey(OwnerSkills, on_delete=models.CASCADE)
+    character = models.ForeignKey(
+        Character, on_delete=models.CASCADE, related_name="skills"
+    )
     eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
     active_skill_level = models.PositiveIntegerField()
     skillpoints_in_skill = models.BigIntegerField(validators=[MinValueValidator(0)])
@@ -610,20 +611,12 @@ class Skill(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["owner_skills", "skill"], name="functional_pk_skills"
+                fields=["character", "eve_type"], name="functional_pk_skills"
             )
         ]
 
     def __str__(self):
         return f"{self.owner_skills}-{self.eve_type.name}"
-
-
-class WalletBalance(models.Model):
-    owner = models.OneToOneField(Owner, primary_key=True, on_delete=models.CASCADE)
-    amount = models.DecimalField(max_digits=CURRENCY_MAX_DIGITS, decimal_places=2)
-
-    def __str__(self):
-        return f"{self.owner}-{self.amount}"
 
 
 class WalletJournalEntry(models.Model):
@@ -655,7 +648,9 @@ class WalletJournalEntry(models.Model):
         (CONTEXT_ID_TYPE_TYPE_ID, "type_id "),
     )
 
-    owner = models.ForeignKey(Owner, on_delete=models.CASCADE)
+    character = models.ForeignKey(
+        Character, on_delete=models.CASCADE, related_name="wallet_journal"
+    )
     entry_id = models.BigIntegerField(validators=[MinValueValidator(0)])
     amount = models.DecimalField(
         max_digits=CURRENCY_MAX_DIGITS,
@@ -712,12 +707,13 @@ class WalletJournalEntry(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["owner", "entry_id"], name="functional_pk_walletjournalentry"
+                fields=["character", "entry_id"],
+                name="functional_pk_walletjournalentry",
             )
         ]
 
     def __str__(self):
-        return str(self.owner) + " " + str(self.entry_id)
+        return str(self.character) + " " + str(self.entry_id)
 
     @classmethod
     def match_context_type_id(cls, query: str) -> str:
@@ -732,16 +728,17 @@ class WalletJournalEntry(models.Model):
 class MailingList(models.Model):
     """Mailing list of a character"""
 
-    owner = models.ForeignKey(
-        Owner,
+    character = models.ForeignKey(
+        Character,
         on_delete=models.CASCADE,
+        related_name="mailing_lists",
         help_text="character this mailling list belongs to",
     )
     list_id = models.PositiveIntegerField()
     name = models.CharField(max_length=254)
 
     class Meta:
-        unique_together = (("owner", "list_id"),)
+        unique_together = (("character", "list_id"),)
 
     def __str__(self):
         return self.name
@@ -750,8 +747,11 @@ class MailingList(models.Model):
 class Mail(models.Model):
     """Mail of a character"""
 
-    owner = models.ForeignKey(
-        Owner, on_delete=models.CASCADE, help_text="character this mail belongs to"
+    character = models.ForeignKey(
+        Character,
+        on_delete=models.CASCADE,
+        related_name="mails",
+        help_text="character this mail belongs to",
     )
     mail_id = models.PositiveIntegerField(null=True, default=None, blank=True)
     from_entity = models.ForeignKey(
@@ -766,7 +766,7 @@ class Mail(models.Model):
     timestamp = models.DateTimeField(null=True, default=None, blank=True)
 
     class Meta:
-        unique_together = (("owner", "mail_id"),)
+        unique_together = (("character", "mail_id"),)
 
     def __str__(self):
         return str(self.mail_id)
@@ -775,7 +775,7 @@ class Mail(models.Model):
 class MailLabels(models.Model):
     """Mail label used in a mail"""
 
-    mail = models.ForeignKey(Mail, on_delete=models.CASCADE)
+    mail = models.ForeignKey(Mail, on_delete=models.CASCADE, related_name="labels")
     label_id = models.PositiveIntegerField()
 
     class Meta:
@@ -788,7 +788,7 @@ class MailLabels(models.Model):
 class MailRecipient(models.Model):
     """Mail recipient used in a mail"""
 
-    mail = models.ForeignKey(Mail, on_delete=models.CASCADE)
+    mail = models.ForeignKey(Mail, on_delete=models.CASCADE, related_name="recipients")
     recipient = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
 
     class Meta:

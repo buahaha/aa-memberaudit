@@ -28,11 +28,11 @@
                         <td>{{ character.name }}</td>
                         <td>
                             {% if character.is_registered %}
-                                <a class="btn btn-primary" href="{% url 'memberaudit:character_main' character.owner_pk %}"
+                                <a class="btn btn-primary" href="{% url 'memberaudit:character_main' character.character_pk %}"
                                     role="button" title="Open character details">
                                     <i class="fas fa-search"></i>
                                 </a>
-                                <a class="btn btn-danger" href="{% url 'memberaudit:character_main' character.owner_pk %}"
+                                <a class="btn btn-danger" href="{% url 'memberaudit:character_main' character.character_pk %}"
                                     role="button" title="Remove this character from the launcher">
                                     <i class="far fa-trash-alt"></i>
                                 </a>
@@ -40,7 +40,7 @@
                         </td>
                         <td>
                             {% if character.is_registered %}
-                            <div id="location_{{ character.owner_pk }}">
+                            <div id="location_{{ character.character_pk }}">
                                 Loading...
                             </div>
                             {% else %}
@@ -78,8 +78,8 @@
     $(document).ready(function () {
         {% for character in characters %}
         {% if character.is_registered %}
-        $("#location_" + {{ character.owner_pk }}).load(
-            "{% url 'memberaudit:character_location_data' character.owner_pk %}"
+        $("#location_" + {{ character.character_pk }}).load(
+            "{% url 'memberaudit:character_location_data' character.character_pk %}"
         );
     {% endif %}
     {% endfor %}
