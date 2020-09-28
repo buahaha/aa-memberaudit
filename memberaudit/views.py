@@ -17,7 +17,7 @@ from allianceauth.eveonline.models import EveCharacter
 from allianceauth.eveonline.evelinks import dotlan
 from allianceauth.services.hooks import get_extension_logger
 
-from . import tasks, __title__
+from . import tasks, __title__, SECTION_TITLE_CHARACTERS, SECTION_TITLE_ANALYSIS
 from .decorators import fetch_owner_if_allowed
 from .models import Owner
 from .utils import (
@@ -55,6 +55,10 @@ def index(request):
     return redirect("memberaudit:launcher")
 
 
+#############################
+# Section: Characters
+
+
 @login_required
 @permission_required("memberaudit.basic_access")
 def launcher(request):
@@ -86,7 +90,8 @@ def launcher(request):
         )
 
     context = {
-        "page_title": "My Characters",
+        "section_title": SECTION_TITLE_CHARACTERS,
+        "page_title": "Register",
         "characters": characters,
         "has_registered_chars": has_registered_chars,
         "unregistered_chars": unregistered_chars,
@@ -103,7 +108,9 @@ def launcher(request):
         )
 
     return render(
-        request, "memberaudit/launcher.html", add_common_context(request, context)
+        request,
+        "memberaudit/characters/launcher.html",
+        add_common_context(request, context),
     )
 
 
@@ -143,7 +150,7 @@ def add_owner(request, token):
             ),
         )
 
-    return redirect("memberaudit:index")
+    return redirect("memberaudit:launcher")
 
 
 @cache_page(30)
@@ -205,6 +212,7 @@ def character_main(request, owner_pk: int, owner: Owner):
         )
 
     context = {
+        "section_title": SECTION_TITLE_CHARACTERS,
         "page_title": "Character",
         "owner_pk": owner.pk,
         "character": owner.character_ownership.character,
@@ -213,7 +221,9 @@ def character_main(request, owner_pk: int, owner: Owner):
         "corporation_history": reversed(corporation_history),
     }
     return render(
-        request, "memberaudit/character_main.html", add_common_context(request, context)
+        request,
+        "memberaudit/characters/character_main.html",
+        add_common_context(request, context),
     )
 
 
@@ -267,14 +277,21 @@ def character_wallet_journal_data(request, owner_pk: int, owner: Owner):
     return JsonResponse(wallet_data, safe=False)
 
 
+#############################
+# Section: Analysis
+
+
 @login_required
 @permission_required("memberaudit.unrestricted_access")
 def reports(request):
     context = {
+        "section_title": SECTION_TITLE_ANALYSIS,
         "page_title": "Reports",
     }
     return render(
-        request, "memberaudit/reports.html", add_common_context(request, context),
+        request,
+        "memberaudit/analysis/reports.html",
+        add_common_context(request, context),
     )
 
 
@@ -323,11 +340,12 @@ def compliance_report_data(request):
 @permission_required("memberaudit.unrestricted_access")
 def character_finder(request):
     context = {
+        "section_title": SECTION_TITLE_ANALYSIS,
         "page_title": "Character Finder",
     }
     return render(
         request,
-        "memberaudit/character_finder.html",
+        "memberaudit/analysis/character_finder.html",
         add_common_context(request, context),
     )
 
