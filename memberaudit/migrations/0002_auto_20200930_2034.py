@@ -7,27 +7,39 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('eveuniverse', '0002_load_eveunit'),
-        ('memberaudit', '0001_initial'),
+        ("eveuniverse", "0002_load_eveunit"),
+        ("memberaudit", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='mailrecipient',
-            name='eve_entity',
-            field=models.ForeignKey(blank=True, default=None, null=True, on_delete=django.db.models.deletion.CASCADE, to='eveuniverse.eveentity'),
+            model_name="mailrecipient",
+            name="eve_entity",
+            field=models.ForeignKey(
+                blank=True,
+                default=None,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                to="eveuniverse.eveentity",
+            ),
         ),
         migrations.AddField(
-            model_name='mailrecipient',
-            name='mailing_list',
-            field=models.ForeignKey(blank=True, default=None, null=True, on_delete=django.db.models.deletion.CASCADE, to='memberaudit.mailinglist'),
+            model_name="mailrecipient",
+            name="mailing_list",
+            field=models.ForeignKey(
+                blank=True,
+                default=None,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                to="memberaudit.mailinglist",
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='mailrecipient',
+            name="mailrecipient",
             unique_together=set(),
         ),
         migrations.RemoveField(
-            model_name='mailrecipient',
-            name='recipient',
+            model_name="mailrecipient",
+            name="recipient",
         ),
     ]

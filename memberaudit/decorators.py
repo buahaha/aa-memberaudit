@@ -10,12 +10,12 @@ def fetch_character_if_allowed(*args_select_related):
     and loads the given character if it exists
 
     Args:
-    - Optionally add list of parms for select_related. 
+    - Optionally add list of parms for select_related.
     Note that "character_ownership" is already included.
 
     Returns:
     - 403 if user has no access
-    - 404 if character does not exist 
+    - 404 if character does not exist
     """
 
     def decorator(view_func):

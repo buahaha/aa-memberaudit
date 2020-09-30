@@ -43,5 +43,7 @@ setup(
     python_requires="~=3.6",
     install_requires=[
         "allianceauth>=2.7.3",
+        "django-esi>=2",
+        "django-eveuniverse>=0.3.4",
     ],
 )
