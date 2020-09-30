@@ -40,6 +40,13 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 CURRENCY_MAX_DIGITS = 17
 
 
+def eve_xml_to_html(xml: str) -> str:
+    x = xml.replace("<br>", "\n")
+    x = strip_tags(x)
+    x = x.replace("\n", "<br>")
+    return mark_safe(x)
+
+
 class Memberaudit(models.Model):
     """Meta model for app permissions"""
 
@@ -491,7 +498,7 @@ class Character(models.Model):
                         MailLabels.objects.create(label_id=label, mail=mail_obj)
 
                     if mail_obj.body is None:
-                        logger.info(
+                        logger.debug(
                             add_prefix(
                                 "Fetching body from ESI for mail ID {}".format(
                                     mail_obj.mail_id
@@ -602,10 +609,7 @@ class CharacterDetails(models.Model):
     @property
     def description_plain(self) -> str:
         """returns the description without tags"""
-        x = self.description.replace("<br>", "\n")
-        x = strip_tags(x)
-        x = x.replace("\n", "<br>")
-        return mark_safe(x)
+        return eve_xml_to_html(self.description)
 
 
 class CorporationHistory(models.Model):
@@ -668,6 +672,11 @@ class Mail(models.Model):
 
     def __str__(self):
         return str(self.mail_id)
+
+    @property
+    def body_html(self) -> str:
+        """returns the body as html"""
+        return eve_xml_to_html(self.body)
 
 
 class MailLabels(models.Model):

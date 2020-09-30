@@ -2,7 +2,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import transaction
 from django.db.models import Count, Q, F
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, HttpResponseNotFound
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.utils.html import format_html
@@ -19,7 +19,7 @@ from allianceauth.services.hooks import get_extension_logger
 
 from . import tasks, __title__
 from .decorators import fetch_character_if_allowed
-from .models import Character
+from .models import Character, Mail
 from .utils import (
     messages_plus,
     LoggerAddTag,
@@ -251,18 +251,24 @@ def character_main(request, character_pk: int, character: Character):
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
-def character_mails_data(request, character_pk: int, character: Character):
+def character_mail_headers_data(request, character_pk: int, character: Character):
     mails_data = list()
     try:
         for mail in character.mails.select_related(
             "from_entity", "from_mailing_list", "from_mailing_list"
         ).all():
+            actions_html = (
+                '<button type="button" class="btn btn-primary" '
+                'data-toggle="modal" data-target="#modalCharacterMail" '
+                f"data-character_pk={character_pk} data-mail_pk={mail.pk}>"
+                '<i class="fas fa-search"></i></button>'
+            )
             mails_data.append(
                 {
                     "mail_id": mail.mail_id,
                     "labels": list(mail.labels.values_list("label_id", flat=True)),
                     "from": mail.from_entity.name,
-                    "to": list(
+                    "to": ", ".join(
                         sorted(
                             [
                                 str(obj)
@@ -274,12 +280,45 @@ def character_mails_data(request, character_pk: int, character: Character):
                     ),
                     "subject": mail.subject,
                     "sent": mail.timestamp.strftime(DATETIME_FORMAT),
+                    "action": actions_html,
                 }
             )
     except ObjectDoesNotExist:
         pass
 
     return JsonResponse(mails_data, safe=False)
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_mail_data(request, character_pk: int, character: Character, mail_pk: int):
+    try:
+        mail = character.mails.get(pk=mail_pk)
+    except Mail.DoesNotExist:
+        error_msg = f"Mail with pk {mail_pk} not found for character {character}"
+        logger.warning(error_msg)
+        return HttpResponseNotFound(error_msg)
+
+    data = {
+        "mail_id": mail.mail_id,
+        "labels": list(mail.labels.values_list("label_id", flat=True)),
+        "from": mail.from_entity.name,
+        "to": ", ".join(
+            sorted(
+                [
+                    str(obj)
+                    for obj in mail.recipients.select_related(
+                        "eve_entity", "mailing_list"
+                    )
+                ]
+            )
+        ),
+        "subject": mail.subject,
+        "sent": mail.timestamp.strftime(DATETIME_FORMAT),
+        "body": mail.body_html,
+    }
+    return JsonResponse(data, safe=False)
 
 
 @login_required

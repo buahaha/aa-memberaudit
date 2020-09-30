@@ -15,9 +15,7 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 @shared_task
-def update_character(
-    character_pk, force_sync: bool = False, user_pk: int = None
-) -> None:
+def update_character(character_pk: int, user_pk: int = None) -> None:
     """update all data for a character from ESI"""
     try:
         character = Character.objects.get(pk=character_pk)
@@ -26,6 +24,7 @@ def update_character(
             "Requested character with pk {} not registered".format(character_pk)
         )
     add_prefix = make_logger_prefix(character)
+    logger.info(add_prefix("Starting character update"))
     try:
         user = User.objects.get(pk=user_pk)
     except User.DoesNotExist:
@@ -46,9 +45,17 @@ def update_character(
 
     except Exception as ex:
         error = f"Unexpected error ocurred: {type(ex).__name__}"
-        logger.exception(add_prefix(error))
+        logger.error(add_prefix(error), exc_info=True)
         character.last_error = error
         character.save()
         if user:
             character.notify_user_about_last_sync(user)
         raise ex
+
+    logger.info(add_prefix("Character update completed"))
+
+
+@shared_task
+def update_all_characters() -> None:
+    for character in Character.objects.all():
+        update_character.delay(character_pk=character.pk)

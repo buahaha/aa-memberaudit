@@ -153,7 +153,8 @@
                                     <th>sent</th>
                                     <th>from</th>
                                     <th>to</th>
-                                    <th>subject</th>                                    
+                                    <th>subject</th>
+                                    <th></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -189,14 +190,46 @@
     </div>
 </div>
 
+<!-- Modal for Mails -->
+<div class="modal" id="modalCharacterMail" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">
+                    &times;
+                </span></button>
+                <h4 class="modal-title" id="myModalLabel">Loading...</h4>
+            </div>
+            <div class="modal-body">                
+                <dl class="dl-horizontal">
+                    <dt>From:</dt>
+                    <dd id="mail_from">Loading...</dd>                
+                    <dt>To:</dt>
+                    <dd id="mail_to">Loading...</dd>
+                    <dt>Sent:</dt>
+                    <dd id="mail_sent">Loading...</dd>
+                    <br>
+                    <div id="mail_body">Loading...</div>
+                </dl>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">
+                    Close
+                </button>                
+            </div>
+        </div>
+    </div>
+</div>
 
 {% endblock details %}
 
 {% block extra_javascript %}
     {% include 'bundles/datatables-js.html' %}
+    
     <script type="application/javascript"
         src="https://cdn.datatables.net/rowgroup/1.1.2/js/dataTables.rowGroup.min.js"></script>
-    <script type="application/javascript">
+    
+    <script type="application/javascript">        
         $(document).ready(function () {
             $("#div_location").load(
                 "{% url 'memberaudit:character_location_data' character.pk %}"
@@ -204,7 +237,7 @@
 
              $('#tab_mails').DataTable({
                 ajax: {
-                    url: "{% url 'memberaudit:character_mails_data' character.pk %}",
+                    url: "{% url 'memberaudit:character_mail_headers_data' character.pk %}",
                     dataSrc: '',
                     cache: false
                 },
@@ -212,10 +245,29 @@
                     { data: 'sent' },
                     { data: 'from' },
                     { data: 'to' },
-                    { data: 'subject' }      
+                    { data: 'subject' },
+                    { data: 'action' }
                 ],
                 order: [[0, "desc"]],
             });
+
+            $('#modalCharacterMail').on('show.bs.modal', function (event) {
+                var button = $(event.relatedTarget)
+                var character_pk = button.data('character_pk')
+                var mail_pk = button.data('mail_pk')
+                var modal = $(this)                
+                $.get(
+                    "{% url 'memberaudit:character_mail_data' 1 2 %}"
+                    .replace("/1", "/" + character_pk) 
+                    .replace("/2", "/" + mail_pk), 
+                    function(data, status){
+                        modal.find('.modal-title').html(data.subject)
+                        modal.find('#mail_from').html(data.from)
+                        modal.find('#mail_to').html(data.to)
+                        modal.find('#mail_sent').html(data.sent)
+                        modal.find('#mail_body').html(data.body)
+                });                
+            })
 
             $('#tab_skills').DataTable({
                 ajax: {
