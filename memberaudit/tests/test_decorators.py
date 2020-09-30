@@ -64,7 +64,7 @@ class TestFetchOwnerIfAllowed(TestCase):
         self.assertEqual(response.status_code, 403)
 
     """
-    TODO: create test case with CharacterDetail
+    TODO: create test case with CharacterDetails
     def test_can_specify_list_for_select_related(self):
         @fetch_character_if_allowed("skills")
         def dummy(request, character_pk, character):

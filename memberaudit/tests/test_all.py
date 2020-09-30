@@ -1,3 +1,4 @@
+"""
 import os
 import inspect
 import json
@@ -24,7 +25,6 @@ logger = logging.getLogger("memberaudit.tasks")
 logger.level = logging.DEBUG
 logger.addHandler(c_handler)
 
-"""
 class TestTasks(TestCase):
     @classmethod
     def setUpClass(cls):

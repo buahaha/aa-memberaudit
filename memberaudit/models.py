@@ -2,9 +2,9 @@ import json
 from typing import Optional
 
 from django.contrib.auth.models import User
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinValueValidator
-from django.conf import settings
 from django.db import models, transaction
 from django.utils.html import strip_tags
 from django.utils.safestring import mark_safe
@@ -23,16 +23,15 @@ from eveuniverse.models import (
     EveStation,
     EveType,
 )
-from eveuniverse.providers import esi
-
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
-from .app_settings import MEMBERAUDIT_MAX_MAILS
+from .app_settings import MEMBERAUDIT_MAX_MAILS, MEMBERAUDIT_DEVELOPER_MODE
 from .managers import CharacterManager
+from .providers import esi
 from .utils import LoggerAddTag, make_logger_prefix
 
 
@@ -75,8 +74,15 @@ class Character(models.Model):
         blank=True,
     )
 
-    last_sync = models.DateTimeField(null=True, default=None, blank=True,)
-    last_error = models.TextField(default="", blank=True,)
+    last_sync = models.DateTimeField(
+        null=True,
+        default=None,
+        blank=True,
+    )
+    last_error = models.TextField(
+        default="",
+        blank=True,
+    )
 
     objects = CharacterManager()
 
@@ -186,24 +192,25 @@ class Character(models.Model):
             faction = None
 
         if details.get("gender") == "male":
-            gender = CharacterDetail.GENDER_MALE
+            gender = CharacterDetails.GENDER_MALE
         else:
-            gender = CharacterDetail.GENDER_FEMALE
+            gender = CharacterDetails.GENDER_FEMALE
 
         race, _ = EveRace.objects.get_or_create_esi(id=details.get("race_id"))
         title = details.get("title") if details.get("title") else ""
-        CharacterDetail.objects.update_or_create(
+        CharacterDetails.objects.update_or_create(
             character=self,
             defaults={
                 "alliance": alliance,
-                "eve_ancestry": eve_ancestry,
                 "birthday": details.get("birthday"),
+                "eve_ancestry": eve_ancestry,
                 "eve_bloodline": eve_bloodline,
+                "eve_faction": faction,
+                "eve_race": race,
                 "corporation": corporation,
                 "description": description,
-                "faction": faction,
                 "gender": gender,
-                "race": race,
+                "name": details.get("name"),
                 "security_status": details.get("security_status"),
                 "title": title,
             },
@@ -389,7 +396,7 @@ class Character(models.Model):
             )
         )
 
-        if settings.DEBUG:
+        if MEMBERAUDIT_DEVELOPER_MODE:
             # store to disk (for debugging)
             with open(
                 "mail_headers_raw_{}.json".format(
@@ -456,13 +463,29 @@ class Character(models.Model):
                     )
                     MailRecipient.objects.filter(mail=mail_obj).delete()
                     for recipient in header["recipients"]:
+                        recipient_id = recipient.get("recipient_id")
                         if recipient["recipient_type"] != "mailing_list":
-                            recipient, _ = EveEntity.objects.get_or_create_esi(
-                                id=recipient["recipient_id"]
+                            eve_entity, _ = EveEntity.objects.get_or_create_esi(
+                                id=recipient_id
                             )
                             MailRecipient.objects.create(
-                                mail=mail_obj, recipient=recipient
+                                mail=mail_obj, eve_entity=eve_entity
                             )
+                        else:
+                            try:
+                                mailing_list = self.mailing_lists.get(
+                                    list_id=recipient_id
+                                )
+                            except (MailingList.DoesNotExist, ObjectDoesNotExist):
+                                logger.warning(
+                                    f"{self}: Unknown mailing list with "
+                                    f"id {recipient_id} for mail id {mail_obj.mail_id}",
+                                )
+                            else:
+                                MailRecipient.objects.create(
+                                    mail=mail_obj, mailing_list=mailing_list
+                                )
+
                     MailLabels.objects.filter(mail=mail_obj).delete()
                     for label in header["labels"]:
                         MailLabels.objects.create(label_id=label, mail=mail_obj)
@@ -529,7 +552,7 @@ class Character(models.Model):
         ]
 
 
-class CharacterDetail(models.Model):
+class CharacterDetails(models.Model):
     """Details for a character"""
 
     GENDER_MALE = "m"
@@ -555,20 +578,21 @@ class CharacterDetail(models.Model):
         blank=True,
         related_name="owner_alliances",
     )
-    eve_ancestry = models.ForeignKey(
-        EveAncestry, on_delete=models.SET_DEFAULT, default=None, null=True, blank=True
-    )
     birthday = models.DateTimeField()
-    eve_bloodline = models.ForeignKey(EveBloodline, on_delete=models.CASCADE)
     corporation = models.ForeignKey(
         EveEntity, on_delete=models.CASCADE, related_name="owner_corporations"
     )
     description = models.TextField(default="", blank=True)
-    faction = models.ForeignKey(
+    eve_ancestry = models.ForeignKey(
+        EveAncestry, on_delete=models.SET_DEFAULT, default=None, null=True, blank=True
+    )
+    eve_bloodline = models.ForeignKey(EveBloodline, on_delete=models.CASCADE)
+    eve_faction = models.ForeignKey(
         EveFaction, on_delete=models.SET_DEFAULT, default=None, null=True, blank=True
     )
+    eve_race = models.ForeignKey(EveRace, on_delete=models.CASCADE)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    race = models.ForeignKey(EveRace, on_delete=models.CASCADE)
+    name = models.CharField(max_length=100)
     security_status = models.FloatField(default=None, null=True, blank=True)
     title = models.TextField(default="", blank=True)
 
@@ -599,6 +623,81 @@ class CorporationHistory(models.Model):
         return str(f"{self.character}-{self.record_id}")
 
 
+class MailingList(models.Model):
+    """Mailing list of a character"""
+
+    character = models.ForeignKey(
+        Character,
+        on_delete=models.CASCADE,
+        related_name="mailing_lists",
+        help_text="character this mailling list belongs to",
+    )
+    list_id = models.PositiveIntegerField()
+    name = models.CharField(max_length=254)
+
+    class Meta:
+        unique_together = (("character", "list_id"),)
+
+    def __str__(self):
+        return self.name
+
+
+class Mail(models.Model):
+    """Mail of a character"""
+
+    character = models.ForeignKey(
+        Character,
+        on_delete=models.CASCADE,
+        related_name="mails",
+        help_text="character this mail belongs to",
+    )
+    mail_id = models.PositiveIntegerField(null=True, default=None, blank=True)
+    from_entity = models.ForeignKey(
+        EveEntity, on_delete=models.CASCADE, null=True, default=None, blank=True
+    )
+    from_mailing_list = models.ForeignKey(
+        MailingList, on_delete=models.CASCADE, null=True, default=None, blank=True
+    )
+    is_read = models.BooleanField(null=True, default=None, blank=True)
+    subject = models.CharField(max_length=255, null=True, default=None, blank=True)
+    body = models.TextField(null=True, default=None, blank=True)
+    timestamp = models.DateTimeField(null=True, default=None, blank=True)
+
+    class Meta:
+        unique_together = (("character", "mail_id"),)
+
+    def __str__(self):
+        return str(self.mail_id)
+
+
+class MailLabels(models.Model):
+    """Mail label used in a mail"""
+
+    mail = models.ForeignKey(Mail, on_delete=models.CASCADE, related_name="labels")
+    label_id = models.PositiveIntegerField()
+
+    class Meta:
+        unique_together = (("mail", "label_id"),)
+
+    def __str__(self):
+        return "{}-{}".format(self.mail, self.label_id)
+
+
+class MailRecipient(models.Model):
+    """Mail recipient used in a mail"""
+
+    mail = models.ForeignKey(Mail, on_delete=models.CASCADE, related_name="recipients")
+    eve_entity = models.ForeignKey(
+        EveEntity, on_delete=models.CASCADE, default=None, null=True, blank=True
+    )
+    mailing_list = models.ForeignKey(
+        MailingList, on_delete=models.CASCADE, default=None, null=True, blank=True
+    )
+
+    def __str__(self):
+        return self.mailing_list.name if self.mailing_list else self.eve_entity.name
+
+
 class Skill(models.Model):
     character = models.ForeignKey(
         Character, on_delete=models.CASCADE, related_name="skills"
@@ -616,7 +715,7 @@ class Skill(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.owner_skills}-{self.eve_type.name}"
+        return f"{self.character}-{self.eve_type.name}"
 
 
 class WalletJournalEntry(models.Model):
@@ -723,76 +822,3 @@ class WalletJournalEntry(models.Model):
                     return id_type
 
         return cls.CONTEXT_ID_TYPE_UNDEFINED
-
-
-class MailingList(models.Model):
-    """Mailing list of a character"""
-
-    character = models.ForeignKey(
-        Character,
-        on_delete=models.CASCADE,
-        related_name="mailing_lists",
-        help_text="character this mailling list belongs to",
-    )
-    list_id = models.PositiveIntegerField()
-    name = models.CharField(max_length=254)
-
-    class Meta:
-        unique_together = (("character", "list_id"),)
-
-    def __str__(self):
-        return self.name
-
-
-class Mail(models.Model):
-    """Mail of a character"""
-
-    character = models.ForeignKey(
-        Character,
-        on_delete=models.CASCADE,
-        related_name="mails",
-        help_text="character this mail belongs to",
-    )
-    mail_id = models.PositiveIntegerField(null=True, default=None, blank=True)
-    from_entity = models.ForeignKey(
-        EveEntity, on_delete=models.CASCADE, null=True, default=None, blank=True
-    )
-    from_mailing_list = models.ForeignKey(
-        MailingList, on_delete=models.CASCADE, null=True, default=None, blank=True
-    )
-    is_read = models.BooleanField(null=True, default=None, blank=True)
-    subject = models.CharField(max_length=255, null=True, default=None, blank=True)
-    body = models.TextField(null=True, default=None, blank=True)
-    timestamp = models.DateTimeField(null=True, default=None, blank=True)
-
-    class Meta:
-        unique_together = (("character", "mail_id"),)
-
-    def __str__(self):
-        return str(self.mail_id)
-
-
-class MailLabels(models.Model):
-    """Mail label used in a mail"""
-
-    mail = models.ForeignKey(Mail, on_delete=models.CASCADE, related_name="labels")
-    label_id = models.PositiveIntegerField()
-
-    class Meta:
-        unique_together = (("mail", "label_id"),)
-
-    def __str__(self):
-        return "{}-{}".format(self.mail, self.label_id)
-
-
-class MailRecipient(models.Model):
-    """Mail recipient used in a mail"""
-
-    mail = models.ForeignKey(Mail, on_delete=models.CASCADE, related_name="recipients")
-    recipient = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
-
-    class Meta:
-        unique_together = (("mail", "recipient"),)
-
-    def __str__(self):
-        return "{}-{}".format(self.mail, self.recipient)

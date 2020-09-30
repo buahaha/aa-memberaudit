@@ -1,0 +1,207 @@
+{
+    "EveAncestry": [
+        {
+            "description": "The Deteis beautifully combine efficiency with inventiveness, which makes them superb researchers and scientists. Between these talents and their cultural determination, the Caldari State is the leading innovator of bleeding-edge technology.",
+            "eve_bloodline_id": 1,
+            "icon_id": 1651,
+            "id": 11,
+            "name": "Scientists",
+            "short_description": "Combining efficiency with inventiveness, Deteis scientists are on the bleeding edge of technology."
+        }
+    ],
+    "EveBloodline": [
+        {
+            "charisma": 6,
+            "corporation_id": 1000006,
+            "description": "The Deteis are regarded as the face of leadership in Caldari society. Commonly possessed of sharp, ordered minds and articulate tongues, they are mostly found in positions of authority within military and political spheres. Driven by the cultural premise that the good of the whole must come before the needs of the individual, they have made the responsibility of upholding the integrity of the entire Caldari State their own.",
+            "eve_race_id": 1,
+            "eve_ship_type_id": 601,
+            "id": 1,
+            "intelligence": 7,
+            "memory": 7,
+            "name": "Deteis",
+            "perception": 5,
+            "willpower": 5
+        }
+    ],
+    "EveCategory": [
+        {
+            "id": 6,
+            "name": "Ship",
+            "published": true
+        },
+        {
+            "id": 16,
+            "name": "Skill",
+            "published": true
+        }
+    ],
+    "EveConstellation": [
+        {
+            "eve_region_id": 10000002,
+            "id": 20000020,
+            "name": "Kimotoro",
+            "position_x": -1.3499640046818544e+17,
+            "position_y": 6.499945263229326e+16,
+            "position_z": 1.0332561731752134e+17
+        },
+        {
+            "eve_region_id": 10000014,
+            "id": 20000169,
+            "name": "UX3-N2",
+            "position_x": -8.144235531686658e+16,
+            "position_y": 8631923480121213.0,
+            "position_z": -2.142002604277861e+17
+        },
+        {
+            "eve_region_id": 10000064,
+            "id": 20000729,
+            "name": "Jeon",
+            "position_x": -2.0690763482714282e+17,
+            "position_y": 4.82908790696792e+16,
+            "position_z": 7.960999000649318e+16
+        }
+    ],
+    "EveFaction": [
+        {
+            "corporation_id": 1000035,
+            "description": "The Caldari State is ruled by several mega-corporations. There is no central government to speak of - all territories within the State are owned and ruled by corporations. Duty and discipline are required traits in Caldari citizens, plus unquestioning loyalty to the corporation they live to serve. The corporations compete aggressively amongst themselves and with companies outside the State, resulting in a highly capitalistic society.",
+            "eve_solar_system_id": 30000145,
+            "id": 500001,
+            "is_unique": true,
+            "militia_corporation_id": 1000180,
+            "name": "Caldari State",
+            "size_factor": 5.0,
+            "station_count": 1561,
+            "station_system_count": 543
+        }
+    ],
+    "EveGroup": [
+        {
+            "eve_category_id": 6,
+            "id": 237,
+            "name": "Corvette",
+            "published": true
+        },
+        {
+            "eve_category_id": 16,
+            "id": 257,
+            "name": "Spaceship Command",
+            "published": true
+        }
+    ],
+    "EveRace": [
+        {
+            "alliance_id": 500001,
+            "description": "Founded on the tenets of patriotism and hard work that carried its ancestors through hardships on an inhospitable homeworld, the Caldari State is today a corporate dictatorship, led by rulers who are determined to see it return to the meritocratic ideals of old. Ruthless and efficient in the boardroom as well as on the battlefield, the Caldari are living emblems of strength, persistence, and dignity.",
+            "id": 1,
+            "name": "Caldari"
+        }
+    ],
+    "EveRegion": [
+        {
+            "description": "\"The greater the State becomes, the greater humanity under it flourishes.\"",
+            "id": 10000002,
+            "name": "The Forge"
+        },
+        {
+            "description": "Catch has long been a strategically important region. During the initial expansion into the rim territories, it linked the Khanid Kingdom, Sansha's Nation and the Angel Cartel to one another, and through its connections to Providence was given considerable status as the \"Southern Gateway\" by the Amarr Empire. Unlike regions such as Pure Blind, however, its importance did not fade with the dawn of the capsuleer era, as its branching links east and west ensured continued relevance. As a consequence it has earned itself a bloody reputation - some say the very stars reverberate with the dying breaths of the countless lost souls.",
+            "id": 10000014,
+            "name": "Catch"
+        },
+        {
+            "description": "\"The Federation is not a defined region of space, of planets, of mountains, rivers, or woods. It is a vision.\"",
+            "id": 10000064,
+            "name": "Essence"
+        }
+    ],
+    "EveSolarSystem": [
+        {
+            "eve_constellation_id": 20000020,
+            "eve_star_id": null,
+            "id": 30000142,
+            "name": "Jita",
+            "position_x": -1.2906486173487826e+17,
+            "position_y": 6.075530690996363e+16,
+            "position_z": 1.1746922706009029e+17,
+            "security_status": 0.9459131360054016
+        },
+        {
+            "eve_constellation_id": 20000020,
+            "eve_star_id": null,
+            "id": 30000145,
+            "name": "New Caldari",
+            "position_x": -1.3659130942033538e+17,
+            "position_y": 6.860661811089107e+16,
+            "position_z": 1.1448954225220634e+17,
+            "security_status": 1.0
+        },
+        {
+            "eve_constellation_id": 20000169,
+            "eve_star_id": null,
+            "id": 30001161,
+            "name": "HED-GP",
+            "position_x": -9.54136975600012e+16,
+            "position_y": 1.9654254337720636e+16,
+            "position_z": -2.0691536685399747e+17,
+            "security_status": -0.14632222056388855
+        },
+        {
+            "eve_constellation_id": 20000729,
+            "eve_star_id": null,
+            "id": 30004984,
+            "name": "Abune",
+            "position_x": -2.1126590104115347e+17,
+            "position_y": 5.580652849031512e+16,
+            "position_z": 8.141639674703722e+16,
+            "security_status": 0.28563404083251953
+        }
+    ],
+    "EveType": [
+        {
+            "capacity": 125.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 237,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 601,
+            "mass": 1163000.0,
+            "name": "Ibis",
+            "packaged_volume": 2500.0,
+            "portion_size": 1,
+            "published": true,
+            "radius": 47.0,
+            "volume": 15000.0
+        },
+        {
+            "capacity": 0.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 257,
+            "eve_market_group_id": null,
+            "icon_id": 33,
+            "id": 24311,
+            "mass": 0.0,
+            "name": "Amarr Carrier",
+            "packaged_volume": 0.01,
+            "portion_size": 1,
+            "published": true,
+            "radius": 1.0,
+            "volume": 0.01
+        },
+        {
+            "capacity": 0.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 257,
+            "eve_market_group_id": null,
+            "icon_id": 33,
+            "id": 24312,
+            "mass": 0.0,
+            "name": "Caldari Carrier",
+            "packaged_volume": 0.01,
+            "portion_size": 1,
+            "published": true,
+            "radius": 1.0,
+            "volume": 0.01
+        }
+    ]
+}

@@ -11,17 +11,29 @@
         <div class="rows">
 
             <div class="col-md-2">
-                <img src="{{ character|character_portrait_url:128 }}" />
+                <img src="{{ auth_character|character_portrait_url:128 }}" />
             </div>
 
             <div class="col-md-3">
                 <dl class="dl-horizontal">
                     <dt>Character</dt>
-                    <dd>{{ character.character_name}}</dd>
+                    <dd>{{ auth_character.character_name}}</dd>
                     <dt>Corporation</dt>
-                    <dd>{{ character.corporation }}</dd>
+                    <dd>
+                        <a href="{{ auth_character.corporation_name|dotlan_corporation_url }}" target="_blank">
+                            {{ auth_character.corporation_name }}
+                        </a>
+                    </dd>
                     <dt>Alliance</dt>
-                    <dd>{{ character.alliance|default:"-" }}</dd>
+                    <dd>
+                        {% if auth_character.alliance_name %}
+                            <a href="{{ auth_character.alliance_name|dotlan_alliance_url }}" target="_blank">
+                                {{ auth_character.alliance_name }}
+                            </a>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </dd>
                     <dt>Faction</dt>
                     <dd>{{ character_details.faction|default:"-" }}</dd>
                 </dl>
@@ -32,9 +44,9 @@
                     <dt>Born</dt>
                     <dd>{{ character_details.birthday|naturalday }}</dd>
                     <dt>Skillpoints</dt>
-                    <dd>{{ character.corporation_name }}</dd>
+                    <dd>{{ character.total_sp|intword }}</dd>
                     <dt>Wallet</dt>
-                    <dd>{{ wallet_balance|intcomma }}</dd>
+                    <dd>{{ character.wallet_balance|intword }}</dd>
                     <dt>Sec. Status</dt>
                     <dd>{{ character_details.security_status|floatformat|default:"-" }}</dd>
                 </dl>
@@ -47,7 +59,7 @@
                         <div id="div_location">Loading...</div>
                     </dd>
                     <dt>Location</dt>
-                    <dd>{{ character.corporation_name }}</dd>
+                    <dd>{{ auth_character.corporation_name }}</dd>
                     <dt>Race</dt>
                     <dd>{{ character_details.eve_bloodline.eve_race }}</dd>
                     <dt>Achestry</dt>
@@ -80,8 +92,10 @@
                 <li role="presentation" class="disabled">
                     <a href="#skillqueue" aria-controls="skillqueue" role="tab" data-toggle="tab">Skillqueue</a>
                 </li>
-                <li role="presentation" class="disabled">
-                    <a href="#mail" aria-controls="mail" role="tab" data-toggle="tab">Mail</a>
+                <li role="presentation">
+                    <a href="#mail" aria-controls="mail" role="tab" data-toggle="tab">
+                        Mail
+                    </a>
                 </li>
                 <li role="presentation" class="active">
                     <a href="#wallet" aria-controls="wallet" role="tab" data-toggle="tab">Wallet</a>
@@ -130,7 +144,24 @@
                 </div>
 
                 <div role="tabpanel" class="tab-pane" id="skillqueue">TBD</div>
-                <div role="tabpanel" class="tab-pane" id="mail">TBD</div>
+                
+                <div role="tabpanel" class="tab-pane" id="mail">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="tab_mails" style="width:100%;">
+                            <thead>
+                                <tr>                                    
+                                    <th>sent</th>
+                                    <th>from</th>
+                                    <th>to</th>
+                                    <th>subject</th>                                    
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
                 <div role="tabpanel" class="tab-pane active" id="wallet">
                     <div class="table-responsive">
                         <table class="table" id="tab_wallet" style="width:100%;">
@@ -168,12 +199,27 @@
     <script type="application/javascript">
         $(document).ready(function () {
             $("#div_location").load(
-                "{% url 'memberaudit:character_location_data' character_pk %}"
+                "{% url 'memberaudit:character_location_data' character.pk %}"
             );
+
+             $('#tab_mails').DataTable({
+                ajax: {
+                    url: "{% url 'memberaudit:character_mails_data' character.pk %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [                    
+                    { data: 'sent' },
+                    { data: 'from' },
+                    { data: 'to' },
+                    { data: 'subject' }      
+                ],
+                order: [[0, "desc"]],
+            });
 
             $('#tab_skills').DataTable({
                 ajax: {
-                    url: "{% url 'memberaudit:character_skills_data' character_pk %}",
+                    url: "{% url 'memberaudit:character_skills_data' character.pk %}",
                     dataSrc: '',
                     cache: false
                 },
@@ -200,7 +246,7 @@
 
             $('#tab_wallet').DataTable({
                 ajax: {
-                    url: "{% url 'memberaudit:character_wallet_journal_data' character_pk %}",
+                    url: "{% url 'memberaudit:character_wallet_journal_data' character.pk %}",
                     dataSrc: '',
                     cache: false
                 },

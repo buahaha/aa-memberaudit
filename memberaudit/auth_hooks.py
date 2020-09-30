@@ -54,11 +54,7 @@ class MemberauditMenuItem2(MenuItemHook):
         )
 
     def render(self, request):
-        if request.user.has_perm("memberaudit.basic_access"):
-            app_count = Character.objects.unregistered_characters_of_user_count(
-                request.user
-            )
-            self.count = app_count if app_count and app_count > 0 else None
+        if request.user.has_perm("memberaudit.unrestricted_access"):
             return MenuItemHook.render(self, request)
         return ""
 

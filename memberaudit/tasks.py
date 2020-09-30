@@ -39,8 +39,8 @@ def update_character(
         character.update_skills()
         character.update_wallet_balance()
         character.update_wallet_journal()
-        # character.update_mailinglists()
-        # character.update_mails()
+        character.update_mailinglists()
+        character.update_mails()
         if user:
             character.notify_user_about_last_sync(user)
 

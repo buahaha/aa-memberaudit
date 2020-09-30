@@ -178,13 +178,23 @@ def character_location_data(
     except HTTPError:
         logger.warning("Network error", exc_info=True)
         html = '<p class="text-danger">Network error</p>'
-    except Exception:
-        logger.warning("Unexpected error", exc_info=True)
+    except Exception as ex:
+        logger.warning(f"Unexpected error: {ex}", exc_info=True)
         html = '<p class="text-danger">Unexpected error</p>'
     else:
+        if solar_system.is_high_sec:
+            color = "green"
+        elif solar_system.is_low_sec:
+            color = "orange"
+        else:
+            color = "red"
+
         html = format_html(
-            "{} {} / {}",
-            solar_system.name,
+            '{} <span style="color: {}">{}</span> / {}',
+            create_link_html(
+                dotlan.solar_system_url(solar_system.name), solar_system.name
+            ),
+            color,
             round(solar_system.security_status, 1),
             solar_system.eve_constellation.eve_region.name,
         )
@@ -195,7 +205,8 @@ def character_location_data(
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed(
-    "character_ownership__character", "details",
+    "character_ownership__character",
+    "details",
 )
 def character_main(request, character_pk: int, character: Character):
     corporation_history = list()
@@ -218,17 +229,18 @@ def character_main(request, character_pk: int, character: Character):
             }
         )
 
-    wallet_balance = (
-        character.wallet_balance if character.wallet_balance else "(no data)"
-    )
+    try:
+        character_details = character.details
+    except ObjectDoesNotExist:
+        character_details = None
+
     auth_character = character.character_ownership.character
     context = {
         "section_title": SECTION_TITLE_CHARACTERS,
         "page_title": auth_character.character_name,
-        "character_pk": character.pk,
-        "character": auth_character,
-        "character_details": character.details,
-        "wallet_balance": wallet_balance,
+        "character": character,
+        "auth_character": auth_character,
+        "character_details": character_details,
         "corporation_history": reversed(corporation_history),
     }
     return render(
@@ -236,6 +248,40 @@ def character_main(request, character_pk: int, character: Character):
         "memberaudit/characters/character_main.html",
         add_common_context(request, context),
     )
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_mails_data(request, character_pk: int, character: Character):
+    mails_data = list()
+    try:
+        for mail in character.mails.select_related(
+            "from_entity", "from_mailing_list", "from_mailing_list"
+        ).all():
+            mails_data.append(
+                {
+                    "mail_id": mail.mail_id,
+                    "labels": list(mail.labels.values_list("label_id", flat=True)),
+                    "from": mail.from_entity.name,
+                    "to": list(
+                        sorted(
+                            [
+                                str(obj)
+                                for obj in mail.recipients.select_related(
+                                    "eve_entity", "mailing_list"
+                                )
+                            ]
+                        )
+                    ),
+                    "subject": mail.subject,
+                    "sent": mail.timestamp.strftime(DATETIME_FORMAT),
+                }
+            )
+    except ObjectDoesNotExist:
+        pass
+
+    return JsonResponse(mails_data, safe=False)
 
 
 @login_required
