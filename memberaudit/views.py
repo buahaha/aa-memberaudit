@@ -17,7 +17,7 @@ from allianceauth.eveonline.models import EveCharacter
 from allianceauth.eveonline.evelinks import dotlan
 from allianceauth.services.hooks import get_extension_logger
 
-from . import tasks, __title__, SECTION_TITLE_CHARACTERS, SECTION_TITLE_ANALYSIS
+from . import tasks, __title__
 from .decorators import fetch_character_if_allowed
 from .models import Character
 from .utils import (
@@ -102,8 +102,7 @@ def launcher(request):
         )
 
     context = {
-        "section_title": SECTION_TITLE_CHARACTERS,
-        "page_title": "Register",
+        "page_title": "My Characters",
         "characters": characters,
         "has_registered_chars": has_registered_chars,
         "unregistered_chars": unregistered_chars,
@@ -122,7 +121,7 @@ def launcher(request):
     """
     return render(
         request,
-        "memberaudit/characters/launcher.html",
+        "memberaudit/launcher.html",
         add_common_context(request, context),
     )
 
@@ -236,7 +235,6 @@ def character_main(request, character_pk: int, character: Character):
 
     auth_character = character.character_ownership.character
     context = {
-        "section_title": SECTION_TITLE_CHARACTERS,
         "page_title": auth_character.character_name,
         "character": character,
         "auth_character": auth_character,
@@ -245,7 +243,7 @@ def character_main(request, character_pk: int, character: Character):
     }
     return render(
         request,
-        "memberaudit/characters/character_main.html",
+        "memberaudit/character_main.html",
         add_common_context(request, context),
     )
 
@@ -342,12 +340,11 @@ def character_wallet_journal_data(request, character_pk: int, character: Charact
 @permission_required("memberaudit.unrestricted_access")
 def reports(request):
     context = {
-        "section_title": SECTION_TITLE_ANALYSIS,
         "page_title": "Reports",
     }
     return render(
         request,
-        "memberaudit/analysis/reports.html",
+        "memberaudit/reports.html",
         add_common_context(request, context),
     )
 
@@ -397,12 +394,11 @@ def compliance_report_data(request):
 @permission_required("memberaudit.unrestricted_access")
 def character_finder(request):
     context = {
-        "section_title": SECTION_TITLE_ANALYSIS,
         "page_title": "Character Finder",
     }
     return render(
         request,
-        "memberaudit/analysis/character_finder.html",
+        "memberaudit/character_finder.html",
         add_common_context(request, context),
     )
 

@@ -14,29 +14,40 @@
                 <span class="icon-bar"></span>
             </button>
             <a class="navbar-brand" href="{% url 'memberaudit:index' %}">
-                {{ section_title }}
+                {{ app_title }}
             </a>
         </div>
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
             <ul class="nav navbar-nav">
                 <li class="{% navactive request 'memberaudit:launcher' %}">
                     <a href="{% url 'memberaudit:launcher' %}">
-                        Register
+                        My Characters
                         {%  if unregistered_count > 0 %}
                             <span class="badge">{{ unregistered_count }}</span>
                         {% endif %}
                     </a>
-                </li>
-                
-                    {% for character in registered_characters %}
-                        <li class="{% navactive_2 request 'memberaudit:character_main' character.pk %}">
-                            <a href="{% url 'memberaudit:character_main' character.pk %}">
-                                {{ character.name }}
-                            </a>
-                        </li>
-                    
-                    {% endfor %}
-                
+                </li>            
+                {% for character in registered_characters %}
+                    <li class="{% navactive_2 request 'memberaudit:character_main' character.pk %}">
+                        <a href="{% url 'memberaudit:character_main' character.pk %}">
+                            {{ character.name }}
+                        </a>
+                    </li>                
+                {% endfor %}
+            </ul>
+            <ul class="nav navbar-nav navbar-right"> 
+                {% if perms.memberaudit.unrestricted_access %}
+                    <li class="{% navactive request 'memberaudit:character_finder' %}">
+                        <a href="{% url 'memberaudit:character_finder' %}">
+                            Character Finder
+                        </a>
+                    </li>
+                    <li class="{% navactive request 'memberaudit:reports' %}">
+                        <a href="{% url 'memberaudit:reports' %}">
+                            Reports
+                        </a>
+                    </li>
+                {% endif %}
             </ul>
         </div>
     </div>
