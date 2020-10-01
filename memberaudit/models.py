@@ -11,7 +11,6 @@ from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 
 from esi.models import Token
-from esi.errors import TokenExpiredError, TokenInvalidError
 
 from eveuniverse.models import (
     EveAncestry,
@@ -29,6 +28,7 @@ from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
 from .app_settings import MEMBERAUDIT_MAX_MAILS, MEMBERAUDIT_DEVELOPER_MODE
+from .decorators import fetch_token
 from .managers import CharacterManager
 from .providers import esi
 from .utils import LoggerAddTag, make_logger_prefix
@@ -93,48 +93,6 @@ class Character(models.Model):
             return True
 
         return False
-
-    def token(self) -> Optional[Token]:
-        add_prefix = make_logger_prefix(self)
-        token = None
-
-        # abort if character does not have sufficient permissions
-        if not self.character_ownership.user.has_perm("memberaudit.basic_access"):
-            error = "Character does not have sufficient permission to sync"
-
-        else:
-            try:
-                # get token
-                token = (
-                    Token.objects.filter(
-                        user=self.character_ownership.user,
-                        character_id=self.character_ownership.character.character_id,
-                    )
-                    .require_scopes(self.get_esi_scopes())
-                    .require_valid()
-                    .first()
-                )
-                error = None
-
-            except TokenInvalidError:
-                error = "Invalid token"
-
-            except TokenExpiredError:
-                error = "Token expired"
-
-            else:
-                if not token:
-                    error = "Missing token"
-
-        if error:
-            logger.error(add_prefix(error))
-            self.last_error = error
-            self.save()
-
-        if token:
-            logger.debug(add_prefix("Using token: {}".format(token)))
-
-        return token
 
     def update_character_details(self):
         """syncs the character details for the given character"""
@@ -217,11 +175,8 @@ class Character(models.Model):
                 },
             )
 
-    def update_mails(self):
-        token = self.token()
-        if not token:
-            return
-
+    @fetch_token("esi-mail.read_mail.v1")
+    def update_mails(self, token):
         self._update_mailinglists(token)
         self._update_mails(token)
 
@@ -397,13 +352,11 @@ class Character(models.Model):
         if body_count > 0:
             logger.info("loaded {} mail bodies".format(body_count))
 
-    def update_skills(self):
+    @fetch_token("esi-skills.read_skills.v1")
+    def update_skills(self, token):
         """syncs the character's skill"""
         add_prefix = make_logger_prefix(self)
         logger.info(add_prefix("Fetching skills from ESI"))
-        token = self.token()
-        if not token:
-            return
 
         skills = esi.client.Skills.get_characters_character_id_skills(
             character_id=self.character_ownership.character.character_id,
@@ -427,14 +380,11 @@ class Character(models.Model):
                     trained_skill_level=skill.get("trained_skill_level"),
                 )
 
-    def update_wallet_balance(self):
+    @fetch_token("esi-wallet.read_character_wallet.v1")
+    def update_wallet_balance(self, token):
         """syncs the character's wallet balance"""
         add_prefix = make_logger_prefix(self)
         logger.info(add_prefix("Fetching corporation history from ESI"))
-        token = self.token()
-        if not token:
-            return
-
         balance = esi.client.Wallet.get_characters_character_id_wallet(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
@@ -442,13 +392,11 @@ class Character(models.Model):
         self.wallet_balance = balance
         self.save()
 
-    def update_wallet_journal(self):
+    @fetch_token("esi-wallet.read_character_wallet.v1")
+    def update_wallet_journal(self, token):
         """syncs the character's wallet journal"""
         add_prefix = make_logger_prefix(self)
         logger.info(add_prefix("Fetching wallet journal from ESI"))
-        token = self.token()
-        if not token:
-            return
 
         journal = esi.client.Wallet.get_characters_character_id_wallet_journal(
             character_id=self.character_ownership.character.character_id,
@@ -489,13 +437,10 @@ class Character(models.Model):
                 },
             )
 
-    def fetch_location(self) -> Optional[dict]:
+    @fetch_token("esi-location.read_location.v1")
+    def fetch_location(self, token) -> Optional[dict]:
         add_prefix = make_logger_prefix(self)
         logger.info(add_prefix("Fetching character location ESI"))
-        token = self.token()
-        if not token:
-            raise Token.DoesNotExist()
-
         location_info = esi.client.Location.get_characters_character_id_location(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
@@ -516,9 +461,32 @@ class Character(models.Model):
     @classmethod
     def get_esi_scopes(cls) -> list:
         return [
-            "esi-mail.read_mail.v1",
+            "esi-assets.read_assets.v1",
+            "esi-characters.read_blueprints.v1",
+            "esi-characters.read_contacts.v1",
+            "esi-characters.read_fw_stats.v1",
+            "esi-characters.read_loyalty.v1",
+            "esi-characters.read_medals.v1",
+            "esi-characters.read_notifications.v1",
+            "esi-characters.read_opportunities.v1",
+            "esi-characters.read_standings.v1",
+            "esi-characters.read_titles.v1",
+            "esi-clones.read_clones.v1",
+            "esi-clones.read_implants.v1",
+            "esi-contracts.read_character_contracts.v1",
+            "esi-industry.read_character_jobs.v1",
+            "esi-industry.read_character_mining.v1",
             "esi-location.read_location.v1",
+            "esi-location.read_online.v1",
+            "esi-location.read_ship_type.v1",
+            "esi-mail.read_mail.v1",
+            "esi-markets.read_character_orders.v1",
+            "esi-markets.structure_markets.v1",
+            "esi-planets.manage_planets.v1",
+            "esi-search.search_structures.v1",
+            "esi-skills.read_skillqueue.v1",
             "esi-skills.read_skills.v1",
+            "esi-universe.read_structures.v1",
             "esi-wallet.read_character_wallet.v1",
         ]
 

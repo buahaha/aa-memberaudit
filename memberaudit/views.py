@@ -76,7 +76,7 @@ def index(request):
 def launcher(request):
     owned_chars_query = (
         CharacterOwnership.objects.filter(user=request.user)
-        .select_related("character")
+        .select_related("character", "memberaudit_owner")
         .order_by("character__character_name")
     )
     has_registered_chars = owned_chars_query.count() > 0
@@ -132,9 +132,9 @@ def launcher(request):
 def add_owner(request, token):
     token_char = EveCharacter.objects.get(character_id=token.character_id)
     try:
-        character_ownership = CharacterOwnership.objects.get(
-            user=request.user, character=token_char
-        )
+        character_ownership = CharacterOwnership.objects.select_related(
+            "character"
+        ).get(user=request.user, character=token_char)
     except CharacterOwnership.DoesNotExist:
         messages_plus.error(
             request,

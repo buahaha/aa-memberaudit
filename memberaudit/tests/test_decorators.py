@@ -1,11 +1,15 @@
 from django.http import HttpResponse
 from django.test import TestCase, RequestFactory
 
-from allianceauth.authentication.models import CharacterOwnership
+from esi.models import Token
+from esi.errors import TokenError
+
 from allianceauth.tests.auth_utils import AuthUtils
 
-from ..decorators import fetch_character_if_allowed
+from . import create_memberaudit_character
+from ..decorators import fetch_character_if_allowed, fetch_token
 from ..models import Character
+from .testdata.load_entities import load_entities
 from ..utils import generate_invalid_pk
 
 
@@ -17,18 +21,11 @@ class TestFetchOwnerIfAllowed(TestCase):
     def setUpClass(cls) -> None:
         super().setUpClass()
         cls.factory = RequestFactory()
-        cls.user = AuthUtils.create_user("Bruce Wanye")
-        cls.auth_character = AuthUtils.add_main_character_2(
-            cls.user, "Bruce Wayne", 1001
-        )
-        CharacterOwnership.objects.create(
-            user=cls.user, character=cls.auth_character, owner_hash="123456"
-        )
+        load_entities()
 
     def setUp(self) -> None:
-        self.character = Character.objects.create(
-            character_ownership=self.auth_character.character_ownership
-        )
+        self.character = create_memberaudit_character(1001)
+        self.user = self.character.character_ownership.user
 
     def test_passthrough_when_fetch_owner_if_allowed(self):
         @fetch_character_if_allowed()
@@ -77,3 +74,41 @@ class TestFetchOwnerIfAllowed(TestCase):
         request.user = self.user
         dummy(request, self.character.pk)
     """
+
+
+def scope_names_set(token: Token) -> set:
+    return set(token.scopes.values_list("name", flat=True))
+
+
+class TestFetchToken(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_entities()
+
+    def setUp(self) -> None:
+        self.character = create_memberaudit_character(1001)
+
+    def test_defaults(self):
+        @fetch_token()
+        def dummy(character, token):
+            self.assertIsInstance(token, Token)
+            self.assertSetEqual(scope_names_set(token), set(Character.get_esi_scopes()))
+
+        dummy(self.character)
+
+    def test_specified_scope(self):
+        @fetch_token("esi-mail.read_mail.v1")
+        def dummy(character, token):
+            self.assertIsInstance(token, Token)
+            self.assertIn("esi-mail.read_mail.v1", scope_names_set(token))
+
+        dummy(self.character)
+
+    def test_exceptions_if_not_found(self):
+        @fetch_token("invalid_scope")
+        def dummy(character, token):
+            pass
+
+        with self.assertRaises(TokenError):
+            dummy(self.character)
