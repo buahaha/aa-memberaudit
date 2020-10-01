@@ -76,7 +76,8 @@ def index(request):
 def launcher(request):
     owned_chars_query = (
         CharacterOwnership.objects.filter(user=request.user)
-        .select_related("character", "memberaudit_owner")
+        .select_related("character", "memberaudit_character")
+        .prefetch_related("memberaudit_character__sync_status_set")
         .order_by("character__character_name")
     )
     has_registered_chars = owned_chars_query.count() > 0
@@ -85,11 +86,18 @@ def launcher(request):
     unregistered_chars = 0
     for character_ownership in owned_chars_query:
 
-        is_registered = hasattr(character_ownership, "memberaudit_owner")
+        is_registered = hasattr(character_ownership, "memberaudit_character")
         if not is_registered:
             unregistered_chars += 1
 
-        character_pk = character_ownership.memberaudit_owner.pk if is_registered else 0
+        character_pk = (
+            character_ownership.memberaudit_character.pk if is_registered else 0
+        )
+        is_sync_ok = (
+            character_ownership.memberaudit_character.is_update_status_ok()
+            if is_registered
+            else None
+        )
         characters.append(
             {
                 "portrait_url": character_ownership.character.portrait_url,
@@ -98,6 +106,7 @@ def launcher(request):
                 "pk": character_ownership.character.pk,
                 "character_id": character_ownership.character.character_id,
                 "character_pk": character_pk,
+                "is_sync_ok": is_sync_ok,
             }
         )
 
@@ -395,13 +404,13 @@ def compliance_report_data(request):
         .annotate(
             unregistered_chars=Count(
                 "character_ownerships",
-                filter=Q(character_ownerships__memberaudit_owner=None),
+                filter=Q(character_ownerships__memberaudit_character=None),
             )
         )
         .select_related()
     )
 
-    # .annotate(registered_chars=Count('character_ownerships__memberaudit_owner'))
+    # .annotate(registered_chars=Count('character_ownerships__memberaudit_character'))
 
     user_data = list()
     for user in member_users:

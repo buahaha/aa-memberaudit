@@ -17,7 +17,7 @@
                     <th>Name</th>
                     <th></th>
                     <th>Location</th>
-                    <th>Registered?</th>
+                    <th>Sync OK?</th>
                 </tr>
             </thead>
             <tbody>
@@ -44,15 +44,19 @@
                                 Loading...
                             </div>
                             {% else %}
-                            Not registered
+                            <span class="text-danger">Not registered</span>
                             {% endif %}
                         </td>
                         <td>
                             <span style="font-size: 125%">
                                 {% if character.is_registered %}
-                                <span class="text-success"><i class="fa fa-check-circle fa-fw"></i></span>
-                                {% else %}
-                                <span class="text-danger"><i class="fa fa-times-circle fa-fw"></i></span>
+                                    {% if character.is_sync_ok == True %}
+                                        <span class="text-success"><i class="fa fa-check-circle fa-fw"></i></span>
+                                    {% elif character.is_sync_ok == False %}
+                                        <span class="text-danger"><i class="fa fa-times-circle fa-fw"></i></span>
+                                    {% else %}
+                                        ?
+                                    {% endif %}                                
                                 {% endif %}
                             </span>
                         </td>

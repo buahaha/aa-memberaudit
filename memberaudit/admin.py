@@ -97,14 +97,7 @@ class CharacterAdmin(admin.ModelAdmin):
         return user_main_organization(obj.character_ownership.user)
 
     def _last_update_ok(self, obj):
-        errors_count = obj.sync_status_set.filter(sync_ok=False).count()
-        ok_count = obj.sync_status_set.filter(sync_ok=True).count()
-        if errors_count > 0:
-            return False
-        elif ok_count == len(CharacterSyncStatus.TOPIC_CHOICES):
-            return True
-        else:
-            return None
+        return obj.is_update_status_ok()
 
     def _last_update_at(self, obj):
         latest_obj = obj.sync_status_set.latest("updated_at")

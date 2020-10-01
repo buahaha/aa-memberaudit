@@ -63,7 +63,7 @@ class Character(models.Model):
 
     character_ownership = models.OneToOneField(
         CharacterOwnership,
-        related_name="memberaudit_owner",
+        related_name="memberaudit_character",
         on_delete=models.CASCADE,
         help_text="character registered to member audit",
     )
@@ -88,13 +88,30 @@ class Character(models.Model):
         return str(self.character_ownership)
 
     def user_has_access(self, user: User) -> bool:
-        """Return True if given user has permission to view this character"""
+        """Returns True if given user has permission to view this character"""
         if self.character_ownership.user == user:
             return True
         elif user.has_perm("memberaudit.unrestricted_access"):
             return True
 
         return False
+
+    def is_update_status_ok(self) -> bool:
+        """returns status of last update
+
+        Returns:
+        - True: If update was complete and without errors
+        - False if there where any errors
+        - None: if last update is incomplete
+        """
+        errors_count = self.sync_status_set.filter(sync_ok=False).count()
+        ok_count = self.sync_status_set.filter(sync_ok=True).count()
+        if errors_count > 0:
+            return False
+        elif ok_count == len(CharacterSyncStatus.TOPIC_CHOICES):
+            return True
+        else:
+            return None
 
     def update_character_details(self):
         """syncs the character details for the given character"""

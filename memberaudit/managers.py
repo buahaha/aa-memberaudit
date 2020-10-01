@@ -13,5 +13,5 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 class CharacterManager(models.Manager):
     def unregistered_characters_of_user_count(self, user) -> int:
         return CharacterOwnership.objects.filter(
-            user=user, memberaudit_owner__isnull=True
+            user=user, memberaudit_character__isnull=True
         ).count()
