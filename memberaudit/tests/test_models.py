@@ -125,6 +125,8 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         mock_esi.client = esi_client_stub
 
         self.character.update_mails()
+
+        # mailing lists
         self.assertEqual(self.character.mailing_lists.count(), 2)
 
         obj = self.character.mailing_lists.get(list_id=1)
@@ -133,6 +135,21 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         obj = self.character.mailing_lists.get(list_id=2)
         self.assertEqual(obj.name, "Dummy 2")
 
+        # mail labels
+        self.assertEqual(self.character.mail_labels.count(), 2)
+        self.assertEqual(self.character.total_unread_count, 5)
+
+        obj = self.character.mail_labels.get(label_id=3)
+        self.assertEqual(obj.name, "PINK")
+        self.assertEqual(obj.unread_count, 4)
+        self.assertEqual(obj.color, "#660066")
+
+        obj = self.character.mail_labels.get(label_id=17)
+        self.assertEqual(obj.name, "WHITE")
+        self.assertEqual(obj.unread_count, 1)
+        self.assertEqual(obj.color, "#ffffff")
+
+        # mail
         self.assertEqual(self.character.mails.count(), 2)
 
         obj = self.character.mails.get(mail_id=1)

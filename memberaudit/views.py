@@ -19,7 +19,7 @@ from allianceauth.services.hooks import get_extension_logger
 
 from . import tasks, __title__
 from .decorators import fetch_character_if_allowed
-from .models import Character, Mail
+from .models import Character, CharacterMail
 from .utils import (
     messages_plus,
     LoggerAddTag,
@@ -293,7 +293,7 @@ def character_mail_headers_data(request, character_pk: int, character: Character
 def character_mail_data(request, character_pk: int, character: Character, mail_pk: int):
     try:
         mail = character.mails.get(pk=mail_pk)
-    except Mail.DoesNotExist:
+    except CharacterMail.DoesNotExist:
         error_msg = f"Mail with pk {mail_pk} not found for character {character}"
         logger.warning(error_msg)
         return HttpResponseNotFound(error_msg)

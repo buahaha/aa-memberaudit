@@ -14,7 +14,13 @@ from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
 
 from . import create_memberaudit_character
-from ..models import Skill, WalletJournalEntry, Mail, MailRecipient, MailingList
+from ..models import (
+    CharacterSkill,
+    CharacterWalletJournalEntry,
+    CharacterMail,
+    CharacterMailRecipient,
+    CharacterMailingList,
+)
 from ..views import (
     launcher,
     character_main,
@@ -57,7 +63,7 @@ class TestViews(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_character_skills_data(self):
-        Skill.objects.create(
+        CharacterSkill.objects.create(
             character=self.character,
             eve_type=EveType.objects.get(id=24311),
             active_skill_level=1,
@@ -78,12 +84,12 @@ class TestViews(TestCase):
         self.assertEqual(row["level"], 1)
 
     def test_character_wallet_journal_data(self):
-        WalletJournalEntry.objects.create(
+        CharacterWalletJournalEntry.objects.create(
             character=self.character,
             entry_id=1,
             amount=1000000,
             balance=10000000,
-            context_id_type=WalletJournalEntry.CONTEXT_ID_TYPE_UNDEFINED,
+            context_id_type=CharacterWalletJournalEntry.CONTEXT_ID_TYPE_UNDEFINED,
             date=now(),
             description="dummy",
             first_party=EveEntity.objects.get(id=1001),
@@ -104,10 +110,10 @@ class TestViews(TestCase):
         self.assertEqual(row["balance"], "10000000.00")
 
     def test_character_mail_headers_data(self):
-        mailing_list = MailingList.objects.create(
+        mailing_list = CharacterMailingList.objects.create(
             character=self.character, list_id=5, name="Mailing List"
         )
-        mail = Mail.objects.create(
+        mail = CharacterMail.objects.create(
             character=self.character,
             mail_id=99,
             from_entity=EveEntity.objects.get(id=1002),
@@ -115,10 +121,10 @@ class TestViews(TestCase):
             body="This is the body",
             timestamp=now(),
         )
-        MailRecipient.objects.create(
+        CharacterMailRecipient.objects.create(
             mail=mail, eve_entity=EveEntity.objects.get(id=1001)
         )
-        MailRecipient.objects.create(mail=mail, mailing_list=mailing_list)
+        CharacterMailRecipient.objects.create(mail=mail, mailing_list=mailing_list)
         request = self.factory.get(
             reverse("memberaudit:character_mail_headers_data", args=[self.character.pk])
         )
@@ -133,10 +139,10 @@ class TestViews(TestCase):
         self.assertEqual(row["to"], "Bruce Wayne, Mailing List")
 
     def test_character_mail_data(self):
-        mailing_list = MailingList.objects.create(
+        mailing_list = CharacterMailingList.objects.create(
             character=self.character, list_id=5, name="Mailing List"
         )
-        mail = Mail.objects.create(
+        mail = CharacterMail.objects.create(
             character=self.character,
             mail_id=99,
             from_entity=EveEntity.objects.get(id=1002),
@@ -144,10 +150,10 @@ class TestViews(TestCase):
             body="This is the body",
             timestamp=now(),
         )
-        MailRecipient.objects.create(
+        CharacterMailRecipient.objects.create(
             mail=mail, eve_entity=EveEntity.objects.get(id=1001)
         )
-        MailRecipient.objects.create(mail=mail, mailing_list=mailing_list)
+        CharacterMailRecipient.objects.create(mail=mail, mailing_list=mailing_list)
         request = self.factory.get(
             reverse(
                 "memberaudit:character_mail_data", args=[self.character.pk, mail.pk]

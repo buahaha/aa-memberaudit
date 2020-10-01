@@ -43,6 +43,12 @@ esi_client_stub = EsiClientStub(
         ),
         EsiEndpoint(
             "Mail",
+            "get_characters_character_id_mail_labels",
+            "character_id",
+            needs_token=True,
+        ),
+        EsiEndpoint(
+            "Mail",
             "get_characters_character_id_mail_mail_id",
             "mail_id",
             needs_token=True,

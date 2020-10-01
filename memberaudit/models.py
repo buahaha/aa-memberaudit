@@ -69,9 +69,9 @@ class Character(models.Model):
     )
 
     total_sp = models.BigIntegerField(
-        validators=[MinValueValidator(0)], default=None, null=True, blank=True
+        validators=[MinValueValidator(0)], default=None, null=True
     )
-    unallocated_sp = models.PositiveIntegerField(default=None, null=True, blank=True)
+    unallocated_sp = models.PositiveIntegerField(default=None, null=True)
     wallet_balance = models.DecimalField(
         max_digits=CURRENCY_MAX_DIGITS,
         decimal_places=2,
@@ -79,6 +79,7 @@ class Character(models.Model):
         null=True,
         blank=True,
     )
+    total_unread_count = models.PositiveIntegerField(default=None, null=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     objects = CharacterManager()
@@ -166,7 +167,7 @@ class Character(models.Model):
             corporation, _ = EveEntity.objects.get_or_create_esi(
                 id=row.get("corporation_id")
             )
-            CorporationHistory.objects.update_or_create(
+            CharacterCorporationHistory.objects.update_or_create(
                 character=self,
                 record_id=row.get("record_id"),
                 defaults={
@@ -179,6 +180,7 @@ class Character(models.Model):
     @fetch_token("esi-mail.read_mail.v1")
     def update_mails(self, token):
         self._update_mailinglists(token)
+        self._update_maillabels(token)
         self._update_mails(token)
 
     def _update_mailinglists(self, token: Token):
@@ -197,10 +199,10 @@ class Character(models.Model):
 
         created_count = 0
         for mailing_list in mailing_lists:
-            _, created = MailingList.objects.update_or_create(
+            _, created = CharacterMailingList.objects.update_or_create(
                 character=self,
-                list_id=mailing_list["mailing_list_id"],
-                defaults={"name": mailing_list["name"]},
+                list_id=mailing_list.get("mailing_list_id"),
+                defaults={"name": mailing_list.get("name")},
             )
             if created:
                 created_count += 1
@@ -208,6 +210,40 @@ class Character(models.Model):
         if created_count > 0:
             logger.info(
                 add_prefix("Added/Updated {} mailing lists".format(created_count))
+            )
+
+    def _update_maillabels(self, token: Token):
+        """syncs the mail lables for the given character"""
+        add_prefix = make_logger_prefix(self)
+        logger.info(add_prefix("Fetching mail labels from ESI"))
+
+        mail_labels_info = esi.client.Mail.get_characters_character_id_mail_labels(
+            character_id=self.character_ownership.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+        mail_labels = mail_labels_info.get("labels")
+        logger.info(
+            add_prefix("Received {} mail labels from ESI".format(len(mail_labels)))
+        )
+        self.total_unread_count = mail_labels_info.get("total_unread_count")
+        self.save()
+        created_count = 0
+        for label in mail_labels:
+            _, created = CharacterMailLabel.objects.update_or_create(
+                character=self,
+                label_id=label.get("label_id"),
+                defaults={
+                    "color": label.get("color"),
+                    "name": label.get("name"),
+                    "unread_count": label.get("unread_count"),
+                },
+            )
+            if created:
+                created_count += 1
+
+        if created_count > 0:
+            logger.info(
+                add_prefix("Added/Updated {} mail labels".format(created_count))
             )
 
     def _update_mails(self, token: Token):
@@ -259,7 +295,7 @@ class Character(models.Model):
         ids = set()
         mailing_list_ids = [
             x["list_id"]
-            for x in MailingList.objects.filter(character=self)
+            for x in CharacterMailingList.objects.filter(character=self)
             .select_related()
             .values("list_id")
         ]
@@ -285,17 +321,17 @@ class Character(models.Model):
         for header in mail_headers_all:
             with transaction.atomic():
                 try:
-                    from_mailing_list = MailingList.objects.get(
+                    from_mailing_list = CharacterMailingList.objects.get(
                         list_id=header.get("from")
                     )
                     from_entity = None
-                except MailingList.DoesNotExist:
+                except CharacterMailingList.DoesNotExist:
                     from_entity, _ = EveEntity.objects.get_or_create_esi(
                         id=header.get("from")
                     )
                     from_mailing_list = None
 
-                mail_obj, _ = Mail.objects.update_or_create(
+                mail_obj, _ = CharacterMail.objects.update_or_create(
                     character=self,
                     mail_id=header.get("mail_id"),
                     defaults={
@@ -306,32 +342,40 @@ class Character(models.Model):
                         "timestamp": header.get("timestamp"),
                     },
                 )
-                MailRecipient.objects.filter(mail=mail_obj).delete()
+                CharacterMailRecipient.objects.filter(mail=mail_obj).delete()
                 for recipient in header.get("recipients"):
                     recipient_id = recipient.get("recipient_id")
                     if recipient.get("recipient_type") != "mailing_list":
                         eve_entity, _ = EveEntity.objects.get_or_create_esi(
                             id=recipient_id
                         )
-                        MailRecipient.objects.create(
+                        CharacterMailRecipient.objects.create(
                             mail=mail_obj, eve_entity=eve_entity
                         )
                     else:
                         try:
                             mailing_list = self.mailing_lists.get(list_id=recipient_id)
-                        except (MailingList.DoesNotExist, ObjectDoesNotExist):
+                        except (CharacterMailingList.DoesNotExist, ObjectDoesNotExist):
                             logger.warning(
                                 f"{self}: Unknown mailing list with "
                                 f"id {recipient_id} for mail id {mail_obj.mail_id}",
                             )
                         else:
-                            MailRecipient.objects.create(
+                            CharacterMailRecipient.objects.create(
                                 mail=mail_obj, mailing_list=mailing_list
                             )
 
-                MailLabels.objects.filter(mail=mail_obj).delete()
-                for label in header.get("labels", []):
-                    MailLabels.objects.create(label_id=label, mail=mail_obj)
+                CharacterMailMailLabel.objects.filter(mail=mail_obj).delete()
+                for label_id in header.get("labels", []):
+                    try:
+                        label = self.mail_labels.get(label_id=label_id)
+                        CharacterMailMailLabel.objects.create(
+                            mail=mail_obj, label=label
+                        )
+                    except CharacterMailLabel.DoesNotExist:
+                        logger.warning(
+                            add_prefix(f"Could not find label with id {label_id}")
+                        )
 
                 if mail_obj.body is None:
                     logger.debug(
@@ -368,12 +412,12 @@ class Character(models.Model):
         self.save()
 
         with transaction.atomic():
-            Skill.objects.filter(character=self).delete()
+            CharacterSkill.objects.filter(character=self).delete()
             for skill in skills.get("skills"):
                 eve_type, _ = EveType.objects.get_or_create_esi(
                     id=skill.get("skill_id")
                 )
-                Skill.objects.create(
+                CharacterSkill.objects.create(
                     character=self,
                     eve_type=eve_type,
                     active_skill_level=skill.get("active_skill_level"),
@@ -418,14 +462,14 @@ class Character(models.Model):
             else:
                 second_party = None
 
-            WalletJournalEntry.objects.update_or_create(
+            CharacterWalletJournalEntry.objects.update_or_create(
                 character=self,
                 entry_id=row.get("id"),
                 defaults={
                     "amount": row.get("amount"),
                     "balance": row.get("balance"),
                     "context_id": row.get("context_id"),
-                    "context_id_type": WalletJournalEntry.match_context_type_id(
+                    "context_id_type": CharacterWalletJournalEntry.match_context_type_id(
                         row.get("context_id_type")
                     ),
                     "date": row.get("date"),
@@ -514,14 +558,14 @@ class CharacterSyncStatus(models.Model):
     )
     topic = models.CharField(max_length=2, choices=TOPIC_CHOICES)
     sync_ok = models.BooleanField(db_index=True)
-    error_message = models.TextField(default="", blank=True)
+    error_message = models.TextField(default="")
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "topic"],
-                name="functional_pk_character_sync_status",
+                name="functional_pk_charactersyncstatus",
             )
         ]
 
@@ -571,19 +615,19 @@ class CharacterDetails(models.Model):
     corporation = models.ForeignKey(
         EveEntity, on_delete=models.CASCADE, related_name="owner_corporations"
     )
-    description = models.TextField(default="", blank=True)
+    description = models.TextField(default="")
     eve_ancestry = models.ForeignKey(
-        EveAncestry, on_delete=models.SET_DEFAULT, default=None, null=True, blank=True
+        EveAncestry, on_delete=models.SET_DEFAULT, default=None, null=True
     )
     eve_bloodline = models.ForeignKey(EveBloodline, on_delete=models.CASCADE)
     eve_faction = models.ForeignKey(
-        EveFaction, on_delete=models.SET_DEFAULT, default=None, null=True, blank=True
+        EveFaction, on_delete=models.SET_DEFAULT, default=None, null=True
     )
     eve_race = models.ForeignKey(EveRace, on_delete=models.CASCADE)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     name = models.CharField(max_length=100)
-    security_status = models.FloatField(default=None, null=True, blank=True)
-    title = models.TextField(default="", blank=True)
+    security_status = models.FloatField(default=None, null=True)
+    title = models.TextField(default="")
 
     def __str__(self):
         return str(self.character)
@@ -594,20 +638,20 @@ class CharacterDetails(models.Model):
         return eve_xml_to_html(self.description)
 
 
-class CorporationHistory(models.Model):
+class CharacterCorporationHistory(models.Model):
     character = models.ForeignKey(
         Character, on_delete=models.CASCADE, related_name="corporation_history"
     )
     record_id = models.PositiveIntegerField(db_index=True)
     corporation = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
-    is_deleted = models.BooleanField(null=True, default=None, blank=True, db_index=True)
+    is_deleted = models.BooleanField(null=True, default=None, db_index=True)
     start_date = models.DateTimeField(db_index=True)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "record_id"],
-                name="functional_pk_character_corporation_history",
+                name="functional_pk_charactercorporationhistory",
             )
         ]
 
@@ -615,7 +659,7 @@ class CorporationHistory(models.Model):
         return str(f"{self.character}-{self.record_id}")
 
 
-class MailingList(models.Model):
+class CharacterMailingList(models.Model):
     """Mailing list of a character"""
 
     character = models.ForeignKey(
@@ -628,13 +672,41 @@ class MailingList(models.Model):
     name = models.CharField(max_length=254)
 
     class Meta:
-        unique_together = (("character", "list_id"),)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "list_id"],
+                name="functional_pk_charactermailinglist",
+            )
+        ]
 
     def __str__(self):
         return self.name
 
 
-class Mail(models.Model):
+class CharacterMailLabel(models.Model):
+    """Mail labels of a character"""
+
+    character = models.ForeignKey(
+        Character, on_delete=models.CASCADE, related_name="mail_labels"
+    )
+    label_id = models.PositiveIntegerField(db_index=True)
+    name = models.CharField(max_length=40)
+    color = models.CharField(max_length=16, default="")
+    unread_count = models.PositiveIntegerField(default=None, null=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "label_id"],
+                name="functional_pk_charactermaillabel",
+            )
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class CharacterMail(models.Model):
     """Mail of a character"""
 
     character = models.ForeignKey(
@@ -643,20 +715,28 @@ class Mail(models.Model):
         related_name="mails",
         help_text="character this mail belongs to",
     )
-    mail_id = models.PositiveIntegerField(null=True, default=None, blank=True)
+    mail_id = models.PositiveIntegerField()
     from_entity = models.ForeignKey(
-        EveEntity, on_delete=models.CASCADE, null=True, default=None, blank=True
+        EveEntity, on_delete=models.CASCADE, null=True, default=None
     )
     from_mailing_list = models.ForeignKey(
-        MailingList, on_delete=models.CASCADE, null=True, default=None, blank=True
+        CharacterMailingList,
+        on_delete=models.CASCADE,
+        null=True,
+        default=None,
+        blank=True,
     )
-    is_read = models.BooleanField(null=True, default=None, blank=True)
-    subject = models.CharField(max_length=255, null=True, default=None, blank=True)
-    body = models.TextField(null=True, default=None, blank=True)
-    timestamp = models.DateTimeField(null=True, default=None, blank=True)
+    is_read = models.BooleanField(null=True, default=None)
+    subject = models.CharField(max_length=255, null=True, default=None)
+    body = models.TextField(null=True, default=None)
+    timestamp = models.DateTimeField(null=True, default=None)
 
     class Meta:
-        unique_together = (("character", "mail_id"),)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "mail_id"], name="functional_pk_charactermail"
+            )
+        ]
 
     def __str__(self):
         return str(self.mail_id)
@@ -667,35 +747,48 @@ class Mail(models.Model):
         return eve_xml_to_html(self.body)
 
 
-class MailLabels(models.Model):
+class CharacterMailMailLabel(models.Model):
     """Mail label used in a mail"""
 
-    mail = models.ForeignKey(Mail, on_delete=models.CASCADE, related_name="labels")
-    label_id = models.PositiveIntegerField()
+    mail = models.ForeignKey(
+        CharacterMail, on_delete=models.CASCADE, related_name="labels"
+    )
+    label = models.ForeignKey(CharacterMailLabel, on_delete=models.CASCADE)
 
     class Meta:
-        unique_together = (("mail", "label_id"),)
+        constraints = [
+            models.UniqueConstraint(
+                fields=["mail", "label"],
+                name="functional_pk_charactermailmaillabel",
+            )
+        ]
 
     def __str__(self):
-        return "{}-{}".format(self.mail, self.label_id)
+        return "{}-{}".format(self.mail, self.label)
 
 
-class MailRecipient(models.Model):
+class CharacterMailRecipient(models.Model):
     """Mail recipient used in a mail"""
 
-    mail = models.ForeignKey(Mail, on_delete=models.CASCADE, related_name="recipients")
+    mail = models.ForeignKey(
+        CharacterMail, on_delete=models.CASCADE, related_name="recipients"
+    )
     eve_entity = models.ForeignKey(
-        EveEntity, on_delete=models.CASCADE, default=None, null=True, blank=True
+        EveEntity, on_delete=models.CASCADE, default=None, null=True
     )
     mailing_list = models.ForeignKey(
-        MailingList, on_delete=models.CASCADE, default=None, null=True, blank=True
+        CharacterMailingList,
+        on_delete=models.CASCADE,
+        default=None,
+        null=True,
+        blank=True,
     )
 
     def __str__(self):
         return self.mailing_list.name if self.mailing_list else self.eve_entity.name
 
 
-class Skill(models.Model):
+class CharacterSkill(models.Model):
     character = models.ForeignKey(
         Character, on_delete=models.CASCADE, related_name="skills"
     )
@@ -707,7 +800,7 @@ class Skill(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["character", "eve_type"], name="functional_pk_skills"
+                fields=["character", "eve_type"], name="functional_pk_characterskill"
             )
         ]
 
@@ -715,7 +808,7 @@ class Skill(models.Model):
         return f"{self.character}-{self.eve_type.name}"
 
 
-class WalletJournalEntry(models.Model):
+class CharacterWalletJournalEntry(models.Model):
     CONTEXT_ID_TYPE_UNDEFINED = "NON"
     CONTEXT_ID_TYPE_STRUCTURE_ID = "STR"
     CONTEXT_ID_TYPE_STATION_ID = "STA"
@@ -762,7 +855,7 @@ class WalletJournalEntry(models.Model):
         null=True,
         blank=True,
     )
-    context_id = models.BigIntegerField(default=None, null=True, blank=True)
+    context_id = models.BigIntegerField(default=None, null=True)
     context_id_type = models.CharField(max_length=3, choices=CONTEXT_ID_CHOICES)
     date = models.DateTimeField()
     description = models.TextField()
@@ -774,7 +867,7 @@ class WalletJournalEntry(models.Model):
         blank=True,
         related_name="wallet_journal_entry_first_party_set",
     )
-    reason = models.TextField(default="", blank=True)
+    reason = models.TextField(default="")
     ref_type = models.CharField(max_length=32)
     second_party = models.ForeignKey(
         EveEntity,
@@ -804,7 +897,7 @@ class WalletJournalEntry(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "entry_id"],
-                name="functional_pk_walletjournalentry",
+                name="functional_pk_characterwalletjournalentry",
             )
         ]
 
