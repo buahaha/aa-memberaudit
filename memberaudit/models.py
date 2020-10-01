@@ -79,6 +79,7 @@ class Character(models.Model):
         null=True,
         blank=True,
     )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     objects = CharacterManager()
 
@@ -512,7 +513,7 @@ class CharacterSyncStatus(models.Model):
         Character, on_delete=models.CASCADE, related_name="sync_status_set"
     )
     topic = models.CharField(max_length=2, choices=TOPIC_CHOICES)
-    sync_ok = models.BooleanField()
+    sync_ok = models.BooleanField(db_index=True)
     error_message = models.TextField(default="", blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -535,6 +536,9 @@ class CharacterSyncStatus(models.Model):
             "update_wallet_journal": cls.TOPIC_WALLET_JOURNAL,
         }
         return my_map[method_name]
+
+    def __str__(self):
+        return f"{self.character}-{self.get_topic_display()}"
 
 
 class CharacterDetails(models.Model):
