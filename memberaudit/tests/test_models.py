@@ -121,10 +121,10 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(obj.ref_type, "contract_deposit")
         self.assertEqual(obj.second_party.id, 2002)
 
-    def test_update_mailinglists(self, mock_esi):
+    def test_update_mails(self, mock_esi):
         mock_esi.client = esi_client_stub
 
-        self.character.update_mailinglists()
+        self.character.update_mails()
         self.assertEqual(self.character.mailing_lists.count(), 2)
 
         obj = self.character.mailing_lists.get(list_id=1)
@@ -133,20 +133,22 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         obj = self.character.mailing_lists.get(list_id=2)
         self.assertEqual(obj.name, "Dummy 2")
 
-    def test_update_mails(self, mock_esi):
-        mock_esi.client = esi_client_stub
+        self.assertEqual(self.character.mails.count(), 2)
 
-        self.character.update_mailinglists()
-        self.character.update_mails()
-        self.assertEqual(self.character.mails.count(), 1)
-        obj = self.character.mails.get(mail_id=7)
+        obj = self.character.mails.get(mail_id=1)
         self.assertEqual(obj.from_entity.id, 1002)
         self.assertTrue(obj.is_read)
-        self.assertEqual(obj.subject, "Title for EVE Mail")
+        self.assertEqual(obj.subject, "Mail 1")
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T16:07:00Z"))
         self.assertEqual(obj.body, "blah blah blah")
         self.assertTrue(obj.recipients.filter(eve_entity_id=1001).exists())
         self.assertTrue(obj.recipients.filter(mailing_list__list_id=1).exists())
+
+        obj = self.character.mails.get(mail_id=2)
+        self.assertEqual(obj.from_entity.id, 1101)
+        self.assertFalse(obj.is_read)
+        self.assertEqual(obj.subject, "Mail 2")
+        self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T18:07:00Z"))
 
     def test_fetch_location(self, mock_esi):
         mock_esi.client = esi_client_stub

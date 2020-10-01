@@ -1,54 +1,33 @@
 from django.contrib import admin
 
-from .models import Character, Mail, MailLabels, MailRecipient, MailingList
-from .tasks import update_character
+from .models import Character
+from .tasks import update_character as task_update_character
 
 
 @admin.register(Character)
-class OwnerAdmin(admin.ModelAdmin):
-    list_display = ("character_ownership", "last_sync", "last_sync_ok")
+class CharacterAdmin(admin.ModelAdmin):
+    list_display = ("_main", "_character", "_last_update_ok", "_last_update_at")
 
-    def last_sync_ok(self, obj):
-        return obj.last_error is None
+    def _main(self, obj):
+        return obj.character_ownership.user.profile.main_character
 
-    last_sync_ok.boolean = True
+    def _character(self, obj):
+        return obj.character_ownership.character
+
+    def _last_update_ok(self, obj):
+        return not obj.sync_status_set.filter(sync_ok=False).exists()
+
+    def _last_update_at(self, obj):
+        latest_obj = obj.sync_status_set.latest("updated_at")
+        return latest_obj.updated_at
+
+    _last_update_ok.boolean = True
 
     actions = ("update_character",)
 
     def update_character(self, request, queryset):
-
         for obj in queryset:
-            update_character.delay(obj.pk)
-            text = "Started syncing data for: {}. ".format(obj)
-            text += "You will receive a notification once it is completed."
+            task_update_character.delay(character_pk=obj.pk, has_priority=True)
+            self.message_user(request, f"Started updateding character: {obj}. ")
 
-            self.message_user(request, text)
-
-    update_character.short_description = "Sync character with EVE server"
-
-
-@admin.register(Mail)
-class MailAdmin(admin.ModelAdmin):
-    list_display = (
-        "mail_id",
-        "character",
-        "from_entity",
-        "from_mailing_list",
-        "subject",
-    )
-    list_filter = ("character",)
-
-
-@admin.register(MailLabels)
-class MailLabelsAdmin(admin.ModelAdmin):
-    pass
-
-
-@admin.register(MailRecipient)
-class MailRecipientAdmin(admin.ModelAdmin):
-    pass
-
-
-@admin.register(MailingList)
-class MailingListAdmin(admin.ModelAdmin):
-    pass
+    update_character.short_description = "Update selected characters from EVE server"

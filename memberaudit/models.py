@@ -25,7 +25,6 @@ from eveuniverse.models import (
 )
 
 from allianceauth.authentication.models import CharacterOwnership
-from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
@@ -81,16 +80,6 @@ class Character(models.Model):
         blank=True,
     )
 
-    last_sync = models.DateTimeField(
-        null=True,
-        default=None,
-        blank=True,
-    )
-    last_error = models.TextField(
-        default="",
-        blank=True,
-    )
-
     objects = CharacterManager()
 
     def __str__(self):
@@ -104,22 +93,6 @@ class Character(models.Model):
             return True
 
         return False
-
-    def notify_user_about_last_sync(self, user: User) -> None:
-        """Notify user about the last character sync"""
-        if self.last_error:
-            level = "danger"
-            result = "ERROR"
-            message = (
-                f"Last sync failed with the following error: '{self.last_error}' "
-                "Please check log files for details."
-            )
-        else:
-            level = "success"
-            result = "OK"
-            message = "Last sync was successful"
-        title = f"Result for syncing {self.character_ownership.character}: {result}"
-        notify(user=user, title=title, message=message, level=level)
 
     def token(self) -> Optional[Token]:
         add_prefix = make_logger_prefix(self)
@@ -244,6 +217,186 @@ class Character(models.Model):
                 },
             )
 
+    def update_mails(self):
+        token = self.token()
+        if not token:
+            return
+
+        self._update_mailinglists(token)
+        self._update_mails(token)
+
+    def _update_mailinglists(self, token: Token):
+        """syncs the mailing list for the given character"""
+        add_prefix = make_logger_prefix(self)
+        logger.info(add_prefix("Fetching mailing lists from ESI"))
+
+        mailing_lists = esi.client.Mail.get_characters_character_id_mail_lists(
+            character_id=self.character_ownership.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+
+        logger.info(
+            add_prefix("Received {} mailing lists from ESI".format(len(mailing_lists)))
+        )
+
+        created_count = 0
+        for mailing_list in mailing_lists:
+            _, created = MailingList.objects.update_or_create(
+                character=self,
+                list_id=mailing_list["mailing_list_id"],
+                defaults={"name": mailing_list["name"]},
+            )
+            if created:
+                created_count += 1
+
+        if created_count > 0:
+            logger.info(
+                add_prefix("Added/Updated {} mailing lists".format(created_count))
+            )
+
+    def _update_mails(self, token: Token):
+        add_prefix = make_logger_prefix(self)
+
+        # fetch mail headers
+        last_mail_id = None
+        mail_headers_all = list()
+        page = 1
+
+        while True:
+            logger.info(
+                add_prefix("Fetching mail headers from ESI - page {}".format(page))
+            )
+            mail_headers = esi.client.Mail.get_characters_character_id_mail(
+                character_id=self.character_ownership.character.character_id,
+                last_mail_id=last_mail_id,
+                token=token.valid_access_token(),
+            ).results()
+
+            mail_headers_all += mail_headers
+
+            if len(mail_headers) < 50 or len(mail_headers_all) >= MEMBERAUDIT_MAX_MAILS:
+                break
+            else:
+                last_mail_id = min([x["mail_id"] for x in mail_headers])
+                page += 1
+
+        logger.info(
+            add_prefix(
+                "Received {} mail headers from ESI".format(len(mail_headers_all))
+            )
+        )
+
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            # store to disk (for debugging)
+            with open(
+                "mail_headers_raw_{}.json".format(
+                    self.character_ownership.character.character_id
+                ),
+                "w",
+                encoding="utf-8",
+            ) as f:
+                json.dump(
+                    mail_headers_all, f, cls=DjangoJSONEncoder, sort_keys=True, indent=4
+                )
+
+        # update IDs from ESI
+        ids = set()
+        mailing_list_ids = [
+            x["list_id"]
+            for x in MailingList.objects.filter(character=self)
+            .select_related()
+            .values("list_id")
+        ]
+        for header in mail_headers_all:
+            if header.get("from") not in mailing_list_ids:
+                ids.add(header.get("from"))
+            for recipient in header.get("recipients", []):
+                if recipient.get("recipient_type") != "mailing_list":
+                    ids.add(recipient.get("recipient_id"))
+
+        EveEntity.objects.bulk_create_esi(ids)
+
+        logger.info(
+            add_prefix(
+                "Updating {} mail headers and loading mail bodies".format(
+                    len(mail_headers_all)
+                )
+            )
+        )
+
+        # load mail headers
+        body_count = 0
+        for header in mail_headers_all:
+            with transaction.atomic():
+                try:
+                    from_mailing_list = MailingList.objects.get(
+                        list_id=header.get("from")
+                    )
+                    from_entity = None
+                except MailingList.DoesNotExist:
+                    from_entity, _ = EveEntity.objects.get_or_create_esi(
+                        id=header.get("from")
+                    )
+                    from_mailing_list = None
+
+                mail_obj, _ = Mail.objects.update_or_create(
+                    character=self,
+                    mail_id=header.get("mail_id"),
+                    defaults={
+                        "from_entity": from_entity,
+                        "from_mailing_list": from_mailing_list,
+                        "is_read": bool(header.get("is_read")),
+                        "subject": header.get("subject", ""),
+                        "timestamp": header.get("timestamp"),
+                    },
+                )
+                MailRecipient.objects.filter(mail=mail_obj).delete()
+                for recipient in header.get("recipients"):
+                    recipient_id = recipient.get("recipient_id")
+                    if recipient.get("recipient_type") != "mailing_list":
+                        eve_entity, _ = EveEntity.objects.get_or_create_esi(
+                            id=recipient_id
+                        )
+                        MailRecipient.objects.create(
+                            mail=mail_obj, eve_entity=eve_entity
+                        )
+                    else:
+                        try:
+                            mailing_list = self.mailing_lists.get(list_id=recipient_id)
+                        except (MailingList.DoesNotExist, ObjectDoesNotExist):
+                            logger.warning(
+                                f"{self}: Unknown mailing list with "
+                                f"id {recipient_id} for mail id {mail_obj.mail_id}",
+                            )
+                        else:
+                            MailRecipient.objects.create(
+                                mail=mail_obj, mailing_list=mailing_list
+                            )
+
+                MailLabels.objects.filter(mail=mail_obj).delete()
+                for label in header.get("labels", []):
+                    MailLabels.objects.create(label_id=label, mail=mail_obj)
+
+                if mail_obj.body is None:
+                    logger.debug(
+                        add_prefix(
+                            "Fetching body from ESI for mail ID {}".format(
+                                mail_obj.mail_id
+                            )
+                        )
+                    )
+                    mail = esi.client.Mail.get_characters_character_id_mail_mail_id(
+                        character_id=self.character_ownership.character.character_id,
+                        mail_id=mail_obj.mail_id,
+                        token=token.valid_access_token(),
+                    ).result()
+                    mail_obj.body = mail.get("body", "")
+                    mail_obj.save()
+                    body_count += 1
+
+        if body_count > 0:
+            logger.info("loaded {} mail bodies".format(body_count))
+
     def update_skills(self):
         """syncs the character's skill"""
         add_prefix = make_logger_prefix(self)
@@ -336,195 +489,6 @@ class Character(models.Model):
                 },
             )
 
-    def update_mailinglists(self):
-        """syncs the mailing list for the given character"""
-        add_prefix = make_logger_prefix(self)
-        logger.info(add_prefix("Fetching mailing lists from ESI"))
-        token = self.token()
-        if not token:
-            return
-
-        mailing_lists = esi.client.Mail.get_characters_character_id_mail_lists(
-            character_id=self.character_ownership.character.character_id,
-            token=token.valid_access_token(),
-        ).results()
-
-        logger.info(
-            add_prefix("Received {} mailing lists from ESI".format(len(mailing_lists)))
-        )
-
-        created_count = 0
-        for mailing_list in mailing_lists:
-            _, created = MailingList.objects.update_or_create(
-                character=self,
-                list_id=mailing_list["mailing_list_id"],
-                defaults={"name": mailing_list["name"]},
-            )
-            if created:
-                created_count += 1
-
-        if created_count > 0:
-            logger.info(
-                add_prefix("Added/Updated {} mailing lists".format(created_count))
-            )
-
-    def update_mails(self):
-        add_prefix = make_logger_prefix(self)
-        token = self.token()
-        if not token:
-            return
-
-        # fetch mail headers
-        last_mail_id = None
-        mail_headers_all = list()
-        page = 1
-
-        while True:
-            logger.info(
-                add_prefix("Fetching mail headers from ESI - page {}".format(page))
-            )
-            mail_headers = esi.client.Mail.get_characters_character_id_mail(
-                character_id=self.character_ownership.character.character_id,
-                last_mail_id=last_mail_id,
-                token=token.valid_access_token(),
-            ).results()
-
-            mail_headers_all += mail_headers
-
-            if len(mail_headers) < 50 or len(mail_headers_all) >= MEMBERAUDIT_MAX_MAILS:
-                break
-            else:
-                last_mail_id = min([x["mail_id"] for x in mail_headers])
-                page += 1
-
-        logger.info(
-            add_prefix(
-                "Received {} mail headers from ESI".format(len(mail_headers_all))
-            )
-        )
-
-        if MEMBERAUDIT_DEVELOPER_MODE:
-            # store to disk (for debugging)
-            with open(
-                "mail_headers_raw_{}.json".format(
-                    self.character_ownership.character.character_id
-                ),
-                "w",
-                encoding="utf-8",
-            ) as f:
-                json.dump(
-                    mail_headers_all, f, cls=DjangoJSONEncoder, sort_keys=True, indent=4
-                )
-
-        # update IDs from ESI
-        ids = set()
-        mailing_list_ids = [
-            x["list_id"]
-            for x in MailingList.objects.filter(character=self)
-            .select_related()
-            .values("list_id")
-        ]
-        for header in mail_headers_all:
-            if header["from"] not in mailing_list_ids:
-                ids.add(header["from"])
-            for recipient in header["recipients"]:
-                if recipient["recipient_type"] != "mailing_list":
-                    ids.add(recipient["recipient_id"])
-
-        EveEntity.objects.bulk_create_esi(ids)
-
-        logger.info(
-            add_prefix(
-                "Updating {} mail headers and loading mail bodies".format(
-                    len(mail_headers_all)
-                )
-            )
-        )
-
-        # load mail headers
-        body_count = 0
-        for header in mail_headers_all:
-            try:
-                with transaction.atomic():
-                    try:
-                        from_mailing_list = MailingList.objects.get(
-                            list_id=header["from"]
-                        )
-                        from_entity = None
-                    except MailingList.DoesNotExist:
-                        from_entity, _ = EveEntity.objects.get_or_create_esi(
-                            id=header["from"]
-                        )
-                        from_mailing_list = None
-
-                    mail_obj, _ = Mail.objects.update_or_create(
-                        character=self,
-                        mail_id=header["mail_id"],
-                        defaults={
-                            "from_entity": from_entity,
-                            "from_mailing_list": from_mailing_list,
-                            "is_read": header["is_read"],
-                            "subject": header["subject"],
-                            "timestamp": header["timestamp"],
-                        },
-                    )
-                    MailRecipient.objects.filter(mail=mail_obj).delete()
-                    for recipient in header["recipients"]:
-                        recipient_id = recipient.get("recipient_id")
-                        if recipient["recipient_type"] != "mailing_list":
-                            eve_entity, _ = EveEntity.objects.get_or_create_esi(
-                                id=recipient_id
-                            )
-                            MailRecipient.objects.create(
-                                mail=mail_obj, eve_entity=eve_entity
-                            )
-                        else:
-                            try:
-                                mailing_list = self.mailing_lists.get(
-                                    list_id=recipient_id
-                                )
-                            except (MailingList.DoesNotExist, ObjectDoesNotExist):
-                                logger.warning(
-                                    f"{self}: Unknown mailing list with "
-                                    f"id {recipient_id} for mail id {mail_obj.mail_id}",
-                                )
-                            else:
-                                MailRecipient.objects.create(
-                                    mail=mail_obj, mailing_list=mailing_list
-                                )
-
-                    MailLabels.objects.filter(mail=mail_obj).delete()
-                    for label in header["labels"]:
-                        MailLabels.objects.create(label_id=label, mail=mail_obj)
-
-                    if mail_obj.body is None:
-                        logger.debug(
-                            add_prefix(
-                                "Fetching body from ESI for mail ID {}".format(
-                                    mail_obj.mail_id
-                                )
-                            )
-                        )
-                        mail = esi.client.Mail.get_characters_character_id_mail_mail_id(
-                            character_id=self.character_ownership.character.character_id,
-                            mail_id=mail_obj.mail_id,
-                            token=token.valid_access_token(),
-                        ).result()
-                        mail_obj.body = mail["body"]
-                        mail_obj.save()
-                        body_count += 1
-
-            except Exception as ex:
-                logger.exception(
-                    add_prefix(
-                        "Unexpected error ocurred while processing mail {}: {}".format(
-                            header["mail_id"], ex
-                        )
-                    )
-                )
-        if body_count > 0:
-            logger.info("loaded {} mail bodies".format(body_count))
-
     def fetch_location(self) -> Optional[dict]:
         add_prefix = make_logger_prefix(self)
         logger.info(add_prefix("Fetching character location ESI"))
@@ -557,6 +521,52 @@ class Character(models.Model):
             "esi-skills.read_skills.v1",
             "esi-wallet.read_character_wallet.v1",
         ]
+
+
+class CharacterSyncStatus(models.Model):
+    """Sync status for a character"""
+
+    TOPIC_CHARACTER_DETAILS = "CD"
+    TOPIC_CORPORATION_HISTORY = "CH"
+    TOPIC_MAILS = "MA"
+    TOPIC_SKILLS = "SK"
+    TOPIC_WALLET_BALLANCE = "WB"
+    TOPIC_WALLET_JOURNAL = "WJ"
+    TOPIC_CHOICES = (
+        (TOPIC_CHARACTER_DETAILS, _("character details")),
+        (TOPIC_CORPORATION_HISTORY, _("corporation history")),
+        (TOPIC_MAILS, _("mails")),
+        (TOPIC_SKILLS, _("skills")),
+        (TOPIC_WALLET_BALLANCE, _("wallet balance")),
+        (TOPIC_WALLET_JOURNAL, _("wallet journal")),
+    )
+    character = models.ForeignKey(
+        Character, on_delete=models.CASCADE, related_name="sync_status_set"
+    )
+    topic = models.CharField(max_length=2, choices=TOPIC_CHOICES)
+    sync_ok = models.BooleanField()
+    error_message = models.TextField(default="", blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "topic"],
+                name="functional_pk_character_sync_status",
+            )
+        ]
+
+    @classmethod
+    def method_name_to_topic(cls, method_name):
+        my_map = {
+            "update_character_details": cls.TOPIC_CHARACTER_DETAILS,
+            "update_corporation_history": cls.TOPIC_CORPORATION_HISTORY,
+            "update_mails": cls.TOPIC_MAILS,
+            "update_skills": cls.TOPIC_SKILLS,
+            "update_wallet_balance": cls.TOPIC_WALLET_BALLANCE,
+            "update_wallet_journal": cls.TOPIC_WALLET_JOURNAL,
+        }
+        return my_map[method_name]
 
 
 class CharacterDetails(models.Model):
@@ -621,7 +631,13 @@ class CorporationHistory(models.Model):
     is_deleted = models.BooleanField(null=True, default=None, blank=True, db_index=True)
     start_date = models.DateTimeField(db_index=True)
 
-    # TODO: Add combined PK
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "record_id"],
+                name="functional_pk_character_corporation_history",
+            )
+        ]
 
     def __str__(self):
         return str(f"{self.character}-{self.record_id}")

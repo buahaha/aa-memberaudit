@@ -150,14 +150,12 @@ def add_owner(request, token):
                 character_ownership=character_ownership
             )
 
-        tasks.update_character.delay(character_pk=character.pk, user_pk=request.user.pk)
+        tasks.update_character.delay(character_pk=character.pk)
         messages_plus.success(
             request,
             format_html(
-                "<strong>{}</strong> has been registered and sync for this character "
-                "has started. "
-                "Syncing can take a while and "
-                "you will receive a notification once sync has completed.",
+                "<strong>{}</strong> has been registered. "
+                "It can take a minute until the character data is visible.",
                 character.character_ownership.character,
             ),
         )

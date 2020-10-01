@@ -1,61 +1,117 @@
 from celery import shared_task
 
-from django.contrib.auth.models import User
-from django.utils.timezone import now
-
 from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
-from .models import Character
+from .models import Character, CharacterSyncStatus
 
-from .utils import LoggerAddTag, make_logger_prefix
+from .utils import LoggerAddTag
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
+DEFAULT_TASK_PRIORITY = 6
+HIGHER_TASK_PRIORITY = 5
 
-@shared_task
-def update_character(character_pk: int, user_pk: int = None) -> None:
-    """update all data for a character from ESI"""
+
+def _load_character(character_pk: int) -> Character:
     try:
-        character = Character.objects.get(pk=character_pk)
+        return Character.objects.get(pk=character_pk)
     except Character.DoesNotExist:
         raise Character.DoesNotExist(
             "Requested character with pk {} not registered".format(character_pk)
         )
-    add_prefix = make_logger_prefix(character)
-    logger.info(add_prefix("Starting character update"))
-    try:
-        user = User.objects.get(pk=user_pk)
-    except User.DoesNotExist:
-        user = None
-    try:
-        character.last_sync = now()
-        character.last_error = ""
-        character.save()
-        character.update_character_details()
-        character.update_corporation_history()
-        character.update_skills()
-        character.update_wallet_balance()
-        character.update_wallet_journal()
-        character.update_mailinglists()
-        character.update_mails()
-        if user:
-            character.notify_user_about_last_sync(user)
 
+
+def _generic_update_character(character_pk: int, method_name: str) -> None:
+    character = _load_character(character_pk)
+    try:
+        getattr(character, method_name)()
+        CharacterSyncStatus.objects.create(
+            character=character,
+            topic=CharacterSyncStatus.method_name_to_topic(method_name),
+            sync_ok=True,
+        )
     except Exception as ex:
-        error = f"Unexpected error ocurred: {type(ex).__name__}"
-        logger.error(add_prefix(error), exc_info=True)
-        character.last_error = error
-        character.save()
-        if user:
-            character.notify_user_about_last_sync(user)
+        error_message = f"{repr(ex)}"
+        logger.error(
+            "%s: %s: Error ocurred: %s",
+            character,
+            method_name,
+            error_message,
+            exc_info=True,
+        )
+        CharacterSyncStatus.objects.create(
+            character=character,
+            topic=CharacterSyncStatus.method_name_to_topic(method_name),
+            sync_ok=False,
+            error_message=error_message,
+        )
         raise ex
 
-    logger.info(add_prefix("Character update completed"))
+
+@shared_task
+def update_character_details(character_pk: int) -> None:
+    _generic_update_character(character_pk, "update_character_details")
+
+
+@shared_task
+def update_corporation_history(character_pk: int) -> None:
+    _generic_update_character(character_pk, "update_corporation_history")
+
+
+@shared_task
+def update_mails(character_pk: int) -> None:
+    _generic_update_character(character_pk, "update_mails")
+
+
+@shared_task
+def update_skills(character_pk: int) -> None:
+    _generic_update_character(character_pk, "update_skills")
+
+
+@shared_task
+def update_wallet_balance(character_pk: int) -> None:
+    _generic_update_character(character_pk, "update_wallet_balance")
+
+
+@shared_task
+def update_wallet_journal(character_pk: int) -> None:
+    _generic_update_character(character_pk, "update_wallet_journal")
+
+
+@shared_task
+def update_character(character_pk: int, has_priority=False) -> None:
+    """update all data for a character from ESI"""
+
+    character = _load_character(character_pk)
+    logger.info("%s: Starting character update", character)
+    character.sync_status_set.all().delete()
+
+    task_priority = HIGHER_TASK_PRIORITY if has_priority else DEFAULT_TASK_PRIORITY
+    update_character_details.apply_async(
+        kwargs={"character_pk": character.pk}, priority=task_priority
+    )
+    update_corporation_history.apply_async(
+        kwargs={"character_pk": character.pk}, priority=task_priority
+    )
+    update_mails.apply_async(
+        kwargs={"character_pk": character.pk}, priority=task_priority
+    )
+    update_skills.apply_async(
+        kwargs={"character_pk": character.pk}, priority=task_priority
+    )
+    update_wallet_balance.apply_async(
+        kwargs={"character_pk": character.pk}, priority=task_priority
+    )
+    update_wallet_journal.apply_async(
+        kwargs={"character_pk": character.pk}, priority=task_priority
+    )
 
 
 @shared_task
 def update_all_characters() -> None:
     for character in Character.objects.all():
-        update_character.delay(character_pk=character.pk)
+        update_character.apply_async(
+            kwargs={"character_pk": character.pk}, priority=DEFAULT_TASK_PRIORITY
+        )

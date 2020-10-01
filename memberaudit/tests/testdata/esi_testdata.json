@@ -57,7 +57,7 @@
                     "labels": [
                         3
                     ],
-                    "mail_id": 7,
+                    "mail_id": 1,
                     "recipients": [
                         {
                             "recipient_id": 1001,
@@ -68,21 +68,45 @@
                             "recipient_type": "mailing_list"
                         }
                     ],
-                    "subject": "Title for EVE Mail",
+                    "subject": "Mail 1",
                     "timestamp": "2015-09-30T16:07:00Z"
+                },
+                {
+                    "from": 1101,
+                    "labels": [
+                        3
+                    ],
+                    "mail_id": 2,
+                    "recipients": [
+                        {
+                            "recipient_id": 1001,
+                            "recipient_type": "character"
+                        }
+                    ],
+                    "subject": "Mail 2",
+                    "timestamp": "2015-09-30T18:07:00Z"
                 }
             ]
         },
         "get_characters_character_id_mail_mail_id": {
-            "7": {
+            "1": {
                 "body": "blah blah blah",
-                "from": 2002,
+                "from": 1002,
                 "labels": [
                     3
                 ],
                 "read": true,
-                "subject": "test",
+                "subject": "Mail 1",
                 "timestamp": "2015-09-30T16:07:00Z"
+            },
+            "2": {
+                "body": "Another mail",
+                "from": 1101,
+                "labels": [
+                    3
+                ],
+                "subject": "Mail 2",
+                "timestamp": "2015-09-30T18:07:00Z"
             }
         }
     },
