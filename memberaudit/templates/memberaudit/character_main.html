@@ -35,20 +35,20 @@
                         {% endif %}
                     </dd>
                     <dt>Faction</dt>
-                    <dd>{{ character_details.faction|default:"-" }}</dd>
+                    <dd>{{ character_details.faction|default_if_none:"-" }}</dd>
                 </dl>
             </div>
 
             <div class="col-md-3">
                 <dl class="dl-horizontal">
                     <dt>Born</dt>
-                    <dd>{{ character_details.birthday|naturalday }}</dd>
+                    <dd>{{ character_details.birthday|naturalday|default_if_none:"(no data)" }}</dd>
                     <dt>Skillpoints</dt>
-                    <dd>{{ character.total_sp|intword }}</dd>
+                    <dd>{{ character.skillpoints.total|intword|default_if_none:"(no data)" }}</dd>
                     <dt>Wallet</dt>
-                    <dd>{{ character.wallet_balance|intword }}</dd>
+                    <dd>{{ character.wallet_balance.total|intword|default_if_none:"(no data)" }}</dd>
                     <dt>Sec. Status</dt>
-                    <dd>{{ character_details.security_status|floatformat|default:"-" }}</dd>
+                    <dd>{{ character_details.security_status|floatformat|default_if_none:"(no data)" }}</dd>
                 </dl>
             </div>
 

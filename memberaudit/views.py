@@ -73,48 +73,49 @@ def index(request):
 
 @login_required
 @permission_required("memberaudit.basic_access")
-def launcher(request):
+def launcher(request) -> HttpResponse:
     owned_chars_query = (
         CharacterOwnership.objects.filter(user=request.user)
-        .select_related("character", "memberaudit_character")
-        .prefetch_related("memberaudit_character__sync_status_set")
+        .select_related(
+            "character",
+            "memberaudit_character",
+            "memberaudit_character__wallet_balance",
+            "memberaudit_character__skillpoints",
+            "memberaudit_character__unread_mail_count",
+        )
         .order_by("character__character_name")
     )
     has_registered_chars = owned_chars_query.count() > 0
 
-    characters = list()
+    auth_characters = list()
     unregistered_chars = 0
+    wallet_balance_sum = 0
+    unread_mails_sum = 0
     for character_ownership in owned_chars_query:
-
-        is_registered = hasattr(character_ownership, "memberaudit_character")
-        if not is_registered:
+        eve_character = character_ownership.character
+        try:
+            character = character_ownership.memberaudit_character
+            wallet_balance_sum += character.wallet_balance.total
+            unread_mails_sum += character.unread_mail_count.total
+        except AttributeError:
+            character = None
             unregistered_chars += 1
 
-        character_pk = (
-            character_ownership.memberaudit_character.pk if is_registered else 0
-        )
-        is_sync_ok = (
-            character_ownership.memberaudit_character.is_update_status_ok()
-            if is_registered
-            else None
-        )
-        characters.append(
+        auth_characters.append(
             {
-                "portrait_url": character_ownership.character.portrait_url,
-                "name": character_ownership.character.character_name,
-                "is_registered": is_registered,
-                "pk": character_ownership.character.pk,
-                "character_id": character_ownership.character.character_id,
-                "character_pk": character_pk,
-                "is_sync_ok": is_sync_ok,
+                "pk": eve_character.pk,
+                "eve_character": eve_character,
+                "character": character,
             }
         )
 
     context = {
         "page_title": "My Characters",
-        "characters": characters,
+        "auth_characters": auth_characters,
         "has_registered_chars": has_registered_chars,
         "unregistered_chars": unregistered_chars,
+        "wallet_balance_sum": wallet_balance_sum,
+        "unread_mails_sum": unread_mails_sum,
     }
 
     """
@@ -138,7 +139,7 @@ def launcher(request):
 @login_required
 @permission_required("memberaudit.basic_access")
 @token_required(scopes=Character.get_esi_scopes())
-def add_owner(request, token):
+def add_character(request, token) -> HttpResponse:
     token_char = EveCharacter.objects.get(character_id=token.character_id)
     try:
         character_ownership = CharacterOwnership.objects.select_related(
@@ -210,7 +211,7 @@ def character_location_data(
 
 @login_required
 @permission_required("memberaudit.basic_access")
-@fetch_character_if_allowed("details")
+@fetch_character_if_allowed("details", "wallet_balance", "skillpoints")
 def character_main(request, character_pk: int, character: Character):
     corporation_history = list()
     for entry in (
@@ -255,7 +256,9 @@ def character_main(request, character_pk: int, character: Character):
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
-def character_mail_headers_data(request, character_pk: int, character: Character):
+def character_mail_headers_data(
+    request, character_pk: int, character: Character
+) -> HttpResponse:
     mails_data = list()
     try:
         for mail in character.mails.select_related(
@@ -296,7 +299,9 @@ def character_mail_headers_data(request, character_pk: int, character: Character
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
-def character_mail_data(request, character_pk: int, character: Character, mail_pk: int):
+def character_mail_data(
+    request, character_pk: int, character: Character, mail_pk: int
+) -> HttpResponse:
     try:
         mail = character.mails.get(pk=mail_pk)
     except CharacterMail.DoesNotExist:
@@ -328,7 +333,9 @@ def character_mail_data(request, character_pk: int, character: Character, mail_p
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
-def character_skills_data(request, character_pk: int, character: Character):
+def character_skills_data(
+    request, character_pk: int, character: Character
+) -> JsonResponse:
     skills_data = list()
     try:
         for skill in character.skills.select_related(
@@ -350,7 +357,9 @@ def character_skills_data(request, character_pk: int, character: Character):
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
-def character_wallet_journal_data(request, character_pk: int, character: Character):
+def character_wallet_journal_data(
+    request, character_pk: int, character: Character
+) -> JsonResponse:
     wallet_data = list()
     try:
         for row in character.wallet_journal.select_related(
@@ -381,7 +390,7 @@ def character_wallet_journal_data(request, character_pk: int, character: Charact
 
 @login_required
 @permission_required("memberaudit.manager_access")
-def reports(request):
+def reports(request) -> HttpResponse:
     context = {
         "page_title": "Reports",
     }
@@ -394,7 +403,7 @@ def reports(request):
 
 @login_required
 @permission_required("memberaudit.manager_access")
-def compliance_report_data(request):
+def compliance_report_data(request) -> JsonResponse:
     if request.user.has_perm("memberaudit.view_everyhing"):
         users_qs = User.objects.all()
     else:
@@ -450,7 +459,7 @@ def compliance_report_data(request):
 
 @login_required
 @permission_required("memberaudit.manager_access")
-def character_finder(request):
+def character_finder(request) -> HttpResponse:
     context = {
         "page_title": "Character Finder",
     }
@@ -463,7 +472,7 @@ def character_finder(request):
 
 @login_required
 @permission_required("memberaudit.manager_access")
-def character_finder_data(request):
+def character_finder_data(request) -> JsonResponse:
     character_list = list()
     for character in Character.objects.user_has_access(
         user=request.user

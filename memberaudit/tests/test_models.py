@@ -235,8 +235,9 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         mock_esi.client = esi_client_stub
 
         self.character.update_skills()
-        self.assertEqual(self.character.total_sp, 30_000)
-        self.assertEqual(self.character.unallocated_sp, 1_000)
+        self.assertEqual(self.character.skillpoints.total, 30_000)
+        self.assertEqual(self.character.skillpoints.unallocated, 1_000)
+
         self.assertEqual(self.character.skills.count(), 2)
 
         skill = self.character.skills.get(eve_type_id=24311)
@@ -253,7 +254,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         mock_esi.client = esi_client_stub
 
         self.character.update_wallet_balance()
-        self.assertEqual(self.character.wallet_balance, 123456789)
+        self.assertEqual(self.character.wallet_balance.total, 123456789)
 
     def test_update_wallet_journal(self, mock_esi):
         mock_esi.client = esi_client_stub
@@ -288,7 +289,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
 
         # mail labels
         self.assertEqual(self.character.mail_labels.count(), 2)
-        self.assertEqual(self.character.total_unread_count, 5)
+        self.assertEqual(self.character.unread_mail_count.total, 5)
 
         obj = self.character.mail_labels.get(label_id=3)
         self.assertEqual(obj.name, "PINK")

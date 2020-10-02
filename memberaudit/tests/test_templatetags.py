@@ -8,12 +8,12 @@ class TestNavactive2(TestCase):
         self.factory = RequestFactory()
 
     def test_simple_return_active_when_matches(self):
-        request = self.factory.get("/memberaudit/add_owner")
-        result = navactive_2(request, "memberaudit:add_owner")
+        request = self.factory.get("/memberaudit/add_character")
+        result = navactive_2(request, "memberaudit:add_character")
         self.assertEqual(result, "active")
 
-    def test_simple_return_emtpy_when_no_match(self):
-        request = self.factory.get("/memberaudit/add_owner")
+    def test_simple_return_empty_when_no_match(self):
+        request = self.factory.get("/memberaudit/add_character")
         result = navactive_2(request, "memberaudit:reports")
         self.assertEqual(result, "")
 

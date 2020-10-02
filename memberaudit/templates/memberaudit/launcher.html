@@ -1,6 +1,8 @@
 {% extends 'memberaudit/base.html' %}
 {% load i18n %}
 {% load static %}
+{% load humanize %}
+{% load evelinks %}
 
 {% block details %}
 
@@ -10,59 +12,91 @@
     </div>
     <div class="panel-body">
         {% if has_registered_chars %}
-        <table class="table" id="tab_standingssync">
+        <table class="table table-striped" id="tab_standingssync">
             <thead>
                 <tr>
                     <th></th>
                     <th>Name</th>
-                    <th></th>
+                    <th>Organization</th>
                     <th>Location</th>
-                    <th>Sync OK?</th>
+                    <th>Wallet</th>                    
+                    <th>Skillpoints</th>
+                    <th>Unread Mails</th>
+                    <th></th>
                 </tr>
             </thead>
             <tbody>
-                {% for character in characters %}
+                {% for auth_character in auth_characters %}
                     <tr>
-                        <td class="text-center"><img class="ra-avatar img-circle" src="{{ character.portrait_url }}">
+                        <td class="text-center">
+                            <img class="ra-avatar img-circle" src="{{ auth_character.eve_character.portrait_url }}">                            
                         </td>
-                        <td>{{ character.name }}</td>
                         <td>
-                            {% if character.is_registered %}
-                                <a class="btn btn-primary" href="{% url 'memberaudit:character_main' character.character_pk %}"
-                                    role="button" title="Open character details">
-                                    <i class="fas fa-search"></i>
+                            {% if auth_character.character %}
+                                <a href="{% url 'memberaudit:character_main' auth_character.character.pk %}">
+                                    {{ auth_character.eve_character.character_name }}
                                 </a>
-                                <a class="btn btn-danger" href="{% url 'memberaudit:character_main' character.character_pk %}"
-                                    role="button" title="Remove this character from the launcher">
+                            {% else %}
+                                {{ auth_character.eve_character.character_name }}<br>                                
+                                <span class="text-danger">Not registered</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ auth_character.eve_character.corporation_name|dotlan_corporation_url }}" target="_blank">{{ auth_character.eve_character.corporation_name }}</a><br>
+                            {{ auth_character.eve_character.alliance_name|default_if_none:"-" }}
+                        </td>                        
+                        <td>
+                            {% if auth_character.character %}
+                                <div id="location_{{ auth_character.character.pk }}">
+                                    Loading...
+                                </div>                            
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if auth_character.character %}
+                                {{ auth_character.character.wallet_balance.total|intword|default_if_none:"(no data)" }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if auth_character.character %}
+                                {{ auth_character.character.skillpoints.total|intword|default_if_none:"(no data)" }}
+                            {% endif %}
+                        </td>
+                        <td>                            
+                            {% if auth_character.character %}
+                                {{ auth_character.character.unread_mail_count.total|intword|default_if_none:"(no data)" }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if auth_character.character %}                                
+                                <a class="btn btn-danger" href="{% url 'memberaudit:character_main' auth_character.character.pk %}"
+                                    role="button" title="Remove this auth_character from the launcher">
                                     <i class="far fa-trash-alt"></i>
                                 </a>
                             {% endif %}
                         </td>
-                        <td>
-                            {% if character.is_registered %}
-                            <div id="location_{{ character.character_pk }}">
-                                Loading...
-                            </div>
-                            {% else %}
-                            <span class="text-danger">Not registered</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <span style="font-size: 125%">
-                                {% if character.is_registered %}
-                                    {% if character.is_sync_ok == True %}
-                                        <span class="text-success"><i class="fa fa-check-circle fa-fw"></i></span>
-                                    {% elif character.is_sync_ok == False %}
-                                        <span class="text-danger"><i class="fa fa-times-circle fa-fw"></i></span>
-                                    {% else %}
-                                        ?
-                                    {% endif %}                                
-                                {% endif %}
-                            </span>
-                        </td>
                     </tr>
                 {% endfor %}
             </tbody>
+            <tfoot>
+                <tr>
+                    <td></td>
+                    <td><strong>Totals:</strong></td>                    
+                    <td></td>
+                    <td></td>                    
+                    <td>
+                        <strong>
+                            {{ wallet_balance_sum|intword|default_if_none:"(no data)" }}
+                        </strong>
+                    </td>
+                    <td></td>                    
+                    <td>
+                        <strong>
+                            {{ unread_mails_sum|intword|default_if_none:"(no data)" }}
+                        </strong>
+                    </td>
+                </tr>
+            </tfoot>
         </table>
         {% else %}
         <p>None</p>
@@ -70,20 +104,19 @@
     </div>
 </div>
 
-<a class="btn btn-primary" href="{% url 'memberaudit:add_owner' %}">
+<a class="btn btn-primary" href="{% url 'memberaudit:add_character' %}">
     Register character
 </a>
-<p class="text-muted">By registering your character you agree that the alliance can access your data</p>
 
 {% endblock details %}
 
 {% block extra_javascript %}
 <script>
     $(document).ready(function () {
-        {% for character in characters %}
-        {% if character.is_registered %}
-        $("#location_" + {{ character.character_pk }}).load(
-            "{% url 'memberaudit:character_location_data' character.character_pk %}"
+        {% for auth_character in auth_characters %}
+        {% if auth_character.character %}
+        $("#location_" + {{ auth_character.character.pk }}).load(
+            "{% url 'memberaudit:character_location_data' auth_character.character.pk %}"
         );
     {% endif %}
     {% endfor %}

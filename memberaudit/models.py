@@ -74,27 +74,17 @@ class General(models.Model):
 
 
 class Character(models.Model):
-    """A character synced by this app"""
+    """A character synced by this app
+
+    This is the head model of all characters
+    """
 
     character_ownership = models.OneToOneField(
         CharacterOwnership,
         related_name="memberaudit_character",
         on_delete=models.CASCADE,
-        help_text="character registered to member audit",
+        help_text="ownership of this character on Auth",
     )
-
-    total_sp = models.BigIntegerField(
-        validators=[MinValueValidator(0)], default=None, null=True
-    )
-    unallocated_sp = models.PositiveIntegerField(default=None, null=True)
-    wallet_balance = models.DecimalField(
-        max_digits=CURRENCY_MAX_DIGITS,
-        decimal_places=2,
-        default=None,
-        null=True,
-        blank=True,
-    )
-    total_unread_count = models.PositiveIntegerField(default=None, null=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     objects = CharacterManager()
@@ -270,8 +260,10 @@ class Character(models.Model):
         logger.info(
             add_prefix("Received {} mail labels from ESI".format(len(mail_labels)))
         )
-        self.total_unread_count = mail_labels_info.get("total_unread_count")
-        self.save()
+        CharacterMailUnreadCount.objects.update_or_create(
+            character=self,
+            defaults={"total": mail_labels_info.get("total_unread_count")},
+        )
         created_count = 0
         for label in mail_labels:
             _, created = CharacterMailLabel.objects.update_or_create(
@@ -452,10 +444,13 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
-        self.total_sp = skills.get("total_sp")
-        self.unallocated_sp = skills.get("unallocated_sp")
-        self.save()
-
+        CharacterSkillpoints.objects.update_or_create(
+            character=self,
+            defaults={
+                "total": skills.get("total_sp"),
+                "unallocated": skills.get("unallocated_sp"),
+            },
+        )
         with transaction.atomic():
             CharacterSkill.objects.filter(character=self).delete()
             for skill in skills.get("skills"):
@@ -474,13 +469,14 @@ class Character(models.Model):
     def update_wallet_balance(self, token):
         """syncs the character's wallet balance"""
         add_prefix = make_logger_prefix(self)
-        logger.info(add_prefix("Fetching corporation history from ESI"))
+        logger.info(add_prefix("Fetching wallet balance from ESI"))
         balance = esi.client.Wallet.get_characters_character_id_wallet(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
-        self.wallet_balance = balance
-        self.save()
+        CharacterWalletBalance.objects.update_or_create(
+            character=self, defaults={"total": balance}
+        )
 
     @fetch_token("esi-wallet.read_character_wallet.v1")
     def update_wallet_journal(self, token):
@@ -681,6 +677,43 @@ class CharacterDetails(models.Model):
     def description_plain(self) -> str:
         """returns the description without tags"""
         return eve_xml_to_html(self.description)
+
+
+class CharacterWalletBalance(models.Model):
+    """Wallet balance of a character"""
+
+    character = models.OneToOneField(
+        Character,
+        primary_key=True,
+        on_delete=models.CASCADE,
+        related_name="wallet_balance",
+    )
+    total = models.DecimalField(max_digits=CURRENCY_MAX_DIGITS, decimal_places=2)
+
+
+class CharacterSkillpoints(models.Model):
+    """Skillpoints of a character"""
+
+    character = models.OneToOneField(
+        Character,
+        primary_key=True,
+        on_delete=models.CASCADE,
+        related_name="skillpoints",
+    )
+    total = models.BigIntegerField(validators=[MinValueValidator(0)])
+    unallocated = models.PositiveIntegerField(default=None, null=True)
+
+
+class CharacterMailUnreadCount(models.Model):
+    """Wallet balance of a character"""
+
+    character = models.OneToOneField(
+        Character,
+        primary_key=True,
+        on_delete=models.CASCADE,
+        related_name="unread_mail_count",
+    )
+    total = models.PositiveIntegerField()
 
 
 class CharacterCorporationHistory(models.Model):
