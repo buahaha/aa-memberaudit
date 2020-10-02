@@ -1,0 +1,14 @@
+/* Wallet */
+#tab_characters thead th:nth-child(5) { text-align: center;}
+#tab_characters tbody td:nth-child(5) { text-align: right;}
+#tab_characters tfoot td:nth-child(5) { text-align: right;}
+
+/* Skillpoints */
+#tab_characters thead th:nth-child(6) { text-align: center;}
+#tab_characters tbody td:nth-child(6) { text-align: right;}
+#tab_characters tfoot td:nth-child(6) { text-align: right;}
+
+/* Mails */
+#tab_characters thead th:nth-child(7) { text-align: center;}
+#tab_characters tbody td:nth-child(7) { text-align: right;}
+#tab_characters tfoot td:nth-child(7) { text-align: right;}

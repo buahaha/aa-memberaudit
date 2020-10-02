@@ -18,6 +18,7 @@ from .testdata.load_entities import load_entities
 
 from . import create_memberaudit_character
 from ..models import (
+    Character,
     CharacterSkill,
     CharacterWalletJournalEntry,
     CharacterMail,
@@ -25,6 +26,7 @@ from ..models import (
     CharacterMailingList,
 )
 from .utils import reload_user
+from ..utils import generate_invalid_pk
 from ..views import (
     launcher,
     character_main,
@@ -35,6 +37,7 @@ from ..views import (
     character_wallet_journal_data,
     character_finder_data,
     compliance_report_data,
+    remove_character,
 )
 
 MODULE_PATH = "memberaudit.views"
@@ -185,6 +188,54 @@ class TestViews(TestCase):
         self.assertEqual(response.status_code, 200)
         data = json_response_to_python(response)
         self.assertSetEqual({x["character_pk"] for x in data}, {self.character.pk})
+
+
+@patch(MODULE_PATH + ".messages_plus")
+class TestRemoveCharacter(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.factory = RequestFactory()
+        load_entities()
+
+    def setUp(self) -> None:
+        self.character_1001 = create_memberaudit_character(1001)
+        self.user_1001 = self.character_1001.character_ownership.user
+
+        self.character_1002 = create_memberaudit_character(1002)
+        self.user_1002 = self.character_1002.character_ownership.user
+
+    def test_normal(self, mock_message_plus):
+        request = self.factory.get(
+            reverse("memberaudit:remove_character", args=[self.character_1001.pk])
+        )
+        request.user = self.user_1001
+        response = remove_character(request, self.character_1001.pk)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("memberaudit:launcher"))
+        self.assertFalse(Character.objects.filter(pk=self.character_1001.pk).exists())
+        self.assertTrue(mock_message_plus.success.called)
+
+    def test_no_permission(self, mock_message_plus):
+        request = self.factory.get(
+            reverse("memberaudit:remove_character", args=[self.character_1001.pk])
+        )
+        request.user = self.user_1002
+        response = remove_character(request, self.character_1001.pk)
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Character.objects.filter(pk=self.character_1001.pk).exists())
+        self.assertFalse(mock_message_plus.success.called)
+
+    def test_not_found(self, mock_message_plus):
+        invalid_character_pk = generate_invalid_pk(Character)
+        request = self.factory.get(
+            reverse("memberaudit:remove_character", args=[invalid_character_pk])
+        )
+        request.user = self.user_1001
+        response = remove_character(request, invalid_character_pk)
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(Character.objects.filter(pk=self.character_1001.pk).exists())
+        self.assertFalse(mock_message_plus.success.called)
 
 
 class TestComplianceReportData(TestCase):

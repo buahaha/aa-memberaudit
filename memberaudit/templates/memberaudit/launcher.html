@@ -12,94 +12,94 @@
     </div>
     <div class="panel-body">
         {% if has_registered_chars %}
-        <table class="table table-striped" id="tab_standingssync">
-            <thead>
-                <tr>
-                    <th></th>
-                    <th>Name</th>
-                    <th>Organization</th>
-                    <th>Location</th>
-                    <th>Wallet</th>                    
-                    <th>Skillpoints</th>
-                    <th>Unread Mails</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for auth_character in auth_characters %}
+            <table class="table table-striped" id="tab_characters">
+                <thead>
                     <tr>
-                        <td class="text-center">
-                            <img class="ra-avatar img-circle" src="{{ auth_character.eve_character.portrait_url }}">                            
-                        </td>
+                        <th></th>
+                        <th>Name</th>
+                        <th>Organization</th>
+                        <th>Location</th>
+                        <th>Wallet</th>                    
+                        <th>Skillpoints</th>
+                        <th>Unread Mails</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for auth_character in auth_characters %}
+                        <tr>
+                            <td class="text-center">
+                                <img class="ra-avatar img-circle" src="{{ auth_character.eve_character.portrait_url }}">                            
+                            </td>
+                            <td>
+                                {% if auth_character.character %}
+                                    <a href="{% url 'memberaudit:character_main' auth_character.character.pk %}">
+                                        {{ auth_character.eve_character.character_name }}
+                                    </a>
+                                {% else %}
+                                    {{ auth_character.eve_character.character_name }}<br>                                
+                                    <span class="text-danger">Not registered</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ auth_character.eve_character.corporation_name|dotlan_corporation_url }}" target="_blank">{{ auth_character.eve_character.corporation_name }}</a><br>
+                                {{ auth_character.eve_character.alliance_name|default_if_none:"-" }}
+                            </td>                        
+                            <td>
+                                {% if auth_character.character %}
+                                    <div id="location_{{ auth_character.character.pk }}">
+                                        Loading...
+                                    </div>                            
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if auth_character.character %}
+                                    {{ auth_character.character.wallet_balance.total|intword|default_if_none:"(no data)" }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if auth_character.character %}
+                                    {{ auth_character.character.skillpoints.total|intword|default_if_none:"(no data)" }}
+                                {% endif %}
+                            </td>
+                            <td>                            
+                                {% if auth_character.character %}
+                                    {{ auth_character.character.unread_mail_count.total|intword|default_if_none:"(no data)" }}&nbsp;&nbsp;
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if auth_character.character %}                                
+                                    <a class="btn btn-danger" href="{% url 'memberaudit:remove_character' auth_character.character.pk %}"
+                                        role="button" title="Remove this auth_character from the launcher">
+                                        <i class="far fa-trash-alt"></i>
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td></td>
+                        <td><strong>Totals:</strong></td>                    
+                        <td></td>
+                        <td></td>                    
                         <td>
-                            {% if auth_character.character %}
-                                <a href="{% url 'memberaudit:character_main' auth_character.character.pk %}">
-                                    {{ auth_character.eve_character.character_name }}
-                                </a>
-                            {% else %}
-                                {{ auth_character.eve_character.character_name }}<br>                                
-                                <span class="text-danger">Not registered</span>
-                            {% endif %}
+                            <strong>
+                                {{ wallet_balance_sum|intword|default_if_none:"(no data)" }}
+                            </strong>
                         </td>
+                        <td></td>                    
                         <td>
-                            <a href="{{ auth_character.eve_character.corporation_name|dotlan_corporation_url }}" target="_blank">{{ auth_character.eve_character.corporation_name }}</a><br>
-                            {{ auth_character.eve_character.alliance_name|default_if_none:"-" }}
-                        </td>                        
-                        <td>
-                            {% if auth_character.character %}
-                                <div id="location_{{ auth_character.character.pk }}">
-                                    Loading...
-                                </div>                            
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if auth_character.character %}
-                                {{ auth_character.character.wallet_balance.total|intword|default_if_none:"(no data)" }}
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if auth_character.character %}
-                                {{ auth_character.character.skillpoints.total|intword|default_if_none:"(no data)" }}
-                            {% endif %}
-                        </td>
-                        <td>                            
-                            {% if auth_character.character %}
-                                {{ auth_character.character.unread_mail_count.total|intword|default_if_none:"(no data)" }}
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if auth_character.character %}                                
-                                <a class="btn btn-danger" href="{% url 'memberaudit:character_main' auth_character.character.pk %}"
-                                    role="button" title="Remove this auth_character from the launcher">
-                                    <i class="far fa-trash-alt"></i>
-                                </a>
-                            {% endif %}
+                            <strong>
+                                {{ unread_mails_sum|intword|default_if_none:"(no data)" }}
+                            </strong>
                         </td>
                     </tr>
-                {% endfor %}
-            </tbody>
-            <tfoot>
-                <tr>
-                    <td></td>
-                    <td><strong>Totals:</strong></td>                    
-                    <td></td>
-                    <td></td>                    
-                    <td>
-                        <strong>
-                            {{ wallet_balance_sum|intword|default_if_none:"(no data)" }}
-                        </strong>
-                    </td>
-                    <td></td>                    
-                    <td>
-                        <strong>
-                            {{ unread_mails_sum|intword|default_if_none:"(no data)" }}
-                        </strong>
-                    </td>
-                </tr>
-            </tfoot>
-        </table>
+                </tfoot>
+            </table>
         {% else %}
-        <p>None</p>
+            <p>None</p>
         {% endif %}
     </div>
 </div>
@@ -125,6 +125,7 @@
 {% endblock %}
 
 {% block extra_css %}
+    <link rel="stylesheet" href="{% static 'memberaudit/launcher.css' %}" type="text/css">
 {% endblock %}
 
 {% block extra_script %}

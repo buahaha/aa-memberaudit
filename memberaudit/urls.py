@@ -14,6 +14,11 @@ urlpatterns = [
     ),
     path("add_character", views.add_character, name="add_character"),
     path(
+        "remove_character/<int:character_pk>/",
+        views.remove_character,
+        name="remove_character",
+    ),
+    path(
         "character_location_data/<int:character_pk>/",
         views.character_location_data,
         name="character_location_data",

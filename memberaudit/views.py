@@ -2,7 +2,12 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import transaction
 from django.db.models import Count, Q, F
-from django.http import JsonResponse, HttpResponse, HttpResponseNotFound
+from django.http import (
+    JsonResponse,
+    HttpResponse,
+    HttpResponseNotFound,
+    HttpResponseForbidden,
+)
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.utils.html import format_html
@@ -168,6 +173,33 @@ def add_character(request, token) -> HttpResponse:
                 "It can take a minute until the character data is visible.",
                 character.character_ownership.character,
             ),
+        )
+
+    return redirect("memberaudit:launcher")
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+def remove_character(request, character_pk: int) -> HttpResponse:
+    try:
+        character = Character.objects.select_related(
+            "character_ownership__user", "character_ownership__character"
+        ).get(pk=character_pk)
+    except Character.DoesNotExist:
+        return HttpResponseNotFound(f"Character with pk {character_pk} not found")
+
+    if character.character_ownership.user == request.user:
+        character.delete()
+        messages_plus.success(
+            request,
+            format_html(
+                "Character <strong>{}</strong> removed as requested.",
+                character.character_ownership.character,
+            ),
+        )
+    else:
+        return HttpResponseForbidden(
+            f"No permission to remove Character with pk {character_pk}"
         )
 
     return redirect("memberaudit:launcher")
