@@ -210,10 +210,7 @@ def character_location_data(
 
 @login_required
 @permission_required("memberaudit.basic_access")
-@fetch_character_if_allowed(
-    "character_ownership__character",
-    "details",
-)
+@fetch_character_if_allowed("details")
 def character_main(request, character_pk: int, character: Character):
     corporation_history = list()
     for entry in (
@@ -383,7 +380,7 @@ def character_wallet_journal_data(request, character_pk: int, character: Charact
 
 
 @login_required
-@permission_required("memberaudit.unrestricted_access")
+@permission_required("memberaudit.manager_access")
 def reports(request):
     context = {
         "page_title": "Reports",
@@ -396,10 +393,26 @@ def reports(request):
 
 
 @login_required
-@permission_required("memberaudit.unrestricted_access")
+@permission_required("memberaudit.manager_access")
 def compliance_report_data(request):
+    if request.user.has_perm("memberaudit.view_everyhing"):
+        users_qs = User.objects.all()
+    else:
+        users_qs = User.objects.none()
+        if (
+            request.user.has_perm("memberaudit.view_same_alliance")
+            and request.user.profile.main_character.alliance_id
+        ):
+            users_qs = User.objects.select_related("profile__main_character").filter(
+                profile__main_character__alliance_id=request.user.profile.main_character.alliance_id
+            )
+        elif request.user.has_perm("memberaudit.view_same_corporation"):
+            users_qs = User.objects.select_related("profile__main_character").filter(
+                profile__main_character__corporation_id=request.user.profile.main_character.corporation_id
+            )
+
     member_users = (
-        User.objects.filter(profile__state__name="Member")
+        users_qs.filter(profile__state__name="Member")
         .annotate(total_chars=Count("character_ownerships"))
         .annotate(
             unregistered_chars=Count(
@@ -407,10 +420,8 @@ def compliance_report_data(request):
                 filter=Q(character_ownerships__memberaudit_character=None),
             )
         )
-        .select_related()
+        .select_related("profile__main_character")
     )
-
-    # .annotate(registered_chars=Count('character_ownerships__memberaudit_character'))
 
     user_data = list()
     for user in member_users:
@@ -421,6 +432,7 @@ def compliance_report_data(request):
             main_character = user.profile.main_character
             user_data.append(
                 {
+                    "user_pk": user.pk,
                     "portrait": portrait_html,
                     "name": user.username,
                     "main": main_character.character_name,
@@ -437,7 +449,7 @@ def compliance_report_data(request):
 
 
 @login_required
-@permission_required("memberaudit.unrestricted_access")
+@permission_required("memberaudit.manager_access")
 def character_finder(request):
     context = {
         "page_title": "Character Finder",
@@ -450,10 +462,17 @@ def character_finder(request):
 
 
 @login_required
-@permission_required("memberaudit.unrestricted_access")
+@permission_required("memberaudit.manager_access")
 def character_finder_data(request):
     character_list = list()
-    for character in Character.objects.all():
+    for character in Character.objects.user_has_access(
+        user=request.user
+    ).select_related(
+        "character_ownership__character",
+        "character_ownership__user",
+        "character_ownership__user__profile__main_character",
+        "character_ownership__user__profile__state",
+    ):
         auth_character = character.character_ownership.character
         user_profile = character.character_ownership.user.profile
         portrait_html = create_img_html(
@@ -464,15 +483,18 @@ def character_finder_data(request):
             fa_code="fas fa-search",
             button_type="primary",
         )
-        alliance = auth_character.alliance_name if auth_character.alliance_name else "-"
+        alliance_name = (
+            auth_character.alliance_name if auth_character.alliance_name else "-"
+        )
         character_list.append(
             {
+                "character_pk": character.pk,
                 "portrait": portrait_html,
-                "character": auth_character.character_name,
-                "corporation": auth_character.corporation_name,
-                "alliance": alliance,
-                "main": user_profile.main_character.character_name,
-                "state": user_profile.state.name,
+                "character_name": auth_character.character_name,
+                "corporation_name": auth_character.corporation_name,
+                "alliance_name": alliance_name,
+                "main_name": user_profile.main_character.character_name,
+                "state_name": user_profile.state.name,
                 "actions": actions_html,
             }
         )

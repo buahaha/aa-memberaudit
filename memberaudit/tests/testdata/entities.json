@@ -35,7 +35,17 @@
             "character_name": "Lex Luther",
             "corporation_id": 2101,
             "corporation_name": "Lexcorp",
-            "corporation_ticker": "LEX"
+            "corporation_ticker": "LXC",
+            "alliance_id": 3101,
+            "alliance_name": "Lex Global Inc.",
+            "alliance_ticker": "LXG"
+        },
+        {
+            "character_id": 1102,
+            "character_name": "Harley Quinn",
+            "corporation_id": 2102,
+            "corporation_name": "Harley Quinn inc.",
+            "corporation_ticker": "HQ"
         }
     ],
     "EveEntity": [

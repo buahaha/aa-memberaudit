@@ -24,7 +24,10 @@ def fetch_character_if_allowed(*args_select_related):
         @wraps(view_func)
         def _wrapped_view(request, character_pk, *args, **kwargs):
             try:
-                args_select_related_2 = args_select_related + ("character_ownership",)
+                args_select_related_2 = args_select_related + (
+                    "character_ownership",
+                    "character_ownership__character",
+                )
                 character = Character.objects.select_related(
                     *args_select_related_2
                 ).get(pk=character_pk)

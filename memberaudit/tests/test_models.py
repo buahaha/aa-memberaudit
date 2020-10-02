@@ -1,43 +1,194 @@
 from unittest.mock import patch
 
-from django.contrib.auth.models import User
 from django.test import TestCase
 from django.utils.dateparse import parse_datetime
 
 from allianceauth.tests.auth_utils import AuthUtils
 
-from . import create_memberaudit_character
-from ..models import CharacterDetails
+from . import create_memberaudit_character, create_user_from_evecharacter
+from ..models import Character, CharacterDetails
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
+from .utils import reload_user, queryset_pks
 from ..utils import NoSocketsTestCase
 
 MODULE_PATH = "memberaudit.models"
 
 
-class TestOwnerUserHasAccess(TestCase):
+class TestCharacterUserHasAccess(TestCase):
     @classmethod
-    def setUp(self) -> None:
+    def setUpClass(cls) -> None:
+        super().setUpClass()
         load_entities()
-        self.character = create_memberaudit_character(1001)
+        cls.character = create_memberaudit_character(1001)
 
     def test_user_owning_character_has_access(self):
+        """
+        when user is the owner of the character
+        then return True
+        """
         self.assertTrue(
             self.character.user_has_access(self.character.character_ownership.user)
         )
 
     def test_other_user_has_no_access(self):
+        """
+        when user is not the owner of the character
+        and has no special permissions
+        then return False
+        """
         user_2 = AuthUtils.create_user("Lex Luthor")
         self.assertFalse(self.character.user_has_access(user_2))
 
-    def test_user_with_permission_unrestricted_has_access(self):
+    def test_view_everything(self):
+        """
+        when user has view_everything permission
+        then return True
+        """
         user_3 = AuthUtils.create_user("Peter Parker")
-        AuthUtils.add_permission_to_user_by_name(
-            "memberaudit.unrestricted_access", user_3
-        )
-        user_3 = User.objects.get(pk=user_3.pk)
+        AuthUtils.add_permission_to_user_by_name("memberaudit.view_everything", user_3)
+        user_3 = reload_user(user_3)
         self.assertTrue(self.character.user_has_access(user_3))
+
+    def test_view_same_corporation_1(self):
+        """
+        when user has view_same_corporation permission
+        and is in the same corporation as the character owner
+        then return True
+        """
+        user_3, _ = create_user_from_evecharacter(1002)
+        AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_same_corporation", user_3
+        )
+        user_3 = reload_user(user_3)
+        self.assertTrue(self.character.user_has_access(user_3))
+
+    def test_view_same_corporation_2(self):
+        """
+        when user has view_same_corporation permission
+        and is NOT in the same corporation as the character owner
+        then return False
+        """
+
+        user_3, _ = create_user_from_evecharacter(1003)
+        AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_same_corporation", user_3
+        )
+        user_3 = reload_user(user_3)
+        self.assertFalse(self.character.user_has_access(user_3))
+
+    def test_view_same_alliance_1(self):
+        """
+        when user view_same_alliance permission
+        and is in the same alliance as the character owner
+        then return True
+        """
+
+        user_3, _ = create_user_from_evecharacter(1003)
+        AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_same_alliance", user_3
+        )
+        user_3 = reload_user(user_3)
+        self.assertTrue(self.character.user_has_access(user_3))
+
+    def test_view_same_alliance_2(self):
+        """
+        when user has view_same_alliance permission
+        and is NOT in the same alliance as the character owner
+        then return False
+        """
+
+        user_3, _ = create_user_from_evecharacter(1101)
+        AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_same_alliance", user_3
+        )
+        user_3 = reload_user(user_3)
+        self.assertFalse(self.character.user_has_access(user_3))
+
+
+class TestCharacterManagerUserHasAccess(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_entities()
+        cls.character_1001 = create_memberaudit_character(1001)
+        cls.character_1002 = create_memberaudit_character(1002)
+        cls.character_1003 = create_memberaudit_character(1003)
+        cls.character_1101 = create_memberaudit_character(1101)
+        cls.character_1102 = create_memberaudit_character(1102)
+
+    def test_user_owning_character_has_access(self):
+        """
+        when user is the owner of characters
+        then include those characters only
+        """
+        result_qs = Character.objects.user_has_access(
+            user=self.character_1001.character_ownership.user
+        )
+        self.assertSetEqual(queryset_pks(result_qs), {self.character_1001.pk})
+
+    def test_view_own_corporation(self):
+        """
+        when user has permission to view own corporation
+        then include those characters only
+        """
+        user = self.character_1001.character_ownership.user
+        AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_same_corporation", user
+        )
+        user = reload_user(user)
+        result_qs = Character.objects.user_has_access(user=user)
+        self.assertSetEqual(
+            queryset_pks(result_qs),
+            {self.character_1001.pk, self.character_1002.pk},
+        )
+
+    def test_view_own_alliance_1(self):
+        """
+        when user has permission to view own alliance
+        then include those characters only
+        """
+        user = self.character_1001.character_ownership.user
+        AuthUtils.add_permission_to_user_by_name("memberaudit.view_same_alliance", user)
+        user = reload_user(user)
+        result_qs = Character.objects.user_has_access(user=user)
+        self.assertSetEqual(
+            queryset_pks(result_qs),
+            {self.character_1001.pk, self.character_1002.pk, self.character_1003.pk},
+        )
+
+    def test_view_own_alliance_2(self):
+        """
+        when user has permission to view own alliance
+        and does not belong to any alliance
+        then do not include any alliance characters
+        """
+        user = self.character_1102.character_ownership.user
+        AuthUtils.add_permission_to_user_by_name("memberaudit.view_same_alliance", user)
+        user = reload_user(user)
+        result_qs = Character.objects.user_has_access(user=user)
+        self.assertSetEqual(queryset_pks(result_qs), {self.character_1102.pk})
+
+    def test_view_everything(self):
+        """
+        when user has permission to view everything
+        then include all characters
+        """
+        user = self.character_1001.character_ownership.user
+        AuthUtils.add_permission_to_user_by_name("memberaudit.view_everything", user)
+        user = reload_user(user)
+        result_qs = Character.objects.user_has_access(user=user)
+        self.assertSetEqual(
+            queryset_pks(result_qs),
+            {
+                self.character_1001.pk,
+                self.character_1002.pk,
+                self.character_1003.pk,
+                self.character_1101.pk,
+                self.character_1102.pk,
+            },
+        )
 
 
 @patch(MODULE_PATH + ".esi")

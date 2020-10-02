@@ -10,6 +10,7 @@ An app for auditing members on Alliance Auth
 - [Key Features](#key-features)
 - [Screenshots](#screenshots)
 - [Installation](#installation)
+- [Permissions](#permissions)
 - [Settings](#settings)
 - [Change Log](CHANGELOG.md)
 
@@ -91,6 +92,18 @@ You may want to wait until the loading is complete before starting to create new
 Finally you want to setup permission to define which users / groups will have access to which parts of the app. Check out [permissions](#permissions) for details.
 
 Congratulations you are now ready to use memberaudit!
+
+## Permissions
+
+The list of permissions. Note that all permissions are under the sub-category "general".
+
+Name | Description
+-- | --
+`basic_access`| Can access this app and register and view his characters
+`manager_access`| Can access manager features like character finder and reports. Note that managers also need `basic_access` to access the app itself.
+`view_same_corporation`| Can view characters and data of his main's corporation
+`view_same_alliance`| Can view characters and data of his main's alliance
+`view_everything`| Can view all characters and data
 
 ## Settings
 

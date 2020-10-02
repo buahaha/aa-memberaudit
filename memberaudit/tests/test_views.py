@@ -10,6 +10,9 @@ from django.urls import reverse
 
 from eveuniverse.models import EveSolarSystem, EveType, EveEntity
 
+from allianceauth.eveonline.models import EveAllianceInfo
+from allianceauth.tests.auth_utils import AuthUtils
+
 from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
 
@@ -21,6 +24,7 @@ from ..models import (
     CharacterMailRecipient,
     CharacterMailingList,
 )
+from .utils import reload_user
 from ..views import (
     launcher,
     character_main,
@@ -29,6 +33,8 @@ from ..views import (
     character_mail_data,
     character_skills_data,
     character_wallet_journal_data,
+    character_finder_data,
+    compliance_report_data,
 )
 
 MODULE_PATH = "memberaudit.views"
@@ -167,6 +173,83 @@ class TestViews(TestCase):
         self.assertEqual(data["from"], "Clark Kent")
         self.assertEqual(data["to"], "Bruce Wayne, Mailing List")
         self.assertEqual(data["body"], "This is the body")
+
+    def test_character_finder_data(self):
+        AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.manager_access", self.user
+        )
+        self.user = reload_user(self.user)
+        request = self.factory.get(reverse("memberaudit:character_finder_data"))
+        request.user = self.user
+        response = character_finder_data(request)
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertSetEqual({x["character_pk"] for x in data}, {self.character.pk})
+
+
+class TestComplianceReportData(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.factory = RequestFactory()
+        load_eveuniverse()
+        load_entities()
+        state = AuthUtils.get_member_state()
+        state.member_alliances.add(EveAllianceInfo.objects.get(alliance_id=3001))
+
+        cls.character_1001 = create_memberaudit_character(1001)
+        cls.character_1002 = create_memberaudit_character(1002)
+        cls.character_1003 = create_memberaudit_character(1003)
+        cls.character_1101 = create_memberaudit_character(1101)
+        cls.character_1102 = create_memberaudit_character(1102)
+
+        cls.user = cls.character_1001.character_ownership.user
+        AuthUtils.add_permission_to_user_by_name("memberaudit.manager_access", cls.user)
+        cls.user = reload_user(cls.user)
+
+    @staticmethod
+    def user_pks_set(data) -> set:
+        return {x["user_pk"] for x in data}
+
+    def _execute_request(self) -> list:
+        request = self.factory.get(reverse("memberaudit:compliance_report_data"))
+        request.user = self.user
+        response = compliance_report_data(request)
+        self.assertEqual(response.status_code, 200)
+        return json_response_to_python(response)
+
+    def test_no_scope(self):
+        result = self._execute_request()
+        self.assertSetEqual(self.user_pks_set(result), set())
+
+    def test_corporation_permission(self):
+        AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_same_corporation", self.user
+        )
+        self.user = reload_user(self.user)
+        result = self._execute_request()
+        self.assertSetEqual(
+            self.user_pks_set(result),
+            {
+                self.character_1001.character_ownership.user.pk,
+                self.character_1002.character_ownership.user.pk,
+            },
+        )
+
+    def test_alliance_permission(self):
+        AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_same_alliance", self.user
+        )
+        self.user = reload_user(self.user)
+        result = self._execute_request()
+        self.assertSetEqual(
+            self.user_pks_set(result),
+            {
+                self.character_1001.character_ownership.user.pk,
+                self.character_1002.character_ownership.user.pk,
+                self.character_1003.character_ownership.user.pk,
+            },
+        )
 
 
 @patch(MODULE_PATH + ".Character.fetch_location")

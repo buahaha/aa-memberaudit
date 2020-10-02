@@ -46,15 +46,30 @@ def eve_xml_to_html(xml: str) -> str:
     return mark_safe(x)
 
 
-class Memberaudit(models.Model):
+class General(models.Model):
     """Meta model for app permissions"""
 
     class Meta:
         managed = False
         default_permissions = ()
         permissions = (
-            ("basic_access", "Can access this app"),
-            ("unrestricted_access", "Can view all characters and data"),
+            (
+                "basic_access",
+                "Can access this app and register and view his characters",
+            ),
+            (
+                "manager_access",
+                "Can access manager features like character finder and reports",
+            ),
+            (
+                "view_same_corporation",
+                "Can view characters and data of his main's corporation",
+            ),
+            (
+                "view_same_alliance",
+                "Can view characters and data of his main's alliance",
+            ),
+            ("view_everything", "Can view all characters and data"),
         )
 
 
@@ -91,7 +106,20 @@ class Character(models.Model):
         """Returns True if given user has permission to view this character"""
         if self.character_ownership.user == user:
             return True
-        elif user.has_perm("memberaudit.unrestricted_access"):
+        elif user.has_perm("memberaudit.view_everything"):
+            return True
+        elif (
+            user.has_perm("memberaudit.view_same_alliance")
+            and user.profile.main_character.alliance_id
+            and user.profile.main_character.alliance_id
+            == self.character_ownership.character.alliance_id
+        ):
+            return True
+        elif (
+            user.has_perm("memberaudit.view_same_corporation")
+            and user.profile.main_character.corporation_id
+            == self.character_ownership.character.corporation_id
+        ):
             return True
 
         return False

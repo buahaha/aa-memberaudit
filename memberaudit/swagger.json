@@ -24752,7 +24752,7 @@
                                 {
                                     "alliance_tax_rate": 0.1,
                                     "allow_access_with_standings": true,
-                                    "allow_alliance_access": false,
+                                    "allow_view_same_alliance": false,
                                     "corporation_tax_rate": 0.02,
                                     "excellent_standing_tax_rate": 0.05,
                                     "good_standing_tax_rate": 0.2,
@@ -24805,9 +24805,9 @@
                                         "title": "get_corporations_corporation_id_customs_offices_allow_access_with_standings",
                                         "type": "boolean"
                                     },
-                                    "allow_alliance_access": {
-                                        "description": "allow_alliance_access boolean",
-                                        "title": "get_corporations_corporation_id_customs_offices_allow_alliance_access",
+                                    "allow_view_same_alliance": {
+                                        "description": "allow_view_same_alliance boolean",
+                                        "title": "get_corporations_corporation_id_customs_offices_allow_view_same_alliance",
                                         "type": "boolean"
                                     },
                                     "bad_standing_tax_rate": {
@@ -24892,7 +24892,7 @@
                                     "system_id",
                                     "reinforce_exit_start",
                                     "reinforce_exit_end",
-                                    "allow_alliance_access",
+                                    "allow_view_same_alliance",
                                     "allow_access_with_standings"
                                 ],
                                 "title": "get_corporations_corporation_id_customs_offices_200_ok",
