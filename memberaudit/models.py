@@ -55,21 +55,14 @@ class General(models.Model):
         permissions = (
             (
                 "basic_access",
-                "Can access this app and register and view his characters",
+                "Can access this app and register and view own characters",
             ),
-            (
-                "manager_access",
-                "Can access manager features like character finder and reports",
-            ),
-            (
-                "view_same_corporation",
-                "Can view characters and data of his main's corporation",
-            ),
-            (
-                "view_same_alliance",
-                "Can view characters and data of his main's alliance",
-            ),
-            ("view_everything", "Can view all characters and data"),
+            ("finder_access", "Can access character finder feature"),
+            ("reports_access", "Can access reports feature"),
+            ("view_shared_characters", "Can view shared characters"),
+            ("view_same_corporation", "Can view corporation characters"),
+            ("view_same_alliance", "Can view alliance characters"),
+            ("view_everything", "Can view all characters"),
         )
 
 
@@ -86,6 +79,10 @@ class Character(models.Model):
         help_text="ownership of this character on Auth",
     )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    is_shared = models.BooleanField(
+        default=False,
+        help_text="Shared characters can be viewed by recruiters",
+    )
 
     objects = CharacterManager()
 
@@ -110,6 +107,8 @@ class Character(models.Model):
             and user.profile.main_character.corporation_id
             == self.character_ownership.character.corporation_id
         ):
+            return True
+        elif user.has_perm("memberaudit.view_shared_characters") and self.is_shared:
             return True
 
         return False

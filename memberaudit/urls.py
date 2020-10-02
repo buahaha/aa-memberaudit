@@ -19,6 +19,16 @@ urlpatterns = [
         name="remove_character",
     ),
     path(
+        "share_character/<int:character_pk>/",
+        views.share_character,
+        name="share_character",
+    ),
+    path(
+        "unshare_character/<int:character_pk>/",
+        views.unshare_character,
+        name="unshare_character",
+    ),
+    path(
         "character_location_data/<int:character_pk>/",
         views.character_location_data,
         name="character_location_data",

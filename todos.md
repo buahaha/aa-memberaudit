@@ -3,7 +3,6 @@
 ## General
 
 - Add tests
-- Add more detailed permissions (e.g. corporation, alliance, recruiter)
 - Find better name for the app (people should like to use it)
 - Optimize resolution for EveEntity
 
@@ -19,5 +18,6 @@
 
 - Add missing character topics
 - Full text search for all mails
-- Show standings of all shown entites (e.g. in mails)
-- Add special features for data categores from eveaudit (e.g. ship skills)
+- Show standings of all shown entities (e.g. in mails)
+- Add special features for data categories from eveaudit (e.g. ship skills)
+- Auto-share newly added characters of guests

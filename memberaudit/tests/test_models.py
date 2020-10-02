@@ -21,7 +21,9 @@ class TestCharacterUserHasAccess(TestCase):
     def setUpClass(cls) -> None:
         super().setUpClass()
         load_entities()
-        cls.character = create_memberaudit_character(1001)
+
+    def setUp(self) -> None:
+        self.character = create_memberaudit_character(1001)
 
     def test_user_owning_character_has_access(self):
         """
@@ -98,10 +100,39 @@ class TestCharacterUserHasAccess(TestCase):
         and is NOT in the same alliance as the character owner
         then return False
         """
-
         user_3, _ = create_user_from_evecharacter(1101)
         AuthUtils.add_permission_to_user_by_name(
             "memberaudit.view_same_alliance", user_3
+        )
+        user_3 = reload_user(user_3)
+        self.assertFalse(self.character.user_has_access(user_3))
+
+    def test_recruiter_access_1(self):
+        """
+        when user has recruiter permission
+        and character is shared
+        then return True
+        """
+        self.character.is_shared = True
+        self.character.save()
+        user_3, _ = create_user_from_evecharacter(1101)
+        AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_shared_characters", user_3
+        )
+        user_3 = reload_user(user_3)
+        self.assertTrue(self.character.user_has_access(user_3))
+
+    def test_recruiter_access_2(self):
+        """
+        when user has recruiter permission
+        and character is NOT shared
+        then return False
+        """
+        self.character.is_shared = False
+        self.character.save()
+        user_3, _ = create_user_from_evecharacter(1101)
+        AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_shared_characters", user_3
         )
         user_3 = reload_user(user_3)
         self.assertFalse(self.character.user_has_access(user_3))
@@ -114,6 +145,8 @@ class TestCharacterManagerUserHasAccess(TestCase):
         load_entities()
         cls.character_1001 = create_memberaudit_character(1001)
         cls.character_1002 = create_memberaudit_character(1002)
+        cls.character_1002.is_shared = True
+        cls.character_1002.save()
         cls.character_1003 = create_memberaudit_character(1003)
         cls.character_1101 = create_memberaudit_character(1101)
         cls.character_1102 = create_memberaudit_character(1102)
@@ -188,6 +221,21 @@ class TestCharacterManagerUserHasAccess(TestCase):
                 self.character_1101.pk,
                 self.character_1102.pk,
             },
+        )
+
+    def test_recruiter_access(self):
+        """
+        when user has recruiter permission
+        then include own character plus shared characters
+        """
+        user = self.character_1102.character_ownership.user
+        AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_shared_characters", user
+        )
+        user = reload_user(user)
+        result_qs = Character.objects.user_has_access(user=user)
+        self.assertSetEqual(
+            queryset_pks(result_qs), {self.character_1002.pk, self.character_1102.pk}
         )
 
 

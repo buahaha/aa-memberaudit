@@ -95,15 +95,26 @@ Congratulations you are now ready to use memberaudit!
 
 ## Permissions
 
-The list of permissions. Note that all permissions are under the sub-category "general".
+For this app there are two types of permissions:
 
-Name | Description
--- | --
-`basic_access`| Can access this app and register and view his characters
-`manager_access`| Can access manager features like character finder and reports. Note that managers also need `basic_access` to access the app itself.
-`view_same_corporation`| Can view characters and data of his main's corporation
-`view_same_alliance`| Can view characters and data of his main's alliance
-`view_everything`| Can view all characters and data
+- Feature permissions give access to a feature
+- Scope permissions give access to scope
+
+To define a role you will mostly need at least one permission from each type. For example for the recruiter role you will want `finder_access`, that gives access to the character finder tool, and `view_shared_characters, so that the recruiter can see all shared characters.
+
+The exception is the basic role, `basic_access`, that every user needs just to access the app. It does not require any additional scope roles, so a normal user just needs that role to be able to register his characters.
+
+Name | Description | Type
+-- | -- | --
+`basic_access`| Can access this app and register and view his characters | Feature
+`finder_access`| Can access character finder features for accessing characters from others | Feature
+`reports_access`| Can access reports features for seeing reports and analytics. | Feature
+`view_shared_characters`| Can view characters that have been marked as shared | Scope
+`view_same_corporation`| Can view characters and data of his main's corporation | Scope
+`view_same_alliance`| Can view characters and data of his main's alliance | Scope
+`view_everything`| Can view all characters and data. This scope role is equivalent with superuser access. Use it with care. | Scope
+
+Note that all relevant permissions are under the sub-category "general".
 
 ## Settings
 

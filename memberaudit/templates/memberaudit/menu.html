@@ -36,12 +36,14 @@
                 {% endfor %}
             </ul>
             <ul class="nav navbar-nav navbar-right"> 
-                {% if perms.memberaudit.manager_access %}
+                {% if perms.memberaudit.finder_access %}
                     <li class="{% navactive request 'memberaudit:character_finder' %}">
                         <a href="{% url 'memberaudit:character_finder' %}">
                             Character Finder
                         </a>
                     </li>
+                {% endif %}
+                {% if perms.memberaudit.reports_access %}
                     <li class="{% navactive request 'memberaudit:reports' %}">
                         <a href="{% url 'memberaudit:reports' %}">
                             Reports

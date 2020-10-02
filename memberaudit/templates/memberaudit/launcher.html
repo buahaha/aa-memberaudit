@@ -11,18 +11,18 @@
         <h3 class="panel-title">{% trans 'Characters' %}</h3>
     </div>
     <div class="panel-body">
-        {% if has_registered_chars %}
+        {% if has_auth_characters %}
             <table class="table table-striped" id="tab_characters">
                 <thead>
                     <tr>
                         <th></th>
                         <th>Name</th>
-                        <th>Organization</th>
+                        <th>Corporation / Alliance</th>
                         <th>Location</th>
                         <th>Wallet</th>                    
                         <th>Skillpoints</th>
                         <th>Unread Mails</th>
-                        <th></th>
+                        <th></th>                        
                     </tr>
                 </thead>
                 <tbody>
@@ -36,14 +36,17 @@
                                     <a href="{% url 'memberaudit:character_main' auth_character.character.pk %}">
                                         {{ auth_character.eve_character.character_name }}
                                     </a>
+                                    {% if auth_character.character.is_shared %}
+                                        <br><span class="text-warning">SHARED</span>
+                                    {% endif %}
                                 {% else %}
                                     {{ auth_character.eve_character.character_name }}<br>                                
                                     <span class="text-danger">Not registered</span>
                                 {% endif %}
                             </td>
                             <td>
-                                <a href="{{ auth_character.eve_character.corporation_name|dotlan_corporation_url }}" target="_blank">{{ auth_character.eve_character.corporation_name }}</a><br>
-                                {{ auth_character.eve_character.alliance_name|default_if_none:"-" }}
+                                {{ auth_character.eve_character.corporation_name }}<br>
+                                <em>{{ auth_character.eve_character.alliance_name|default_if_none:"-" }}</em>
                             </td>                        
                             <td>
                                 {% if auth_character.character %}
@@ -68,9 +71,21 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if auth_character.character %}                                
+                                {% if auth_character.character %}
+                                    {% if auth_character.character.is_shared %}
+                                        <a class="btn btn-primary" href="{% url 'memberaudit:unshare_character' auth_character.character.pk %}"
+                                            role="button" title="Recruiters have access to this character. Click to disable.">
+                                            <i class="fas fa-eye-slash"></i>
+                                        </a>
+                                    {% else %}
+                                        <a class="btn btn-warning" href="{% url 'memberaudit:share_character' auth_character.character.pk %}"
+                                            role="button" title="Click to enable access to this character for recruiters">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    {% endif %}
+                                    
                                     <a class="btn btn-danger" href="{% url 'memberaudit:remove_character' auth_character.character.pk %}"
-                                        role="button" title="Remove this auth_character from the launcher">
+                                        role="button" title="Remove this character from the launcher">
                                         <i class="far fa-trash-alt"></i>
                                     </a>
                                 {% endif %}
@@ -79,23 +94,25 @@
                     {% endfor %}
                 </tbody>
                 <tfoot>
-                    <tr>
-                        <td></td>
-                        <td><strong>Totals:</strong></td>                    
-                        <td></td>
-                        <td></td>                    
-                        <td>
-                            <strong>
-                                {{ wallet_balance_sum|intword|default_if_none:"(no data)" }}
-                            </strong>
-                        </td>
-                        <td></td>                    
-                        <td>
-                            <strong>
-                                {{ unread_mails_sum|intword|default_if_none:"(no data)" }}
-                            </strong>
-                        </td>
-                    </tr>
+                    {% if has_registered_characters %}
+                        <tr>
+                            <td></td>
+                            <td><strong>Totals:</strong></td>                    
+                            <td></td>
+                            <td></td>                    
+                            <td>                           
+                                <strong>
+                                    {{ wallet_balance_sum|intword|default_if_none:"" }}
+                                </strong>                             
+                            </td>
+                            <td></td>                    
+                            <td>
+                                <strong>
+                                    {{ unread_mails_sum|intword|default_if_none:"" }}
+                                </strong>
+                            </td>
+                        </tr>
+                    {% endif %}
                 </tfoot>
             </table>
         {% else %}

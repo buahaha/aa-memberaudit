@@ -90,8 +90,7 @@ def launcher(request) -> HttpResponse:
         )
         .order_by("character__character_name")
     )
-    has_registered_chars = owned_chars_query.count() > 0
-
+    has_auth_characters = owned_chars_query.count() > 0
     auth_characters = list()
     unregistered_chars = 0
     wallet_balance_sum = 0
@@ -117,14 +116,15 @@ def launcher(request) -> HttpResponse:
     context = {
         "page_title": "My Characters",
         "auth_characters": auth_characters,
-        "has_registered_chars": has_registered_chars,
+        "has_auth_characters": has_auth_characters,
         "unregistered_chars": unregistered_chars,
         "wallet_balance_sum": wallet_balance_sum,
         "unread_mails_sum": unread_mails_sum,
+        "has_registered_characters": unregistered_chars < len(auth_characters),
     }
 
     """
-    if has_registered_chars:
+    if has_auth_characters:
         messages_plus.warning(
             request,
             format_html(
@@ -197,6 +197,48 @@ def remove_character(request, character_pk: int) -> HttpResponse:
                 character.character_ownership.character,
             ),
         )
+    else:
+        return HttpResponseForbidden(
+            f"No permission to remove Character with pk {character_pk}"
+        )
+
+    return redirect("memberaudit:launcher")
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+def share_character(request, character_pk: int) -> HttpResponse:
+    try:
+        character = Character.objects.select_related(
+            "character_ownership__user", "character_ownership__character"
+        ).get(pk=character_pk)
+    except Character.DoesNotExist:
+        return HttpResponseNotFound(f"Character with pk {character_pk} not found")
+
+    if character.character_ownership.user == request.user:
+        character.is_shared = True
+        character.save()
+    else:
+        return HttpResponseForbidden(
+            f"No permission to remove Character with pk {character_pk}"
+        )
+
+    return redirect("memberaudit:launcher")
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+def unshare_character(request, character_pk: int) -> HttpResponse:
+    try:
+        character = Character.objects.select_related(
+            "character_ownership__user", "character_ownership__character"
+        ).get(pk=character_pk)
+    except Character.DoesNotExist:
+        return HttpResponseNotFound(f"Character with pk {character_pk} not found")
+
+    if character.character_ownership.user == request.user:
+        character.is_shared = False
+        character.save()
     else:
         return HttpResponseForbidden(
             f"No permission to remove Character with pk {character_pk}"
@@ -421,7 +463,7 @@ def character_wallet_journal_data(
 
 
 @login_required
-@permission_required("memberaudit.manager_access")
+@permission_required("memberaudit.reports_access")
 def reports(request) -> HttpResponse:
     context = {
         "page_title": "Reports",
@@ -434,7 +476,7 @@ def reports(request) -> HttpResponse:
 
 
 @login_required
-@permission_required("memberaudit.manager_access")
+@permission_required("memberaudit.reports_access")
 def compliance_report_data(request) -> JsonResponse:
     if request.user.has_perm("memberaudit.view_everyhing"):
         users_qs = User.objects.all()
@@ -490,7 +532,7 @@ def compliance_report_data(request) -> JsonResponse:
 
 
 @login_required
-@permission_required("memberaudit.manager_access")
+@permission_required("memberaudit.finder_access")
 def character_finder(request) -> HttpResponse:
     context = {
         "page_title": "Character Finder",
@@ -503,7 +545,7 @@ def character_finder(request) -> HttpResponse:
 
 
 @login_required
-@permission_required("memberaudit.manager_access")
+@permission_required("memberaudit.finder_access")
 def character_finder_data(request) -> JsonResponse:
     character_list = list()
     for character in Character.objects.user_has_access(

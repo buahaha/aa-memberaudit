@@ -36,4 +36,7 @@ class CharacterManager(models.Manager):
                     character_ownership__character__corporation_id=user.profile.main_character.corporation_id
                 )
 
+            if user.has_perm("memberaudit.view_shared_characters"):
+                qs = qs | self.filter(is_shared=True)
+
         return qs

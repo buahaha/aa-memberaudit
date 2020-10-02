@@ -38,6 +38,8 @@ from ..views import (
     character_finder_data,
     compliance_report_data,
     remove_character,
+    share_character,
+    unshare_character,
 )
 
 MODULE_PATH = "memberaudit.views"
@@ -179,7 +181,7 @@ class TestViews(TestCase):
 
     def test_character_finder_data(self):
         AuthUtils.add_permission_to_user_by_name(
-            "memberaudit.manager_access", self.user
+            "memberaudit.reports_access", self.user
         )
         self.user = reload_user(self.user)
         request = self.factory.get(reverse("memberaudit:character_finder_data"))
@@ -238,6 +240,96 @@ class TestRemoveCharacter(TestCase):
         self.assertFalse(mock_message_plus.success.called)
 
 
+class TestShareCharacter(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.factory = RequestFactory()
+        load_entities()
+
+    def setUp(self) -> None:
+        self.character_1001 = create_memberaudit_character(1001)
+        self.user_1001 = self.character_1001.character_ownership.user
+
+        self.character_1002 = create_memberaudit_character(1002)
+        self.user_1002 = self.character_1002.character_ownership.user
+
+    def test_normal(self):
+        request = self.factory.get(
+            reverse("memberaudit:share_character", args=[self.character_1001.pk])
+        )
+        request.user = self.user_1001
+        response = share_character(request, self.character_1001.pk)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("memberaudit:launcher"))
+        self.assertTrue(Character.objects.get(pk=self.character_1001.pk).is_shared)
+
+    def test_no_permission(self):
+        request = self.factory.get(
+            reverse("memberaudit:share_character", args=[self.character_1001.pk])
+        )
+        request.user = self.user_1002
+        response = share_character(request, self.character_1001.pk)
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(Character.objects.get(pk=self.character_1001.pk).is_shared)
+
+    def test_not_found(self):
+        invalid_character_pk = generate_invalid_pk(Character)
+        request = self.factory.get(
+            reverse("memberaudit:share_character", args=[invalid_character_pk])
+        )
+        request.user = self.user_1001
+        response = share_character(request, invalid_character_pk)
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(Character.objects.get(pk=self.character_1001.pk).is_shared)
+
+
+class TestUnshareCharacter(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.factory = RequestFactory()
+        load_entities()
+
+    def setUp(self) -> None:
+        self.character_1001 = create_memberaudit_character(1001)
+        self.character_1001.is_shared = True
+        self.character_1001.save()
+        self.user_1001 = self.character_1001.character_ownership.user
+
+        self.character_1002 = create_memberaudit_character(1002)
+        self.user_1002 = self.character_1002.character_ownership.user
+
+    def test_normal(self):
+        request = self.factory.get(
+            reverse("memberaudit:unshare_character", args=[self.character_1001.pk])
+        )
+        request.user = self.user_1001
+        response = unshare_character(request, self.character_1001.pk)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("memberaudit:launcher"))
+        self.assertFalse(Character.objects.get(pk=self.character_1001.pk).is_shared)
+
+    def test_no_permission(self):
+        request = self.factory.get(
+            reverse("memberaudit:unshare_character", args=[self.character_1001.pk])
+        )
+        request.user = self.user_1002
+        response = unshare_character(request, self.character_1001.pk)
+        self.assertEqual(response.status_code, 403)
+        self.assertTrue(Character.objects.get(pk=self.character_1001.pk).is_shared)
+
+    def test_not_found(self):
+        invalid_character_pk = generate_invalid_pk(Character)
+        request = self.factory.get(
+            reverse("memberaudit:unshare_character", args=[invalid_character_pk])
+        )
+        request.user = self.user_1001
+        response = unshare_character(request, invalid_character_pk)
+        self.assertEqual(response.status_code, 404)
+        self.assertTrue(Character.objects.get(pk=self.character_1001.pk).is_shared)
+
+
 class TestComplianceReportData(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -255,7 +347,7 @@ class TestComplianceReportData(TestCase):
         cls.character_1102 = create_memberaudit_character(1102)
 
         cls.user = cls.character_1001.character_ownership.user
-        AuthUtils.add_permission_to_user_by_name("memberaudit.manager_access", cls.user)
+        AuthUtils.add_permission_to_user_by_name("memberaudit.reports_access", cls.user)
         cls.user = reload_user(cls.user)
 
     @staticmethod
