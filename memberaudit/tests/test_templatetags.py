@@ -18,6 +18,6 @@ class TestNavactive2(TestCase):
         self.assertEqual(result, "")
 
     def test_complex_return_active_when_matches(self):
-        request = self.factory.get("/memberaudit/character_main/2/")
-        result = navactive_2(request, "memberaudit:character_main", 2)
+        request = self.factory.get("/memberaudit/character_viewer/2/")
+        result = navactive_2(request, "memberaudit:character_viewer", 2)
         self.assertEqual(result, "active")

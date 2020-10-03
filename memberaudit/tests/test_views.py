@@ -29,7 +29,7 @@ from .utils import reload_user
 from ..utils import generate_invalid_pk
 from ..views import (
     launcher,
-    character_main,
+    character_viewer,
     character_location_data,
     character_mail_headers_data,
     character_mail_data,
@@ -67,10 +67,10 @@ class TestViews(TestCase):
 
     def test_can_open_character_main_view(self):
         request = self.factory.get(
-            reverse("memberaudit:character_main", args=[self.character.pk])
+            reverse("memberaudit:character_viewer", args=[self.character.pk])
         )
         request.user = self.user
-        response = character_main(request, self.character.pk)
+        response = character_viewer(request, self.character.pk)
         self.assertEqual(response.status_code, 200)
 
     def test_character_skills_data(self):

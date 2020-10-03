@@ -293,7 +293,7 @@ def character_location_data(
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed("details", "wallet_balance", "skillpoints")
-def character_main(request, character_pk: int, character: Character):
+def character_viewer(request, character_pk: int, character: Character):
     corporation_history = list()
     for entry in (
         character.corporation_history.exclude(is_deleted=True)
@@ -329,7 +329,7 @@ def character_main(request, character_pk: int, character: Character):
     }
     return render(
         request,
-        "memberaudit/character_main.html",
+        "memberaudit/character_viewer.html",
         add_common_context(request, context),
     )
 
@@ -405,7 +405,7 @@ def character_mail_data(
             )
         ),
         "subject": mail.subject,
-        "sent": mail.timestamp.strftime(DATETIME_FORMAT),
+        "sent": mail.timestamp.isoformat(),
         "body": mail.body_html,
     }
     return JsonResponse(data, safe=False)
@@ -450,7 +450,7 @@ def character_wallet_journal_data(
             second_party = row.second_party.name if row.second_party else "-"
             wallet_data.append(
                 {
-                    "date": row.date.strftime(DATETIME_FORMAT),
+                    "date": row.date.isoformat(),
                     "ref_type": row.ref_type.replace("_", " ").title(),
                     "first_party": first_party,
                     "second_party": second_party,
@@ -568,19 +568,25 @@ def character_finder_data(request) -> JsonResponse:
         portrait_html = create_img_html(
             auth_character.portrait_url(), ["ra-avatar", "img-circle"]
         )
+        character_viewer_url = reverse(
+            "memberaudit:character_viewer", args=[character.pk]
+        )
         actions_html = create_fa_button_html(
-            url=reverse("memberaudit:character_main", args=[character.pk]),
+            url=character_viewer_url,
             fa_code="fas fa-search",
             button_type="primary",
         )
         alliance_name = (
             auth_character.alliance_name if auth_character.alliance_name else "-"
         )
+        character_link = create_link_html(
+            character_viewer_url, auth_character.character_name, new_window=False
+        )
         character_list.append(
             {
                 "character_pk": character.pk,
                 "portrait": portrait_html,
-                "character_name": auth_character.character_name,
+                "character_name": character_link,
                 "corporation_name": auth_character.corporation_name,
                 "alliance_name": alliance_name,
                 "main_name": user_profile.main_character.character_name,

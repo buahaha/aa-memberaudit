@@ -1,4 +1,13 @@
+/* dl styling */
 .dl-horizontal dt { text-align: left; }
 
+/* Style group headers */
 .table > tbody > .table-group > td {background-color: darkgrey;}
 
+/* Wallet */
+#tab_wallet thead th:nth-child(5) { text-align: center;}
+#tab_wallet tbody td:nth-child(5) { text-align: right;}
+#tab_wallet tfoot td:nth-child(5) { text-align: right;}
+#tab_wallet thead th:nth-child(6) { text-align: center;}
+#tab_wallet tbody td:nth-child(6) { text-align: right;}
+#tab_wallet tfoot td:nth-child(6) { text-align: right;}

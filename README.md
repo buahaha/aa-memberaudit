@@ -20,8 +20,9 @@ An app for auditing members on Alliance Auth
 
 Memberaudit adds three key functions to Auth:
 
-- Users can see all details about their characters without having to log into Eve (e.g. wallet, location)
-- Recruiters can see characters of applications for vetting
+- Users can see an overview of all their characters with key information like current location and wallet balance
+- Users can see many details about their characters without having to log into Eve (e.g. wallet, mails, assets, ...)
+- Recruiters can see characters of applicants for vetting
 - Leadership can see characters of their members for auditing (e.g. to check suspicious members)
 - Leadership can see reports and analytics about their members (e.g. which members can fly certain doctrines)
 

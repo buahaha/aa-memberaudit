@@ -8,9 +8,9 @@ urlpatterns = [
     path("", views.index, name="index"),
     path("launcher", views.launcher, name="launcher"),
     path(
-        "character_main/<int:character_pk>/",
-        views.character_main,
-        name="character_main",
+        "character_viewer/<int:character_pk>/",
+        views.character_viewer,
+        name="character_viewer",
     ),
     path("add_character", views.add_character, name="add_character"),
     path(

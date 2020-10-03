@@ -33,7 +33,7 @@
                             </td>
                             <td>
                                 {% if auth_character.character %}
-                                    <a href="{% url 'memberaudit:character_main' auth_character.character.pk %}">
+                                    <a href="{% url 'memberaudit:character_viewer' auth_character.character.pk %}">
                                         {{ auth_character.eve_character.character_name }}
                                     </a>
                                     {% if auth_character.character.is_shared %}
@@ -72,7 +72,7 @@
                             </td>
                             <td>
                                 {% if auth_character.character %}
-                                    <a class="btn btn-primary" href="{% url 'memberaudit:character_main' auth_character.character.pk %}"
+                                    <a class="btn btn-primary" href="{% url 'memberaudit:character_viewer' auth_character.character.pk %}"
                                         role="button" title="View this character">
                                         <i class="fas fa-search"></i>
                                     </a>

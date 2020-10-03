@@ -236,10 +236,18 @@
     {% include 'bundles/datatables-js.html' %}
     
     <script type="application/javascript"
-        src="https://cdn.datatables.net/rowgroup/1.1.2/js/dataTables.rowGroup.min.js"></script>
+        src="{% static 'memberaudit/vendor/datatables/plugins/dataTables.rowGroup.min.js' %}"></script>
+
+    <script type="application/javascript"
+        src="{% static 'memberaudit/vendor/moment/moment.min.js' %}"></script>
+
+    <script type="application/javascript"
+        src="{% static 'memberaudit/vendor/datatables/plugins/datetime.js' %}"></script>
     
     <script type="application/javascript">        
-        $(document).ready(function () {
+        var DATETIME_FORMAT = 'YYYY-MMM-DD HH:mm'
+        
+        $(document).ready(function () {                    
             $("#div_location").load(
                 "{% url 'memberaudit:character_location_data' character.pk %}"
             );
@@ -251,7 +259,10 @@
                     cache: false
                 },
                 columns: [                    
-                    { data: 'sent' },
+                    { 
+                        data: 'sent',
+                        render: $.fn.dataTable.render.moment( moment.ISO_8601, DATETIME_FORMAT ) 
+                    },
                     { data: 'from' },
                     { data: 'to' },
                     { data: 'subject' },
@@ -312,15 +323,24 @@
                     cache: false
                 },
                 columns: [
-                    { data: 'date' },
+                    {
+                        data: 'date',
+                        render: $.fn.dataTable.render.moment( moment.ISO_8601, DATETIME_FORMAT )
+                    },
                     { data: 'ref_type' },
                     { data: 'first_party' },
                     { data: 'second_party' },
-                    { data: 'amount' },
-                    { data: 'balance' },
+                    { 
+                        data: 'amount', 
+                        render: $.fn.dataTable.render.number( ',', '.', 2 )
+                    },
+                    { 
+                        data: 'balance', 
+                        render: $.fn.dataTable.render.number( ',', '.', 2 )
+                    },
                     { data: 'description' },
                 ],
-                order: [[0, "desc"]],
+                order: [[0, "desc"]]                            
             });
         });
     </script>
@@ -328,8 +348,8 @@
 
 {% block extra_css %}
     {% include 'bundles/datatables-css.html' %}
-    <link rel="stylesheet" href="https://cdn.datatables.net/rowgroup/1.1.2/css/rowGroup.bootstrap.min.css" type="text/css">
-    <link rel="stylesheet" href="{% static 'memberaudit/character_main.css' %}" type="text/css">
+    <link rel="stylesheet" href="{% static 'memberaudit/vendor/datatables/plugins/dataTables.rowGroup.min.css' %}" type="text/css">
+    <link rel="stylesheet" href="{% static 'memberaudit/character_viewer.css' %}" type="text/css">
 {% endblock extra_css %}
 
 {% block extra_script %}
