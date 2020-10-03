@@ -3,7 +3,7 @@ from django.utils.html import format_html
 
 from allianceauth.authentication.admin import user_main_organization
 
-from .models import Character, CharacterSyncStatus
+from .models import Character, CharacterUpdateStatus
 from .tasks import update_character as task_update_character
 
 
@@ -22,7 +22,7 @@ class UpdateStatusOkFilter(admin.SimpleListFilter):
 
 
 class SyncStatusAdminInline(admin.TabularInline):
-    model = CharacterSyncStatus
+    model = CharacterUpdateStatus
 
     def has_add_permission(self, request, obj=None):
         return False
@@ -100,7 +100,7 @@ class CharacterAdmin(admin.ModelAdmin):
         return obj.is_update_status_ok()
 
     def _last_update_at(self, obj):
-        latest_obj = obj.sync_status_set.latest("updated_at")
+        latest_obj = obj.update_status_set.latest("updated_at")
         return latest_obj.updated_at
 
     _last_update_ok.boolean = True

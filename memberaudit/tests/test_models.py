@@ -1,12 +1,19 @@
 from unittest.mock import patch
 
 from django.test import TestCase
+from django.utils.timezone import now
 from django.utils.dateparse import parse_datetime
 
 from allianceauth.tests.auth_utils import AuthUtils
 
 from . import create_memberaudit_character, create_user_from_evecharacter
-from ..models import Character, CharacterDetails
+from ..models import (
+    Character,
+    CharacterDetails,
+    CharacterMail,
+    CharacterUpdateStatus,
+    CharacterWalletJournalEntry,
+)
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
@@ -237,6 +244,54 @@ class TestCharacterManagerUserHasAccess(TestCase):
         self.assertSetEqual(
             queryset_pks(result_qs), {self.character_1002.pk, self.character_1102.pk}
         )
+
+
+class TestCharacterHasTopic(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_entities()
+
+    def setUp(self) -> None:
+        self.character = create_memberaudit_character(1001)
+
+    def test_has_mails_1(self):
+        """when mails exist then return True"""
+        CharacterMail.objects.create(character=self.character, mail_id=1)
+        self.assertTrue(self.character.has_mails)
+
+    def test_has_mails_2(self):
+        """when update status is ok then return True"""
+        CharacterUpdateStatus.objects.create(
+            character=self.character,
+            topic=CharacterUpdateStatus.TOPIC_MAILS,
+            is_success=True,
+        )
+        self.assertTrue(self.character.has_mails)
+
+    def test_has_mails_3(self):
+        """when no update status and no mails then return False"""
+        self.assertFalse(self.character.has_mails)
+
+    def test_has_wallet_journal_1(self):
+        """when mails exist then return True"""
+        CharacterWalletJournalEntry.objects.create(
+            character=self.character, entry_id=1, amount=100, balance=100, date=now()
+        )
+        self.assertTrue(self.character.has_wallet_journal)
+
+    def test_has_wallet_journal_2(self):
+        """when update status is ok then return True"""
+        CharacterUpdateStatus.objects.create(
+            character=self.character,
+            topic=CharacterUpdateStatus.TOPIC_WALLET_JOURNAL,
+            is_success=True,
+        )
+        self.assertTrue(self.character.has_wallet_journal)
+
+    def test_has_wallet_journal_3(self):
+        """when no update status and no mails then return False"""
+        self.assertFalse(self.character.has_wallet_journal)
 
 
 @patch(MODULE_PATH + ".esi")

@@ -11,7 +11,7 @@
         <div class="rows">
 
             <div class="col-md-2">
-                <img src="{{ auth_character|character_portrait_url:128 }}" />
+                <img src="{{ auth_character|character_portrait_url:128 }}" />                
             </div>
 
             <div class="col-md-3">
@@ -77,7 +77,7 @@
         <div>
             <!-- Nav tabs -->
             <ul class="nav nav-tabs" role="tablist">
-                <li role="presentation">
+                <li role="presentation" class="active">
                     <a href="#bio" aria-controls="bio" role="tab" data-toggle="tab">Bio</a>
                 </li>
                 <li role="presentation">
@@ -97,7 +97,7 @@
                         Mail
                     </a>
                 </li>
-                <li role="presentation" class="active">
+                <li role="presentation">
                     <a href="#wallet" aria-controls="wallet" role="tab" data-toggle="tab">Wallet</a>
                 </li>
                 <li role="presentation" class="disabled"><a href="#contracts" aria-controls="contracts" role="tab"
@@ -112,7 +112,7 @@
             <!-- Tab panes -->
             <div class="tab-content">
 
-                <div role="tabpanel" class="tab-pane" id="bio">
+                <div role="tabpanel" class="tab-pane active" id="bio">
                     {{ character_details.description_plain|default:"-" }}
                 </div>
 
@@ -146,42 +146,51 @@
                 <div role="tabpanel" class="tab-pane" id="skillqueue">TBD</div>
                 
                 <div role="tabpanel" class="tab-pane" id="mail">
-                    <div class="table-responsive">
-                        <table class="table table-striped" id="tab_mails" style="width:100%;">
-                            <thead>
-                                <tr>                                    
-                                    <th>sent</th>
-                                    <th>from</th>
-                                    <th>to</th>
-                                    <th>subject</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            </tbody>
-                        </table>
-                    </div>
+                    {% if not character.has_mails %}
+                        <p>No data yet...</p>
+                    {% else %}                    
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="tab_mails" style="width:100%;">
+                                <thead>
+                                    <tr>                                    
+                                        <th>sent</th>
+                                        <th>from</th>
+                                        <th>to</th>
+                                        <th>subject</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endif %}
                 </div>
-                
-                <div role="tabpanel" class="tab-pane active" id="wallet">
-                    <div class="table-responsive">
-                        <table class="table table-striped" id="tab_wallet" style="width:100%;">
-                            <thead>
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Type</th>
-                                    <th>First party</th>
-                                    <th>Second party</th>
-                                    <th>Amount</th>
-                                    <th>Balance</th>
-                                    <th>Description</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            </tbody>
-                        </table>
-                    </div>
+                    
+                <div role="tabpanel" class="tab-pane" id="wallet">
+                    {% if not character.has_wallet_journal %}
+                        <p>No data yet...</p>
+                    {% else %}  
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="tab_wallet" style="width:100%;">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>First party</th>
+                                        <th>Second party</th>
+                                        <th>Amount</th>
+                                        <th>Balance</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                </tbody>
+                            </table>
+                        </div>
+                     {% endif %}
                 </div>
+
                 <div role="tabpanel" class="tab-pane" id="contracts">TBD</div>
                 <div role="tabpanel" class="tab-pane" id="contacts">TBD</div>
                 <div role="tabpanel" class="tab-pane" id="assets">TBD</div>

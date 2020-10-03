@@ -5,6 +5,7 @@
 - Add tests
 - Find better name for the app (people should like to use it)
 - Optimize resolution for EveEntity
+- Maybe hide own characters in character finder?
 
 ## Character Main
 

@@ -1,5 +1,7 @@
 # aa-memberaudit
 
+**!! This is an early development version and not ready yet for production. !!**
+
 An app for auditing members on Alliance Auth
 
 ![release](https://img.shields.io/pypi/v/aa-memberaudit?label=release) ![python](https://img.shields.io/pypi/pyversions/aa-memberaudit) ![django](https://img.shields.io/pypi/djversions/aa-memberaudit?label=django) ![pipeline](https://gitlab.com/ErikKalkoken/aa-memberaudit/badges/master/pipeline.svg) ![coverage](https://gitlab.com/ErikKalkoken/aa-memberaudit/badges/master/coverage.svg) ![license](https://img.shields.io/badge/license-MIT-green) ![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)
@@ -16,17 +18,36 @@ An app for auditing members on Alliance Auth
 
 ## Overview
 
-xxx
+Memberaudit adds three key functions to Auth:
+
+- Users can see all details about their characters without having to log into Eve (e.g. wallet, location)
+- Recruiters can see characters of applications for vetting
+- Leadership can see characters of their members for auditing (e.g. to check suspicious members)
+- Leadership can see reports and analytics about their members (e.g. which members can fly certain doctrines)
 
 ## Key Features
 
-- Management reports based on character data to inform decisions
-- Recruiters can access characters of potential recruits
-- Members can access data about their characters through Auth
+tbd.
 
 ## Screenshots
 
-xx
+### Character Launcher
+
+The main page for users to register their characters and get a key infos of all registered characters.
+
+![launcher](https://i.imgur.com/12V4qps.png)
+
+### Character Viewer
+
+The page for displaying all details about a character.
+
+![viewer](https://i.imgur.com/9kGi6dJ.png)
+
+### Character Finder
+
+On this page recruiters and leadership can look for other characters to view (assuming they have been given permission).
+
+![finder](https://i.imgur.com/Uzv07uy.png)
 
 ## Installation
 

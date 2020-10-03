@@ -89,6 +89,24 @@ class Character(models.Model):
     def __str__(self):
         return str(self.character_ownership)
 
+    @property
+    def has_mails(self):
+        return (
+            self.mails.count() > 0
+            or self.update_status_set.filter(
+                topic=CharacterUpdateStatus.TOPIC_MAILS
+            ).exists()
+        )
+
+    @property
+    def has_wallet_journal(self):
+        return (
+            self.wallet_journal.count() > 0
+            or self.update_status_set.filter(
+                topic=CharacterUpdateStatus.TOPIC_WALLET_JOURNAL
+            ).exists()
+        )
+
     def user_has_access(self, user: User) -> bool:
         """Returns True if given user has permission to view this character"""
         if self.character_ownership.user == user:
@@ -121,11 +139,11 @@ class Character(models.Model):
         - False if there where any errors
         - None: if last update is incomplete
         """
-        errors_count = self.sync_status_set.filter(sync_ok=False).count()
-        ok_count = self.sync_status_set.filter(sync_ok=True).count()
+        errors_count = self.update_status_set.filter(is_success=False).count()
+        ok_count = self.update_status_set.filter(is_success=True).count()
         if errors_count > 0:
             return False
-        elif ok_count == len(CharacterSyncStatus.TOPIC_CHOICES):
+        elif ok_count == len(CharacterUpdateStatus.TOPIC_CHOICES):
             return True
         else:
             return None
@@ -413,7 +431,7 @@ class Character(models.Model):
                             add_prefix(f"Could not find label with id {label_id}")
                         )
 
-                if mail_obj.body is None:
+                if not mail_obj.body:
                     logger.debug(
                         add_prefix(
                             "Fetching body from ESI for mail ID {}".format(
@@ -576,8 +594,8 @@ class Character(models.Model):
         ]
 
 
-class CharacterSyncStatus(models.Model):
-    """Sync status for a character"""
+class CharacterUpdateStatus(models.Model):
+    """Update status for a character"""
 
     TOPIC_CHARACTER_DETAILS = "CD"
     TOPIC_CORPORATION_HISTORY = "CH"
@@ -594,11 +612,11 @@ class CharacterSyncStatus(models.Model):
         (TOPIC_WALLET_JOURNAL, _("wallet journal")),
     )
     character = models.ForeignKey(
-        Character, on_delete=models.CASCADE, related_name="sync_status_set"
+        Character, on_delete=models.CASCADE, related_name="update_status_set"
     )
     topic = models.CharField(max_length=2, choices=TOPIC_CHOICES)
-    sync_ok = models.BooleanField(db_index=True)
-    error_message = models.TextField(default="")
+    is_success = models.BooleanField(db_index=True)
+    error_message = models.TextField()
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -655,7 +673,7 @@ class CharacterDetails(models.Model):
     corporation = models.ForeignKey(
         EveEntity, on_delete=models.CASCADE, related_name="owner_corporations"
     )
-    description = models.TextField(default="")
+    description = models.TextField()
     eve_ancestry = models.ForeignKey(
         EveAncestry, on_delete=models.SET_DEFAULT, default=None, null=True
     )
@@ -667,7 +685,7 @@ class CharacterDetails(models.Model):
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     name = models.CharField(max_length=100)
     security_status = models.FloatField(default=None, null=True)
-    title = models.TextField(default="")
+    title = models.TextField()
 
     def __str__(self):
         return str(self.character)
@@ -804,8 +822,8 @@ class CharacterMail(models.Model):
         blank=True,
     )
     is_read = models.BooleanField(null=True, default=None)
-    subject = models.CharField(max_length=255, null=True, default=None)
-    body = models.TextField(null=True, default=None)
+    subject = models.CharField(max_length=255, default="")
+    body = models.TextField()
     timestamp = models.DateTimeField(null=True, default=None)
 
     class Meta:
@@ -944,7 +962,7 @@ class CharacterWalletJournalEntry(models.Model):
         blank=True,
         related_name="wallet_journal_entry_first_party_set",
     )
-    reason = models.TextField(default="")
+    reason = models.TextField()
     ref_type = models.CharField(max_length=32)
     second_party = models.ForeignKey(
         EveEntity,

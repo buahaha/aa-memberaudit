@@ -3,7 +3,7 @@ from celery import shared_task
 from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
-from .models import Character, CharacterSyncStatus
+from .models import Character, CharacterUpdateStatus
 
 from .utils import LoggerAddTag
 
@@ -27,10 +27,10 @@ def _generic_update_character(character_pk: int, method_name: str) -> None:
     character = _load_character(character_pk)
     try:
         getattr(character, method_name)()
-        CharacterSyncStatus.objects.create(
+        CharacterUpdateStatus.objects.create(
             character=character,
-            topic=CharacterSyncStatus.method_name_to_topic(method_name),
-            sync_ok=True,
+            topic=CharacterUpdateStatus.method_name_to_topic(method_name),
+            is_success=True,
         )
     except Exception as ex:
         error_message = f"{repr(ex)}"
@@ -41,10 +41,10 @@ def _generic_update_character(character_pk: int, method_name: str) -> None:
             error_message,
             exc_info=True,
         )
-        CharacterSyncStatus.objects.create(
+        CharacterUpdateStatus.objects.create(
             character=character,
-            topic=CharacterSyncStatus.method_name_to_topic(method_name),
-            sync_ok=False,
+            topic=CharacterUpdateStatus.method_name_to_topic(method_name),
+            is_success=False,
             error_message=error_message,
         )
         raise ex
@@ -86,22 +86,22 @@ def update_character(character_pk: int, has_priority=False) -> None:
 
     character = _load_character(character_pk)
     logger.info("%s: Starting character update", character)
-    character.sync_status_set.all().delete()
+    character.update_status_set.all().delete()
 
     task_priority = HIGHER_TASK_PRIORITY if has_priority else DEFAULT_TASK_PRIORITY
     update_character_details.apply_async(
         kwargs={"character_pk": character.pk}, priority=task_priority
     )
-    update_corporation_history.apply_async(
-        kwargs={"character_pk": character.pk}, priority=task_priority
-    )
-    update_mails.apply_async(
+    update_wallet_balance.apply_async(
         kwargs={"character_pk": character.pk}, priority=task_priority
     )
     update_skills.apply_async(
         kwargs={"character_pk": character.pk}, priority=task_priority
     )
-    update_wallet_balance.apply_async(
+    update_mails.apply_async(
+        kwargs={"character_pk": character.pk}, priority=task_priority
+    )
+    update_corporation_history.apply_async(
         kwargs={"character_pk": character.pk}, priority=task_priority
     )
     update_wallet_journal.apply_async(

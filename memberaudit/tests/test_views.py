@@ -180,9 +180,7 @@ class TestViews(TestCase):
         self.assertEqual(data["body"], "This is the body")
 
     def test_character_finder_data(self):
-        AuthUtils.add_permission_to_user_by_name(
-            "memberaudit.reports_access", self.user
-        )
+        AuthUtils.add_permission_to_user_by_name("memberaudit.finder_access", self.user)
         self.user = reload_user(self.user)
         request = self.factory.get(reverse("memberaudit:character_finder_data"))
         request.user = self.user

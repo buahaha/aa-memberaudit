@@ -99,11 +99,18 @@ def launcher(request) -> HttpResponse:
         eve_character = character_ownership.character
         try:
             character = character_ownership.memberaudit_character
-            wallet_balance_sum += character.wallet_balance.total
-            unread_mails_sum += character.unread_mail_count.total
         except AttributeError:
             character = None
             unregistered_chars += 1
+        else:
+            try:
+                wallet_balance_sum += character.wallet_balance.total
+            except AttributeError:
+                pass
+            try:
+                unread_mails_sum += character.unread_mail_count.total
+            except AttributeError:
+                pass
 
         auth_characters.append(
             {
@@ -170,7 +177,7 @@ def add_character(request, token) -> HttpResponse:
             request,
             format_html(
                 "<strong>{}</strong> has been registered. "
-                "It can take a minute until the character data is visible.",
+                "Note that it can take a minute until all character data is visible.",
                 character.character_ownership.character,
             ),
         )
@@ -193,7 +200,7 @@ def remove_character(request, character_pk: int) -> HttpResponse:
         messages_plus.success(
             request,
             format_html(
-                "Character <strong>{}</strong> removed as requested.",
+                "Removed character <strong>{}</strong> as requested.",
                 character.character_ownership.character,
             ),
         )
