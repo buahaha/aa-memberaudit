@@ -24,6 +24,7 @@ from allianceauth.services.hooks import get_extension_logger
 
 from . import tasks, __title__
 from .decorators import fetch_character_if_allowed
+from .helpers import eve_solar_system_to_html
 from .models import Character, CharacterMail
 from .utils import (
     messages_plus,
@@ -270,22 +271,7 @@ def character_location_data(
         logger.warning(f"Unexpected error: {ex}", exc_info=True)
         html = '<p class="text-danger">Unexpected error</p>'
     else:
-        if solar_system.is_high_sec:
-            color = "green"
-        elif solar_system.is_low_sec:
-            color = "orange"
-        else:
-            color = "red"
-
-        html = format_html(
-            '{} <span style="color: {}">{}</span> / {}',
-            create_link_html(
-                dotlan.solar_system_url(solar_system.name), solar_system.name
-            ),
-            color,
-            round(solar_system.security_status, 1),
-            solar_system.eve_constellation.eve_region.name,
-        )
+        html = eve_solar_system_to_html(solar_system)
 
     return HttpResponse(html)
 
@@ -332,6 +318,55 @@ def character_viewer(request, character_pk: int, character: Character):
         "memberaudit/character_viewer.html",
         add_common_context(request, context),
     )
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_jump_clones_data(
+    request, character_pk: int, character: Character
+) -> HttpResponse:
+    data = list()
+    try:
+        for jump_clone in character.jump_clones.select_related(
+            "location",
+            "location__eve_solar_system",
+            "location__eve_solar_system__eve_constellation__eve_region",
+        ).all():
+            if not jump_clone.location.is_empty:
+                eve_solar_system = jump_clone.location.eve_solar_system
+                solar_system = eve_solar_system_to_html(
+                    eve_solar_system, show_region=False
+                )
+                region = eve_solar_system.eve_constellation.eve_region.name
+            else:
+                solar_system = "-"
+                region = "-"
+
+            implants = "<br>".join(
+                sorted(
+                    [
+                        obj.eve_type.name
+                        for obj in jump_clone.implants.select_related("eve_type")
+                    ]
+                )
+            )
+            if not implants:
+                implants = "(none)"
+
+            data.append(
+                {
+                    "jump_clone_id": jump_clone.jump_clone_id,
+                    "region": region,
+                    "solar_system": solar_system,
+                    "location": jump_clone.location.name_plus,
+                    "implants": implants,
+                }
+            )
+    except ObjectDoesNotExist:
+        pass
+
+    return JsonResponse(data, safe=False)
 
 
 @login_required

@@ -311,6 +311,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         load_eveuniverse()
         load_entities()
         cls.character = create_memberaudit_character(1001)
+        cls.token = cls.character.character_ownership.user.token_set.first()
 
     def test_update_character_details(self, mock_esi):
         mock_esi.client = esi_client_stub
@@ -343,47 +344,21 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertFalse(obj.is_deleted)
         self.assertEqual(obj.start_date, parse_datetime("2016-07-26T20:00:00Z"))
 
-    def test_update_skills(self, mock_esi):
+    @patch(MANAGERS_PATH + ".esi")
+    def test_update_jump_clones(self, mock_esi, mock_esi_2):
         mock_esi.client = esi_client_stub
+        mock_esi_2.client = esi_client_stub
+        jita_44, _ = Location.objects.get_or_create_esi(id=60003760, token=self.token)
 
-        self.character.update_skills()
-        self.assertEqual(self.character.skillpoints.total, 30_000)
-        self.assertEqual(self.character.skillpoints.unallocated, 1_000)
+        self.character.update_jump_clones()
+        self.assertEqual(self.character.jump_clones.count(), 1)
 
-        self.assertEqual(self.character.skills.count(), 2)
-
-        skill = self.character.skills.get(eve_type_id=24311)
-        self.assertEqual(skill.active_skill_level, 3)
-        self.assertEqual(skill.skillpoints_in_skill, 20_000)
-        self.assertEqual(skill.trained_skill_level, 4)
-
-        skill = self.character.skills.get(eve_type_id=24312)
-        self.assertEqual(skill.active_skill_level, 1)
-        self.assertEqual(skill.skillpoints_in_skill, 10_000)
-        self.assertEqual(skill.trained_skill_level, 1)
-
-    def test_update_wallet_balance(self, mock_esi):
-        mock_esi.client = esi_client_stub
-
-        self.character.update_wallet_balance()
-        self.assertEqual(self.character.wallet_balance.total, 123456789)
-
-    def test_update_wallet_journal(self, mock_esi):
-        mock_esi.client = esi_client_stub
-
-        self.character.update_wallet_journal()
-        self.assertEqual(self.character.wallet_journal.count(), 1)
-        obj = self.character.wallet_journal.first()
-        self.assertEqual(obj.amount, -100_000)
-        self.assertEqual(float(obj.balance), 500_000.43)
-        self.assertEqual(obj.context_id, 4)
-        self.assertEqual(obj.context_id_type, obj.CONTEXT_ID_TYPE_CONTRACT_ID)
-        self.assertEqual(obj.date, parse_datetime("2018-02-23T14:31:32Z"))
-        self.assertEqual(obj.description, "Contract Deposit")
-        self.assertEqual(obj.first_party.id, 2001)
-        self.assertEqual(obj.entry_id, 89)
-        self.assertEqual(obj.ref_type, "contract_deposit")
-        self.assertEqual(obj.second_party.id, 2002)
+        obj = self.character.jump_clones.get(jump_clone_id=12345)
+        self.assertEqual(obj.location, jita_44)
+        self.assertEqual(
+            {x for x in obj.implants.values_list("eve_type", flat=True)},
+            {19540, 19551, 19553},
+        )
 
     def test_update_mails(self, mock_esi):
         mock_esi.client = esi_client_stub
@@ -430,6 +405,48 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertFalse(obj.is_read)
         self.assertEqual(obj.subject, "Mail 2")
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T18:07:00Z"))
+
+    def test_update_skills(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        self.character.update_skills()
+        self.assertEqual(self.character.skillpoints.total, 30_000)
+        self.assertEqual(self.character.skillpoints.unallocated, 1_000)
+
+        self.assertEqual(self.character.skills.count(), 2)
+
+        skill = self.character.skills.get(eve_type_id=24311)
+        self.assertEqual(skill.active_skill_level, 3)
+        self.assertEqual(skill.skillpoints_in_skill, 20_000)
+        self.assertEqual(skill.trained_skill_level, 4)
+
+        skill = self.character.skills.get(eve_type_id=24312)
+        self.assertEqual(skill.active_skill_level, 1)
+        self.assertEqual(skill.skillpoints_in_skill, 10_000)
+        self.assertEqual(skill.trained_skill_level, 1)
+
+    def test_update_wallet_balance(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        self.character.update_wallet_balance()
+        self.assertEqual(self.character.wallet_balance.total, 123456789)
+
+    def test_update_wallet_journal(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        self.character.update_wallet_journal()
+        self.assertEqual(self.character.wallet_journal.count(), 1)
+        obj = self.character.wallet_journal.first()
+        self.assertEqual(obj.amount, -100_000)
+        self.assertEqual(float(obj.balance), 500_000.43)
+        self.assertEqual(obj.context_id, 4)
+        self.assertEqual(obj.context_id_type, obj.CONTEXT_ID_TYPE_CONTRACT_ID)
+        self.assertEqual(obj.date, parse_datetime("2018-02-23T14:31:32Z"))
+        self.assertEqual(obj.description, "Contract Deposit")
+        self.assertEqual(obj.first_party.id, 2001)
+        self.assertEqual(obj.entry_id, 89)
+        self.assertEqual(obj.ref_type, "contract_deposit")
+        self.assertEqual(obj.second_party.id, 2002)
 
     def test_fetch_location(self, mock_esi):
         mock_esi.client = esi_client_stub

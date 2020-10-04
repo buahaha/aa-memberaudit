@@ -29,6 +29,29 @@
             ]
         }
     },
+    "Clones": {
+        "get_characters_character_id_clones": {
+            "1001": {
+                "home_location": {
+                    "location_id": 1000000000001,
+                    "location_type": "structure"
+                },
+                "jump_clones": [
+                    {
+                        "implants": [
+                            19540,
+                            19551,
+                            19553
+                        ],
+                        "jump_clone_id": 12345,
+                        "location_id": 60003760,
+                        "location_type": "station",
+                        "name": null
+                    }
+                ]
+            }
+        }
+    },
     "Location": {
         "get_characters_character_id_location": {
             "1001": {

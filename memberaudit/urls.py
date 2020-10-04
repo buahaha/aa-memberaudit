@@ -34,6 +34,11 @@ urlpatterns = [
         name="character_location_data",
     ),
     path(
+        "character_jump_clones_data/<int:character_pk>/",
+        views.character_jump_clones_data,
+        name="character_jump_clones_data",
+    ),
+    path(
         "character_mail_headers_data/<int:character_pk>/",
         views.character_mail_headers_data,
         name="character_mail_headers_data",

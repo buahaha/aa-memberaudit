@@ -16,7 +16,8 @@ class CreateEveUniverseTestData(TestCase):
                 ids=[30000142, 30004984, 30001161, 30002537], include_children=False
             ),
             "EveType": ModelSpec(
-                ids=[24311, 24312, 35832, 35835, 52678], include_children=False
+                ids=[19540, 19551, 19553, 24311, 24312, 35832, 35835, 52678],
+                include_children=False,
             ),
         }
         create_testdata(testdata_spec, eveuniverse_test_data_filename())

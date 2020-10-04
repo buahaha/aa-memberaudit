@@ -83,7 +83,7 @@
                 <li role="presentation">
                     <a href="#history" aria-controls="history" role="tab" data-toggle="tab">Corporation History</a>
                 </li>
-                <li role="presentation" class="disabled">
+                <li role="presentation">
                     <a href="#clones" aria-controls="clones" role="tab" data-toggle="tab">Clones</a>
                 </li>
                 <li role="presentation">
@@ -125,7 +125,22 @@
                     </dl>
                 </div>
 
-                <div role="tabpanel" class="tab-pane" id="clones">TBD</div>
+                <div role="tabpanel" class="tab-pane" id="clones">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="tab_jump_clones" style="width:100%;">
+                            <thead>
+                                <tr>
+                                    <th>Region</th>
+                                    <th>System</th>
+                                    <th>Location</th>
+                                    <th>Implants</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
                 <div role="tabpanel" class="tab-pane" id="skills">
                     <div class="table-responsive">
@@ -252,7 +267,23 @@
                 "{% url 'memberaudit:character_location_data' character.pk %}"
             );
 
-             $('#tab_mails').DataTable({
+            $('#tab_jump_clones').DataTable({
+                ajax: {
+                    url: "{% url 'memberaudit:character_jump_clones_data' character.pk %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    { data: 'region' },
+                    { data: 'solar_system' },
+                    { data: 'location' },
+                    { data: 'implants' }
+                ],
+                order: [[0, "asc"], [1, "asc"]]
+                
+            });
+            
+            $('#tab_mails').DataTable({
                 ajax: {
                     url: "{% url 'memberaudit:character_mail_headers_data' character.pk %}",
                     dataSrc: '',
@@ -307,13 +338,7 @@
                 },
                 columnDefs: [
                     { "visible": false, "targets": [0] }
-                ],    
-                createdRow: function( row, data, dataIndex ) 
-                {
-                    if (data[1]) {
-                        $(row).addClass('danger');
-                    }                
-                }  
+                ]  
             });
 
             $('#tab_wallet').DataTable({

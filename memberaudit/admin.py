@@ -23,6 +23,7 @@ class UpdateStatusOkFilter(admin.SimpleListFilter):
 
 class SyncStatusAdminInline(admin.TabularInline):
     model = CharacterUpdateStatus
+    fields = ("topic", "is_success", "error_message")
 
     def has_add_permission(self, request, obj=None):
         return False

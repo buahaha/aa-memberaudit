@@ -19,11 +19,14 @@ from .testdata.load_entities import load_entities
 from . import create_memberaudit_character
 from ..models import (
     Character,
-    CharacterSkill,
-    CharacterWalletJournalEntry,
+    CharacterJumpClone,
+    CharacterJumpCloneImplant,
     CharacterMail,
     CharacterMailRecipient,
     CharacterMailingList,
+    CharacterSkill,
+    CharacterWalletJournalEntry,
+    Location,
 )
 from .utils import reload_user
 from ..utils import generate_invalid_pk
@@ -31,6 +34,7 @@ from ..views import (
     launcher,
     character_viewer,
     character_location_data,
+    character_jump_clones_data,
     character_mail_headers_data,
     character_mail_data,
     character_skills_data,
@@ -58,6 +62,9 @@ class TestViews(TestCase):
         load_entities()
         cls.character = create_memberaudit_character(1001)
         cls.user = cls.character.character_ownership.user
+        cls.jita = EveSolarSystem.objects.get(id=30000142)
+        cls.jita_trade_hub = EveType.objects.get(id=52678)
+        cls.corporation_2001 = EveEntity.objects.get(id=2001)
 
     def test_can_open_launcher_view(self):
         request = self.factory.get(reverse("memberaudit:launcher"))
@@ -72,6 +79,52 @@ class TestViews(TestCase):
         request.user = self.user
         response = character_viewer(request, self.character.pk)
         self.assertEqual(response.status_code, 200)
+
+    def test_character_jump_clones_data(self):
+        location_1 = Location.objects.create(
+            id=60003760,
+            name="Jita IV - Moon 4 - Caldari Navy Assembly Plant",
+            eve_solar_system=self.jita,
+            eve_type=self.jita_trade_hub,
+        )
+        jump_clone = CharacterJumpClone.objects.create(
+            character=self.character, location=location_1, jump_clone_id=1
+        )
+        CharacterJumpCloneImplant.objects.create(
+            jump_clone=jump_clone, eve_type=EveType.objects.get(id=19540)
+        )
+        CharacterJumpCloneImplant.objects.create(
+            jump_clone=jump_clone, eve_type=EveType.objects.get(id=19551)
+        )
+
+        location_2 = Location.objects.create(id=123457890)
+        jump_clone = CharacterJumpClone.objects.create(
+            character=self.character, location=location_2, jump_clone_id=2
+        )
+        request = self.factory.get(
+            reverse("memberaudit:character_jump_clones_data", args=[self.character.pk])
+        )
+        request.user = self.user
+        response = character_jump_clones_data(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertEqual(len(data), 2)
+
+        row = data[0]
+        self.assertEqual(row["region"], "The Forge")
+        self.assertIn("Jita", row["solar_system"])
+        self.assertEqual(
+            row["location"], "Jita IV - Moon 4 - Caldari Navy Assembly Plant"
+        )
+        self.assertEqual(
+            row["implants"], "High-grade Snake Alpha<br>High-grade Snake Beta"
+        )
+
+        row = data[1]
+        self.assertEqual(row["region"], "-")
+        self.assertEqual(row["solar_system"], "-")
+        self.assertEqual(row["location"], "Unknown location #123457890")
+        self.assertEqual(row["implants"], "(none)")
 
     def test_character_skills_data(self):
         CharacterSkill.objects.create(

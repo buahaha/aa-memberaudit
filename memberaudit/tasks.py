@@ -70,6 +70,11 @@ def update_corporation_history(character_pk: int) -> None:
 
 
 @shared_task
+def update_jump_clones(character_pk: int) -> None:
+    _generic_update_character(character_pk, "update_jump_clones")
+
+
+@shared_task
 def update_mails(character_pk: int) -> None:
     _generic_update_character(character_pk, "update_mails")
 
@@ -111,6 +116,9 @@ def update_character(character_pk: int, has_priority=False) -> None:
         kwargs={"character_pk": character.pk}, priority=task_priority
     )
     update_corporation_history.apply_async(
+        kwargs={"character_pk": character.pk}, priority=task_priority
+    )
+    update_jump_clones.apply_async(
         kwargs={"character_pk": character.pk}, priority=task_priority
     )
     update_wallet_journal.apply_async(

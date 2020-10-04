@@ -37,6 +37,8 @@ from .utils import LoggerAddTag, make_logger_prefix
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 CURRENCY_MAX_DIGITS = 17
+CURRENCY_MAX_DECIMALS = 2
+NAMES_MAX_LENGTH = 100
 
 
 def eve_xml_to_html(xml: str) -> str:
@@ -78,7 +80,8 @@ class Location(models.Model):
         ),
     )
     name = models.CharField(
-        max_length=100, help_text="In-game name of this station or structure"
+        max_length=NAMES_MAX_LENGTH,
+        help_text="In-game name of this station or structure",
     )
     eve_solar_system = models.ForeignKey(
         EveSolarSystem,
@@ -117,11 +120,12 @@ class Location(models.Model):
     @property
     def name_plus(self) -> str:
         """return the actual name or 'Unknown location' for empty locations"""
-        if self.is_empty():
+        if self.is_empty:
             return f"Unknown location #{self.id}"
 
         return self.name
 
+    @property
     def is_empty(self) -> bool:
         return not self.eve_solar_system and not self.eve_type
 
@@ -268,6 +272,37 @@ class Character(models.Model):
             },
         )
 
+    @fetch_token("esi-clones.read_clones.v1")
+    def update_jump_clones(self, token: Token):
+        """updates the character's jump clones"""
+        add_prefix = make_logger_prefix(self)
+        logger.info(add_prefix("Fetching jump clones from ESI"))
+        jump_clones_info = esi.client.Clones.get_characters_character_id_clones(
+            character_id=self.character_ownership.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+
+        with transaction.atomic():
+            CharacterJumpClone.objects.filter(character=self).delete()
+            for jump_clone_info in jump_clones_info.get("jump_clones", []):
+                location, _ = Location.objects.get_or_create_esi_async(
+                    id=jump_clone_info.get("location_id"), token=token
+                )
+                name = (
+                    jump_clone_info.get("name") if jump_clone_info.get("name") else ""
+                )
+                jump_clone = CharacterJumpClone.objects.create(
+                    character=self,
+                    jump_clone_id=jump_clone_info.get("jump_clone_id"),
+                    location=location,
+                    name=name,
+                )
+                for implant in jump_clone_info.get("implants", []):
+                    eve_type, _ = EveType.objects.get_or_create_esi(id=implant)
+                    CharacterJumpCloneImplant.objects.create(
+                        jump_clone=jump_clone, eve_type=eve_type
+                    )
+
     def update_corporation_history(self):
         """syncs the character's corporation history"""
         add_prefix = make_logger_prefix(self)
@@ -290,7 +325,7 @@ class Character(models.Model):
             )
 
     @fetch_token("esi-mail.read_mail.v1")
-    def update_mails(self, token):
+    def update_mails(self, token: Token):
         self._update_mailinglists(token)
         self._update_maillabels(token)
         self._update_mails(token)
@@ -659,6 +694,7 @@ class CharacterUpdateStatus(models.Model):
 
     TOPIC_CHARACTER_DETAILS = "CD"
     TOPIC_CORPORATION_HISTORY = "CH"
+    TOPIC_JUMP_CLONES = "JC"
     TOPIC_MAILS = "MA"
     TOPIC_SKILLS = "SK"
     TOPIC_WALLET_BALLANCE = "WB"
@@ -666,6 +702,7 @@ class CharacterUpdateStatus(models.Model):
     TOPIC_CHOICES = (
         (TOPIC_CHARACTER_DETAILS, _("character details")),
         (TOPIC_CORPORATION_HISTORY, _("corporation history")),
+        (TOPIC_JUMP_CLONES, _("jump clones")),
         (TOPIC_MAILS, _("mails")),
         (TOPIC_SKILLS, _("skills")),
         (TOPIC_WALLET_BALLANCE, _("wallet balance")),
@@ -692,6 +729,7 @@ class CharacterUpdateStatus(models.Model):
         my_map = {
             "update_character_details": cls.TOPIC_CHARACTER_DETAILS,
             "update_corporation_history": cls.TOPIC_CORPORATION_HISTORY,
+            "update_jump_clones": cls.TOPIC_JUMP_CLONES,
             "update_mails": cls.TOPIC_MAILS,
             "update_skills": cls.TOPIC_SKILLS,
             "update_wallet_balance": cls.TOPIC_WALLET_BALLANCE,
@@ -743,7 +781,7 @@ class CharacterDetails(models.Model):
     )
     eve_race = models.ForeignKey(EveRace, on_delete=models.CASCADE)
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=NAMES_MAX_LENGTH)
     security_status = models.FloatField(default=None, null=True)
     title = models.TextField()
 
@@ -765,7 +803,9 @@ class CharacterWalletBalance(models.Model):
         on_delete=models.CASCADE,
         related_name="wallet_balance",
     )
-    total = models.DecimalField(max_digits=CURRENCY_MAX_DIGITS, decimal_places=2)
+    total = models.DecimalField(
+        max_digits=CURRENCY_MAX_DIGITS, decimal_places=CURRENCY_MAX_DECIMALS
+    )
 
 
 class CharacterSkillpoints(models.Model):
@@ -812,6 +852,40 @@ class CharacterCorporationHistory(models.Model):
 
     def __str__(self):
         return str(f"{self.character}-{self.record_id}")
+
+
+class CharacterJumpClone(models.Model):
+    """Jump clone of a character"""
+
+    character = models.ForeignKey(
+        Character, on_delete=models.CASCADE, related_name="jump_clones"
+    )
+    jump_clone_id = models.PositiveIntegerField()
+    location = models.ForeignKey(Location, on_delete=models.CASCADE)
+    name = models.CharField(max_length=NAMES_MAX_LENGTH, default="")
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "jump_clone_id"],
+                name="functional_pk_characterjumpclone",
+            )
+        ]
+
+    def __str__(self):
+        return str(f"{self.character}-{self.jump_clone_id}")
+
+
+class CharacterJumpCloneImplant(models.Model):
+    """Implant of a character jump clone"""
+
+    jump_clone = models.ForeignKey(
+        CharacterJumpClone, on_delete=models.CASCADE, related_name="implants"
+    )
+    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return str(f"{self.jump_clone}-{self.eve_type}")
 
 
 class CharacterMailingList(models.Model):
@@ -998,14 +1072,14 @@ class CharacterWalletJournalEntry(models.Model):
     entry_id = models.BigIntegerField(validators=[MinValueValidator(0)])
     amount = models.DecimalField(
         max_digits=CURRENCY_MAX_DIGITS,
-        decimal_places=2,
+        decimal_places=CURRENCY_MAX_DECIMALS,
         default=None,
         null=True,
         blank=True,
     )
     balance = models.DecimalField(
         max_digits=CURRENCY_MAX_DIGITS,
-        decimal_places=2,
+        decimal_places=CURRENCY_MAX_DECIMALS,
         default=None,
         null=True,
         blank=True,
@@ -1034,7 +1108,7 @@ class CharacterWalletJournalEntry(models.Model):
     )
     tax = models.DecimalField(
         max_digits=CURRENCY_MAX_DIGITS,
-        decimal_places=2,
+        decimal_places=CURRENCY_MAX_DECIMALS,
         default=None,
         null=True,
         blank=True,
