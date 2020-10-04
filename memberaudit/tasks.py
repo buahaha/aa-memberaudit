@@ -1,9 +1,15 @@
 from celery import shared_task
 
+from bravado.exception import HTTPUnauthorized, HTTPForbidden
+from esi.models import Token
+
+from django.core.cache import cache
+
 from allianceauth.services.hooks import get_extension_logger
+from allianceauth.services.tasks import QueueOnce
 
 from . import __title__
-from .models import Character, CharacterUpdateStatus
+from .models import Character, CharacterUpdateStatus, Location
 
 from .utils import LoggerAddTag
 
@@ -12,6 +18,9 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 DEFAULT_TASK_PRIORITY = 6
 HIGHER_TASK_PRIORITY = 5
+ESI_ERROR_LIMIT = 50
+ESI_TIMEOUT_ONCE_ERROR_LIMIT_REACHED = 60
+LOCATION_ESI_ERRORS_CACHE_KEY = "MEMBERAUDIT_LOCATION_ESI_ERRORS"
 
 
 def _load_character(character_pk: int) -> Character:
@@ -115,3 +124,29 @@ def update_all_characters() -> None:
         update_character.apply_async(
             kwargs={"character_pk": character.pk}, priority=DEFAULT_TASK_PRIORITY
         )
+
+
+@shared_task(bind=True, base=QueueOnce, once={"keys": ["id"]}, max_retries=None)
+def update_location_esi(self, id: int, token_pk: int):
+    """Updates a location object from ESI
+    and defers itself if the ESI error limit for locations as been exceeded
+    """
+    try:
+        token = Token.objects.get(pk=token_pk)
+    except Token.DoesNotExist:
+        raise Token.DoesNotExist(
+            f"Location #{id}: Requested token with pk {token_pk} does not exist"
+        )
+
+    errors_count = cache.get(key=LOCATION_ESI_ERRORS_CACHE_KEY)
+    if not errors_count or errors_count < ESI_ERROR_LIMIT:
+        try:
+            Location.objects.update_or_create_esi(id, token)
+        except (HTTPUnauthorized, HTTPForbidden):
+            try:
+                cache.incr(LOCATION_ESI_ERRORS_CACHE_KEY)
+            except ValueError:
+                cache.add(key=LOCATION_ESI_ERRORS_CACHE_KEY, value=1)
+    else:
+        logger.info("Location #%s: Error limit reached. Defering task", id)
+        raise self.retry(countdown=ESI_TIMEOUT_ONCE_ERROR_LIMIT_REACHED)

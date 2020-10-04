@@ -1,7 +1,8 @@
 import datetime as dt
 from unittest.mock import patch, Mock
 
-from django.test import TestCase
+from django.core.cache import cache
+from django.test import TestCase, override_settings
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
 
@@ -28,6 +29,7 @@ from ..utils import NoSocketsTestCase
 
 MODELS_PATH = "memberaudit.models"
 MANAGERS_PATH = "memberaudit.managers"
+TASKS_PATH = "memberaudit.tasks"
 
 
 class TestCharacterUserHasAccess(TestCase):
@@ -505,14 +507,26 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertFalse(created)
         self.assertEqual(obj, obj_existing)
 
-    def test_always_update_existing_empty_locations(self, mock_esi):
+    def test_always_update_existing_empty_locations_after_grace_period_1(
+        self, mock_esi
+    ):
         mock_esi.client = esi_client_stub
 
         Location.objects.create(id=1000000000001)
-        obj, created = Location.objects.get_or_create_esi(
-            id=1000000000001, token=self.token
-        )
-        self.assertFalse(created)
+        obj, _ = Location.objects.get_or_create_esi(id=1000000000001, token=self.token)
+        self.assertIsNone(obj.eve_solar_system)
+
+    def test_always_update_existing_empty_locations_after_grace_period_2(
+        self, mock_esi
+    ):
+        mock_esi.client = esi_client_stub
+
+        mocked_update_at = now() - dt.timedelta(minutes=6)
+        with patch("django.utils.timezone.now", Mock(return_value=mocked_update_at)):
+            Location.objects.create(id=1000000000001)
+            obj, _ = Location.objects.get_or_create_esi(
+                id=1000000000001, token=self.token
+            )
         self.assertEqual(obj.eve_solar_system, self.amamake)
 
     @patch(MANAGERS_PATH + ".MEMBERAUDIT_LOCATION_STALE_HOURS", 24)
@@ -574,7 +588,7 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertTrue(created)
         self.assertEqual(obj.id, 42)
 
-    def test_does_not_creates_skeleton_structure_on_exceptions_if_requested(
+    def test_does_not_creates_empty_location_on_access_errors_if_requested(
         self, mock_esi
     ):
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
@@ -629,3 +643,42 @@ class TestLocationManager(NoSocketsTestCase):
             Location.objects.update_or_create_esi(
                 id=42, token=self.token, add_unknown=False
             )
+
+
+@patch(MANAGERS_PATH + ".esi")
+class TestLocationManagerAsync(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_eveuniverse()
+        load_entities()
+        cls.jita = EveSolarSystem.objects.get(id=30000142)
+        cls.amamake = EveSolarSystem.objects.get(id=30002537)
+        cls.astrahus = EveType.objects.get(id=35832)
+        cls.athanor = EveType.objects.get(id=35835)
+        cls.jita_trade_hub = EveType.objects.get(id=52678)
+        cls.corporation_2001 = EveEntity.objects.get(id=2001)
+        cls.corporation_2002 = EveEntity.objects.get(id=2002)
+        cls.character = create_memberaudit_character(1001)
+        cls.token = cls.character.character_ownership.user.token_set.first()
+
+    def setUp(self) -> None:
+        cache.clear()
+
+    @override_settings(CELERY_ALWAYS_EAGER=True)
+    def test_can_create_structure_async(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        obj, created = Location.objects.update_or_create_esi_async(
+            id=1000000000001, token=self.token
+        )
+        self.assertTrue(created)
+        self.assertEqual(obj.id, 1000000000001)
+        self.assertIsNone(obj.eve_solar_system)
+        self.assertIsNone(obj.eve_type)
+
+        obj.refresh_from_db()
+        self.assertEqual(obj.name, "Test Structure Alpha")
+        self.assertEqual(obj.eve_solar_system, self.amamake)
+        self.assertEqual(obj.eve_type, self.astrahus)
+        self.assertEqual(obj.owner, self.corporation_2001)
