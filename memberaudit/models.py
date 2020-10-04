@@ -29,7 +29,7 @@ from allianceauth.services.hooks import get_extension_logger
 from . import __title__
 from .app_settings import MEMBERAUDIT_MAX_MAILS, MEMBERAUDIT_DEVELOPER_MODE
 from .decorators import fetch_token
-from .managers import CharacterManager
+from .managers import CharacterManager, LocationManager
 from .providers import esi
 from .utils import LoggerAddTag, make_logger_prefix
 
@@ -64,6 +64,66 @@ class General(models.Model):
             ("view_same_alliance", "Can view alliance characters"),
             ("view_everything", "Can view all characters"),
         )
+
+
+class Location(models.Model):
+    """An Eve Online location: Station or Upwell Structure"""
+
+    id = models.BigIntegerField(
+        primary_key=True,
+        validators=[MinValueValidator(0)],
+        help_text=(
+            "Eve Online location ID, "
+            "either item ID for stations or structure ID for structures"
+        ),
+    )
+    name = models.CharField(
+        max_length=100, help_text="In-game name of this station or structure"
+    )
+    eve_solar_system = models.ForeignKey(
+        EveSolarSystem,
+        on_delete=models.SET_DEFAULT,
+        default=None,
+        null=True,
+        blank=True,
+    )
+    eve_type = models.ForeignKey(
+        EveType,
+        on_delete=models.SET_DEFAULT,
+        default=None,
+        null=True,
+        blank=True,
+    )
+    owner = models.ForeignKey(
+        EveEntity,
+        on_delete=models.SET_DEFAULT,
+        default=None,
+        null=True,
+        blank=True,
+        help_text="corporation this station or structure belongs to",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = LocationManager()
+
+    def __str__(self):
+        return self.name
+
+    def __repr__(self) -> str:
+        return "{}(id={}, name='{}')".format(
+            self.__class__.__name__, self.id, self.name
+        )
+
+    @property
+    def name_plus(self) -> str:
+        """return the actual name or 'Unknown location' for empty locations"""
+        if self.is_empty():
+            return f"Unknown location #{self.id}"
+
+        return self.name
+
+    def is_empty(self) -> bool:
+        return not self.eve_solar_system and not self.eve_type
 
 
 class Character(models.Model):

@@ -3,7 +3,7 @@ from django.utils.html import format_html
 
 from allianceauth.authentication.admin import user_main_organization
 
-from .models import Character, CharacterUpdateStatus
+from .models import Character, CharacterUpdateStatus, Location
 from .tasks import update_character as task_update_character
 
 
@@ -115,6 +115,44 @@ class CharacterAdmin(admin.ModelAdmin):
     update_character.short_description = "Update selected characters from EVE server"
 
     inlines = (SyncStatusAdminInline,)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(Location)
+class LocationAdmin(admin.ModelAdmin):
+    list_display = ("id", "_name", "_type", "_group", "_solar_system", "updated_at")
+    list_filter = (
+        (
+            "eve_solar_system__eve_constellation__eve_region",
+            admin.RelatedOnlyFieldListFilter,
+        ),
+        ("eve_solar_system", admin.RelatedOnlyFieldListFilter),
+        ("eve_type__eve_group", admin.RelatedOnlyFieldListFilter),
+    )
+    search_fields = ["name"]
+    list_select_related = (
+        "eve_solar_system",
+        "eve_solar_system__eve_constellation__eve_region",
+        "eve_type",
+        "eve_type__eve_group",
+    )
+
+    def _name(self, obj):
+        return obj.name_plus
+
+    def _solar_system(self, obj):
+        return obj.eve_solar_system.name if obj.eve_solar_system else None
+
+    def _type(self, obj):
+        return obj.eve_type.name if obj.eve_type else None
+
+    def _group(self, obj):
+        return obj.eve_type.eve_group.name if obj.eve_type else None
 
     def has_add_permission(self, request):
         return False

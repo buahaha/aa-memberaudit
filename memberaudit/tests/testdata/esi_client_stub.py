@@ -59,6 +59,13 @@ esi_client_stub = EsiClientStub(
             "character_id",
             needs_token=True,
         ),
+        EsiEndpoint("Universe", "get_universe_stations_station_id", "station_id"),
+        EsiEndpoint(
+            "Universe",
+            "get_universe_structures_structure_id",
+            "structure_id",
+            needs_token=True,
+        ),
         EsiEndpoint(
             "Wallet",
             "get_characters_character_id_wallet",

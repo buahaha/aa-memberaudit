@@ -1,8 +1,13 @@
-from unittest.mock import patch
+import datetime as dt
+from unittest.mock import patch, Mock
 
 from django.test import TestCase
-from django.utils.timezone import now
 from django.utils.dateparse import parse_datetime
+from django.utils.timezone import now
+
+from bravado.exception import HTTPNotFound, HTTPForbidden, HTTPUnauthorized
+
+from eveuniverse.models import EveEntity, EveSolarSystem, EveType
 
 from allianceauth.tests.auth_utils import AuthUtils
 
@@ -13,6 +18,7 @@ from ..models import (
     CharacterMail,
     CharacterUpdateStatus,
     CharacterWalletJournalEntry,
+    Location,
 )
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
@@ -20,7 +26,8 @@ from .testdata.load_entities import load_entities
 from .utils import reload_user, queryset_pks
 from ..utils import NoSocketsTestCase
 
-MODULE_PATH = "memberaudit.models"
+MODELS_PATH = "memberaudit.models"
+MANAGERS_PATH = "memberaudit.managers"
 
 
 class TestCharacterUserHasAccess(TestCase):
@@ -294,7 +301,7 @@ class TestCharacterHasTopic(TestCase):
         self.assertFalse(self.character.has_wallet_journal)
 
 
-@patch(MODULE_PATH + ".esi")
+@patch(MODELS_PATH + ".esi")
 class TestCharacterEsiAccess(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -427,3 +434,198 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
 
         result = self.character.fetch_location()
         self.assertEqual(result[0].id, 30004984)
+
+
+@patch(MANAGERS_PATH + ".esi")
+class TestLocationManager(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_eveuniverse()
+        load_entities()
+        cls.jita = EveSolarSystem.objects.get(id=30000142)
+        cls.amamake = EveSolarSystem.objects.get(id=30002537)
+        cls.astrahus = EveType.objects.get(id=35832)
+        cls.athanor = EveType.objects.get(id=35835)
+        cls.jita_trade_hub = EveType.objects.get(id=52678)
+        cls.corporation_2001 = EveEntity.objects.get(id=2001)
+        cls.corporation_2002 = EveEntity.objects.get(id=2002)
+        cls.character = create_memberaudit_character(1001)
+        cls.token = cls.character.character_ownership.user.token_set.first()
+
+    # Structures
+
+    def test_can_create_structure(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        obj, created = Location.objects.update_or_create_esi(
+            id=1000000000001, token=self.token
+        )
+        self.assertTrue(created)
+        self.assertEqual(obj.id, 1000000000001)
+        self.assertEqual(obj.name, "Test Structure Alpha")
+        self.assertEqual(obj.eve_solar_system, self.amamake)
+        self.assertEqual(obj.eve_type, self.astrahus)
+        self.assertEqual(obj.owner, self.corporation_2001)
+
+    def test_can_update_structure(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        obj, _ = Location.objects.update_or_create_esi(
+            id=1000000000001, token=self.token
+        )
+        obj.name = "Not my structure"
+        obj.eve_solar_system = self.jita
+        obj.eve_type = self.jita_trade_hub
+        obj.owner = self.corporation_2002
+        obj.save()
+        obj, created = Location.objects.update_or_create_esi(
+            id=1000000000001, token=self.token
+        )
+        self.assertFalse(created)
+        self.assertEqual(obj.id, 1000000000001)
+        self.assertEqual(obj.name, "Test Structure Alpha")
+        self.assertEqual(obj.eve_solar_system, self.amamake)
+        self.assertEqual(obj.eve_type, self.astrahus)
+        self.assertEqual(obj.owner, self.corporation_2001)
+
+    def test_does_not_update_existing_location(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        obj_existing = Location.objects.create(
+            id=1000000000001,
+            name="Existing Structure",
+            eve_solar_system=self.jita,
+            eve_type=self.jita_trade_hub,
+            owner=self.corporation_2002,
+        )
+        obj, created = Location.objects.get_or_create_esi(
+            id=1000000000001, token=self.token
+        )
+        self.assertFalse(created)
+        self.assertEqual(obj, obj_existing)
+
+    def test_always_update_existing_empty_locations(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        Location.objects.create(id=1000000000001)
+        obj, created = Location.objects.get_or_create_esi(
+            id=1000000000001, token=self.token
+        )
+        self.assertFalse(created)
+        self.assertEqual(obj.eve_solar_system, self.amamake)
+
+    @patch(MANAGERS_PATH + ".MEMBERAUDIT_LOCATION_STALE_HOURS", 24)
+    def test_always_update_existing_locations_which_are_stale(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        mocked_update_at = now() - dt.timedelta(hours=25)
+        with patch("django.utils.timezone.now", Mock(return_value=mocked_update_at)):
+            Location.objects.create(
+                id=1000000000001,
+                name="Existing Structure",
+                eve_solar_system=self.jita,
+                eve_type=self.jita_trade_hub,
+                owner=self.corporation_2002,
+            )
+        obj, created = Location.objects.get_or_create_esi(
+            id=1000000000001, token=self.token
+        )
+        self.assertFalse(created)
+        self.assertEqual(obj.eve_solar_system, self.amamake)
+
+    def test_propagates_http_error_on_structure_create(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        with self.assertRaises(HTTPNotFound):
+            Location.objects.update_or_create_esi(
+                id=42, token=self.token, add_unknown=False
+            )
+
+    def test_propagates_exceptions_on_structure_create(self, mock_esi):
+        mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
+            RuntimeError
+        )
+
+        with self.assertRaises(RuntimeError):
+            Location.objects.update_or_create_esi(
+                id=42, token=self.token, add_unknown=False
+            )
+
+    def test_can_create_empty_location_on_access_error_1(self, mock_esi):
+        mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
+            HTTPForbidden(Mock())
+        )
+
+        obj, created = Location.objects.update_or_create_esi(
+            id=42, token=self.token, add_unknown=True
+        )
+        self.assertTrue(created)
+        self.assertEqual(obj.id, 42)
+
+    def test_can_create_empty_location_on_access_error_2(self, mock_esi):
+        mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
+            HTTPUnauthorized(Mock())
+        )
+
+        obj, created = Location.objects.update_or_create_esi(
+            id=42, token=self.token, add_unknown=True
+        )
+        self.assertTrue(created)
+        self.assertEqual(obj.id, 42)
+
+    def test_does_not_creates_skeleton_structure_on_exceptions_if_requested(
+        self, mock_esi
+    ):
+        mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
+            RuntimeError
+        )
+        with self.assertRaises(RuntimeError):
+            Location.objects.update_or_create_esi(
+                id=42, token=self.token, add_unknown=True
+            )
+
+    # Stations
+
+    def test_can_create_station(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        obj, created = Location.objects.update_or_create_esi(
+            id=60003760, token=self.token
+        )
+        self.assertTrue(created)
+        self.assertEqual(obj.id, 60003760)
+        self.assertEqual(obj.name, "Jita IV - Moon 4 - Caldari Navy Assembly Plant")
+        self.assertEqual(obj.eve_solar_system, self.jita)
+        self.assertEqual(obj.eve_type, self.jita_trade_hub)
+        self.assertEqual(obj.owner, self.corporation_2002)
+
+    def test_can_update_station(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        obj, created = Location.objects.update_or_create_esi(
+            id=60003760, token=self.token
+        )
+        obj.name = "Not my station"
+        obj.eve_solar_system = self.amamake
+        obj.eve_type = self.astrahus
+        obj.owner = self.corporation_2001
+        obj.save()
+
+        obj, created = Location.objects.update_or_create_esi(
+            id=60003760, token=self.token
+        )
+        self.assertFalse(created)
+        self.assertEqual(obj.id, 60003760)
+        self.assertEqual(obj.name, "Jita IV - Moon 4 - Caldari Navy Assembly Plant")
+        self.assertEqual(obj.eve_solar_system, self.jita)
+        self.assertEqual(obj.eve_type, self.jita_trade_hub)
+        self.assertEqual(obj.owner, self.corporation_2002)
+
+    def test_propagates_http_error_on_station_create(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        with self.assertRaises(HTTPNotFound):
+            Location.objects.update_or_create_esi(
+                id=42, token=self.token, add_unknown=False
+            )

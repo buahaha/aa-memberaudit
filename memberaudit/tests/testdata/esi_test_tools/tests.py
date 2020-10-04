@@ -1,4 +1,7 @@
 from datetime import datetime
+
+from bravado.exception import HTTPNotFound
+
 from django.test import TestCase
 
 from .main import EsiClientStub, EsiEndpoint
@@ -39,7 +42,7 @@ class TestEsiClientStub(TestCase):
             self.stub.Alpha.get_cake().results()
 
     def test_raises_exception_on_missing_data(self):
-        with self.assertRaises(KeyError):
+        with self.assertRaises(HTTPNotFound):
             self.stub.Alpha.get_cake(cake_id=3).results()
 
     def test_raises_exception_on_missing_token_if_required(self):

@@ -26,6 +26,11 @@
     ],
     "EveCategory": [
         {
+            "id": 3,
+            "name": "Station",
+            "published": false
+        },
+        {
             "id": 6,
             "name": "Ship",
             "published": true
@@ -33,6 +38,11 @@
         {
             "id": 16,
             "name": "Skill",
+            "published": true
+        },
+        {
+            "id": 65,
+            "name": "Structure",
             "published": true
         }
     ],
@@ -52,6 +62,14 @@
             "position_x": -8.144235531686658e+16,
             "position_y": 8631923480121213.0,
             "position_z": -2.142002604277861e+17
+        },
+        {
+            "eve_region_id": 10000030,
+            "id": 20000372,
+            "name": "Hed",
+            "position_x": -1.282693384263374e+17,
+            "position_y": 3.8212719069804984e+16,
+            "position_z": 7556108809294752.0
         },
         {
             "eve_region_id": 10000064,
@@ -78,6 +96,12 @@
     ],
     "EveGroup": [
         {
+            "eve_category_id": 3,
+            "id": 15,
+            "name": "Station",
+            "published": false
+        },
+        {
             "eve_category_id": 6,
             "id": 237,
             "name": "Corvette",
@@ -87,6 +111,18 @@
             "eve_category_id": 16,
             "id": 257,
             "name": "Spaceship Command",
+            "published": true
+        },
+        {
+            "eve_category_id": 65,
+            "id": 1406,
+            "name": "Refinery",
+            "published": true
+        },
+        {
+            "eve_category_id": 65,
+            "id": 1657,
+            "name": "Citadel",
             "published": true
         }
     ],
@@ -108,6 +144,11 @@
             "description": "Catch has long been a strategically important region. During the initial expansion into the rim territories, it linked the Khanid Kingdom, Sansha's Nation and the Angel Cartel to one another, and through its connections to Providence was given considerable status as the \"Southern Gateway\" by the Amarr Empire. Unlike regions such as Pure Blind, however, its importance did not fade with the dawn of the capsuleer era, as its branching links east and west ensured continued relevance. As a consequence it has earned itself a bloody reputation - some say the very stars reverberate with the dying breaths of the countless lost souls.",
             "id": 10000014,
             "name": "Catch"
+        },
+        {
+            "description": "\"Never Again\"",
+            "id": 10000030,
+            "name": "Heimatar"
         },
         {
             "description": "\"The Federation is not a defined region of space, of planets, of mountains, rivers, or woods. It is a vision.\"",
@@ -145,6 +186,16 @@
             "position_y": 1.9654254337720636e+16,
             "position_z": -2.0691536685399747e+17,
             "security_status": -0.14632222056388855
+        },
+        {
+            "eve_constellation_id": 20000372,
+            "eve_star_id": null,
+            "id": 30002537,
+            "name": "Amamake",
+            "position_x": -1.242922662884945e+17,
+            "position_y": 4.4194364193727224e+16,
+            "position_z": 6110392433587103.0,
+            "security_status": 0.43876123428344727
         },
         {
             "eve_constellation_id": 20000729,
@@ -202,6 +253,51 @@
             "published": true,
             "radius": 1.0,
             "volume": 0.01
+        },
+        {
+            "capacity": 0.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 1657,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 35832,
+            "mass": 3000000000.0,
+            "name": "Astrahus",
+            "packaged_volume": 8000.0,
+            "portion_size": 1,
+            "published": true,
+            "radius": 45000.0,
+            "volume": 8000.0
+        },
+        {
+            "capacity": 0.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 1406,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 35835,
+            "mass": 3000000000.0,
+            "name": "Athanor",
+            "packaged_volume": 8000.0,
+            "portion_size": 1,
+            "published": true,
+            "radius": 45000.0,
+            "volume": 8000.0
+        },
+        {
+            "capacity": 0.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 15,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 52678,
+            "mass": 0.0,
+            "name": "Jita Trade Hub",
+            "packaged_volume": 1.0,
+            "portion_size": 1,
+            "published": false,
+            "radius": 45734.0,
+            "volume": 1.0
         }
     ]
 }

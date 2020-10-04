@@ -5,6 +5,8 @@ Tools for building unit tests with django-esi
 from collections import namedtuple
 from typing import Any, List
 
+from bravado.exception import HTTPNotFound
+
 from django.utils.dateparse import parse_datetime
 
 
@@ -45,6 +47,11 @@ def EsiEndpoint(
     return EsiEndpoint_T(category, method, primary_key, needs_token)
 
 
+class _BravadoResponseStub:
+    def __init__(self, status_code, *args, **kwargs):
+        self.status_code = status_code
+
+
 class _EsiRoute:
     def __init__(
         self,
@@ -64,11 +71,17 @@ class _EsiRoute:
                 f"{self._category}.{self._method}: Missing primary key: "
                 f"{self._primary_key}"
             )
-        if self._needs_token and "token" not in kwargs:
-            raise ValueError(
-                f"{self._category}.{self._method} "
-                f"with pk = {self._primary_key}: Missing token"
-            )
+        if self._needs_token:
+            if "token" not in kwargs:
+                raise ValueError(
+                    f"{self._category}.{self._method} "
+                    f"with pk = {self._primary_key}: Missing token"
+                )
+            elif not isinstance(kwargs.get("token"), str):
+                raise TypeError(
+                    f"{self._category}.{self._method} "
+                    f"with pk = {self._primary_key}: Token is not a string"
+                )
         try:
             pk_value = str(kwargs[self._primary_key])
             result = self._convert_values(
@@ -76,9 +89,10 @@ class _EsiRoute:
             )
 
         except KeyError:
-            raise KeyError(
+            raise HTTPNotFound(
+                _BravadoResponseStub(404),
                 f"{self._category}.{self._method}: No test data for "
-                f"{self._primary_key} = {pk_value}"
+                f"{self._primary_key} = {pk_value}",
             ) from None
 
         return BravadoOperationStub(result)
