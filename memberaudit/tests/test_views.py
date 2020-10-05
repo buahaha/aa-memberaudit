@@ -15,6 +15,7 @@ from allianceauth.tests.auth_utils import AuthUtils
 
 from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
+from .testdata.load_locations import load_locations
 
 from . import create_memberaudit_character
 from ..models import (
@@ -60,11 +61,13 @@ class TestViews(TestCase):
         cls.factory = RequestFactory()
         load_eveuniverse()
         load_entities()
+        load_locations()
         cls.character = create_memberaudit_character(1001)
         cls.user = cls.character.character_ownership.user
         cls.jita = EveSolarSystem.objects.get(id=30000142)
         cls.jita_trade_hub = EveType.objects.get(id=52678)
         cls.corporation_2001 = EveEntity.objects.get(id=2001)
+        cls.jita_station = Location.objects.get(id=60003760)
 
     def test_can_open_launcher_view(self):
         request = self.factory.get(reverse("memberaudit:launcher"))
@@ -81,14 +84,8 @@ class TestViews(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_character_jump_clones_data(self):
-        location_1 = Location.objects.create(
-            id=60003760,
-            name="Jita IV - Moon 4 - Caldari Navy Assembly Plant",
-            eve_solar_system=self.jita,
-            eve_type=self.jita_trade_hub,
-        )
         jump_clone = CharacterJumpClone.objects.create(
-            character=self.character, location=location_1, jump_clone_id=1
+            character=self.character, location=self.jita_station, jump_clone_id=1
         )
         CharacterJumpCloneImplant.objects.create(
             jump_clone=jump_clone, eve_type=EveType.objects.get(id=19540)

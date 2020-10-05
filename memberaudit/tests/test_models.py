@@ -24,12 +24,24 @@ from ..models import (
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
+from .testdata.load_locations import load_locations
 from .utils import reload_user, queryset_pks
 from ..utils import NoSocketsTestCase
 
 MODELS_PATH = "memberaudit.models"
 MANAGERS_PATH = "memberaudit.managers"
 TASKS_PATH = "memberaudit.tasks"
+
+
+class TestCharacterOtherMethods(NoSocketsTestCase):
+    def test_update_section_method_name(self):
+        result = Character.section_method_name(
+            Character.UPDATE_SECTION_CORPORATION_HISTORY
+        )
+        self.assertEqual(result, "update_corporation_history")
+
+        result = Character.section_method_name(Character.UPDATE_SECTION_MAILS)
+        self.assertEqual(result, "update_mails")
 
 
 class TestCharacterUserHasAccess(TestCase):
@@ -273,7 +285,7 @@ class TestCharacterHasTopic(TestCase):
         """when update status is ok then return True"""
         CharacterUpdateStatus.objects.create(
             character=self.character,
-            topic=CharacterUpdateStatus.TOPIC_MAILS,
+            section=Character.UPDATE_SECTION_MAILS,
             is_success=True,
         )
         self.assertTrue(self.character.has_mails)
@@ -293,7 +305,7 @@ class TestCharacterHasTopic(TestCase):
         """when update status is ok then return True"""
         CharacterUpdateStatus.objects.create(
             character=self.character,
-            topic=CharacterUpdateStatus.TOPIC_WALLET_JOURNAL,
+            section=Character.UPDATE_SECTION_WALLET_JOURNAL,
             is_success=True,
         )
         self.assertTrue(self.character.has_wallet_journal)
@@ -310,6 +322,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         super().setUpClass()
         load_eveuniverse()
         load_entities()
+        load_locations()
         cls.character = create_memberaudit_character(1001)
         cls.token = cls.character.character_ownership.user.token_set.first()
 
@@ -344,11 +357,9 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertFalse(obj.is_deleted)
         self.assertEqual(obj.start_date, parse_datetime("2016-07-26T20:00:00Z"))
 
-    @patch(MANAGERS_PATH + ".esi")
-    def test_update_jump_clones(self, mock_esi, mock_esi_2):
+    def test_update_jump_clones(self, mock_esi):
         mock_esi.client = esi_client_stub
-        mock_esi_2.client = esi_client_stub
-        jita_44, _ = Location.objects.get_or_create_esi(id=60003760, token=self.token)
+        jita_44 = Location.objects.get(id=60003760)
 
         self.character.update_jump_clones()
         self.assertEqual(self.character.jump_clones.count(), 1)

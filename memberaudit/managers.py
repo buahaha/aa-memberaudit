@@ -118,33 +118,8 @@ class LocationManager(models.Manager):
             station = esi.client.Universe.get_universe_stations_station_id(
                 station_id=id
             ).results()
-            if station.get("system_id"):
-                eve_solar_system, _ = EveSolarSystem.objects.get_or_create_esi(
-                    id=station.get("system_id")
-                )
-            else:
-                eve_solar_system = None
-
-            if station.get("type_id"):
-                eve_type, _ = EveType.objects.get_or_create_esi(
-                    id=station.get("type_id")
-                )
-            else:
-                eve_type = None
-
-            if station.get("owner"):
-                owner, _ = EveEntity.objects.get_or_create_esi(id=station.get("owner"))
-            else:
-                owner = None
-
-            location, created = self.update_or_create(
-                id=id,
-                defaults={
-                    "name": station.get("name", ""),
-                    "eve_solar_system": eve_solar_system,
-                    "eve_type": eve_type,
-                    "owner": owner,
-                },
+            location, created = self._station_update_or_create_dict(
+                id=id, station=station
             )
 
         else:
@@ -160,38 +135,72 @@ class LocationManager(models.Manager):
                     raise ex
 
             else:
-                if structure.get("solar_system_id"):
-                    eve_solar_system, _ = EveSolarSystem.objects.get_or_create_esi(
-                        id=structure.get("solar_system_id")
-                    )
-                else:
-                    eve_solar_system = None
-
-                if structure.get("type_id"):
-                    eve_type, _ = EveType.objects.get_or_create_esi(
-                        id=structure.get("type_id")
-                    )
-                else:
-                    eve_type = None
-
-                if structure.get("owner_id"):
-                    owner, _ = EveEntity.objects.get_or_create_esi(
-                        id=structure.get("owner_id")
-                    )
-                else:
-                    owner = None
-
-                location, created = self.update_or_create(
-                    id=id,
-                    defaults={
-                        "name": structure.get("name", ""),
-                        "eve_solar_system": eve_solar_system,
-                        "eve_type": eve_type,
-                        "owner": owner,
-                    },
+                location, created = self._structure_update_or_create_dict(
+                    id=id, structure=structure
                 )
 
         return location, created
+
+    def _station_update_or_create_dict(
+        self, id: int, station: dict
+    ) -> Tuple[models.Model, bool]:
+        if station.get("system_id"):
+            eve_solar_system, _ = EveSolarSystem.objects.get_or_create_esi(
+                id=station.get("system_id")
+            )
+        else:
+            eve_solar_system = None
+
+        if station.get("type_id"):
+            eve_type, _ = EveType.objects.get_or_create_esi(id=station.get("type_id"))
+        else:
+            eve_type = None
+
+        if station.get("owner"):
+            owner, _ = EveEntity.objects.get_or_create_esi(id=station.get("owner"))
+        else:
+            owner = None
+
+        return self.update_or_create(
+            id=id,
+            defaults={
+                "name": station.get("name", ""),
+                "eve_solar_system": eve_solar_system,
+                "eve_type": eve_type,
+                "owner": owner,
+            },
+        )
+
+    def _structure_update_or_create_dict(
+        self, id: int, structure: dict
+    ) -> Tuple[models.Model, bool]:
+        """creates a new Location object from a structure dict"""
+        if structure.get("solar_system_id"):
+            eve_solar_system, _ = EveSolarSystem.objects.get_or_create_esi(
+                id=structure.get("solar_system_id")
+            )
+        else:
+            eve_solar_system = None
+
+        if structure.get("type_id"):
+            eve_type, _ = EveType.objects.get_or_create_esi(id=structure.get("type_id"))
+        else:
+            eve_type = None
+
+        if structure.get("owner_id"):
+            owner, _ = EveEntity.objects.get_or_create_esi(id=structure.get("owner_id"))
+        else:
+            owner = None
+
+        return self.update_or_create(
+            id=id,
+            defaults={
+                "name": structure.get("name", ""),
+                "eve_solar_system": eve_solar_system,
+                "eve_type": eve_type,
+                "owner": owner,
+            },
+        )
 
 
 class CharacterManager(models.Manager):

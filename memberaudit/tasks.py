@@ -32,66 +32,30 @@ def _load_character(character_pk: int) -> Character:
         )
 
 
-def _generic_update_character(character_pk: int, method_name: str) -> None:
+@shared_task
+def update_character_section(character_pk: int, section: str) -> None:
     character = _load_character(character_pk)
     try:
-        getattr(character, method_name)()
+        getattr(character, Character.section_method_name(section))()
         CharacterUpdateStatus.objects.create(
-            character=character,
-            topic=CharacterUpdateStatus.method_name_to_topic(method_name),
-            is_success=True,
+            character=character, section=section, is_success=True
         )
     except Exception as ex:
         error_message = f"{repr(ex)}"
         logger.error(
             "%s: %s: Error ocurred: %s",
             character,
-            method_name,
+            section,
             error_message,
             exc_info=True,
         )
         CharacterUpdateStatus.objects.create(
             character=character,
-            topic=CharacterUpdateStatus.method_name_to_topic(method_name),
+            section=section,
             is_success=False,
             error_message=error_message,
         )
         raise ex
-
-
-@shared_task
-def update_character_details(character_pk: int) -> None:
-    _generic_update_character(character_pk, "update_character_details")
-
-
-@shared_task
-def update_corporation_history(character_pk: int) -> None:
-    _generic_update_character(character_pk, "update_corporation_history")
-
-
-@shared_task
-def update_jump_clones(character_pk: int) -> None:
-    _generic_update_character(character_pk, "update_jump_clones")
-
-
-@shared_task
-def update_mails(character_pk: int) -> None:
-    _generic_update_character(character_pk, "update_mails")
-
-
-@shared_task
-def update_skills(character_pk: int) -> None:
-    _generic_update_character(character_pk, "update_skills")
-
-
-@shared_task
-def update_wallet_balance(character_pk: int) -> None:
-    _generic_update_character(character_pk, "update_wallet_balance")
-
-
-@shared_task
-def update_wallet_journal(character_pk: int) -> None:
-    _generic_update_character(character_pk, "update_wallet_journal")
 
 
 @shared_task
@@ -101,29 +65,15 @@ def update_character(character_pk: int, has_priority=False) -> None:
     character = _load_character(character_pk)
     logger.info("%s: Starting character update", character)
     character.update_status_set.all().delete()
-
     task_priority = HIGHER_TASK_PRIORITY if has_priority else DEFAULT_TASK_PRIORITY
-    update_character_details.apply_async(
-        kwargs={"character_pk": character.pk}, priority=task_priority
-    )
-    update_wallet_balance.apply_async(
-        kwargs={"character_pk": character.pk}, priority=task_priority
-    )
-    update_skills.apply_async(
-        kwargs={"character_pk": character.pk}, priority=task_priority
-    )
-    update_mails.apply_async(
-        kwargs={"character_pk": character.pk}, priority=task_priority
-    )
-    update_corporation_history.apply_async(
-        kwargs={"character_pk": character.pk}, priority=task_priority
-    )
-    update_jump_clones.apply_async(
-        kwargs={"character_pk": character.pk}, priority=task_priority
-    )
-    update_wallet_journal.apply_async(
-        kwargs={"character_pk": character.pk}, priority=task_priority
-    )
+    for section, _ in Character.UPDATE_SECTION_CHOICES:
+        update_character_section.apply_async(
+            kwargs={
+                "character_pk": character.pk,
+                "section": section,
+            },
+            priority=task_priority,
+        )
 
 
 @shared_task

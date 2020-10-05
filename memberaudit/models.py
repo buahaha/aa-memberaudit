@@ -133,8 +133,25 @@ class Location(models.Model):
 class Character(models.Model):
     """A character synced by this app
 
-    This is the head model of all characters
+    This is the head model for all characters
     """
+
+    UPDATE_SECTION_CHARACTER_DETAILS = "CD"
+    UPDATE_SECTION_CORPORATION_HISTORY = "CH"
+    UPDATE_SECTION_JUMP_CLONES = "JC"
+    UPDATE_SECTION_MAILS = "MA"
+    UPDATE_SECTION_SKILLS = "SK"
+    UPDATE_SECTION_WALLET_BALLANCE = "WB"
+    UPDATE_SECTION_WALLET_JOURNAL = "WJ"
+    UPDATE_SECTION_CHOICES = (
+        (UPDATE_SECTION_CHARACTER_DETAILS, _("character details")),
+        (UPDATE_SECTION_CORPORATION_HISTORY, _("corporation history")),
+        (UPDATE_SECTION_JUMP_CLONES, _("jump clones")),
+        (UPDATE_SECTION_MAILS, _("mails")),
+        (UPDATE_SECTION_SKILLS, _("skills")),
+        (UPDATE_SECTION_WALLET_BALLANCE, _("wallet balance")),
+        (UPDATE_SECTION_WALLET_JOURNAL, _("wallet journal")),
+    )
 
     character_ownership = models.OneToOneField(
         CharacterOwnership,
@@ -158,7 +175,7 @@ class Character(models.Model):
         return (
             self.mails.count() > 0
             or self.update_status_set.filter(
-                topic=CharacterUpdateStatus.TOPIC_MAILS
+                section=Character.UPDATE_SECTION_MAILS
             ).exists()
         )
 
@@ -167,7 +184,7 @@ class Character(models.Model):
         return (
             self.wallet_journal.count() > 0
             or self.update_status_set.filter(
-                topic=CharacterUpdateStatus.TOPIC_WALLET_JOURNAL
+                section=Character.UPDATE_SECTION_WALLET_JOURNAL
             ).exists()
         )
 
@@ -207,7 +224,7 @@ class Character(models.Model):
         ok_count = self.update_status_set.filter(is_success=True).count()
         if errors_count > 0:
             return False
-        elif ok_count == len(CharacterUpdateStatus.TOPIC_CHOICES):
+        elif ok_count == len(Character.UPDATE_SECTION_CHOICES):
             return True
         else:
             return None
@@ -688,30 +705,23 @@ class Character(models.Model):
             "esi-wallet.read_character_wallet.v1",
         ]
 
+    @classmethod
+    def section_method_name(cls, section: str) -> str:
+        for short_name, long_name in cls.UPDATE_SECTION_CHOICES:
+            if short_name == section:
+                method_partial = long_name.replace(" ", "_")
+                return f"update_{method_partial}"
+
+        raise ValueError(f"Unknown update section: {section}")
+
 
 class CharacterUpdateStatus(models.Model):
     """Update status for a character"""
 
-    TOPIC_CHARACTER_DETAILS = "CD"
-    TOPIC_CORPORATION_HISTORY = "CH"
-    TOPIC_JUMP_CLONES = "JC"
-    TOPIC_MAILS = "MA"
-    TOPIC_SKILLS = "SK"
-    TOPIC_WALLET_BALLANCE = "WB"
-    TOPIC_WALLET_JOURNAL = "WJ"
-    TOPIC_CHOICES = (
-        (TOPIC_CHARACTER_DETAILS, _("character details")),
-        (TOPIC_CORPORATION_HISTORY, _("corporation history")),
-        (TOPIC_JUMP_CLONES, _("jump clones")),
-        (TOPIC_MAILS, _("mails")),
-        (TOPIC_SKILLS, _("skills")),
-        (TOPIC_WALLET_BALLANCE, _("wallet balance")),
-        (TOPIC_WALLET_JOURNAL, _("wallet journal")),
-    )
     character = models.ForeignKey(
         Character, on_delete=models.CASCADE, related_name="update_status_set"
     )
-    topic = models.CharField(max_length=2, choices=TOPIC_CHOICES)
+    section = models.CharField(max_length=2, choices=Character.UPDATE_SECTION_CHOICES)
     is_success = models.BooleanField(db_index=True)
     error_message = models.TextField()
     updated_at = models.DateTimeField(auto_now=True)
@@ -719,26 +729,13 @@ class CharacterUpdateStatus(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["character", "topic"],
+                fields=["character", "section"],
                 name="functional_pk_charactersyncstatus",
             )
         ]
 
-    @classmethod
-    def method_name_to_topic(cls, method_name):
-        my_map = {
-            "update_character_details": cls.TOPIC_CHARACTER_DETAILS,
-            "update_corporation_history": cls.TOPIC_CORPORATION_HISTORY,
-            "update_jump_clones": cls.TOPIC_JUMP_CLONES,
-            "update_mails": cls.TOPIC_MAILS,
-            "update_skills": cls.TOPIC_SKILLS,
-            "update_wallet_balance": cls.TOPIC_WALLET_BALLANCE,
-            "update_wallet_journal": cls.TOPIC_WALLET_JOURNAL,
-        }
-        return my_map[method_name]
-
     def __str__(self):
-        return f"{self.character}-{self.get_topic_display()}"
+        return f"{self.character}-{self.get_section_display()}"
 
 
 class CharacterDetails(models.Model):
