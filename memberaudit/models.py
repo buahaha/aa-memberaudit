@@ -313,19 +313,25 @@ class Character(models.Model):
             token=token.valid_access_token(),
         ).results()
 
+        # fetch locations ahead of transaction
+        locations = dict()
+        for jump_clone_info in jump_clones_info.get("jump_clones", []):
+            location_id = jump_clone_info.get("location_id")
+            location, _ = Location.objects.get_or_create_esi_async(
+                id=location_id, token=token
+            )
+            locations[location_id] = location
+
         with transaction.atomic():
             CharacterJumpClone.objects.filter(character=self).delete()
             for jump_clone_info in jump_clones_info.get("jump_clones", []):
-                location, _ = Location.objects.get_or_create_esi_async(
-                    id=jump_clone_info.get("location_id"), token=token
-                )
                 name = (
                     jump_clone_info.get("name") if jump_clone_info.get("name") else ""
                 )
                 jump_clone = CharacterJumpClone.objects.create(
                     character=self,
                     jump_clone_id=jump_clone_info.get("jump_clone_id"),
-                    location=location,
+                    location=locations[jump_clone_info.get("location_id")],
                     name=name,
                 )
                 for implant in jump_clone_info.get("implants", []):

@@ -590,9 +590,7 @@ class TestLocationManager(NoSocketsTestCase):
         mock_esi.client = esi_client_stub
 
         with self.assertRaises(HTTPNotFound):
-            Location.objects.update_or_create_esi(
-                id=42, token=self.token, add_unknown=False
-            )
+            Location.objects.update_or_create_esi(id=42, token=self.token)
 
     def test_propagates_exceptions_on_structure_create(self, mock_esi):
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
@@ -600,18 +598,14 @@ class TestLocationManager(NoSocketsTestCase):
         )
 
         with self.assertRaises(RuntimeError):
-            Location.objects.update_or_create_esi(
-                id=42, token=self.token, add_unknown=False
-            )
+            Location.objects.update_or_create_esi(id=42, token=self.token)
 
     def test_can_create_empty_location_on_access_error_1(self, mock_esi):
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
             HTTPForbidden(Mock())
         )
 
-        obj, created = Location.objects.update_or_create_esi(
-            id=42, token=self.token, add_unknown=True
-        )
+        obj, created = Location.objects.update_or_create_esi(id=42, token=self.token)
         self.assertTrue(created)
         self.assertEqual(obj.id, 42)
 
@@ -620,9 +614,7 @@ class TestLocationManager(NoSocketsTestCase):
             HTTPUnauthorized(Mock())
         )
 
-        obj, created = Location.objects.update_or_create_esi(
-            id=42, token=self.token, add_unknown=True
-        )
+        obj, created = Location.objects.update_or_create_esi(id=42, token=self.token)
         self.assertTrue(created)
         self.assertEqual(obj.id, 42)
 
@@ -633,9 +625,7 @@ class TestLocationManager(NoSocketsTestCase):
             RuntimeError
         )
         with self.assertRaises(RuntimeError):
-            Location.objects.update_or_create_esi(
-                id=42, token=self.token, add_unknown=True
-            )
+            Location.objects.update_or_create_esi(id=42, token=self.token)
 
     # Stations
 
@@ -678,9 +668,7 @@ class TestLocationManager(NoSocketsTestCase):
         mock_esi.client = esi_client_stub
 
         with self.assertRaises(HTTPNotFound):
-            Location.objects.update_or_create_esi(
-                id=42, token=self.token, add_unknown=False
-            )
+            Location.objects.update_or_create_esi(id=42, token=self.token)
 
 
 @patch(MANAGERS_PATH + ".esi")

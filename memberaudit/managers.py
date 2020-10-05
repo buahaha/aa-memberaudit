@@ -42,28 +42,22 @@ class LocationManager(models.Manager):
     _STATION_ID_END = 69999999
     _UPDATE_EMPTY_GRACE_MINUTES = 5
 
-    def get_or_create_esi(
-        self, id: int, token: Token, add_unknown: bool = True
-    ) -> Tuple[models.Model, bool]:
+    def get_or_create_esi(self, id: int, token: Token) -> Tuple[models.Model, bool]:
         """gets or creates location object with data fetched from ESI
 
         Stale locations will always be updated.
         Empty locations will always be updated after grace period as passed
         """
-        return self._get_or_create_esi(
-            id=id, token=token, add_unknown=add_unknown, update_async=False
-        )
+        return self._get_or_create_esi(id=id, token=token, update_async=False)
 
     def get_or_create_esi_async(
-        self, id: int, token: Token, add_unknown: bool = True
+        self, id: int, token: Token
     ) -> Tuple[models.Model, bool]:
         """gets or creates location object with data fetched from ESI asynchronous"""
-        return self._get_or_create_esi(
-            id=id, token=token, add_unknown=add_unknown, update_async=True
-        )
+        return self._get_or_create_esi(id=id, token=token, update_async=True)
 
     def _get_or_create_esi(
-        self, id: int, token: Token, add_unknown: bool = True, update_async: bool = True
+        self, id: int, token: Token, update_async: bool = True
     ) -> Tuple[models.Model, bool]:
         id = int(id)
         empty_threshold = now() - dt.timedelta(minutes=self._UPDATE_EMPTY_GRACE_MINUTES)
@@ -81,29 +75,20 @@ class LocationManager(models.Manager):
             created = False
         except self.model.DoesNotExist:
             if update_async:
-                location, created = self.update_or_create_esi_async(
-                    id=id, token=token, add_unknown=add_unknown
-                )
+                location, created = self.update_or_create_esi_async(id=id, token=token)
             else:
-                location, created = self.update_or_create_esi(
-                    id=id, token=token, add_unknown=add_unknown
-                )
+                location, created = self.update_or_create_esi(id=id, token=token)
 
         return location, created
 
     def update_or_create_esi_async(
-        self, id: int, token: Token, add_unknown: bool = True
+        self, id: int, token: Token
     ) -> Tuple[models.Model, bool]:
         """updates or creates location object with data fetched from ESI asynchronous"""
-        from .tasks import update_location_esi as task_update_location_esi
-
-        id = int(id)
-        location, created = self.get_or_create(id=id)
-        task_update_location_esi.delay(id=id, token_pk=token.pk)
-        return location, created
+        return self._update_or_create_esi(id=id, token=token, update_async=True)
 
     def update_or_create_esi(
-        self, id: int, token: Token, add_unknown: bool = True
+        self, id: int, token: Token, update_async: bool = True
     ) -> Tuple[models.Model, bool]:
         """updates or creates location object with data fetched from ESI synchronous
 
@@ -111,6 +96,11 @@ class LocationManager(models.Manager):
         since it protects against exceeding the ESI error limit and which can happen
         a lot due to users not having authorization to access a structure.
         """
+        return self._update_or_create_esi(id=id, token=token, update_async=False)
+
+    def _update_or_create_esi(
+        self, id: int, token: Token, update_async: bool = True
+    ) -> Tuple[models.Model, bool]:
         id = int(id)
         add_prefix = make_logger_prefix(id)
         if self._STATION_ID_START <= id <= self._STATION_ID_END:
@@ -123,20 +113,13 @@ class LocationManager(models.Manager):
             )
 
         else:
-            try:
-                structure = esi.client.Universe.get_universe_structures_structure_id(
-                    structure_id=id, token=token.valid_access_token()
-                ).results()
-            except (HTTPUnauthorized, HTTPForbidden) as ex:
-                logger.warn(add_prefix("No access to this structure"), exc_info=True)
-                if add_unknown:
-                    location, created = self.get_or_create(id=id)
-                else:
-                    raise ex
-
+            if update_async:
+                location, created = self._structure_update_or_create_esi_async(
+                    id=id, token=token
+                )
             else:
-                location, created = self._structure_update_or_create_dict(
-                    id=id, structure=structure
+                location, created = self.structure_update_or_create_esi(
+                    id=id, token=token
                 )
 
         return location, created
@@ -170,6 +153,32 @@ class LocationManager(models.Manager):
                 "owner": owner,
             },
         )
+
+    def _structure_update_or_create_esi_async(self, id: int, token: Token):
+        from .tasks import update_structure_esi as task_update_structure_esi
+
+        id = int(id)
+        location, created = self.get_or_create(id=id)
+        task_update_structure_esi.delay(id=id, token_pk=token.pk)
+        return location, created
+
+    def structure_update_or_create_esi(self, id: int, token: Token):
+        """Update or creates structure from ESI"""
+
+        add_prefix = make_logger_prefix(id)
+        try:
+            structure = esi.client.Universe.get_universe_structures_structure_id(
+                structure_id=id, token=token.valid_access_token()
+            ).results()
+        except (HTTPUnauthorized, HTTPForbidden):
+            logger.warn(add_prefix("No access to this structure"), exc_info=True)
+            location, created = self.get_or_create(id=id)
+
+        else:
+            location, created = self._structure_update_or_create_dict(
+                id=id, structure=structure
+            )
+        return location, created
 
     def _structure_update_or_create_dict(
         self, id: int, structure: dict

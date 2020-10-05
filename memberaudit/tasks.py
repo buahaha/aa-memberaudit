@@ -90,9 +90,9 @@ def update_all_characters() -> None:
 
 
 @shared_task(bind=True, base=QueueOnce, once={"keys": ["id"]}, max_retries=None)
-def update_location_esi(self, id: int, token_pk: int):
-    """Updates a location object from ESI
-    and defers itself if the ESI error limit for locations as been exceeded
+def update_structure_esi(self, id: int, token_pk: int):
+    """Updates a structure object from ESI
+    and defers itself if the ESI error limit for structures has been exceeded
     """
     try:
         token = Token.objects.get(pk=token_pk)
@@ -104,7 +104,7 @@ def update_location_esi(self, id: int, token_pk: int):
     errors_count = cache.get(key=LOCATION_ESI_ERRORS_CACHE_KEY)
     if not errors_count or errors_count < ESI_ERROR_LIMIT:
         try:
-            Location.objects.update_or_create_esi(id, token)
+            Location.objects.structure_update_or_create_esi(id, token)
         except (HTTPUnauthorized, HTTPForbidden):
             try:
                 cache.incr(LOCATION_ESI_ERRORS_CACHE_KEY)
