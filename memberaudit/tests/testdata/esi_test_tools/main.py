@@ -42,7 +42,7 @@ EsiEndpoint_T = namedtuple(
 
 
 def EsiEndpoint(
-    category: str, method: str, primary_key: str, needs_token: bool = False
+    category: str, method: str, primary_key: str = None, needs_token: bool = False
 ) -> EsiEndpoint_T:
     return EsiEndpoint_T(category, method, primary_key, needs_token)
 
@@ -66,7 +66,7 @@ class _EsiRoute:
 
     def call(self, **kwargs):
         pk_value = None
-        if self._primary_key not in kwargs:
+        if self._primary_key and self._primary_key not in kwargs:
             raise ValueError(
                 f"{self._category}.{self._method}: Missing primary key: "
                 f"{self._primary_key}"
@@ -83,10 +83,15 @@ class _EsiRoute:
                     f"with pk = {self._primary_key}: Token is not a string"
                 )
         try:
-            pk_value = str(kwargs[self._primary_key])
-            result = self._convert_values(
-                self._testdata[self._category][self._method][pk_value]
-            )
+            if self._primary_key:
+                pk_value = str(kwargs[self._primary_key])
+                result = self._convert_values(
+                    self._testdata[self._category][self._method][pk_value]
+                )
+            else:
+                result = self._convert_values(
+                    self._testdata[self._category][self._method]
+                )
 
         except KeyError:
             raise HTTPNotFound(

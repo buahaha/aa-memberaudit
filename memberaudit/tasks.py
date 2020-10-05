@@ -9,7 +9,7 @@ from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
 
 from . import __title__
-from .models import Character, CharacterUpdateStatus, Location
+from .models import Character, CharacterUpdateStatus, Location, is_esi_online
 
 from .utils import LoggerAddTag
 
@@ -61,7 +61,6 @@ def update_character_section(character_pk: int, section: str) -> None:
 @shared_task
 def update_character(character_pk: int, has_priority=False) -> None:
     """update all data for a character from ESI"""
-
     character = _load_character(character_pk)
     logger.info("%s: Starting character update", character)
     character.update_status_set.all().delete()
@@ -78,6 +77,12 @@ def update_character(character_pk: int, has_priority=False) -> None:
 
 @shared_task
 def update_all_characters() -> None:
+    if not is_esi_online():
+        logger.info(
+            "ESI is currently offline. Can not start character update. Aborting"
+        )
+        return
+
     for character in Character.objects.all():
         update_character.apply_async(
             kwargs={"character_pk": character.pk}, priority=DEFAULT_TASK_PRIORITY

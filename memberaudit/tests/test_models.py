@@ -20,6 +20,7 @@ from ..models import (
     CharacterUpdateStatus,
     CharacterWalletJournalEntry,
     Location,
+    is_esi_online,
 )
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
@@ -31,6 +32,15 @@ from ..utils import NoSocketsTestCase
 MODELS_PATH = "memberaudit.models"
 MANAGERS_PATH = "memberaudit.managers"
 TASKS_PATH = "memberaudit.tasks"
+
+
+@patch(MODELS_PATH + ".esi")
+class TestIsEsiOnline(NoSocketsTestCase):
+    def test_normal(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        result = is_esi_online()
+        self.assertTrue(result)
 
 
 class TestCharacterOtherMethods(NoSocketsTestCase):

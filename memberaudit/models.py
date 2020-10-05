@@ -10,6 +10,7 @@ from django.utils.html import strip_tags
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
 
+from bravado.exception import HTTPError
 from esi.models import Token
 
 from eveuniverse.models import (
@@ -46,6 +47,19 @@ def eve_xml_to_html(xml: str) -> str:
     x = strip_tags(x)
     x = x.replace("\n", "<br>")
     return mark_safe(x)
+
+
+def is_esi_online() -> bool:
+    """Returns True if Eve Online server are online, else False"""
+    try:
+        status = esi.client.Status.get_status().results()
+        if status.get("vip"):
+            return False
+
+    except HTTPError:
+        return False
+
+    return True
 
 
 class General(models.Model):
