@@ -155,11 +155,17 @@ class LocationManager(models.Manager):
         )
 
     def _structure_update_or_create_esi_async(self, id: int, token: Token):
-        from .tasks import update_structure_esi as task_update_structure_esi
+        from .tasks import (
+            update_structure_esi as task_update_structure_esi,
+            DEFAULT_TASK_PRIORITY,
+        )
 
         id = int(id)
         location, created = self.get_or_create(id=id)
-        task_update_structure_esi.delay(id=id, token_pk=token.pk)
+        task_update_structure_esi.apply_async(
+            kwargs={"id": id, "token_pk": token.pk},
+            priority=DEFAULT_TASK_PRIORITY,
+        )
         return location, created
 
     def structure_update_or_create_esi(self, id: int, token: Token):

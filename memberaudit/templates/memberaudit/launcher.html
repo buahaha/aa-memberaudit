@@ -11,7 +11,7 @@
         <h3 class="panel-title">{% trans 'Characters' %}</h3>
     </div>
     <div class="panel-body">
-        {% if has_auth_characters %}
+        {% if has_registered_characters %}
             <table class="table table-striped" id="tab_characters">
                 <thead>
                     <tr>
@@ -29,70 +29,56 @@
                     {% for auth_character in auth_characters %}
                         <tr>
                             <td class="text-center">
-                                <img class="ra-avatar img-circle" src="{{ auth_character.eve_character.portrait_url }}">                            
+                                <a href="{% url 'memberaudit:character_viewer' auth_character.character.pk %}">
+                                    <img class="ra-avatar img-circle" src="{{ auth_character.eve_character.portrait_url }}">
+                                </a>
                             </td>
-                            <td>
-                                {% if auth_character.character %}
-                                    <a href="{% url 'memberaudit:character_viewer' auth_character.character.pk %}">
-                                        {{ auth_character.eve_character.character_name }}
-                                    </a>
-                                    {% if auth_character.character.is_shared %}
-                                        <br><span class="text-warning">SHARED</span>
-                                    {% endif %}
-                                {% else %}
-                                    {{ auth_character.eve_character.character_name }}<br>                                
-                                    <span class="text-danger">Not registered</span>
-                                {% endif %}
+                            <td>                                
+                                <a href="{% url 'memberaudit:character_viewer' auth_character.character.pk %}">
+                                    {{ auth_character.eve_character.character_name }}
+                                </a>
+                                {% if auth_character.character.is_shared %}
+                                    <br><span class="text-warning">SHARED</span>
+                                {% endif %}                                                            
                             </td>
                             <td>
                                 {{ auth_character.eve_character.corporation_name }}<br>
                                 <em>{{ auth_character.eve_character.alliance_name|default_if_none:"-" }}</em>
                             </td>                        
-                            <td>
-                                {% if auth_character.character %}
-                                    <div id="location_{{ auth_character.character.pk }}">
-                                        Loading...
-                                    </div>                            
-                                {% endif %}
+                            <td>                                
+                                <div id="location_{{ auth_character.character.pk }}">Loading...</div>
+                            </td>
+                            <td>                                
+                                {{ auth_character.character.wallet_balance.total|intword|default_if_none:"(no data)" }}                                
+                            </td>
+                            <td>                                
+                                {{ auth_character.character.skillpoints.total|intword|default_if_none:"(no data)" }}                                
+                            </td>
+                            <td>                                                            
+                                {{ auth_character.character.unread_mail_count.total|intword|default_if_none:"(no data)" }}&nbsp;&nbsp;
                             </td>
                             <td>
-                                {% if auth_character.character %}
-                                    {{ auth_character.character.wallet_balance.total|intword|default_if_none:"(no data)" }}
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if auth_character.character %}
-                                    {{ auth_character.character.skillpoints.total|intword|default_if_none:"(no data)" }}
-                                {% endif %}
-                            </td>
-                            <td>                            
-                                {% if auth_character.character %}
-                                    {{ auth_character.character.unread_mail_count.total|intword|default_if_none:"(no data)" }}&nbsp;&nbsp;
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if auth_character.character %}
-                                    <a class="btn btn-primary" href="{% url 'memberaudit:character_viewer' auth_character.character.pk %}"
-                                        role="button" title="View this character">
-                                        <i class="fas fa-search"></i>
+                            
+                                <a class="btn btn-primary" href="{% url 'memberaudit:character_viewer' auth_character.character.pk %}"
+                                    role="button" title="View this character">
+                                    <i class="fas fa-search"></i>
+                                </a>
+                                {% if auth_character.character.is_shared %}
+                                    <a class="btn btn-default" href="{% url 'memberaudit:unshare_character' auth_character.character.pk %}"
+                                        role="button" title="Recruiters have access to this character. Click to disable.">
+                                        <i class="fas fa-lock"></i>
                                     </a>
-                                    {% if auth_character.character.is_shared %}
-                                        <a class="btn btn-default" href="{% url 'memberaudit:unshare_character' auth_character.character.pk %}"
-                                            role="button" title="Recruiters have access to this character. Click to disable.">
-                                            <i class="fas fa-lock"></i>
-                                        </a>
-                                    {% else %}
-                                        <a class="btn btn-warning" href="{% url 'memberaudit:share_character' auth_character.character.pk %}"
-                                            role="button" title="Click to enable access to this character for recruiters">
-                                            <i class="fas fa-lock-open"></i>
-                                        </a>
-                                    {% endif %}
-                                    
-                                    <a class="btn btn-danger" href="{% url 'memberaudit:remove_character' auth_character.character.pk %}"
-                                        role="button" title="Remove this character from the launcher">
-                                        <i class="far fa-trash-alt"></i>
+                                {% else %}
+                                    <a class="btn btn-warning" href="{% url 'memberaudit:share_character' auth_character.character.pk %}"
+                                        role="button" title="Click to enable access to this character for recruiters">
+                                        <i class="fas fa-lock-open"></i>
                                     </a>
                                 {% endif %}
+                                
+                                <a class="btn btn-danger" href="{% url 'memberaudit:remove_character' auth_character.character.pk %}"
+                                    role="button" title="Remove this character from the launcher">
+                                    <i class="far fa-trash-alt"></i>
+                                </a>                                
                             </td>
                         </tr>
                     {% endfor %}
@@ -105,23 +91,27 @@
                             <td></td>
                             <td></td>                    
                             <td>                           
-                                <strong>
-                                    {{ wallet_balance_sum|intword|default_if_none:"" }}
-                                </strong>                             
+                                <strong>{{ wallet_balance_sum|intword|default_if_none:"" }}</strong>                             
                             </td>
                             <td></td>                    
                             <td>
-                                <strong>
-                                    {{ unread_mails_sum|intword|default_if_none:"" }}
-                                </strong>
+                                <strong>{{ unread_mails_sum|intword|default_if_none:"" }}</strong>
                             </td>
                         </tr>
                     {% endif %}
                 </tfoot>
             </table>
         {% else %}
-            <p>None</p>
-        {% endif %}
+            <p class="text-muted">No characters registered</p>
+        {% endif %}        
+        {% if unregistered_chars|length > 0 %}
+            <p>
+                <strong>You have {{ unregistered_chars|length|apnumber }} unregistered character(s):&nbsp;&nbsp;</strong>
+                {{ unregistered_chars|join:", " }}
+            </p>                
+        {% else %}
+            <p class="text-muted">All your characters are registered.</p>
+        {% endif %}        
     </div>
 </div>
 

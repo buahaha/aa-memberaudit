@@ -365,7 +365,8 @@ class Character(models.Model):
     def update_mails(self, token: Token):
         self._update_mailinglists(token)
         self._update_maillabels(token)
-        self._update_mails(token)
+        self._update_mail_headers(token)
+        self._update_mail_bodies()
 
     def _update_mailinglists(self, token: Token):
         """syncs the mailing list for the given character"""
@@ -432,7 +433,7 @@ class Character(models.Model):
                 add_prefix("Added/Updated {} mail labels".format(created_count))
             )
 
-    def _update_mails(self, token: Token):
+    def _update_mail_headers(self, token: Token):
         add_prefix = make_logger_prefix(self)
 
         # fetch mail headers
@@ -496,14 +497,11 @@ class Character(models.Model):
 
         logger.info(
             add_prefix(
-                "Updating {} mail headers and loading mail bodies".format(
-                    len(mail_headers_all)
-                )
+                f"Updating {mail_headers_all} mail headers and loading mail bodies"
             )
         )
 
         # load mail headers
-        body_count = 0
         for header in mail_headers_all:
             with transaction.atomic():
                 try:
@@ -563,25 +561,38 @@ class Character(models.Model):
                             add_prefix(f"Could not find label with id {label_id}")
                         )
 
-                if not mail_obj.body:
-                    logger.debug(
-                        add_prefix(
-                            "Fetching body from ESI for mail ID {}".format(
-                                mail_obj.mail_id
-                            )
-                        )
-                    )
-                    mail = esi.client.Mail.get_characters_character_id_mail_mail_id(
-                        character_id=self.character_ownership.character.character_id,
-                        mail_id=mail_obj.mail_id,
-                        token=token.valid_access_token(),
-                    ).result()
-                    mail_obj.body = mail.get("body", "")
-                    mail_obj.save()
-                    body_count += 1
+    def _update_mail_bodies(self):
+        from .tasks import (
+            update_mail_body_esi as task_update_mail_body_esi,
+            DEFAULT_TASK_PRIORITY,
+        )
 
-        if body_count > 0:
-            logger.info("loaded {} mail bodies".format(body_count))
+        mails_without_body_qs = self.mails.filter(body="")
+        for mail in mails_without_body_qs:
+            task_update_mail_body_esi.apply_async(
+                kwargs={"character_pk": self.pk, "mail_pk": mail.pk},
+                priority=DEFAULT_TASK_PRIORITY,
+            )
+
+        if mails_without_body_qs.count() > 0:
+            logger.info(
+                "Character %s: loaded %d mail bodies",
+                self.pk,
+                mails_without_body_qs.count(),
+            )
+
+    @fetch_token("esi-mail.read_mail.v1")
+    def update_mail_body(self, token: Token, mail: "CharacterMail") -> None:
+        logger.debug(
+            "Character %s: Fetching body from ESI for mail ID %s", self.pk, mail.mail_id
+        )
+        mail_body = esi.client.Mail.get_characters_character_id_mail_mail_id(
+            character_id=self.character_ownership.character.character_id,
+            mail_id=mail.mail_id,
+            token=token.valid_access_token(),
+        ).result()
+        mail.body = mail_body.get("body", "")
+        mail.save()
 
     @fetch_token("esi-skills.read_skills.v1")
     def update_skills(self, token):

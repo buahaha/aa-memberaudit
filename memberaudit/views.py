@@ -93,7 +93,7 @@ def launcher(request) -> HttpResponse:
     )
     has_auth_characters = owned_chars_query.count() > 0
     auth_characters = list()
-    unregistered_chars = 0
+    unregistered_chars = list()
     wallet_balance_sum = 0
     unread_mails_sum = 0
     for character_ownership in owned_chars_query:
@@ -102,7 +102,7 @@ def launcher(request) -> HttpResponse:
             character = character_ownership.memberaudit_character
         except AttributeError:
             character = None
-            unregistered_chars += 1
+            unregistered_chars.append(eve_character.character_name)
         else:
             try:
                 wallet_balance_sum += character.wallet_balance.total
@@ -113,13 +113,13 @@ def launcher(request) -> HttpResponse:
             except AttributeError:
                 pass
 
-        auth_characters.append(
-            {
-                "pk": eve_character.pk,
-                "eve_character": eve_character,
-                "character": character,
-            }
-        )
+            auth_characters.append(
+                {
+                    "pk": eve_character.pk,
+                    "eve_character": eve_character,
+                    "character": character,
+                }
+            )
 
     context = {
         "page_title": "My Characters",
@@ -128,7 +128,7 @@ def launcher(request) -> HttpResponse:
         "unregistered_chars": unregistered_chars,
         "wallet_balance_sum": wallet_balance_sum,
         "unread_mails_sum": unread_mails_sum,
-        "has_registered_characters": unregistered_chars < len(auth_characters),
+        "has_registered_characters": len(auth_characters) > 0,
     }
 
     """
@@ -441,7 +441,7 @@ def character_mail_data(
         ),
         "subject": mail.subject,
         "sent": mail.timestamp.isoformat(),
-        "body": mail.body_html,
+        "body": mail.body_html if mail.body != "" else "(no data yet)",
     }
     return JsonResponse(data, safe=False)
 

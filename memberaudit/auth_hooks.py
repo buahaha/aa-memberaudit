@@ -14,7 +14,7 @@ class MemberauditMenuItem(MenuItemHook):
         # setup menu entry for sidebar
         MenuItemHook.__init__(
             self,
-            _(__title__),
+            _(f"{__title__} [DEV]"),
             "far fa-address-card fa-fw fa-fw",
             "memberaudit:index",
             navactive=["memberaudit:index"],

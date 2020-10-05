@@ -82,7 +82,7 @@ CELERYBEAT_SCHEDULE['memberaudit_update_all_characters'] = {
 
 - Optional: Add additional settings if you want to change any defaults. See [Settings](#settings) for the full list.
 
-### Step 3 - Finalize installation
+### Step 3 - Finalize App installation
 
 Run migrations & copy static files
 
@@ -93,7 +93,15 @@ python manage.py collectstatic
 
 Restart your supervisor services for Auth
 
-### Step 4 - Load Eve Universe map data
+### Step 4 - Verify Celery configuration
+
+This app makes heavy use of Celery and will typically run through many thousands of tasks with every character update run. Auth's default process based setup for Celery workers is sadly not well suited for high task volume and we therefore strongly recommend to switch to a thread based setup (e.g. gevent). A thread based setup allows you to run 5-10x more workers in parallel, significantly reducing the duration of character update runs.
+
+For details on how to configure a celery workers with threads please check [this section](https://allianceauth.readthedocs.io/en/latest/maintenance/tuning/celery.html#increasing-task-throughput) in the Auth's documentation.
+
+Note that if you have more than 10 workers you also need to increase the connection pool for django-esi accordingly. See [here](https://gitlab.com/allianceauth/django-esi/-/blob/master/esi/app_settings.py#L32) for the corresponding setting.
+
+### Step 5 - Load Eve Universe map data
 
 In order to be able to select solar systems and ships types for trackers you need to load that data from ESI once. If you already have run those commands previously you can skip this step.
 
@@ -109,7 +117,7 @@ python manage.py memberaudit_load_eve
 
 You may want to wait until the loading is complete before starting to create new trackers.
 
-### Step 5 - Setup permissions
+### Step 6 - Setup permissions
 
 Finally you want to setup permission to define which users / groups will have access to which parts of the app. Check out [permissions](#permissions) for details.
 

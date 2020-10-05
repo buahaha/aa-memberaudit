@@ -9,7 +9,13 @@ from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
 
 from . import __title__
-from .models import Character, CharacterUpdateStatus, Location, is_esi_online
+from .models import (
+    Character,
+    CharacterMail,
+    CharacterUpdateStatus,
+    Location,
+    is_esi_online,
+)
 
 from .utils import LoggerAddTag
 
@@ -17,7 +23,6 @@ from .utils import LoggerAddTag
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 DEFAULT_TASK_PRIORITY = 6
-HIGHER_TASK_PRIORITY = 5
 ESI_ERROR_LIMIT = 50
 ESI_TIMEOUT_ONCE_ERROR_LIMIT_REACHED = 60
 LOCATION_ESI_ERRORS_CACHE_KEY = "MEMBERAUDIT_LOCATION_ESI_ERRORS"
@@ -59,19 +64,18 @@ def update_character_section(character_pk: int, section: str) -> None:
 
 
 @shared_task
-def update_character(character_pk: int, has_priority=False) -> None:
+def update_character(character_pk: int) -> None:
     """update all data for a character from ESI"""
     character = _load_character(character_pk)
     logger.info("%s: Starting character update", character)
     character.update_status_set.all().delete()
-    task_priority = HIGHER_TASK_PRIORITY if has_priority else DEFAULT_TASK_PRIORITY
     for section, _ in Character.UPDATE_SECTION_CHOICES:
         update_character_section.apply_async(
             kwargs={
                 "character_pk": character.pk,
                 "section": section,
             },
-            priority=task_priority,
+            priority=DEFAULT_TASK_PRIORITY,
         )
 
 
@@ -113,3 +117,10 @@ def update_structure_esi(self, id: int, token_pk: int):
     else:
         logger.info("Location #%s: Error limit reached. Defering task", id)
         raise self.retry(countdown=ESI_TIMEOUT_ONCE_ERROR_LIMIT_REACHED)
+
+
+@shared_task
+def update_mail_body_esi(character_pk: int, mail_pk: int):
+    character = _load_character(character_pk)
+    mail = CharacterMail.objects.get(pk=mail_pk)
+    character.update_mail_body(mail)

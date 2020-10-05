@@ -381,6 +381,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
             {19540, 19551, 19553},
         )
 
+    @override_settings(CELERY_ALWAYS_EAGER=True)
     def test_update_mails(self, mock_esi):
         mock_esi.client = esi_client_stub
 
@@ -426,6 +427,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertFalse(obj.is_read)
         self.assertEqual(obj.subject, "Mail 2")
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T18:07:00Z"))
+        self.assertEqual(obj.body, "Another mail")
 
     def test_update_skills(self, mock_esi):
         mock_esi.client = esi_client_stub
