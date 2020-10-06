@@ -687,6 +687,9 @@ class Character(models.Model):
     def fetch_location(self, token) -> Optional[dict]:
         add_prefix = make_logger_prefix(self)
         logger.info(add_prefix("Fetching character location ESI"))
+        if not is_esi_online():
+            return None, None
+
         location_info = esi.client.Location.get_characters_character_id_location(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),

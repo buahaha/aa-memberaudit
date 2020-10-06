@@ -80,22 +80,18 @@ def index(request):
 @login_required
 @permission_required("memberaudit.basic_access")
 def launcher(request) -> HttpResponse:
-    owned_chars_query = (
-        CharacterOwnership.objects.filter(user=request.user)
-        .select_related(
-            "character",
-            "memberaudit_character",
-            "memberaudit_character__wallet_balance",
-            "memberaudit_character__skillpoints",
-            "memberaudit_character__unread_mail_count",
-        )
-        .order_by("character__character_name")
+    owned_chars_query = CharacterOwnership.objects.filter(
+        user=request.user
+    ).select_related(
+        "character",
+        "memberaudit_character",
+        "memberaudit_character__wallet_balance",
+        "memberaudit_character__skillpoints",
+        "memberaudit_character__unread_mail_count",
     )
     has_auth_characters = owned_chars_query.count() > 0
     auth_characters = list()
     unregistered_chars = list()
-    wallet_balance_sum = 0
-    unread_mails_sum = 0
     for character_ownership in owned_chars_query:
         eve_character = character_ownership.character
         try:
@@ -104,19 +100,10 @@ def launcher(request) -> HttpResponse:
             character = None
             unregistered_chars.append(eve_character.character_name)
         else:
-            try:
-                wallet_balance_sum += character.wallet_balance.total
-            except AttributeError:
-                pass
-            try:
-                unread_mails_sum += character.unread_mail_count.total
-            except AttributeError:
-                pass
-
             auth_characters.append(
                 {
-                    "pk": eve_character.pk,
-                    "eve_character": eve_character,
+                    "character_id": eve_character.character_id,
+                    "character_name": eve_character.character_name,
                     "character": character,
                 }
             )
@@ -126,8 +113,6 @@ def launcher(request) -> HttpResponse:
         "auth_characters": auth_characters,
         "has_auth_characters": has_auth_characters,
         "unregistered_chars": unregistered_chars,
-        "wallet_balance_sum": wallet_balance_sum,
-        "unread_mails_sum": unread_mails_sum,
         "has_registered_characters": len(auth_characters) > 0,
     }
 

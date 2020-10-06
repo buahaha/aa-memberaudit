@@ -36,7 +36,7 @@ tbd.
 
 The main page for users to register their characters and get a key infos of all registered characters.
 
-![launcher](https://i.imgur.com/12V4qps.png)
+![launcher](https://i.imgur.com/LdILg1X.png)
 
 ### Character Viewer
 

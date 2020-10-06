@@ -1,14 +1,148 @@
-/* Wallet */
-#tab_characters thead th:nth-child(5) { text-align: center;}
-#tab_characters tbody td:nth-child(5) { text-align: right;}
-#tab_characters tfoot td:nth-child(5) { text-align: right;}
+@media all {
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+    
+    .container {
+        width: 100%;
+        padding-right: 1rem;
+        padding-left: 1rem;
+        margin-right: auto;
+        margin-left: auto;
+        
+    }
 
-/* Skillpoints */
-#tab_characters thead th:nth-child(6) { text-align: center;}
-#tab_characters tbody td:nth-child(6) { text-align: right;}
-#tab_characters tfoot td:nth-child(6) { text-align: right;}
+    .container-inner {
+        flex: 0 0 50%;
+        width: 75%;
+        max-width: 1450px;
+        margin: 0 auto;
+    }
 
-/* Mails */
-#tab_characters thead th:nth-child(7) { text-align: center;}
-#tab_characters tbody td:nth-child(7) { text-align: right;}
-#tab_characters tfoot td:nth-child(7) { text-align: right;}
+    .card {
+        position: relative;
+        display: -ms-flexbox;
+        display: flex;
+        -ms-flex-direction: column;
+        flex-direction: column;
+        min-width: 0;
+        word-wrap: break-word;
+        background-color: rgb(100, 100, 100);
+        background-clip: border-box;
+        border: 1px solid rgba(0, 0, 0, .125);
+        border-radius: 0.25rem;
+    }
+
+    .card-header, .card-footer {
+        padding: 0.75rem 1.25rem;
+        margin-bottom: 0;
+        background-color: rgba(0, 0, 0, 0.03);
+        border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+        text-align: center;
+    }
+
+    .card-footer {
+        border-bottom: none;
+        border-top: 1px solid rgba(0, 0, 0, 0.125);
+    }
+
+    .card-header:first-child {
+        border-radius: calc(0.25rem - 1px) calc(0.25rem - 1px) 0 0;
+    }
+
+    .card-body {
+        -ms-flex: 1 1 auto;
+        flex: 1 1 auto;
+        min-height: 1px;
+        padding: 1.25rem;
+    }
+
+    .cards_container {
+        display: flex;
+        flex-wrap: wrap;
+        list-style: none;
+        margin: 0 -1rem 2rem -1rem;
+        padding: 0;
+        justify-content: center;
+    }
+
+    .cards_item {
+        display: flex;
+        padding: 1rem;
+    }
+
+    .cards_item .card {
+        display: flex;
+        flex-direction: column;
+    }
+
+    img {
+        max-width: 100%;
+    }
+
+    .text-center {
+        text-align: center;
+    }
+
+    .label {
+        display: inline;
+        padding: 0.3rem 0.6rem 0.3rem;
+        font-size: 75%;
+        font-weight: 700;
+        line-height: 1;
+        color: rgb(255,255,255);
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: baseline;
+        border-radius: 0.1rem;
+        cursor: pointer;
+    }
+
+    .label-requested-scope {
+        margin-left: 1rem;
+        background-color: rgb(192, 192, 192);
+        color: rgb(54, 54, 54);
+    }
+
+    .select-character {
+        width: 100%;
+        padding: 0.35rem;
+        cursor: pointer;
+    }
+
+    form {
+        margin-bottom: 0.3rem;
+    }
+
+    .btn-new-character-sso {
+        padding: 0;
+        border: none;
+        cursor: pointer;
+    }
+}
+
+@media(min-width: 40rem) {
+    .cards_item {
+        width: 50%;
+    }
+}
+
+@media(min-width: 56rem) {
+    .cards_item {
+        width: 33.33333%;
+    }
+}
+
+@media(min-width: 75rem) {
+    .cards_item {
+        width: 25%;
+    }
+}
+
+@media(min-width: 96rem) {
+    .cards_item {
+        width: 20%;
+    }
+}
