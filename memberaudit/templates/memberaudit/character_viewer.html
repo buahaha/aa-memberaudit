@@ -14,7 +14,21 @@
             <div class="panel panel-default">
                 <div class="panel-body">
                     <p class="text-center"><img class="img-rounded" src="{{ auth_character|character_portrait_url:128 }}"/></p>
-                    <p class="text-center"><strong>{{ auth_character.character_name}}</strong></p>
+                    <p class="text-center"><strong>{{ auth_character.character_name }}</strong></p>
+{#                    <p class="text-center">#}
+{#                        <a href="{{ auth_character.corporation_name|dotlan_corporation_url }}" target="_blank">#}
+{#                            <img class="img-circle" src="{{ auth_character.corporation_id|corporation_logo_url:32 }}" width="16px" height="16px">#}
+{#                            {{ auth_character.corporation_name }}#}
+{#                        </a>#}
+{#                    </p>#}
+                    <p class="text-center">
+                        <a href="{{ auth_character|zkillboard_character_url }}" target="_blank">
+                            <img src="{% static 'memberaudit/images/zkillboard.png' %}" title="{{ auth_character.character_name }} on zKillboard">
+                        </a>
+                        <a href="{{ auth_character|evewho_character_url }}" target="_blank">
+                            <img src="{{ 1|character_portrait_url:32 }}" title="{{ auth_character.character_name }} on EveWho" width="16px" height="16px">
+                        </a>
+                    </p>
 
                     <hr/>
 
