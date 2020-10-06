@@ -11,3 +11,13 @@
 #tab_wallet thead th:nth-child(6) { text-align: center;}
 #tab_wallet tbody td:nth-child(6) { text-align: right;}
 #tab_wallet tfoot td:nth-child(6) { text-align: right;}
+
+/* paddings */
+#mainColumnLeft {
+    padding-left: 0;    
+    padding-right: 8px;
+}
+
+#mainColumnRight {
+    padding-right: 0;
+}

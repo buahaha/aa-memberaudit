@@ -26,16 +26,13 @@
                             <span class="badge">{{ unregistered_count }}</span>
                         {% endif %}
                     </a>
-                </li>            
-                {% for character in registered_characters %}
-                    <li class="{% navactive_2 request 'memberaudit:character_viewer' character.pk %}">
-                        <a href="{% url 'memberaudit:character_viewer' character.pk %}">
-                            {{ character.name }}
-                        </a>
-                    </li>                
-                {% endfor %}
-            </ul>
-            <ul class="nav navbar-nav navbar-right"> 
+                </li>                            
+                {% if "/character_viewer/" in request.path %}
+                    <li class="{% renavactive request '/character_viewer/' %}">
+                        <a href="#">Character Sheet</a>
+                    </li>
+                {% endif %}
+            
                 {% if perms.memberaudit.finder_access %}
                     <li class="{% navactive request 'memberaudit:character_finder' %}">
                         <a href="{% url 'memberaudit:character_finder' %}">

@@ -6,102 +6,102 @@
 
 {% block details %}
 
-<div class="panel panel-default">
-    <div class="panel-heading" style="display:flex;">
-        <h3 class="panel-title">{% trans 'Characters' %}</h3>
-    </div>
-    <div class="panel-body">
-            <!-- Characters -->
-            <div class="container">
-                <div class="container-inner">
-                    <ul class="cards_container">
-                        <!-- Add New Character -->
-                        <li class="cards_item">
-                            <div class="card">
-                                <div class="card-header">Register Character</div>
+    <div class="panel panel-default">
+        <div class="panel-heading" style="display:flex;">
+            <h3 class="panel-title">{% trans 'Characters' %}</h3>
+        </div>
+        <div class="panel-body">
+                <!-- Characters -->
+                <div class="container">
+                    <div class="container-inner">
+                        <ul class="cards_container">
+                            <!-- Add New Character -->
+                            <li class="cards_item">
+                                <div class="card">
+                                    <div class="card-header">Register Character</div>
 
-                                <div class="card-body card__content">
-                                    <img src="{{ 1|character_portrait_url:256 }}" alt="Add character">
-                                </div>
-
-                                <div class="card-footer">
-                                    <a class="btn btn-primary" href="{% url 'memberaudit:add_character' %}">Register</a>
-                                </div>
-                            </div>
-                        </li>
-
-                        {% if has_registered_characters %}
-                            <!-- Registered Characters -->
-                            {% for auth_character in auth_characters %}
-                                <li class="cards_item">
-                                    <div class="card">
-                                        <div class="card-header">{{ auth_character.character_name }}</div>
-
-                                        <div class="card-body card__content">
-                                            <a href="{% url 'memberaudit:character_viewer' auth_character.character.pk %}">
-                                                <img src="{{ auth_character.character_id|character_portrait_url:256 }}" alt="{{ auth_character.character_name }}">
-                                            </a>
-                                        </div>
-
-                                        <div class="card-footer">
-                                            <div id="location_{{ auth_character.character.pk }}">
-                                                Loading...
-                                            </div>
-                                            {{ auth_character.character.skillpoints.total|intword|default_if_none:"-" }} SP<br>
-                                            {{ auth_character.character.wallet_balance.total|intword|default_if_none:"-" }} ISK<br>
-                                            {{ auth_character.character.unread_mail_count.total|apnumber|default_if_none:"-" }} unread mail<br>
-                                            {% if auth_character.character.is_shared %}
-                                                <a class="btn btn-default" href="{% url 'memberaudit:unshare_character' auth_character.character.pk %}"
-                                                    role="button" title="Recruiters have access to this character. Click to disable.">
-                                                    <i class="fas fa-lock"></i>
-                                                </a>
-                                            {% else %}
-                                                <a class="btn btn-warning btn-sm" href="{% url 'memberaudit:share_character' auth_character.character.pk %}"
-                                                    role="button" title="Click to enable access to this character for recruiters">
-                                                    <i class="fas fa-lock-open"></i>
-                                                </a>
-                                            {% endif %}
-
-                                            <a class="btn btn-danger btn-sm" href="{% url 'memberaudit:remove_character' auth_character.character.pk %}"
-                                                role="button" title="Remove this character from the launcher">
-                                                <i class="far fa-trash-alt"></i>
-                                            </a>
-
-                                        </div>
+                                    <div class="card-body card__content">
+                                        <img src="{{ 1|character_portrait_url:256 }}" alt="Add character">
                                     </div>
-                                </li>
-                            {% endfor %}
-                        {% endif %}
-                    </ul>
-                </div>
-            </div>
-        {% if not has_registered_characters  %}
-            <p class="text-muted">No characters registered</p>
-        {% endif %}
 
-        {% if unregistered_chars|length > 0 %}
-            <p>
-                <strong>Unregistered character(s):&nbsp;&nbsp;</strong>
-                {{ unregistered_chars|join:", " }}
-            </p>
-        {% endif %}
+                                    <div class="card-footer">
+                                        <a class="btn btn-primary" href="{% url 'memberaudit:add_character' %}">Register</a>
+                                    </div>
+                                </div>
+                            </li>
+
+                            {% if has_registered_characters %}
+                                <!-- Registered Characters -->
+                                {% for auth_character in auth_characters|dictsort:"character_name" %}
+                                    <li class="cards_item">
+                                        <div class="card">
+                                            <div class="card-header">{{ auth_character.character_name }}</div>
+
+                                            <div class="card-body card__content">
+                                                <a href="{% url 'memberaudit:character_viewer' auth_character.character.pk %}">
+                                                    <img src="{{ auth_character.character_id|character_portrait_url:256 }}" alt="{{ auth_character.character_name }}">
+                                                </a>
+                                            </div>
+
+                                            <div class="card-footer">
+                                                <div id="location_{{ auth_character.character.pk }}">
+                                                    Loading...
+                                                </div>
+                                                {{ auth_character.character.skillpoints.total|intword|default_if_none:"-" }} SP<br>
+                                                {{ auth_character.character.wallet_balance.total|intword|default_if_none:"-" }} ISK<br>
+                                                {{ auth_character.character.unread_mail_count.total|apnumber|default_if_none:"-" }} unread mail<br>
+                                                {% if auth_character.character.is_shared %}
+                                                    <a class="btn btn-default" href="{% url 'memberaudit:unshare_character' auth_character.character.pk %}"
+                                                        role="button" title="Recruiters have access to this character. Click to disable.">
+                                                        <i class="fas fa-lock"></i>
+                                                    </a>
+                                                {% else %}
+                                                    <a class="btn btn-warning btn-sm" href="{% url 'memberaudit:share_character' auth_character.character.pk %}"
+                                                        role="button" title="Click to enable access to this character for recruiters">
+                                                        <i class="fas fa-lock-open"></i>
+                                                    </a>
+                                                {% endif %}
+
+                                                <a class="btn btn-danger btn-sm" href="{% url 'memberaudit:remove_character' auth_character.character.pk %}"
+                                                    role="button" title="Remove this character from the launcher">
+                                                    <i class="far fa-trash-alt"></i>
+                                                </a>
+
+                                            </div>
+                                        </div>
+                                    </li>
+                                {% endfor %}
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            {% if not has_registered_characters  %}
+                <p class="text-muted">No characters registered</p>
+            {% endif %}
+
+            {% if unregistered_chars|length > 0 %}
+                <p>
+                    <strong>Unregistered character(s):&nbsp;&nbsp;</strong>
+                    {{ unregistered_chars|join:", " }}
+                </p>
+            {% endif %}
+        </div>
     </div>
-</div>
 
 {% endblock details %}
 
 {% block extra_javascript %}
-<script>
-    $(document).ready(function () {
-        {% for auth_character in auth_characters %}
-        {% if auth_character.character %}
-        $("#location_" + {{ auth_character.character.pk }}).load(
-            "{% url 'memberaudit:character_location_data' auth_character.character.pk %}"
-        );
-    {% endif %}
-    {% endfor %}
-        });
-</script>
+    <script>
+        $(document).ready(function () {
+            {% for auth_character in auth_characters %}
+            {% if auth_character.character %}
+            $("#location_" + {{ auth_character.character.pk }}).load(
+                "{% url 'memberaudit:character_location_data' auth_character.character.pk %}"
+            );
+        {% endif %}
+        {% endfor %}
+            });
+    </script>
 {% endblock %}
 
 {% block extra_css %}

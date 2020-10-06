@@ -80,14 +80,16 @@ def index(request):
 @login_required
 @permission_required("memberaudit.basic_access")
 def launcher(request) -> HttpResponse:
-    owned_chars_query = CharacterOwnership.objects.filter(
-        user=request.user
-    ).select_related(
-        "character",
-        "memberaudit_character",
-        "memberaudit_character__wallet_balance",
-        "memberaudit_character__skillpoints",
-        "memberaudit_character__unread_mail_count",
+    owned_chars_query = (
+        CharacterOwnership.objects.filter(user=request.user)
+        .select_related(
+            "character",
+            "memberaudit_character",
+            "memberaudit_character__wallet_balance",
+            "memberaudit_character__skillpoints",
+            "memberaudit_character__unread_mail_count",
+        )
+        .order_by()
     )
     has_auth_characters = owned_chars_query.count() > 0
     auth_characters = list()
@@ -263,7 +265,12 @@ def character_location_data(
 
 @login_required
 @permission_required("memberaudit.basic_access")
-@fetch_character_if_allowed("details", "wallet_balance", "skillpoints")
+@fetch_character_if_allowed(
+    "details",
+    "wallet_balance",
+    "skillpoints",
+    "character_ownership__user__profile__main_character",
+)
 def character_viewer(request, character_pk: int, character: Character):
     corporation_history = list()
     for entry in (
@@ -291,12 +298,19 @@ def character_viewer(request, character_pk: int, character: Character):
         character_details = None
 
     auth_character = character.character_ownership.character
+    if character.character_ownership.user.profile.main_character:
+        main_character = character.character_ownership.user.profile.main_character
+        main = f"[{main_character.corporation_ticker}] {main_character.character_name}"
+    else:
+        main = "-"
+
     context = {
-        "page_title": auth_character.character_name,
+        "page_title": "Character Sheet",
         "character": character,
         "auth_character": auth_character,
         "character_details": character_details,
         "corporation_history": reversed(corporation_history),
+        "main": main,
     }
     return render(
         request,
