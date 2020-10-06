@@ -6,27 +6,27 @@
 
 {% block details %}
 
-    <div class="rows">   
-        
-        <div class="col-md-2" id="mainColumnLeft">  
-            
+    <div class="rows">
+
+        <div class="col-md-2" id="mainColumnLeft">
+
             <!-- Summary panel-->
             <div class="panel panel-default">
                 <div class="panel-body">
                     <p class="text-center"><img class="img-rounded" src="{{ auth_character|character_portrait_url:128 }}"/></p>
                     <p class="text-center"><strong>{{ auth_character.character_name}}</strong></p>
-                                            
+
                     <hr/>
-                    
+
                     <p class="text-center">Characters:</p>
                     <ul>
                         {% for character in registered_characters %}
-                            <li><a href="{% url 'memberaudit:character_viewer' character.pk %}">{{ character.name }}</a></li>                
+                            <li><a href="{% url 'memberaudit:character_viewer' character.pk %}">{{ character.name }}</a></li>
                         {% endfor %}
                     </ul>
 
                 </div>
-            
+
             </div>
         </div>
 
@@ -109,8 +109,8 @@
                             <li role="presentation"><a href="#history" aria-controls="history" role="tab" data-toggle="tab">Corporation History</a></li>
                             <li role="presentation" class="active"><a href="#mail" aria-controls="mail" role="tab" data-toggle="tab">Mail</a></li>
                             <li role="presentation" class="disabled"><a href="#skillqueue" aria-controls="skillqueue" role="tab" data-toggle="tab">Skillqueue</a></li>
-                            <li role="presentation"><a href="#skills" aria-controls="skills" role="tab" data-toggle="tab">Skills</a></li>                
-                            <li role="presentation"><a href="#wallet" aria-controls="wallet" role="tab" data-toggle="tab">Wallet</a></li>                
+                            <li role="presentation"><a href="#skills" aria-controls="skills" role="tab" data-toggle="tab">Skills</a></li>
+                            <li role="presentation"><a href="#wallet" aria-controls="wallet" role="tab" data-toggle="tab">Wallet</a></li>
                         </ul>
                         <br>
 
@@ -150,11 +150,11 @@
                             <div role="tabpanel" class="tab-pane active" id="mail">
                                 {% if not character.has_mails %}
                                     <p>No data yet...</p>
-                                {% else %}                    
+                                {% else %}
                                     <div class="table-responsive">
                                         <table class="table table-striped" id="tab_mails" style="width:100%;">
                                             <thead>
-                                                <tr>                                    
+                                                <tr>
                                                     <th>sent</th>
                                                     <th>from</th>
                                                     <th>to</th>
@@ -186,11 +186,11 @@
                             </div>
 
                             <div role="tabpanel" class="tab-pane" id="skillqueue">TBD</div>
-                                
+
                             <div role="tabpanel" class="tab-pane" id="wallet">
                                 {% if not character.has_wallet_journal %}
                                     <p>No data yet...</p>
-                                {% else %}  
+                                {% else %}
                                     <div class="table-responsive">
                                         <table class="table table-striped" id="tab_wallet" style="width:100%;">
                                             <thead>
@@ -217,7 +217,7 @@
                         </div>
                     </div>
                 </div>
-            </div>            
+            </div>
         </div>
     </div>
 
@@ -231,10 +231,10 @@
                     </span></button>
                     <h4 class="modal-title" id="myModalLabel">Loading...</h4>
                 </div>
-                <div class="modal-body">                
+                <div class="modal-body">
                     <dl class="dl-horizontal">
                         <dt>From:</dt>
-                        <dd id="mail_from">Loading...</dd>                
+                        <dd id="mail_from">Loading...</dd>
                         <dt>To:</dt>
                         <dd id="mail_to">Loading...</dd>
                         <dt>Sent:</dt>
@@ -246,7 +246,7 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-default" data-dismiss="modal">
                         Close
-                    </button>                
+                    </button>
                 </div>
             </div>
         </div>
@@ -256,20 +256,19 @@
 
 {% block extra_javascript %}
     {% include 'bundles/datatables-js.html' %}
-    
+
     <script type="application/javascript"
         src="{% static 'memberaudit/vendor/datatables/plugins/dataTables.rowGroup.min.js' %}"></script>
 
-    <script type="application/javascript"
-        src="{% static 'memberaudit/vendor/moment/moment.min.js' %}"></script>
+    {% include 'bundles/moment-js.html' with locale=True %}
 
     <script type="application/javascript"
         src="{% static 'memberaudit/vendor/datatables/plugins/datetime.js' %}"></script>
-    
-    <script type="application/javascript">        
+
+    <script type="application/javascript">
         var DATETIME_FORMAT = 'YYYY-MMM-DD HH:mm'
-        
-        $(document).ready(function () {                    
+
+        $(document).ready(function () {
             $("#div_location").load(
                 "{% url 'memberaudit:character_location_data' character.pk %}"
             );
@@ -287,19 +286,19 @@
                     { data: 'implants' }
                 ],
                 order: [[0, "asc"], [1, "asc"]]
-                
+
             });
-            
+
             $('#tab_mails').DataTable({
                 ajax: {
                     url: "{% url 'memberaudit:character_mail_headers_data' character.pk %}",
                     dataSrc: '',
                     cache: false
                 },
-                columns: [                    
-                    { 
+                columns: [
+                    {
                         data: 'sent',
-                        render: $.fn.dataTable.render.moment( moment.ISO_8601, DATETIME_FORMAT ) 
+                        render: $.fn.dataTable.render.moment( moment.ISO_8601, DATETIME_FORMAT )
                     },
                     { data: 'from' },
                     { data: 'to' },
@@ -313,18 +312,18 @@
                 var button = $(event.relatedTarget)
                 var character_pk = button.data('character_pk')
                 var mail_pk = button.data('mail_pk')
-                var modal = $(this)                
+                var modal = $(this)
                 $.get(
                     "{% url 'memberaudit:character_mail_data' 1 2 %}"
-                    .replace("/1", "/" + character_pk) 
-                    .replace("/2", "/" + mail_pk), 
+                    .replace("/1", "/" + character_pk)
+                    .replace("/2", "/" + mail_pk),
                     function(data, status){
                         modal.find('.modal-title').html(data.subject)
                         modal.find('#mail_from').html(data.from)
                         modal.find('#mail_to').html(data.to)
                         modal.find('#mail_sent').html(data.sent)
                         modal.find('#mail_body').html(data.body)
-                });                
+                });
             })
 
             $('#tab_skills').DataTable({
@@ -345,7 +344,7 @@
                 },
                 columnDefs: [
                     { "visible": false, "targets": [0] }
-                ]  
+                ]
             });
 
             $('#tab_wallet').DataTable({
@@ -362,17 +361,17 @@
                     { data: 'ref_type' },
                     { data: 'first_party' },
                     { data: 'second_party' },
-                    { 
-                        data: 'amount', 
+                    {
+                        data: 'amount',
                         render: $.fn.dataTable.render.number( ',', '.', 2 )
                     },
-                    { 
-                        data: 'balance', 
+                    {
+                        data: 'balance',
                         render: $.fn.dataTable.render.number( ',', '.', 2 )
                     },
                     { data: 'description' },
                 ],
-                order: [[0, "desc"]]                            
+                order: [[0, "desc"]]
             });
         });
     </script>
