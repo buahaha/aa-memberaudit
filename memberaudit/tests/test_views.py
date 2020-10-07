@@ -451,12 +451,14 @@ class TestCharacterLocationData(TestCase):
         cls.factory = RequestFactory()
         load_eveuniverse()
         load_entities()
+        load_locations()
         cls.character = create_memberaudit_character(1001)
         cls.user = cls.character.character_ownership.user
-        cls.abune = EveSolarSystem.objects.get(id=30004984)
+        cls.jita = EveSolarSystem.objects.get(id=30000142)
+        cls.jita_44 = Location.objects.get(id=60003760)
 
-    def test_normal(self, mock_fetch_location):
-        mock_fetch_location.return_value = (self.abune, None)
+    def test_location_normal(self, mock_fetch_location):
+        mock_fetch_location.return_value = (self.jita, self.jita_44)
 
         request = self.factory.get(
             reverse("memberaudit:character_location_data", args=[self.character.pk])
@@ -465,7 +467,19 @@ class TestCharacterLocationData(TestCase):
         orig_view = character_location_data.__wrapped__
         response = orig_view(request, self.character.pk)
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Abune", response.content.decode("utf8"))
+        self.assertIn("Caldari Navy Assembly Plant", response.content.decode("utf8"))
+
+    def test_solar_system_normal(self, mock_fetch_location):
+        mock_fetch_location.return_value = (self.jita, self.jita_44)
+
+        request = self.factory.get(
+            reverse("memberaudit:character_location_data", args=[self.character.pk])
+        )
+        request.user = self.user
+        orig_view = character_location_data.__wrapped__
+        response = orig_view(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Jita", response.content.decode("utf8"))
 
     def test_http_error(self, mock_fetch_location):
         mock_fetch_location.side_effect = HTTPNotFound(

@@ -20,7 +20,6 @@ from eveuniverse.models import (
     EveFaction,
     EveRace,
     EveSolarSystem,
-    EveStation,
     EveType,
 )
 
@@ -700,13 +699,17 @@ class Character(models.Model):
             id=location_info.get("solar_system_id")
         )
         if location_info.get("station_id"):
-            station, _ = EveStation.objects.get_or_create_esi(
-                id=location_info.get("station_id")
+            location, _ = Location.objects.get_or_create_esi(
+                id=location_info.get("station_id"), token=token
+            )
+        elif location_info.get("structure_id"):
+            location, _ = Location.objects.get_or_create_esi(
+                id=location_info.get("structure_id"), token=token
             )
         else:
-            station = None
+            location = None
 
-        return solar_system, station
+        return solar_system, location
 
     @classmethod
     def get_esi_scopes(cls) -> list:

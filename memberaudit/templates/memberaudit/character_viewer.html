@@ -94,10 +94,12 @@
                             <dl class="dl-horizontal">
                                 <dt>System</dt>
                                 <dd>
-                                    <div id="div_location">Loading...</div>
+                                    <div id="div_solar_system">Loading...</div>
                                 </dd>
                                 <dt>Location:</dt>
-                                <dd>TBD</dd>
+                                <dd>
+                                    <div id="div_location">Loading...</div>
+                                </dd>
                                 <dt>Race / Achestry :</dt>
                                 <dd>{{ character_details.eve_bloodline.eve_race }} / {{ character_details.eve_bloodline }}</dd>
                                 <dt>Main:</dt>
@@ -283,6 +285,9 @@
         var DATETIME_FORMAT = 'YYYY-MMM-DD HH:mm'
 
         $(document).ready(function () {
+            $("#div_solar_system").load(
+                "{% url 'memberaudit:character_solar_system_data' character.pk %}"
+            );
             $("#div_location").load(
                 "{% url 'memberaudit:character_location_data' character.pk %}"
             );

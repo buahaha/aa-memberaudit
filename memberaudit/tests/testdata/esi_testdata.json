@@ -55,7 +55,12 @@
     "Location": {
         "get_characters_character_id_location": {
             "1001": {
-                "solar_system_id": 30004984
+                "solar_system_id": 30000142,
+                "station_id": 60003760
+            },
+            "1002": {
+                "solar_system_id": 30002537,
+                "structure_id": 1000000000001
             }
         }
     },

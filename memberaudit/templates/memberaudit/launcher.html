@@ -46,7 +46,7 @@
                                         </p>
 
                                         <div class="text-center">
-                                            <div id="location_{{ auth_character.character.pk }}">
+                                            <div id="solar_system_{{ auth_character.character.pk }}">
                                                 Loading...
                                             </div>
                                             {{ auth_character.character.skillpoints.total|intword|default_if_none:"-" }} SP<br>
@@ -106,8 +106,8 @@
         $(document).ready(function () {
             {% for auth_character in auth_characters %}
             {% if auth_character.character %}
-            $("#location_" + {{ auth_character.character.pk }}).load(
-                "{% url 'memberaudit:character_location_data' auth_character.character.pk %}"
+            $("#solar_system_" + {{ auth_character.character.pk }}).load(
+                "{% url 'memberaudit:character_solar_system_data' auth_character.character.pk %}"
             );
         {% endif %}
         {% endfor %}
