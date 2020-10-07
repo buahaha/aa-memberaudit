@@ -21,11 +21,13 @@
                                     <div class="card-header">Register Character</div>
 
                                     <div class="card-body card__content">
-                                        <img src="{{ 1|character_portrait_url:256 }}" alt="Add character">
+                                        <a href="{% url 'memberaudit:add_character' %}">
+                                            <img src="{{ 1|character_portrait_url:256 }}" alt="Add character">
+                                        </a>
                                     </div>
 
                                     <div class="card-footer">
-                                        <a class="btn btn-primary" href="{% url 'memberaudit:add_character' %}">Register</a>
+                                        <a class="btn btn-primary btn-sm" href="{% url 'memberaudit:add_character' %}">Register</a>
                                     </div>
                                 </div>
                             </li>
@@ -38,18 +40,28 @@
                                             <div class="card-header">{{ auth_character.character_name }}</div>
 
                                             <div class="card-body card__content">
-                                                <a href="{% url 'memberaudit:character_viewer' auth_character.character.pk %}">
-                                                    <img src="{{ auth_character.character_id|character_portrait_url:256 }}" alt="{{ auth_character.character_name }}">
-                                                </a>
+                                                <p>
+                                                    <a href="{% url 'memberaudit:character_viewer' auth_character.character.pk %}">
+                                                        <img src="{{ auth_character.character_id|character_portrait_url:256 }}" alt="{{ auth_character.character_name }}">
+                                                    </a>
+                                                </p>
+
+                                                <div class="text-center">
+                                                    <div id="location_{{ auth_character.character.pk }}">
+                                                        Loading...
+                                                    </div>
+                                                    {{ auth_character.character.skillpoints.total|intword|default_if_none:"-" }} SP<br>
+                                                    {{ auth_character.character.wallet_balance.total|intword|default_if_none:"-" }} ISK<br>
+                                                    {{ auth_character.character.unread_mail_count.total|apnumber|default_if_none:"-" }} unread mail<br>
+                                                </div>
                                             </div>
 
                                             <div class="card-footer">
-                                                <div id="location_{{ auth_character.character.pk }}">
-                                                    Loading...
-                                                </div>
-                                                {{ auth_character.character.skillpoints.total|intword|default_if_none:"-" }} SP<br>
-                                                {{ auth_character.character.wallet_balance.total|intword|default_if_none:"-" }} ISK<br>
-                                                {{ auth_character.character.unread_mail_count.total|apnumber|default_if_none:"-" }} unread mail<br>
+                                                <a class="btn btn-success btn-sm" href="{% url 'memberaudit:character_viewer' auth_character.character.pk %}"
+                                                    role="button" title="Use this character.">
+                                                    <i class="fas fa-sign-in-alt"></i>
+                                                </a>
+
                                                 {% if auth_character.character.is_shared %}
                                                     <a class="btn btn-default btn-sm" href="{% url 'memberaudit:unshare_character' auth_character.character.pk %}"
                                                         role="button" title="Recruiters have access to this character. Click to disable.">
