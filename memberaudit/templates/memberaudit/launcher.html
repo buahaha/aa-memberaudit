@@ -41,7 +41,19 @@
                                     <div class="card-body card__content">
                                         <p>
                                             <a href="{% url 'memberaudit:character_viewer' auth_character.character.pk %}">
-                                                <img src="{{ auth_character.character_id|character_portrait_url:256 }}" alt="{{ auth_character.character_name }}">
+                                                <span class="aa-memberaudit-launcher-character-image">
+                                                    <img src="{{ auth_character.character_id|character_portrait_url:256 }}" alt="{{ auth_character.character_name }}">
+
+                                                    {% if auth_character.alliance_id %}
+                                                    <span class="aa-memberaudit-alliance-logo">
+                                                        <img class="" src="{{ auth_character.alliance_id|alliance_logo_url:64 }}">
+                                                    </span>
+                                                    {% endif %}
+
+                                                    <span class="aa-memberaudit-corporation-logo">
+                                                        <img class="" src="{{ auth_character.corporation_id|corporation_logo_url:64 }}">
+                                                    </span>
+                                                </span>
                                             </a>
                                         </p>
 
@@ -49,9 +61,7 @@
                                             <div id="solar_system_{{ auth_character.character.pk }}">
                                                 Loading...
                                             </div>
-                                            {{ auth_character.character.skillpoints.total|intword|default_if_none:"-" }} SP<br>
                                             {{ auth_character.character.wallet_balance.total|intword|default_if_none:"-" }} ISK<br>
-                                            {{ auth_character.character.unread_mail_count.total|apnumber|default_if_none:"-" }} unread mail<br>
                                         </div>
                                     </div>
 
@@ -77,7 +87,6 @@
                                             role="button" title="Remove this character from the launcher">
                                             <i class="far fa-trash-alt"></i>
                                         </a>
-
                                     </div>
                                 </div>
                             </li>
@@ -105,13 +114,13 @@
     <script>
         $(document).ready(function () {
             {% for auth_character in auth_characters %}
-            {% if auth_character.character %}
-            $("#solar_system_" + {{ auth_character.character.pk }}).load(
-                "{% url 'memberaudit:character_solar_system_data' auth_character.character.pk %}"
-            );
-        {% endif %}
-        {% endfor %}
-            });
+                {% if auth_character.character %}
+                $("#solar_system_" + {{ auth_character.character.pk }}).load(
+                    "{% url 'memberaudit:character_solar_system_data' auth_character.character.pk %}"
+                );
+                {% endif %}
+            {% endfor %}
+        });
     </script>
 {% endblock %}
 
