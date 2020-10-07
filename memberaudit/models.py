@@ -753,27 +753,25 @@ class Character(models.Model):
         raise ValueError(f"Unknown update section: {section}")
 
 
-class CharacterUpdateStatus(models.Model):
-    """Update status for a character"""
-
+class CharacterCorporationHistory(models.Model):
     character = models.ForeignKey(
-        Character, on_delete=models.CASCADE, related_name="update_status_set"
+        Character, on_delete=models.CASCADE, related_name="corporation_history"
     )
-    section = models.CharField(max_length=2, choices=Character.UPDATE_SECTION_CHOICES)
-    is_success = models.BooleanField(db_index=True)
-    error_message = models.TextField()
-    updated_at = models.DateTimeField(auto_now=True)
+    record_id = models.PositiveIntegerField(db_index=True)
+    corporation = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
+    is_deleted = models.BooleanField(null=True, default=None, db_index=True)
+    start_date = models.DateTimeField(db_index=True)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["character", "section"],
-                name="functional_pk_charactersyncstatus",
+                fields=["character", "record_id"],
+                name="functional_pk_charactercorporationhistory",
             )
         ]
 
     def __str__(self):
-        return f"{self.character}-{self.get_section_display()}"
+        return str(f"{self.character}-{self.record_id}")
 
 
 class CharacterDetails(models.Model):
@@ -829,66 +827,6 @@ class CharacterDetails(models.Model):
         return eve_xml_to_html(self.description)
 
 
-class CharacterWalletBalance(models.Model):
-    """Wallet balance of a character"""
-
-    character = models.OneToOneField(
-        Character,
-        primary_key=True,
-        on_delete=models.CASCADE,
-        related_name="wallet_balance",
-    )
-    total = models.DecimalField(
-        max_digits=CURRENCY_MAX_DIGITS, decimal_places=CURRENCY_MAX_DECIMALS
-    )
-
-
-class CharacterSkillpoints(models.Model):
-    """Skillpoints of a character"""
-
-    character = models.OneToOneField(
-        Character,
-        primary_key=True,
-        on_delete=models.CASCADE,
-        related_name="skillpoints",
-    )
-    total = models.BigIntegerField(validators=[MinValueValidator(0)])
-    unallocated = models.PositiveIntegerField(default=None, null=True)
-
-
-class CharacterMailUnreadCount(models.Model):
-    """Wallet balance of a character"""
-
-    character = models.OneToOneField(
-        Character,
-        primary_key=True,
-        on_delete=models.CASCADE,
-        related_name="unread_mail_count",
-    )
-    total = models.PositiveIntegerField()
-
-
-class CharacterCorporationHistory(models.Model):
-    character = models.ForeignKey(
-        Character, on_delete=models.CASCADE, related_name="corporation_history"
-    )
-    record_id = models.PositiveIntegerField(db_index=True)
-    corporation = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
-    is_deleted = models.BooleanField(null=True, default=None, db_index=True)
-    start_date = models.DateTimeField(db_index=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["character", "record_id"],
-                name="functional_pk_charactercorporationhistory",
-            )
-        ]
-
-    def __str__(self):
-        return str(f"{self.character}-{self.record_id}")
-
-
 class CharacterJumpClone(models.Model):
     """Jump clone of a character"""
 
@@ -921,6 +859,47 @@ class CharacterJumpCloneImplant(models.Model):
 
     def __str__(self):
         return str(f"{self.jump_clone}-{self.eve_type}")
+
+
+class CharacterMail(models.Model):
+    """Mail of a character"""
+
+    character = models.ForeignKey(
+        Character,
+        on_delete=models.CASCADE,
+        related_name="mails",
+        help_text="character this mail belongs to",
+    )
+    mail_id = models.PositiveIntegerField()
+    from_entity = models.ForeignKey(
+        EveEntity, on_delete=models.CASCADE, null=True, default=None
+    )
+    from_mailing_list = models.ForeignKey(
+        "CharacterMailingList",
+        on_delete=models.CASCADE,
+        null=True,
+        default=None,
+        blank=True,
+    )
+    is_read = models.BooleanField(null=True, default=None)
+    subject = models.CharField(max_length=255, default="")
+    body = models.TextField()
+    timestamp = models.DateTimeField(null=True, default=None)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "mail_id"], name="functional_pk_charactermail"
+            )
+        ]
+
+    def __str__(self):
+        return str(self.mail_id)
+
+    @property
+    def body_html(self) -> str:
+        """returns the body as html"""
+        return eve_xml_to_html(self.body)
 
 
 class CharacterMailingList(models.Model):
@@ -970,47 +949,6 @@ class CharacterMailLabel(models.Model):
         return self.name
 
 
-class CharacterMail(models.Model):
-    """Mail of a character"""
-
-    character = models.ForeignKey(
-        Character,
-        on_delete=models.CASCADE,
-        related_name="mails",
-        help_text="character this mail belongs to",
-    )
-    mail_id = models.PositiveIntegerField()
-    from_entity = models.ForeignKey(
-        EveEntity, on_delete=models.CASCADE, null=True, default=None
-    )
-    from_mailing_list = models.ForeignKey(
-        CharacterMailingList,
-        on_delete=models.CASCADE,
-        null=True,
-        default=None,
-        blank=True,
-    )
-    is_read = models.BooleanField(null=True, default=None)
-    subject = models.CharField(max_length=255, default="")
-    body = models.TextField()
-    timestamp = models.DateTimeField(null=True, default=None)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["character", "mail_id"], name="functional_pk_charactermail"
-            )
-        ]
-
-    def __str__(self):
-        return str(self.mail_id)
-
-    @property
-    def body_html(self) -> str:
-        """returns the body as html"""
-        return eve_xml_to_html(self.body)
-
-
 class CharacterMailMailLabel(models.Model):
     """Mail label used in a mail"""
 
@@ -1052,6 +990,18 @@ class CharacterMailRecipient(models.Model):
         return self.mailing_list.name if self.mailing_list else self.eve_entity.name
 
 
+class CharacterMailUnreadCount(models.Model):
+    """Wallet balance of a character"""
+
+    character = models.OneToOneField(
+        Character,
+        primary_key=True,
+        on_delete=models.CASCADE,
+        related_name="unread_mail_count",
+    )
+    total = models.PositiveIntegerField()
+
+
 class CharacterSkill(models.Model):
     character = models.ForeignKey(
         Character, on_delete=models.CASCADE, related_name="skills"
@@ -1070,6 +1020,56 @@ class CharacterSkill(models.Model):
 
     def __str__(self):
         return f"{self.character}-{self.eve_type.name}"
+
+
+class CharacterSkillpoints(models.Model):
+    """Skillpoints of a character"""
+
+    character = models.OneToOneField(
+        Character,
+        primary_key=True,
+        on_delete=models.CASCADE,
+        related_name="skillpoints",
+    )
+    total = models.BigIntegerField(validators=[MinValueValidator(0)])
+    unallocated = models.PositiveIntegerField(default=None, null=True)
+
+
+class CharacterUpdateStatus(models.Model):
+    """Update status for a character"""
+
+    character = models.ForeignKey(
+        Character, on_delete=models.CASCADE, related_name="update_status_set"
+    )
+    section = models.CharField(max_length=2, choices=Character.UPDATE_SECTION_CHOICES)
+    is_success = models.BooleanField(db_index=True)
+    error_message = models.TextField()
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "section"],
+                name="functional_pk_charactersyncstatus",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.character}-{self.get_section_display()}"
+
+
+class CharacterWalletBalance(models.Model):
+    """Wallet balance of a character"""
+
+    character = models.OneToOneField(
+        Character,
+        primary_key=True,
+        on_delete=models.CASCADE,
+        related_name="wallet_balance",
+    )
+    total = models.DecimalField(
+        max_digits=CURRENCY_MAX_DIGITS, decimal_places=CURRENCY_MAX_DECIMALS
+    )
 
 
 class CharacterWalletJournalEntry(models.Model):
