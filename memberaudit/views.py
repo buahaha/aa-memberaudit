@@ -107,6 +107,8 @@ def launcher(request) -> HttpResponse:
                     "character_id": eve_character.character_id,
                     "character_name": eve_character.character_name,
                     "character": character,
+                    "alliance_id": eve_character.alliance_id,
+                    "corporation_id": eve_character.corporation_id,
                 }
             )
 
