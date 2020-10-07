@@ -171,6 +171,7 @@ class Character(models.Model):
         CharacterOwnership,
         related_name="memberaudit_character",
         on_delete=models.CASCADE,
+        primary_key=True,
         help_text="ownership of this character on Auth",
     )
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)

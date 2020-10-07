@@ -183,13 +183,13 @@ def remove_character(request, character_pk: int) -> HttpResponse:
     except Character.DoesNotExist:
         return HttpResponseNotFound(f"Character with pk {character_pk} not found")
 
+    character_name = character.character_ownership.character.character_name
     if character.character_ownership.user == request.user:
         character.delete()
         messages_plus.success(
             request,
             format_html(
-                "Removed character <strong>{}</strong> as requested.",
-                character.character_ownership.character,
+                "Removed character <strong>{}</strong> as requested.", character_name
             ),
         )
     else:
