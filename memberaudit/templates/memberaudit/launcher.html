@@ -44,9 +44,12 @@
                                                 <span class="aa-memberaudit-launcher-character-image">
                                                     <img src="{{ auth_character.character_id|character_portrait_url:256 }}" alt="{{ auth_character.character_name }}">
 
+                                                    {% if auth_character.alliance_id %}
                                                     <span class="aa-memberaudit-alliance-logo">
                                                         <img class="" src="{{ auth_character.alliance_id|alliance_logo_url:64 }}">
                                                     </span>
+                                                    {% endif %}
+
                                                     <span class="aa-memberaudit-corporation-logo">
                                                         <img class="" src="{{ auth_character.corporation_id|corporation_logo_url:64 }}">
                                                     </span>
