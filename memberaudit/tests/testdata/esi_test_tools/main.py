@@ -66,11 +66,19 @@ class _EsiRoute:
 
     def call(self, **kwargs):
         pk_value = None
-        if self._primary_key and self._primary_key not in kwargs:
-            raise ValueError(
-                f"{self._category}.{self._method}: Missing primary key: "
-                f"{self._primary_key}"
-            )
+        if self._primary_key:
+            if isinstance(self._primary_key, tuple):
+                for pk in self._primary_key:
+                    if pk not in kwargs:
+                        raise ValueError(
+                            f"{self._category}.{self._method}: Missing primary key: {pk}"
+                        )
+
+            elif self._primary_key not in kwargs:
+                raise ValueError(
+                    f"{self._category}.{self._method}: Missing primary key: "
+                    f"{self._primary_key}"
+                )
         if self._needs_token:
             if "token" not in kwargs:
                 raise ValueError(
@@ -84,10 +92,20 @@ class _EsiRoute:
                 )
         try:
             if self._primary_key:
-                pk_value = str(kwargs[self._primary_key])
-                result = self._convert_values(
-                    self._testdata[self._category][self._method][pk_value]
-                )
+
+                if isinstance(self._primary_key, tuple):
+                    pk_value_1 = str(kwargs[self._primary_key[0]])
+                    pk_value_2 = str(kwargs[self._primary_key[1]])
+                    result = self._convert_values(
+                        self._testdata[self._category][self._method][pk_value_1][
+                            pk_value_2
+                        ]
+                    )
+                else:
+                    pk_value = str(kwargs[self._primary_key])
+                    result = self._convert_values(
+                        self._testdata[self._category][self._method][pk_value]
+                    )
             else:
                 result = self._convert_values(
                     self._testdata[self._category][self._method]

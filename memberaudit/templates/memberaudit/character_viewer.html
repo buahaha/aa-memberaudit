@@ -121,7 +121,7 @@
                             <li role="presentation"><a href="#bio" aria-controls="bio" role="tab" data-toggle="tab">Bio</a></li>
                             <li role="presentation"><a href="#clones" aria-controls="clones" role="tab" data-toggle="tab">Clones</a></li>
                             <li role="presentation" class="disabled"><a href="#contacts" aria-controls="contacts" role="tab" data-toggle="tab">Contacts</a></li>
-                            <li role="presentation" class="disabled"><a href="#contracts" aria-controls="contracts" role="tab" data-toggle="tab">Contracts</a></li>
+                            <li role="presentation"><a href="#contracts" aria-controls="contracts" role="tab" data-toggle="tab">Contracts</a></li>
                             <li role="presentation"><a href="#history" aria-controls="history" role="tab" data-toggle="tab">Corporation History</a></li>
                             <li role="presentation" class="active"><a href="#mail" aria-controls="mail" role="tab" data-toggle="tab">Mail</a></li>
                             <li role="presentation" class="disabled"><a href="#skillqueue" aria-controls="skillqueue" role="tab" data-toggle="tab">Skillqueue</a></li>
@@ -132,6 +132,30 @@
 
                         <!-- Tab panes -->
                         <div class="tab-content">
+
+                            <div role="tabpanel" class="tab-pane" id="assets">TBD</div>                            
+                            <div role="tabpanel" class="tab-pane" id="contacts">TBD</div>
+                            
+                            <div role="tabpanel" class="tab-pane" id="contracts">
+                                <div class="table-responsive">
+                                    <table class="table table-striped" id="tab_contracts" style="width:100%;">
+                                        <thead>
+                                            <tr>
+                                                <th>Contract</th>
+                                                <th>Type</th>
+                                                <th>From</th>
+                                                <th>To</th>
+                                                <th>Status</th>
+                                                <th>Date Issued</th>
+                                                <th>Time Left</th>
+                                                <th>Info</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
 
                             <div role="tabpanel" class="tab-pane" id="bio">
                                 {{ character_details.description_plain|default:"-" }}
@@ -225,11 +249,7 @@
                                         </table>
                                     </div>
                                 {% endif %}
-                            </div>
-
-                            <div role="tabpanel" class="tab-pane" id="contracts">TBD</div>
-                            <div role="tabpanel" class="tab-pane" id="contacts">TBD</div>
-                            <div role="tabpanel" class="tab-pane" id="assets">TBD</div>
+                            </div>                            
                         </div>
                     </div>
                 </div>
@@ -292,6 +312,25 @@
                 "{% url 'memberaudit:character_location_data' character.pk %}"
             );
 
+            $('#tab_contracts').DataTable({
+                ajax: {
+                    url: "{% url 'memberaudit:character_contracts_data' character.pk %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    { data: 'contract' },
+                    { data: 'type' },
+                    { data: 'from' },
+                    { data: 'to' },
+                    { data: 'status' },
+                    { data: 'date_issued' },
+                    { data: 'time_left' },
+                    { data: 'info' }
+                ],
+                order: [[0, "asc"]]
+            });
+
             $('#tab_jump_clones').DataTable({
                 ajax: {
                     url: "{% url 'memberaudit:character_jump_clones_data' character.pk %}",
@@ -305,7 +344,6 @@
                     { data: 'implants' }
                 ],
                 order: [[0, "asc"], [1, "asc"]]
-
             });
 
             $('#tab_mails').DataTable({

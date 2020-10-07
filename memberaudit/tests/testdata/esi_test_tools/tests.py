@@ -12,6 +12,7 @@ testdata = {
         "get_details": {"1": {"appointment": "2015-03-24T11:37:00Z"}},
         "get_secret": {"1": "blue secret", "2": "red secret"},
         "get_simple": "steak",
+        "get_double_impact": {"1": {"A": "Madrid", "B": "Tokyo"}},
     }
 }
 
@@ -24,6 +25,7 @@ class TestEsiClientStub(TestCase):
                 EsiEndpoint("Alpha", "get_cake", "cake_id"),
                 EsiEndpoint("Alpha", "get_secret", "secret_id", needs_token=True),
                 EsiEndpoint("Alpha", "get_simple"),
+                EsiEndpoint("Alpha", "get_double_impact", ("first_id", "second_id")),
             ],
         )
 
@@ -35,6 +37,10 @@ class TestEsiClientStub(TestCase):
             self.stub.Alpha.get_cake(cake_id=2).results(), "strawberrycake"
         )
         self.assertEqual(self.stub.Alpha.get_simple().results(), "steak")
+        self.assertEqual(
+            self.stub.Alpha.get_double_impact(first_id="1", second_id="B").results(),
+            "Tokyo",
+        )
 
     def test_raises_exception_on_wrong_pk(self):
         with self.assertRaises(ValueError):

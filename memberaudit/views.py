@@ -1,3 +1,5 @@
+import datetime as dt
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import transaction
@@ -339,6 +341,41 @@ def character_viewer(request, character_pk: int, character: Character):
         "memberaudit/character_viewer.html",
         add_common_context(request, context),
     )
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_contracts_data(
+    request, character_pk: int, character: Character
+) -> JsonResponse:
+    data = list()
+    try:
+        for contract in character.contracts.select_related("issuer", "assignee").all():
+            if contract.days_to_complete:
+                time_left = (
+                    contract.date_issued
+                    + dt.timedelta(days=contract.days_to_complete)
+                    - now()
+                )
+            else:
+                time_left = None
+            data.append(
+                {
+                    "contract": contract.contract_id,
+                    "type": contract.get_contract_type_display(),
+                    "from": contract.issuer.name,
+                    "to": contract.assignee.name if contract.assignee else "",
+                    "status": contract.get_status_display(),
+                    "date_issued": contract.date_issued.isoformat(),
+                    "time_left": str(time_left) if time_left else "N/A",
+                    "info": contract.title,
+                }
+            )
+    except ObjectDoesNotExist:
+        pass
+
+    return JsonResponse(data, safe=False)
 
 
 @login_required

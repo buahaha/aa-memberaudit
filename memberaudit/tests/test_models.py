@@ -15,6 +15,7 @@ from allianceauth.tests.auth_utils import AuthUtils
 from . import create_memberaudit_character, create_user_from_evecharacter
 from ..models import (
     Character,
+    CharacterContract,
     CharacterDetails,
     CharacterMail,
     CharacterUpdateStatus,
@@ -340,6 +341,56 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         cls.jita_44 = Location.objects.get(id=60003760)
         cls.amamake = EveSolarSystem.objects.get(id=30002537)
         cls.structure_1 = Location.objects.get(id=1000000000001)
+
+    def test_update_contracts(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_contracts()
+        self.assertEqual(self.character_1001.contracts.count(), 2)
+
+        # courier contract
+        obj = self.character_1001.contracts.get(contract_id=100000001)
+        self.assertEqual(obj.contract_type, CharacterContract.TYPE_COURIER)
+        self.assertEqual(obj.acceptor, EveEntity.objects.get(id=1101))
+        self.assertEqual(obj.assignee, EveEntity.objects.get(id=2101))
+        self.assertEqual(obj.availability, CharacterContract.AVAILABILITY_PERSONAL)
+        self.assertIsNone(obj.buyout)
+        self.assertEqual(float(obj.collateral), 550000000.0)
+        self.assertEqual(obj.date_accepted, parse_datetime("2019-10-06T13:15:21Z"))
+        self.assertEqual(obj.date_completed, parse_datetime("2019-10-07T13:15:21Z"))
+        self.assertEqual(obj.date_expired, parse_datetime("2019-10-09T13:15:21Z"))
+        self.assertEqual(obj.date_issued, parse_datetime("2019-10-02T13:15:21Z"))
+        self.assertEqual(obj.days_to_complete, 3)
+        self.assertEqual(obj.end_location, self.structure_1)
+        self.assertFalse(obj.for_corporation)
+        self.assertEqual(obj.issuer_corporation, EveEntity.objects.get(id=2001))
+        self.assertEqual(obj.issuer, EveEntity.objects.get(id=1001))
+        self.assertEqual(float(obj.price), 0.0)
+        self.assertEqual(float(obj.reward), 500000000.0)
+        self.assertEqual(obj.start_location, self.jita_44)
+        self.assertEqual(obj.status, CharacterContract.STATUS_IN_PROGRESS)
+        self.assertEqual(obj.title, "Test 1")
+        self.assertEqual(obj.volume, 486000.0)
+
+        # item exchange contract
+        obj = self.character_1001.contracts.get(contract_id=100000002)
+        self.assertEqual(obj.contract_type, CharacterContract.TYPE_ITEM_EXCHANGE)
+        self.assertEqual(float(obj.price), 270000000.0)
+        self.assertEqual(obj.volume, 486000.0)
+        self.assertEqual(obj.status, CharacterContract.STATUS_FINISHED)
+        self.assertEqual(obj.items.count(), 2)
+
+        item = obj.items.get(record_id=1)
+        self.assertTrue(item.is_included)
+        self.assertFalse(item.is_singleton)
+        self.assertEqual(item.quantity, 3)
+        self.assertEqual(item.eve_type, EveType.objects.get(id=19540))
+
+        item = obj.items.get(record_id=2)
+        self.assertTrue(item.is_included)
+        self.assertFalse(item.is_singleton)
+        self.assertEqual(item.quantity, 5)
+        self.assertEqual(item.eve_type, EveType.objects.get(id=19551))
 
     def test_update_character_details(self, mock_esi):
         mock_esi.client = esi_client_stub

@@ -8,6 +8,7 @@ from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.utils.html import strip_tags
 from django.utils.safestring import mark_safe
+from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 
 from bravado.exception import HTTPError
@@ -59,6 +60,28 @@ def is_esi_online() -> bool:
         return False
 
     return True
+
+
+def get_or_create_eveuniverse_or_none(
+    prop_name: str, dct: dict, Model: type
+) -> Optional[models.Model]:
+    if dct.get(prop_name):
+        obj, _ = Model.objects.get_or_create_esi(id=dct.get(prop_name))
+    else:
+        obj = None
+
+    return obj
+
+
+def get_or_create_location_or_none(
+    prop_name: str, dct: dict, token: Token
+) -> Optional[models.Model]:
+    if dct.get(prop_name):
+        obj, _ = Location.objects.get_or_create_esi(id=dct.get(prop_name), token=token)
+    else:
+        obj = None
+
+    return obj
 
 
 class General(models.Model):
@@ -150,6 +173,7 @@ class Character(models.Model):
     """
 
     UPDATE_SECTION_CHARACTER_DETAILS = "CD"
+    UPDATE_SECTION_CONTRACTS = "CR"
     UPDATE_SECTION_CORPORATION_HISTORY = "CH"
     UPDATE_SECTION_JUMP_CLONES = "JC"
     UPDATE_SECTION_MAILS = "MA"
@@ -158,6 +182,7 @@ class Character(models.Model):
     UPDATE_SECTION_WALLET_JOURNAL = "WJ"
     UPDATE_SECTION_CHOICES = (
         (UPDATE_SECTION_CHARACTER_DETAILS, _("character details")),
+        (UPDATE_SECTION_CONTRACTS, _("contracts")),
         (UPDATE_SECTION_CORPORATION_HISTORY, _("corporation history")),
         (UPDATE_SECTION_JUMP_CLONES, _("jump clones")),
         (UPDATE_SECTION_MAILS, _("mails")),
@@ -303,6 +328,124 @@ class Character(models.Model):
             },
         )
 
+    def update_corporation_history(self):
+        """syncs the character's corporation history"""
+        add_prefix = make_logger_prefix(self)
+        logger.info(add_prefix("Fetching corporation history from ESI"))
+        history = esi.client.Character.get_characters_character_id_corporationhistory(
+            character_id=self.character_ownership.character.character_id,
+        ).results()
+        for row in history:
+            corporation, _ = EveEntity.objects.get_or_create_esi(
+                id=row.get("corporation_id")
+            )
+            CharacterCorporationHistory.objects.update_or_create(
+                character=self,
+                record_id=row.get("record_id"),
+                defaults={
+                    "corporation": corporation,
+                    "is_deleted": row.get("is_deleted"),
+                    "start_date": row.get("start_date"),
+                },
+            )
+
+    @fetch_token("esi-contracts.read_character_contracts.v1")
+    def update_contracts(self, token: Token):
+        """update the character's contracts"""
+        add_prefix = make_logger_prefix(self)
+        logger.info(add_prefix("Fetching contracts from ESI"))
+        contracts = esi.client.Contracts.get_characters_character_id_contracts(
+            character_id=self.character_ownership.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+        availability_map = {
+            "alliance": CharacterContract.AVAILABILITY_ALLIANCE,
+            "corporation": CharacterContract.AVAILABILITY_CORPORATION,
+            "personal": CharacterContract.AVAILABILITY_PERSONAL,
+            "public": CharacterContract.AVAILABILITY_PUBLIC,
+        }
+        status_map = {
+            "canceled": CharacterContract.STATUS_CANCELED,
+            "deleted": CharacterContract.STATUS_DELETED,
+            "failed": CharacterContract.STATUS_FAILED,
+            "finished": CharacterContract.STATUS_FINISHED,
+            "finished_contractor": CharacterContract.STATUS_FINISHED_CONTRACTOR,
+            "finished_issuer": CharacterContract.STATUS_FINISHED_ISSUER,
+            "in_progress": CharacterContract.STATUS_IN_PROGRESS,
+            "outstanding": CharacterContract.STATUS_OUTSTANDING,
+            "rejected": CharacterContract.STATUS_REJECTED,
+            "reversed": CharacterContract.STATUS_REVERSED,
+        }
+        type_map = {
+            "auction": CharacterContract.TYPE_AUCTION,
+            "courier": CharacterContract.TYPE_COURIER,
+            "item_exchange": CharacterContract.TYPE_ITEM_EXCHANGE,
+            "loan": CharacterContract.TYPE_LOAN,
+            "unknown": CharacterContract.TYPE_UNKNOWN,
+        }
+        for contract in contracts:
+            obj, _ = CharacterContract.objects.update_or_create(
+                character=self,
+                contract_id=contract.get("contract_id"),
+                defaults={
+                    "acceptor": get_or_create_eveuniverse_or_none(
+                        "acceptor_id", contract, EveEntity
+                    ),
+                    "acceptor_corporation": get_or_create_eveuniverse_or_none(
+                        "acceptor_corporation_id", contract, EveEntity
+                    ),
+                    "assignee": get_or_create_eveuniverse_or_none(
+                        "assignee_id", contract, EveEntity
+                    ),
+                    "availability": availability_map[contract.get("availability")],
+                    "buyout": contract.get("buyout"),
+                    "collateral": contract.get("collateral"),
+                    "contract_type": type_map[contract.get("type")],
+                    "date_accepted": contract.get("date_accepted"),
+                    "date_completed": contract.get("date_completed"),
+                    "date_expired": contract.get("date_expired"),
+                    "date_issued": contract.get("date_issued"),
+                    "days_to_complete": contract.get("days_to_complete"),
+                    "end_location": get_or_create_location_or_none(
+                        "end_location_id", contract, token
+                    ),
+                    "for_corporation": contract.get("for_corporation"),
+                    "issuer_corporation": get_or_create_eveuniverse_or_none(
+                        "issuer_corporation_id", contract, EveEntity
+                    ),
+                    "issuer": get_or_create_eveuniverse_or_none(
+                        "issuer_id", contract, EveEntity
+                    ),
+                    "price": contract.get("price"),
+                    "reward": contract.get("reward"),
+                    "start_location": get_or_create_location_or_none(
+                        "start_location_id", contract, token
+                    ),
+                    "status": status_map[contract.get("status")],
+                    "title": contract.get("title", ""),
+                    "volume": contract.get("volume"),
+                },
+            )
+            if obj.contract_type == CharacterContract.TYPE_ITEM_EXCHANGE:
+                with transaction.atomic():
+                    obj.items.all().delete()
+                    items = esi.client.Contracts.get_characters_character_id_contracts_contract_id_items(
+                        character_id=self.character_ownership.character.character_id,
+                        contract_id=obj.contract_id,
+                        token=token.valid_access_token(),
+                    ).results()
+                    for item in items:
+                        CharacterContractItem.objects.create(
+                            contract=obj,
+                            record_id=item.get("record_id"),
+                            is_included=item.get("is_included"),
+                            is_singleton=item.get("is_singleton"),
+                            quantity=item.get("quantity"),
+                            eve_type=get_or_create_eveuniverse_or_none(
+                                "type_id", item, EveType
+                            ),
+                        )
+
     @fetch_token("esi-clones.read_clones.v1")
     def update_jump_clones(self, token: Token):
         """updates the character's jump clones"""
@@ -339,27 +482,6 @@ class Character(models.Model):
                     CharacterJumpCloneImplant.objects.create(
                         jump_clone=jump_clone, eve_type=eve_type
                     )
-
-    def update_corporation_history(self):
-        """syncs the character's corporation history"""
-        add_prefix = make_logger_prefix(self)
-        logger.info(add_prefix("Fetching corporation history from ESI"))
-        history = esi.client.Character.get_characters_character_id_corporationhistory(
-            character_id=self.character_ownership.character.character_id,
-        ).results()
-        for row in history:
-            corporation, _ = EveEntity.objects.get_or_create_esi(
-                id=row.get("corporation_id")
-            )
-            CharacterCorporationHistory.objects.update_or_create(
-                character=self,
-                record_id=row.get("record_id"),
-                defaults={
-                    "corporation": corporation,
-                    "is_deleted": row.get("is_deleted"),
-                    "start_date": row.get("start_date"),
-                },
-            )
 
     @fetch_token("esi-mail.read_mail.v1")
     def update_mails(self, token: Token):
@@ -751,6 +873,228 @@ class Character(models.Model):
                 return f"update_{method_partial}"
 
         raise ValueError(f"Unknown update section: {section}")
+
+
+class CharacterContract(models.Model):
+    """An Eve Online contract belonging to a Character"""
+
+    AVAILABILITY_ALLIANCE = "AL"
+    AVAILABILITY_CORPORATION = "CO"
+    AVAILABILITY_PERSONAL = "PR"
+    AVAILABILITY_PUBLIC = "PU"
+    AVAILABILITY_CHOICES = (
+        (AVAILABILITY_ALLIANCE, _("alliance")),
+        (AVAILABILITY_CORPORATION, _("corporation")),
+        (AVAILABILITY_PERSONAL, _("personal")),
+        (AVAILABILITY_PUBLIC, _("public")),
+    )
+
+    STATUS_OUTSTANDING = "OS"
+    STATUS_IN_PROGRESS = "IP"
+    STATUS_FINISHED_ISSUER = "FI"
+    STATUS_FINISHED_CONTRACTOR = "FC"
+    STATUS_FINISHED = "FS"
+    STATUS_CANCELED = "CA"
+    STATUS_REJECTED = "RJ"
+    STATUS_FAILED = "FL"
+    STATUS_DELETED = "DL"
+    STATUS_REVERSED = "RV"
+
+    STATUS_CHOICES = (
+        (STATUS_CANCELED, _("canceled")),
+        (STATUS_DELETED, _("deleted")),
+        (STATUS_FAILED, _("failed")),
+        (STATUS_FINISHED, _("finished")),
+        (STATUS_FINISHED_CONTRACTOR, _("finished contractor")),
+        (STATUS_FINISHED_ISSUER, _("finished issuer")),
+        (STATUS_IN_PROGRESS, _("in progress")),
+        (STATUS_OUTSTANDING, _("outstanding")),
+        (STATUS_REJECTED, _("rejected")),
+        (STATUS_REVERSED, _("reversed")),
+    )
+
+    TYPE_AUCTION = "AT"
+    TYPE_COURIER = "CR"
+    TYPE_ITEM_EXCHANGE = "IE"
+    TYPE_LOAN = "LN"
+    TYPE_UNKNOWN = "UK"
+    TYPE_CHOICES = (
+        (TYPE_AUCTION, _("auction")),
+        (TYPE_COURIER, _("courier")),
+        (TYPE_ITEM_EXCHANGE, _("item exchange")),
+        (TYPE_LOAN, _("loan")),
+        (TYPE_UNKNOWN, _("unknown")),
+    )
+
+    character = models.ForeignKey(
+        Character,
+        on_delete=models.CASCADE,
+        related_name="contracts",
+    )
+    contract_id = models.IntegerField()
+
+    acceptor = models.ForeignKey(
+        EveEntity,
+        on_delete=models.CASCADE,
+        default=None,
+        null=True,
+        related_name="acceptor_character_contracts",
+        help_text="Who will accept the contract if character",
+    )
+    acceptor_corporation = models.ForeignKey(
+        EveEntity,
+        on_delete=models.CASCADE,
+        default=None,
+        null=True,
+        related_name="acceptor_corporation_contracts",
+        help_text="corporation of acceptor",
+    )
+    assignee = models.ForeignKey(
+        EveEntity,
+        on_delete=models.CASCADE,
+        default=None,
+        null=True,
+        related_name="assignee_character_contracts",
+        help_text="To whom the contract is assigned, can be a corporation or a character",
+    )
+    availability = models.CharField(
+        max_length=2,
+        choices=AVAILABILITY_CHOICES,
+        help_text="To whom the contract is available",
+    )
+    buyout = models.DecimalField(
+        max_digits=CURRENCY_MAX_DIGITS,
+        decimal_places=CURRENCY_MAX_DECIMALS,
+        default=None,
+        null=True,
+    )
+    collateral = models.DecimalField(
+        max_digits=CURRENCY_MAX_DIGITS,
+        decimal_places=CURRENCY_MAX_DECIMALS,
+        default=None,
+        null=True,
+    )
+    contract_type = models.CharField(max_length=2, choices=TYPE_CHOICES)
+    date_accepted = models.DateTimeField(default=None, null=True)
+    date_completed = models.DateTimeField(default=None, null=True)
+    date_expired = models.DateTimeField()
+    date_issued = models.DateTimeField()
+    days_to_complete = models.IntegerField(default=None, null=True)
+    end_location = models.ForeignKey(
+        Location,
+        on_delete=models.CASCADE,
+        related_name="contract_end_location",
+        default=None,
+        null=True,
+    )
+    for_corporation = models.BooleanField()
+    issuer_corporation = models.ForeignKey(
+        EveEntity,
+        on_delete=models.CASCADE,
+        related_name="issuer_corporation_contracts",
+    )
+    issuer = models.ForeignKey(
+        EveEntity, on_delete=models.CASCADE, related_name="issuer_character_contracts"
+    )
+    price = models.DecimalField(
+        max_digits=CURRENCY_MAX_DIGITS,
+        decimal_places=CURRENCY_MAX_DECIMALS,
+        default=None,
+        null=True,
+    )
+    reward = models.DecimalField(
+        max_digits=CURRENCY_MAX_DIGITS,
+        decimal_places=CURRENCY_MAX_DECIMALS,
+        default=None,
+        null=True,
+    )
+    start_location = models.ForeignKey(
+        Location,
+        on_delete=models.CASCADE,
+        related_name="contract_start_location",
+        default=None,
+        null=True,
+    )
+    status = models.CharField(max_length=2, choices=STATUS_CHOICES)
+    title = models.CharField(max_length=NAMES_MAX_LENGTH, default="")
+    volume = models.FloatField(default=None, null=True)
+
+    """
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "contract_id"],
+                name="functional_pk_charactercontract",
+            )
+        ]
+    """
+
+    def __str__(self) -> str:
+        return f"{self.character}-{self.contract_id}"
+
+    @property
+    def is_completed(self) -> bool:
+        """whether this contract is completed or active"""
+        return self.status in [
+            self.STATUS_FINISHED_ISSUER,
+            self.STATUS_FINISHED_CONTRACTOR,
+            self.STATUS_FINISHED_ISSUER,
+            self.STATUS_CANCELED,
+            self.STATUS_REJECTED,
+            self.STATUS_DELETED,
+            self.STATUS_FINISHED,
+            self.STATUS_FAILED,
+        ]
+
+    @property
+    def is_in_progress(self) -> bool:
+        return self.status == self.STATUS_IN_PROGRESS
+
+    @property
+    def is_failed(self) -> bool:
+        return self.status == self.STATUS_FAILED
+
+    @property
+    def has_expired(self) -> bool:
+        """returns true if this contract is expired"""
+        return self.date_expired < now()
+
+    @property
+    def hours_issued_2_completed(self) -> float:
+        if self.date_completed:
+            td = self.date_completed - self.date_issued
+            return td.days * 24 + (td.seconds / 3600)
+        else:
+            return None
+
+
+class CharacterContractBid(models.Model):
+    contract = models.ForeignKey(
+        CharacterContract, on_delete=models.CASCADE, related_name="bids"
+    )
+    bid_id = models.PositiveIntegerField(db_index=True)
+
+    amount = models.FloatField()
+    bidder = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
+    date_bid = models.DateTimeField()
+
+    def __str__(self) -> str:
+        return f"{self.contract}-{self.bid_id}"
+
+
+class CharacterContractItem(models.Model):
+    contract = models.ForeignKey(
+        CharacterContract, on_delete=models.CASCADE, related_name="items"
+    )
+    record_id = models.PositiveIntegerField(db_index=True)
+    is_included = models.BooleanField()
+    is_singleton = models.BooleanField()
+    quantity = models.PositiveIntegerField()
+    raw_quantity = models.PositiveIntegerField(default=None, null=True)
+    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
+
+    def __str__(self) -> str:
+        return f"{self.contract}-{self.record_id}"
 
 
 class CharacterCorporationHistory(models.Model):

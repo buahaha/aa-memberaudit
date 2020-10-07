@@ -1,3 +1,4 @@
+import datetime as dt
 import json
 from unittest.mock import patch, Mock
 
@@ -20,6 +21,7 @@ from .testdata.load_locations import load_locations
 from . import create_memberaudit_character
 from ..models import (
     Character,
+    CharacterContract,
     CharacterJumpClone,
     CharacterJumpCloneImplant,
     CharacterMail,
@@ -35,6 +37,7 @@ from ..views import (
     launcher,
     character_viewer,
     character_location_data,
+    character_contracts_data,
     character_jump_clones_data,
     character_mail_headers_data,
     character_mail_data,
@@ -82,6 +85,38 @@ class TestViews(TestCase):
         request.user = self.user
         response = character_viewer(request, self.character.pk)
         self.assertEqual(response.status_code, 200)
+
+    def test_character_contracts_data(self):
+        CharacterContract.objects.create(
+            character=self.character,
+            contract_id=42,
+            contract_type=CharacterContract.TYPE_ITEM_EXCHANGE,
+            assignee=EveEntity.objects.get(id=1002),
+            date_issued=now() - dt.timedelta(days=2),
+            date_expired=now() + dt.timedelta(days=2),
+            for_corporation=False,
+            issuer=EveEntity.objects.get(id=1001),
+            issuer_corporation=EveEntity.objects.get(id=2001),
+            status=CharacterContract.STATUS_IN_PROGRESS,
+            title="Dummy info",
+        )
+        request = self.factory.get(
+            reverse("memberaudit:character_contracts_data", args=[self.character.pk])
+        )
+        request.user = self.user
+        response = character_contracts_data(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertEqual(len(data), 1)
+        row = data[0]
+        self.assertEqual(row["contract"], 42)
+        self.assertEqual(row["type"], "item exchange")
+        self.assertEqual(row["from"], "Bruce Wayne")
+        self.assertEqual(row["to"], "Clark Kent")
+        self.assertEqual(row["status"], "in progress")
+        self.assertTrue(row["date_issued"])
+        self.assertTrue(row["time_left"])
+        self.assertEqual(row["info"], "Dummy info")
 
     def test_character_jump_clones_data(self):
         jump_clone = CharacterJumpClone.objects.create(
