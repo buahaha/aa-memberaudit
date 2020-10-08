@@ -18,7 +18,7 @@ An app for auditing members on Alliance Auth
 
 ## Overview
 
-Memberaudit adds three key functions to Auth:
+Memberaudit adds the following key features to Auth:
 
 - Users can see an overview of all their characters with key information like current location and wallet balance
 - Users can see many details about their characters without having to log into Eve (e.g. wallet, mails, assets, ...)
