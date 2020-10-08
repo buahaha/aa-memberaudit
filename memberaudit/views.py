@@ -360,7 +360,13 @@ def character_contracts_data(
             else:
                 time_left = "expired"
 
-            if contract.contract_type == CharacterContract.TYPE_ITEM_EXCHANGE:
+            if contract.contract_type == CharacterContract.TYPE_COURIER:
+                contract_description = (
+                    f"{contract.start_location.eve_solar_system} >> "
+                    f"{contract.end_location.eve_solar_system} "
+                    f"({contract.volume:.0f} m3)"
+                )
+            else:
                 if contract.items.count() > 1:
                     contract_description = "Multiple Items"
                 else:
@@ -368,14 +374,6 @@ def character_contracts_data(
                     contract_description = (
                         first_item.eve_type.name if first_item else "?"
                     )
-            elif contract.contract_type == CharacterContract.TYPE_COURIER:
-                contract_description = (
-                    f"{contract.start_location.eve_solar_system} >> "
-                    f"{contract.end_location.eve_solar_system} "
-                    f"({contract.volume:.0f} m3)"
-                )
-            else:
-                contract_description = "(undefined)"
 
             data.append(
                 {
@@ -383,7 +381,7 @@ def character_contracts_data(
                     "contract": contract_description,
                     "type": contract.get_contract_type_display().title(),
                     "from": contract.issuer.name,
-                    "to": contract.assignee.name if contract.assignee else "",
+                    "to": contract.assignee.name if contract.assignee else "(None)",
                     "status": contract.get_status_display(),
                     "date_issued": contract.date_issued.isoformat(),
                     "time_left": time_left,

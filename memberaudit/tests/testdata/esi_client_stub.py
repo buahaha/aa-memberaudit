@@ -34,7 +34,7 @@ esi_client_stub = EsiClientStub(
         EsiEndpoint(
             "Contracts",
             "get_characters_character_id_contracts_contract_id_bids",
-            "character_id",
+            ("character_id", "contract_id"),
         ),
         EsiEndpoint(
             "Contracts",

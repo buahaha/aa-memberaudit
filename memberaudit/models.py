@@ -349,6 +349,7 @@ class Character(models.Model):
                 },
             )
 
+    # TODO: split loading of items/bids per contract into tasks
     @fetch_token("esi-contracts.read_character_contracts.v1")
     def update_contracts(self, token: Token):
         """update the character's contracts"""
@@ -426,7 +427,10 @@ class Character(models.Model):
                     "volume": contract.get("volume"),
                 },
             )
-            if obj.contract_type == CharacterContract.TYPE_ITEM_EXCHANGE:
+            if obj.contract_type in [
+                CharacterContract.TYPE_ITEM_EXCHANGE,
+                CharacterContract.TYPE_AUCTION,
+            ]:
                 with transaction.atomic():
                     obj.items.all().delete()
                     items = esi.client.Contracts.get_characters_character_id_contracts_contract_id_items(
@@ -444,6 +448,25 @@ class Character(models.Model):
                             eve_type=get_or_create_eveuniverse_or_none(
                                 "type_id", item, EveType
                             ),
+                        )
+
+            if obj.contract_type == CharacterContract.TYPE_AUCTION:
+                with transaction.atomic():
+                    obj.bids.all().delete()
+                    bids = esi.client.Contracts.get_characters_character_id_contracts_contract_id_bids(
+                        character_id=self.character_ownership.character.character_id,
+                        contract_id=obj.contract_id,
+                        token=token.valid_access_token(),
+                    ).results()
+                    for bid in bids:
+                        CharacterContractBid.objects.create(
+                            contract=obj,
+                            bid_id=bid.get("bid_id"),
+                            amount=bid.get("amount"),
+                            bidder=get_or_create_eveuniverse_or_none(
+                                "bidder_id", bid, EveEntity
+                            ),
+                            date_bid=bid.get("date_bid"),
                         )
 
     @fetch_token("esi-clones.read_clones.v1")
@@ -1019,7 +1042,7 @@ class CharacterContract(models.Model):
     title = models.CharField(max_length=NAMES_MAX_LENGTH, default="")
     volume = models.FloatField(default=None, null=True)
 
-    """
+    """ TODO: enable once stable
     class Meta:
         constraints = [
             models.UniqueConstraint(

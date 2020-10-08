@@ -342,13 +342,13 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         cls.amamake = EveSolarSystem.objects.get(id=30002537)
         cls.structure_1 = Location.objects.get(id=1000000000001)
 
-    def test_update_contracts(self, mock_esi):
+    def test_update_contracts_1(self, mock_esi):
+        """courier contract"""
         mock_esi.client = esi_client_stub
 
         self.character_1001.update_contracts()
-        self.assertEqual(self.character_1001.contracts.count(), 2)
+        self.assertEqual(self.character_1001.contracts.count(), 3)
 
-        # courier contract
         obj = self.character_1001.contracts.get(contract_id=100000001)
         self.assertEqual(obj.contract_type, CharacterContract.TYPE_COURIER)
         self.assertEqual(obj.acceptor, EveEntity.objects.get(id=1101))
@@ -372,7 +372,11 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(obj.title, "Test 1")
         self.assertEqual(obj.volume, 486000.0)
 
-        # item exchange contract
+    def test_update_contracts_2(self, mock_esi):
+        """item exchange contract"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_contracts()
         obj = self.character_1001.contracts.get(contract_id=100000002)
         self.assertEqual(obj.contract_type, CharacterContract.TYPE_ITEM_EXCHANGE)
         self.assertEqual(float(obj.price), 270000000.0)
@@ -391,6 +395,24 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertFalse(item.is_singleton)
         self.assertEqual(item.quantity, 5)
         self.assertEqual(item.eve_type, EveType.objects.get(id=19551))
+
+    def test_update_contracts_3(self, mock_esi):
+        """auction contract"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_contracts()
+        obj = self.character_1001.contracts.get(contract_id=100000003)
+        self.assertEqual(obj.contract_type, CharacterContract.TYPE_AUCTION)
+        self.assertEqual(float(obj.buyout), 200000000.0)
+        self.assertEqual(float(obj.price), 20000000.0)
+        self.assertEqual(obj.volume, 400.0)
+        self.assertEqual(obj.status, CharacterContract.STATUS_OUTSTANDING)
+        self.assertEqual(obj.items.count(), 1)
+
+        bid = obj.bids.get(bid_id=1)
+        self.assertEqual(float(bid.amount), 1000000.23)
+        self.assertEqual(bid.date_bid, parse_datetime("2017-01-01T10:10:10Z"))
+        self.assertEqual(bid.bidder, EveEntity.objects.get(id=1101))
 
     def test_update_character_details(self, mock_esi):
         mock_esi.client = esi_client_stub
