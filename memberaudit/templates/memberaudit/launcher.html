@@ -46,12 +46,12 @@
 
                                                     {% if auth_character.alliance_id %}
                                                     <span class="aa-memberaudit-alliance-logo">
-                                                        <img class="" src="{{ auth_character.alliance_id|alliance_logo_url:64 }}">
+                                                        <img class="" src="{{ auth_character.alliance_id|alliance_logo_url:64 }}" title="{{ auth_character.alliance_name }}">
                                                     </span>
                                                     {% endif %}
 
                                                     <span class="aa-memberaudit-corporation-logo">
-                                                        <img class="" src="{{ auth_character.corporation_id|corporation_logo_url:64 }}">
+                                                        <img class="" src="{{ auth_character.corporation_id|corporation_logo_url:64 }}" title="{{ auth_character.corporation_name }}">
                                                     </span>
                                                 </span>
                                             </a>

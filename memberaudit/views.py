@@ -110,7 +110,9 @@ def launcher(request) -> HttpResponse:
                     "character_name": eve_character.character_name,
                     "character": character,
                     "alliance_id": eve_character.alliance_id,
+                    "alliance_name": eve_character.alliance_name,
                     "corporation_id": eve_character.corporation_id,
+                    "corporation_name": eve_character.corporation_name,
                 }
             )
 
