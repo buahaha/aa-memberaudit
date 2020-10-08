@@ -133,9 +133,9 @@
                         <!-- Tab panes -->
                         <div class="tab-content">
 
-                            <div role="tabpanel" class="tab-pane" id="assets">TBD</div>                            
+                            <div role="tabpanel" class="tab-pane" id="assets">TBD</div>
                             <div role="tabpanel" class="tab-pane" id="contacts">TBD</div>
-                            
+
                             <div role="tabpanel" class="tab-pane" id="contracts">
                                 <div class="table-responsive">
                                     <table class="table table-striped" id="tab_contracts" style="width:100%;">
@@ -249,7 +249,7 @@
                                         </table>
                                     </div>
                                 {% endif %}
-                            </div>                            
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -372,8 +372,8 @@
                 var modal = $(this)
                 $.get(
                     "{% url 'memberaudit:character_mail_data' 1 2 %}"
-                    .replace("/1", "/" + character_pk)
-                    .replace("/2", "/" + mail_pk),
+                    .replace("/2", "/" + mail_pk)
+                    .replace("/1", "/" + character_pk),
                     function(data, status){
                         modal.find('.modal-title').html(data.subject)
                         modal.find('#mail_from').html(data.from)
