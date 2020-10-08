@@ -1,6 +1,6 @@
 # aa-memberaudit
 
-**!! This is an early development version and not ready yet for production. !!**
+**!! This app is in development and not ready yet for production. !!**
 
 An app for auditing members on Alliance Auth
 
