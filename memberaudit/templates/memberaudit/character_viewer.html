@@ -355,7 +355,7 @@
                 columns: [
                     {
                         data: 'sent',
-                        render: $.fn.dataTable.render.moment( moment.ISO_8601, DATETIME_FORMAT )
+                        render: $.fn.dataTable.render.moment(moment.ISO_8601, DATETIME_FORMAT)
                     },
                     { data: 'from' },
                     { data: 'to' },
@@ -365,21 +365,19 @@
                 order: [[0, "desc"]],
             });
 
-            $('#modalCharacterMail').on('show.bs.modal', function (event) {
+            $('#modalCharacterMail').on('show.bs.modal', function(event) {
                 var button = $(event.relatedTarget)
-                var character_pk = button.data('character_pk')
-                var mail_pk = button.data('mail_pk')
-                var modal = $(this)
+                var ajax_mail_body = button.data('ajax_mail_body');
+                var modal = $(this);
+
                 $.get(
-                    "{% url 'memberaudit:character_mail_data' 1 2 %}"
-                    .replace("/2", "/" + mail_pk)
-                    .replace("/1", "/" + character_pk),
-                    function(data, status){
-                        modal.find('.modal-title').html(data.subject)
-                        modal.find('#mail_from').html(data.from)
-                        modal.find('#mail_to').html(data.to)
-                        modal.find('#mail_sent').html(data.sent)
-                        modal.find('#mail_body').html(data.body)
+                    ajax_mail_body,
+                    function(data, status) {
+                        modal.find('.modal-title').html(data.subject);
+                        modal.find('#mail_from').html(data.from);
+                        modal.find('#mail_to').html(data.to);
+                        modal.find('#mail_sent').html(data.sent);
+                        modal.find('#mail_body').html(data.body);
                 });
             })
 

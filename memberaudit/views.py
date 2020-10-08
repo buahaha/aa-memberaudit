@@ -442,12 +442,17 @@ def character_mail_headers_data(
         for mail in character.mails.select_related(
             "from_entity", "from_mailing_list", "from_mailing_list"
         ).all():
+            mail_ajax_url = reverse(
+                "memberaudit:character_mail_data", args=[character.pk, mail.pk]
+            )
+
             actions_html = (
                 '<button type="button" class="btn btn-primary" '
                 'data-toggle="modal" data-target="#modalCharacterMail" '
-                f"data-character_pk={character_pk} data-mail_pk={mail.pk}>"
+                f"data-ajax_mail_body={mail_ajax_url}>"
                 '<i class="fas fa-search"></i></button>'
             )
+
             mails_data.append(
                 {
                     "mail_id": mail.mail_id,
