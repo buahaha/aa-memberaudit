@@ -20,4 +20,4 @@ notifications_raw*.json
 structures_raw*.json
 starbases_raw*.json
 .mypy_cache
-
+todos.md

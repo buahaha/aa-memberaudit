@@ -3,6 +3,7 @@ import json
 from unittest.mock import patch, Mock
 
 from bravado.exception import HTTPNotFound
+import pytz
 
 from django.http import JsonResponse
 from django.test import TestCase, RequestFactory
@@ -22,6 +23,7 @@ from . import create_memberaudit_character
 from ..models import (
     Character,
     CharacterContract,
+    CharacterContractItem,
     CharacterJumpClone,
     CharacterJumpCloneImplant,
     CharacterMail,
@@ -70,7 +72,8 @@ class TestViews(TestCase):
         cls.jita = EveSolarSystem.objects.get(id=30000142)
         cls.jita_trade_hub = EveType.objects.get(id=52678)
         cls.corporation_2001 = EveEntity.objects.get(id=2001)
-        cls.jita_station = Location.objects.get(id=60003760)
+        cls.jita_44 = Location.objects.get(id=60003760)
+        cls.structure_1 = Location.objects.get(id=1000000000001)
 
     def test_can_open_launcher_view(self):
         request = self.factory.get(reverse("memberaudit:launcher"))
@@ -86,19 +89,33 @@ class TestViews(TestCase):
         response = character_viewer(request, self.character.pk)
         self.assertEqual(response.status_code, 200)
 
-    def test_character_contracts_data(self):
-        CharacterContract.objects.create(
+    @patch(MODULE_PATH + ".now")
+    def test_character_contracts_data_1(self, mock_now):
+        """items exchange single item"""
+        date_issued = dt.datetime(2020, 10, 8, 16, 45, tzinfo=pytz.utc)
+        date_now = date_issued + dt.timedelta(days=1)
+        date_expired = date_now + dt.timedelta(days=2, hours=3)
+        mock_now.return_value = date_now
+        contract = CharacterContract.objects.create(
             character=self.character,
             contract_id=42,
             contract_type=CharacterContract.TYPE_ITEM_EXCHANGE,
             assignee=EveEntity.objects.get(id=1002),
-            date_issued=now() - dt.timedelta(days=2),
-            date_expired=now() + dt.timedelta(days=2),
+            date_issued=date_issued,
+            date_expired=date_expired,
             for_corporation=False,
             issuer=EveEntity.objects.get(id=1001),
             issuer_corporation=EveEntity.objects.get(id=2001),
             status=CharacterContract.STATUS_IN_PROGRESS,
             title="Dummy info",
+        )
+        CharacterContractItem.objects.create(
+            contract=contract,
+            record_id=1,
+            is_included=True,
+            is_singleton=False,
+            quantity=1,
+            eve_type=EveType.objects.get(id=19540),
         )
         request = self.factory.get(
             reverse("memberaudit:character_contracts_data", args=[self.character.pk])
@@ -109,18 +126,104 @@ class TestViews(TestCase):
         data = json_response_to_python(response)
         self.assertEqual(len(data), 1)
         row = data[0]
-        self.assertEqual(row["contract"], 42)
-        self.assertEqual(row["type"], "item exchange")
+        self.assertEqual(row["contract_id"], 42)
+        self.assertEqual(row["contract"], "High-grade Snake Alpha")
+        self.assertEqual(row["type"], "Item Exchange")
         self.assertEqual(row["from"], "Bruce Wayne")
         self.assertEqual(row["to"], "Clark Kent")
         self.assertEqual(row["status"], "in progress")
-        self.assertTrue(row["date_issued"])
-        self.assertTrue(row["time_left"])
+        self.assertEqual(row["date_issued"], date_issued.isoformat())
+        self.assertEqual(row["time_left"], "2\xa0days, 3\xa0hours")
         self.assertEqual(row["info"], "Dummy info")
+
+    @patch(MODULE_PATH + ".now")
+    def test_character_contracts_data_2(self, mock_now):
+        """items exchange multiple item"""
+        date_issued = dt.datetime(2020, 10, 8, 16, 45, tzinfo=pytz.utc)
+        date_now = date_issued + dt.timedelta(days=1)
+        date_expired = date_now + dt.timedelta(days=2, hours=3)
+        mock_now.return_value = date_now
+        contract = CharacterContract.objects.create(
+            character=self.character,
+            contract_id=42,
+            contract_type=CharacterContract.TYPE_ITEM_EXCHANGE,
+            assignee=EveEntity.objects.get(id=1002),
+            date_issued=date_issued,
+            date_expired=date_expired,
+            for_corporation=False,
+            issuer=EveEntity.objects.get(id=1001),
+            issuer_corporation=EveEntity.objects.get(id=2001),
+            status=CharacterContract.STATUS_IN_PROGRESS,
+            title="Dummy info",
+        )
+        CharacterContractItem.objects.create(
+            contract=contract,
+            record_id=1,
+            is_included=True,
+            is_singleton=False,
+            quantity=1,
+            eve_type=EveType.objects.get(id=19540),
+        )
+        CharacterContractItem.objects.create(
+            contract=contract,
+            record_id=2,
+            is_included=True,
+            is_singleton=False,
+            quantity=1,
+            eve_type=EveType.objects.get(id=19551),
+        )
+        request = self.factory.get(
+            reverse("memberaudit:character_contracts_data", args=[self.character.pk])
+        )
+        request.user = self.user
+        response = character_contracts_data(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertEqual(len(data), 1)
+        row = data[0]
+        self.assertEqual(row["contract_id"], 42)
+        self.assertEqual(row["contract"], "Multiple Items")
+        self.assertEqual(row["type"], "Item Exchange")
+
+    @patch(MODULE_PATH + ".now")
+    def test_character_contracts_data_3(self, mock_now):
+        """courier contract"""
+        date_issued = dt.datetime(2020, 10, 8, 16, 45, tzinfo=pytz.utc)
+        date_now = date_issued + dt.timedelta(days=1)
+        date_expired = date_now + dt.timedelta(days=2, hours=3)
+        mock_now.return_value = date_now
+        CharacterContract.objects.create(
+            character=self.character,
+            contract_id=42,
+            contract_type=CharacterContract.TYPE_COURIER,
+            assignee=EveEntity.objects.get(id=1002),
+            date_issued=date_issued,
+            date_expired=date_expired,
+            for_corporation=False,
+            issuer=EveEntity.objects.get(id=1001),
+            issuer_corporation=EveEntity.objects.get(id=2001),
+            status=CharacterContract.STATUS_IN_PROGRESS,
+            title="Dummy info",
+            start_location=self.jita_44,
+            end_location=self.structure_1,
+            volume=10,
+        )
+        request = self.factory.get(
+            reverse("memberaudit:character_contracts_data", args=[self.character.pk])
+        )
+        request.user = self.user
+        response = character_contracts_data(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertEqual(len(data), 1)
+        row = data[0]
+        self.assertEqual(row["contract_id"], 42)
+        self.assertEqual(row["contract"], "Jita >> Amamake (10 m3)")
+        self.assertEqual(row["type"], "Courier")
 
     def test_character_jump_clones_data(self):
         jump_clone = CharacterJumpClone.objects.create(
-            character=self.character, location=self.jita_station, jump_clone_id=1
+            character=self.character, location=self.jita_44, jump_clone_id=1
         )
         CharacterJumpCloneImplant.objects.create(
             jump_clone=jump_clone, eve_type=EveType.objects.get(id=19540)
