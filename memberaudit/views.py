@@ -1,5 +1,3 @@
-import datetime as dt
-
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import transaction
@@ -12,6 +10,7 @@ from django.http import (
 )
 from django.shortcuts import render, redirect
 from django.urls import reverse
+from django.utils.timesince import timeuntil
 from django.utils.html import format_html
 from django.utils.timezone import now
 from django.views.decorators.cache import cache_page
@@ -27,7 +26,7 @@ from allianceauth.services.hooks import get_extension_logger
 from . import tasks, __title__
 from .decorators import fetch_character_if_allowed
 from .helpers import eve_solar_system_to_html
-from .models import Character, CharacterMail
+from .models import Character, CharacterContract, CharacterMail
 from .utils import (
     messages_plus,
     LoggerAddTag,
@@ -356,23 +355,38 @@ def character_contracts_data(
     data = list()
     try:
         for contract in character.contracts.select_related("issuer", "assignee").all():
-            if contract.days_to_complete:
-                time_left = (
-                    contract.date_issued
-                    + dt.timedelta(days=contract.days_to_complete)
-                    - now()
+            if now() < contract.date_expired:
+                time_left = timeuntil(contract.date_expired, now())
+            else:
+                time_left = "expired"
+
+            if contract.contract_type == CharacterContract.TYPE_ITEM_EXCHANGE:
+                if contract.items.count() > 1:
+                    contract_description = "Multiple Items"
+                else:
+                    first_item = contract.items.first()
+                    contract_description = (
+                        first_item.eve_type.name if first_item else "?"
+                    )
+            elif contract.contract_type == CharacterContract.TYPE_COURIER:
+                contract_description = (
+                    f"{contract.start_location.eve_solar_system} >> "
+                    f"{contract.end_location.eve_solar_system} "
+                    f"({contract.volume:.0f} m3)"
                 )
             else:
-                time_left = None
+                contract_description = "(undefined)"
+
             data.append(
                 {
-                    "contract": contract.contract_id,
-                    "type": contract.get_contract_type_display(),
+                    "contract_id": contract.contract_id,
+                    "contract": contract_description,
+                    "type": contract.get_contract_type_display().title(),
                     "from": contract.issuer.name,
                     "to": contract.assignee.name if contract.assignee else "",
                     "status": contract.get_status_display(),
                     "date_issued": contract.date_issued.isoformat(),
-                    "time_left": str(time_left) if time_left else "N/A",
+                    "time_left": time_left,
                     "info": contract.title,
                 }
             )
