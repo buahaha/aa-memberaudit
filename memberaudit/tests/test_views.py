@@ -40,6 +40,7 @@ from ..views import (
     character_viewer,
     character_location_data,
     character_contracts_data,
+    character_contract_details_data,
     character_jump_clones_data,
     character_mail_headers_data,
     character_mail_data,
@@ -99,6 +100,7 @@ class TestViews(TestCase):
         contract = CharacterContract.objects.create(
             character=self.character,
             contract_id=42,
+            availability=CharacterContract.AVAILABILITY_PERSONAL,
             contract_type=CharacterContract.TYPE_ITEM_EXCHANGE,
             assignee=EveEntity.objects.get(id=1002),
             date_issued=date_issued,
@@ -107,6 +109,8 @@ class TestViews(TestCase):
             issuer=EveEntity.objects.get(id=1001),
             issuer_corporation=EveEntity.objects.get(id=2001),
             status=CharacterContract.STATUS_IN_PROGRESS,
+            start_location=self.jita_44,
+            end_location=self.jita_44,
             title="Dummy info",
         )
         CharacterContractItem.objects.create(
@@ -117,6 +121,8 @@ class TestViews(TestCase):
             quantity=1,
             eve_type=EveType.objects.get(id=19540),
         )
+
+        # main view
         request = self.factory.get(
             reverse("memberaudit:character_contracts_data", args=[self.character.pk])
         )
@@ -127,7 +133,7 @@ class TestViews(TestCase):
         self.assertEqual(len(data), 1)
         row = data[0]
         self.assertEqual(row["contract_id"], 42)
-        self.assertEqual(row["contract"], "High-grade Snake Alpha")
+        self.assertEqual(row["summary"], "High-grade Snake Alpha")
         self.assertEqual(row["type"], "Item Exchange")
         self.assertEqual(row["from"], "Bruce Wayne")
         self.assertEqual(row["to"], "Clark Kent")
@@ -135,6 +141,31 @@ class TestViews(TestCase):
         self.assertEqual(row["date_issued"], date_issued.isoformat())
         self.assertEqual(row["time_left"], "2\xa0days, 3\xa0hours")
         self.assertEqual(row["info"], "Dummy info")
+
+        # details view
+        request = self.factory.get(
+            reverse(
+                "memberaudit:character_contract_details_data",
+                args=[self.character.pk, contract.pk],
+            )
+        )
+        request.user = self.user
+        response = character_contract_details_data(
+            request, self.character.pk, contract.pk
+        )
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertEqual(data["contract_id"], 42)
+        self.assertEqual(data["summary"], "High-grade Snake Alpha")
+        self.assertEqual(data["title"], "Dummy info")
+        self.assertEqual(data["issuer"], "Bruce Wayne")
+        self.assertEqual(data["availability"], "Personal")
+        self.assertEqual(data["status"], "In Progress")
+        self.assertEqual(
+            data["location"], "Jita IV - Moon 4 - Caldari Navy Assembly Plant"
+        )
+        self.assertEqual(data["date_issued"], "2020-10-08 16:45")
+        self.assertEqual(data["date_expired"], "2020-10-11 19:45")
 
     @patch(MODULE_PATH + ".now")
     def test_character_contracts_data_2(self, mock_now):
@@ -145,6 +176,7 @@ class TestViews(TestCase):
         mock_now.return_value = date_now
         contract = CharacterContract.objects.create(
             character=self.character,
+            availability=CharacterContract.AVAILABILITY_PUBLIC,
             contract_id=42,
             contract_type=CharacterContract.TYPE_ITEM_EXCHANGE,
             assignee=EveEntity.objects.get(id=1002),
@@ -155,6 +187,8 @@ class TestViews(TestCase):
             issuer_corporation=EveEntity.objects.get(id=2001),
             status=CharacterContract.STATUS_IN_PROGRESS,
             title="Dummy info",
+            start_location=self.jita_44,
+            end_location=self.jita_44,
         )
         CharacterContractItem.objects.create(
             contract=contract,
@@ -182,7 +216,7 @@ class TestViews(TestCase):
         self.assertEqual(len(data), 1)
         row = data[0]
         self.assertEqual(row["contract_id"], 42)
-        self.assertEqual(row["contract"], "Multiple Items")
+        self.assertEqual(row["summary"], "Multiple Items")
         self.assertEqual(row["type"], "Item Exchange")
 
     @patch(MODULE_PATH + ".now")
@@ -192,9 +226,10 @@ class TestViews(TestCase):
         date_now = date_issued + dt.timedelta(days=1)
         date_expired = date_now + dt.timedelta(days=2, hours=3)
         mock_now.return_value = date_now
-        CharacterContract.objects.create(
+        contract = CharacterContract.objects.create(
             character=self.character,
             contract_id=42,
+            availability=CharacterContract.AVAILABILITY_PERSONAL,
             contract_type=CharacterContract.TYPE_COURIER,
             assignee=EveEntity.objects.get(id=1002),
             date_issued=date_issued,
@@ -207,7 +242,12 @@ class TestViews(TestCase):
             start_location=self.jita_44,
             end_location=self.structure_1,
             volume=10,
+            days_to_complete=3,
+            reward=10000000,
+            collateral=500000000,
         )
+
+        # main view
         request = self.factory.get(
             reverse("memberaudit:character_contracts_data", args=[self.character.pk])
         )
@@ -218,8 +258,39 @@ class TestViews(TestCase):
         self.assertEqual(len(data), 1)
         row = data[0]
         self.assertEqual(row["contract_id"], 42)
-        self.assertEqual(row["contract"], "Jita >> Amamake (10 m3)")
+        self.assertEqual(row["summary"], "Jita >> Amamake (10 m3)")
         self.assertEqual(row["type"], "Courier")
+
+        # details view
+        request = self.factory.get(
+            reverse(
+                "memberaudit:character_contract_details_data",
+                args=[self.character.pk, contract.pk],
+            )
+        )
+        request.user = self.user
+        response = character_contract_details_data(
+            request, self.character.pk, contract.pk
+        )
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertEqual(data["contract_id"], 42)
+        self.assertEqual(data["summary"], "Jita >> Amamake (10 m3)")
+        self.assertEqual(data["title"], "Dummy info")
+        self.assertEqual(data["issuer"], "Bruce Wayne")
+        self.assertEqual(data["availability"], "Personal")
+        self.assertEqual(data["type"], "Courier")
+        self.assertEqual(data["status"], "In Progress")
+        self.assertEqual(
+            data["location"], "Jita IV - Moon 4 - Caldari Navy Assembly Plant"
+        )
+        self.assertEqual(data["date_issued"], "2020-10-08 16:45")
+        self.assertEqual(data["date_expired"], "2020-10-11 19:45")
+        self.assertEqual(data["days_to_complete"], "3 Day(s)")
+        self.assertEqual(data["volume"], "10 m3")
+        self.assertEqual(data["reward"], "10,000,000.00 ISK")
+        self.assertEqual(data["collateral"], "500,000,000.00 ISK")
+        self.assertEqual(data["end_location"], "Amamake - Test Structure Alpha")
 
     def test_character_jump_clones_data(self):
         jump_clone = CharacterJumpClone.objects.create(

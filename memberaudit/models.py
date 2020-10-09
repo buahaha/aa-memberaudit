@@ -1106,6 +1106,23 @@ class CharacterContract(models.Model):
         else:
             return None
 
+    def summary(self) -> str:
+        """return summary text for this contract"""
+        if self.contract_type == CharacterContract.TYPE_COURIER:
+            summary = (
+                f"{self.start_location.eve_solar_system} >> "
+                f"{self.end_location.eve_solar_system} "
+                f"({self.volume:.0f} m3)"
+            )
+        else:
+            if self.items.count() > 1:
+                summary = "Multiple Items"
+            else:
+                first_item = self.items.first()
+                summary = first_item.eve_type.name if first_item else "?"
+
+        return summary
+
 
 class CharacterContractBid(models.Model):
     contract = models.ForeignKey(

@@ -44,6 +44,11 @@ urlpatterns = [
         name="character_contracts_data",
     ),
     path(
+        "character_contract_details_data/<int:character_pk>/<int:contract_pk>/",
+        views.character_contract_details_data,
+        name="character_contract_details_data",
+    ),
+    path(
         "character_jump_clones_data/<int:character_pk>/",
         views.character_jump_clones_data,
         name="character_jump_clones_data",

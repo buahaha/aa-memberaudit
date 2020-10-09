@@ -318,7 +318,7 @@
         "get_universe_structures_structure_id": {
             "1000000000001": {
                 "owner_id": 2001,
-                "name": "Test Structure Alpha",
+                "name": "Amamake - Test Structure Alpha",
                 "position": {
                     "x": 55028384780.0,
                     "y": 7310316270.0,
@@ -329,7 +329,7 @@
             },
             "1000000000002": {
                 "owner_id": 2001,
-                "name": "Test Structure Bravo",
+                "name": "Amamake - Test Structure Bravo",
                 "position": {
                     "x": -2518743930339.066,
                     "y": -130157937025.56424,

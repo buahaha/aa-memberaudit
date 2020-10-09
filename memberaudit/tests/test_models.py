@@ -570,6 +570,9 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(result[1], self.structure_1)
 
 
+# TODO: Tests for CharacterContract.summary()
+
+
 @patch(MANAGERS_PATH + ".esi")
 class TestLocationManager(NoSocketsTestCase):
     @classmethod
@@ -597,7 +600,7 @@ class TestLocationManager(NoSocketsTestCase):
         )
         self.assertTrue(created)
         self.assertEqual(obj.id, 1000000000001)
-        self.assertEqual(obj.name, "Test Structure Alpha")
+        self.assertEqual(obj.name, "Amamake - Test Structure Alpha")
         self.assertEqual(obj.eve_solar_system, self.amamake)
         self.assertEqual(obj.eve_type, self.astrahus)
         self.assertEqual(obj.owner, self.corporation_2001)
@@ -618,7 +621,7 @@ class TestLocationManager(NoSocketsTestCase):
         )
         self.assertFalse(created)
         self.assertEqual(obj.id, 1000000000001)
-        self.assertEqual(obj.name, "Test Structure Alpha")
+        self.assertEqual(obj.name, "Amamake - Test Structure Alpha")
         self.assertEqual(obj.eve_solar_system, self.amamake)
         self.assertEqual(obj.eve_type, self.astrahus)
         self.assertEqual(obj.owner, self.corporation_2001)
@@ -798,7 +801,7 @@ class TestLocationManagerAsync(TestCase):
         self.assertIsNone(obj.eve_type)
 
         obj.refresh_from_db()
-        self.assertEqual(obj.name, "Test Structure Alpha")
+        self.assertEqual(obj.name, "Amamake - Test Structure Alpha")
         self.assertEqual(obj.eve_solar_system, self.amamake)
         self.assertEqual(obj.eve_type, self.astrahus)
         self.assertEqual(obj.owner, self.corporation_2001)

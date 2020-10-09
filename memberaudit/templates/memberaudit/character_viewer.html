@@ -136,6 +136,12 @@
                             <div role="tabpanel" class="tab-pane" id="assets">TBD</div>
                             <div role="tabpanel" class="tab-pane" id="contacts">TBD</div>
 
+                            <!-- Bio -->
+                            <div role="tabpanel" class="tab-pane" id="bio">
+                                {{ character_details.description_plain|default:"-" }}
+                            </div>
+
+                            <!-- Contracts -->
                             <div role="tabpanel" class="tab-pane" id="contracts">
                                 <div class="table-responsive">
                                     <table class="table table-striped" id="tab_contracts" style="width:100%;">
@@ -149,6 +155,7 @@
                                                 <th>Date Issued</th>
                                                 <th>Time Left</th>
                                                 <th>Info</th>
+                                                <th></th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -157,19 +164,17 @@
                                 </div>
                             </div>
 
-                            <div role="tabpanel" class="tab-pane" id="bio">
-                                {{ character_details.description_plain|default:"-" }}
-                            </div>
-
+                            <!-- Corporation History -->
                             <div role="tabpanel" class="tab-pane" id="history">
                                 <dl class="dl-horizontal">
                                     {% for entry in corporation_history %}
                                     <dt>{{ entry.corporation_html }}</dt>
-                                    <p>{{ entry.start_date|naturalday }} - {{ entry.end_date|naturalday }}</p>
+                                    <dd>{{ entry.start_date|naturalday }} - {{ entry.end_date|naturalday }}</dd>
                                     {% endfor %}
                                 </dl>
                             </div>
 
+                            <!-- Jump Clones -->
                             <div role="tabpanel" class="tab-pane" id="clones">
                                 <div class="table-responsive">
                                     <table class="table table-striped" id="tab_jump_clones" style="width:100%;">
@@ -187,6 +192,7 @@
                                 </div>
                             </div>
 
+                            <!-- Mails -->
                             <div role="tabpanel" class="tab-pane active" id="mail">
                                 {% if not character.has_mails %}
                                     <p>No data yet...</p>
@@ -209,6 +215,7 @@
                                 {% endif %}
                             </div>
 
+                            <!-- Skills -->
                             <div role="tabpanel" class="tab-pane" id="skills">
                                 <div class="table-responsive">
                                     <table class="table table-striped" id="tab_skills" style="width:100%;">
@@ -227,6 +234,7 @@
 
                             <div role="tabpanel" class="tab-pane" id="skillqueue">TBD</div>
 
+                            <!-- Wallet -->
                             <div role="tabpanel" class="tab-pane" id="wallet">
                                 {% if not character.has_wallet_journal %}
                                     <p>No data yet...</p>
@@ -250,6 +258,7 @@
                                     </div>
                                 {% endif %}
                             </div>
+
                         </div>
                     </div>
                 </div>
@@ -257,9 +266,46 @@
         </div>
     </div>
 
+    <!-- Modal for Contracts -->
+    <div class="modal" id="modalCharacterContract" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">
+                        &times;
+                    </span></button>
+                    <h4 class="modal-title" id="myModalLabel">...</h4>
+                </div>
+                <div class="modal-body">
+                    <dl class="dl-horizontal">
+                        <dt>Info by Issuer:</dt> <dd id="contract_title">...</dd>
+                        <dt>Type:</dt> <dd id="contract_type">...</dd>
+                        <dt>Issued By:</dt> <dd id="contract_issuer">...</dd>
+                        <dt>Availability:</dt> <dd id="contract_availability">...</dd>
+                        <dt>Status:</dt> <dd id="contract_status">...</dd>
+                        <dt>Location:</dt> <dd id="contract_location">...</dd>
+                        <dt>Date Issued:</dt> <dd id="contract_date_issued">...</dd>
+                        <dt>Expiration Date:</dt> <dd id="contract_date_expired">...</dd>
+                        <hr>
+                        <dt>Complete In:</dt> <dd id="contract_days_to_complete">...</dd>
+                        <dt>Volume:</dt> <dd id="contract_volume">...</dd>
+                        <dt>Reward:</dt> <dd id="contract_reward">...</dd>
+                        <dt>Collateral:</dt> <dd id="contract_collateral">...</dd>
+                        <dt>Destination:</dt> <dd id="contract_destination">...</dd>
+                    </dl>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal for Mails -->
     <div class="modal" id="modalCharacterMail" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
-        <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">
@@ -304,6 +350,10 @@
     <script type="application/javascript">
         var DATETIME_FORMAT = 'YYYY-MMM-DD HH:mm'
 
+        function title(text) {
+            return text.replace(/(^\w|\s\w)/g, m => m.toUpperCase());
+        }
+
         $(document).ready(function () {
             $("#div_solar_system").load(
                 "{% url 'memberaudit:character_solar_system_data' character.pk %}"
@@ -319,7 +369,7 @@
                     cache: false
                 },
                 columns: [
-                    { data: 'contract' },
+                    { data: 'summary' },
                     { data: 'type' },
                     { data: 'from' },
                     { data: 'to' },
@@ -329,10 +379,37 @@
                         render: $.fn.dataTable.render.moment( moment.ISO_8601, DATETIME_FORMAT ) 
                     },
                     { data: 'time_left' },
-                    { data: 'info' }
+                    { data: 'info' },
+                    { data: 'actions' },
                 ],
                 order: [[0, "asc"]]
             });
+
+            $('#modalCharacterContract').on('show.bs.modal', function(event) {
+                var button = $(event.relatedTarget)
+                var ajax_contract_detail = button.data('ajax_contract_detail');
+                var modal = $(this);
+
+                $.get(
+                    ajax_contract_detail,
+                    function(data, status) {
+                        modal.find('.modal-title').html(data.summary);
+                        modal.find('#contract_title').html(data.title);
+                        modal.find('#contract_type').html(data.type);
+                        modal.find('#contract_issuer').html(data.issuer);
+                        modal.find('#contract_availability').html(data.availability);
+                        modal.find('#contract_status').html(data.status);
+                        modal.find('#contract_location').html(data.location);
+                        modal.find('#contract_date_issued').html(data.date_issued);
+                        modal.find('#contract_date_expired').html(data.date_expired);
+                        modal.find('#contract_days_to_complete').html(
+                            data.days_to_complete);
+                        modal.find('#contract_volume').html(data.volume);
+                        modal.find('#contract_reward').html(data.reward);
+                        modal.find('#contract_collateral').html(data.collateral);
+                        modal.find('#contract_destination').html(data.end_location);
+                });
+            })
 
             $('#tab_jump_clones').DataTable({
                 ajax: {
@@ -437,7 +514,7 @@
 
 {% block extra_css %}
     {% include 'bundles/datatables-css.html' %}
-    <link rel="stylesheet" href="{% static 'memberaudit/vendor/datatables/plugins/dataTables.rowGroup.min.css' %}" type="text/css">
+    <link rel="stylesheet" href="{% static 'memberaudit/vendor/datatables/plugins/rowGroup.dataTables.min.css' %}" type="text/css">
     <link rel="stylesheet" href="{% static 'memberaudit/character_viewer.css' %}" type="text/css">
 {% endblock extra_css %}
 

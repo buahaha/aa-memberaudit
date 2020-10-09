@@ -360,25 +360,21 @@ def character_contracts_data(
             else:
                 time_left = "expired"
 
-            if contract.contract_type == CharacterContract.TYPE_COURIER:
-                contract_description = (
-                    f"{contract.start_location.eve_solar_system} >> "
-                    f"{contract.end_location.eve_solar_system} "
-                    f"({contract.volume:.0f} m3)"
-                )
-            else:
-                if contract.items.count() > 1:
-                    contract_description = "Multiple Items"
-                else:
-                    first_item = contract.items.first()
-                    contract_description = (
-                        first_item.eve_type.name if first_item else "?"
-                    )
+            ajax_contract_detail = reverse(
+                "memberaudit:character_contract_details_data",
+                args=[character.pk, contract.pk],
+            )
 
+            actions_html = (
+                '<button type="button" class="btn btn-primary" '
+                'data-toggle="modal" data-target="#modalCharacterContract" '
+                f"data-ajax_contract_detail={ajax_contract_detail}>"
+                '<i class="fas fa-search"></i></button>'
+            )
             data.append(
                 {
                     "contract_id": contract.contract_id,
-                    "contract": contract_description,
+                    "summary": contract.summary(),
                     "type": contract.get_contract_type_display().title(),
                     "from": contract.issuer.name,
                     "to": contract.assignee.name if contract.assignee else "(None)",
@@ -386,11 +382,53 @@ def character_contracts_data(
                     "date_issued": contract.date_issued.isoformat(),
                     "time_left": time_left,
                     "info": contract.title,
+                    "actions": actions_html,
                 }
             )
     except ObjectDoesNotExist:
         pass
 
+    return JsonResponse(data, safe=False)
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_contract_details_data(
+    request, character_pk: int, character: Character, contract_pk: int
+) -> JsonResponse:
+    try:
+        contract = character.contracts.get(pk=contract_pk)
+    except CharacterContract.DoesNotExist:
+        error_msg = (
+            f"Contract with pk {contract_pk} not found for character {character}"
+        )
+        logger.warning(error_msg)
+        return HttpResponseNotFound(error_msg)
+
+    data = {
+        "contract_id": contract.contract_id,
+        "summary": contract.summary(),
+        "title": contract.title,
+        "type": contract.get_contract_type_display().title(),
+        "issuer": contract.issuer.name,
+        "availability": contract.get_availability_display().title(),
+        "status": contract.get_status_display().title(),
+        "location": contract.start_location.name if contract.start_location else "-",
+        "date_issued": contract.date_issued.strftime(DATETIME_FORMAT),
+        "date_expired": contract.date_expired.strftime(DATETIME_FORMAT),
+        "days_to_complete": f"{contract.days_to_complete} Day(s)"
+        if contract.days_to_complete is not None
+        else "-",
+        "volume": f"{contract.volume:,.0f} m3" if contract.volume is not None else "-",
+        "reward": f"{contract.reward:,.2f} ISK" if contract.reward is not None else "-",
+        "collateral": f"{contract.collateral:,.2f} ISK"
+        if contract.collateral is not None
+        else "-",
+        "end_location": contract.end_location.name
+        if contract.end_location is not None
+        else "-",
+    }
     return JsonResponse(data, safe=False)
 
 
@@ -496,7 +534,7 @@ def character_mail_headers_data(
 @fetch_character_if_allowed()
 def character_mail_data(
     request, character_pk: int, character: Character, mail_pk: int
-) -> HttpResponse:
+) -> JsonResponse:
     try:
         mail = character.mails.get(pk=mail_pk)
     except CharacterMail.DoesNotExist:
