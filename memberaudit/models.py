@@ -349,13 +349,17 @@ class Character(models.Model):
                 },
             )
 
-    # TODO: split loading of items/bids per contract into tasks
+    # TODO: split loading of items/bids per contract_data into tasks
     @fetch_token("esi-contracts.read_character_contracts.v1")
     def update_contracts(self, token: Token):
         """update the character's contracts"""
+        from .tasks import (
+            update_contract_details_esi as task_update_contract_details_esi,
+        )
+
         add_prefix = make_logger_prefix(self)
         logger.info(add_prefix("Fetching contracts from ESI"))
-        contracts = esi.client.Contracts.get_characters_character_id_contracts(
+        contracts_data = esi.client.Contracts.get_characters_character_id_contracts(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
@@ -384,90 +388,102 @@ class Character(models.Model):
             "loan": CharacterContract.TYPE_LOAN,
             "unknown": CharacterContract.TYPE_UNKNOWN,
         }
-        for contract in contracts:
-            obj, _ = CharacterContract.objects.update_or_create(
+        for contract_data in contracts_data:
+            contract, _ = CharacterContract.objects.update_or_create(
                 character=self,
-                contract_id=contract.get("contract_id"),
+                contract_id=contract_data.get("contract_id"),
                 defaults={
                     "acceptor": get_or_create_eveuniverse_or_none(
-                        "acceptor_id", contract, EveEntity
+                        "acceptor_id", contract_data, EveEntity
                     ),
                     "acceptor_corporation": get_or_create_eveuniverse_or_none(
-                        "acceptor_corporation_id", contract, EveEntity
+                        "acceptor_corporation_id", contract_data, EveEntity
                     ),
                     "assignee": get_or_create_eveuniverse_or_none(
-                        "assignee_id", contract, EveEntity
+                        "assignee_id", contract_data, EveEntity
                     ),
-                    "availability": availability_map[contract.get("availability")],
-                    "buyout": contract.get("buyout"),
-                    "collateral": contract.get("collateral"),
-                    "contract_type": type_map[contract.get("type")],
-                    "date_accepted": contract.get("date_accepted"),
-                    "date_completed": contract.get("date_completed"),
-                    "date_expired": contract.get("date_expired"),
-                    "date_issued": contract.get("date_issued"),
-                    "days_to_complete": contract.get("days_to_complete"),
+                    "availability": availability_map[contract_data.get("availability")],
+                    "buyout": contract_data.get("buyout"),
+                    "collateral": contract_data.get("collateral"),
+                    "contract_type": type_map[contract_data.get("type")],
+                    "date_accepted": contract_data.get("date_accepted"),
+                    "date_completed": contract_data.get("date_completed"),
+                    "date_expired": contract_data.get("date_expired"),
+                    "date_issued": contract_data.get("date_issued"),
+                    "days_to_complete": contract_data.get("days_to_complete"),
                     "end_location": get_or_create_location_or_none(
-                        "end_location_id", contract, token
+                        "end_location_id", contract_data, token
                     ),
-                    "for_corporation": contract.get("for_corporation"),
+                    "for_corporation": contract_data.get("for_corporation"),
                     "issuer_corporation": get_or_create_eveuniverse_or_none(
-                        "issuer_corporation_id", contract, EveEntity
+                        "issuer_corporation_id", contract_data, EveEntity
                     ),
                     "issuer": get_or_create_eveuniverse_or_none(
-                        "issuer_id", contract, EveEntity
+                        "issuer_id", contract_data, EveEntity
                     ),
-                    "price": contract.get("price"),
-                    "reward": contract.get("reward"),
+                    "price": contract_data.get("price"),
+                    "reward": contract_data.get("reward"),
                     "start_location": get_or_create_location_or_none(
-                        "start_location_id", contract, token
+                        "start_location_id", contract_data, token
                     ),
-                    "status": status_map[contract.get("status")],
-                    "title": contract.get("title", ""),
-                    "volume": contract.get("volume"),
+                    "status": status_map[contract_data.get("status")],
+                    "title": contract_data.get("title", ""),
+                    "volume": contract_data.get("volume"),
                 },
             )
-            if obj.contract_type in [
-                CharacterContract.TYPE_ITEM_EXCHANGE,
-                CharacterContract.TYPE_AUCTION,
-            ]:
-                with transaction.atomic():
-                    obj.items.all().delete()
-                    items = esi.client.Contracts.get_characters_character_id_contracts_contract_id_items(
-                        character_id=self.character_ownership.character.character_id,
-                        contract_id=obj.contract_id,
-                        token=token.valid_access_token(),
-                    ).results()
-                    for item in items:
-                        CharacterContractItem.objects.create(
-                            contract=obj,
-                            record_id=item.get("record_id"),
-                            is_included=item.get("is_included"),
-                            is_singleton=item.get("is_singleton"),
-                            quantity=item.get("quantity"),
-                            eve_type=get_or_create_eveuniverse_or_none(
-                                "type_id", item, EveType
-                            ),
-                        )
+            task_update_contract_details_esi(
+                character_pk=self.pk, contract_pk=contract.pk
+            )
 
-            if obj.contract_type == CharacterContract.TYPE_AUCTION:
-                with transaction.atomic():
-                    obj.bids.all().delete()
-                    bids = esi.client.Contracts.get_characters_character_id_contracts_contract_id_bids(
-                        character_id=self.character_ownership.character.character_id,
-                        contract_id=obj.contract_id,
-                        token=token.valid_access_token(),
-                    ).results()
-                    for bid in bids:
-                        CharacterContractBid.objects.create(
-                            contract=obj,
-                            bid_id=bid.get("bid_id"),
-                            amount=bid.get("amount"),
-                            bidder=get_or_create_eveuniverse_or_none(
-                                "bidder_id", bid, EveEntity
-                            ),
-                            date_bid=bid.get("date_bid"),
-                        )
+    @fetch_token("esi-contracts.read_character_contracts.v1")
+    def update_contract_details(self, token: Token, contract: "CharacterContract"):
+        """update the character's contracts"""
+        logger.info(
+            "%s: Fetching contract details from ESI for ID: %s",
+            self,
+            contract.contract_id,
+        )
+        if contract.contract_type in [
+            CharacterContract.TYPE_ITEM_EXCHANGE,
+            CharacterContract.TYPE_AUCTION,
+        ]:
+            with transaction.atomic():
+                contract.items.all().delete()
+                items = esi.client.Contracts.get_characters_character_id_contracts_contract_id_items(
+                    character_id=self.character_ownership.character.character_id,
+                    contract_id=contract.contract_id,
+                    token=token.valid_access_token(),
+                ).results()
+                for item in items:
+                    CharacterContractItem.objects.create(
+                        contract=contract,
+                        record_id=item.get("record_id"),
+                        is_included=item.get("is_included"),
+                        is_singleton=item.get("is_singleton"),
+                        quantity=item.get("quantity"),
+                        eve_type=get_or_create_eveuniverse_or_none(
+                            "type_id", item, EveType
+                        ),
+                    )
+
+        if contract.contract_type == CharacterContract.TYPE_AUCTION:
+            with transaction.atomic():
+                contract.bids.all().delete()
+                bids = esi.client.Contracts.get_characters_character_id_contracts_contract_id_bids(
+                    character_id=self.character_ownership.character.character_id,
+                    contract_id=contract.contract_id,
+                    token=token.valid_access_token(),
+                ).results()
+                for bid in bids:
+                    CharacterContractBid.objects.create(
+                        contract=contract,
+                        bid_id=bid.get("bid_id"),
+                        amount=bid.get("amount"),
+                        bidder=get_or_create_eveuniverse_or_none(
+                            "bidder_id", bid, EveEntity
+                        ),
+                        date_bid=bid.get("date_bid"),
+                    )
 
     @fetch_token("esi-clones.read_clones.v1")
     def update_jump_clones(self, token: Token):

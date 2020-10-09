@@ -11,6 +11,7 @@ from allianceauth.services.tasks import QueueOnce
 from . import __title__
 from .models import (
     Character,
+    CharacterContract,
     CharacterMail,
     CharacterUpdateStatus,
     Location,
@@ -124,3 +125,10 @@ def update_mail_body_esi(character_pk: int, mail_pk: int):
     character = _load_character(character_pk)
     mail = CharacterMail.objects.get(pk=mail_pk)
     character.update_mail_body(mail)
+
+
+@shared_task
+def update_contract_details_esi(character_pk: int, contract_pk: int):
+    character = _load_character(character_pk)
+    contract = CharacterContract.objects.get(pk=contract_pk)
+    character.update_contract_details(contract)
