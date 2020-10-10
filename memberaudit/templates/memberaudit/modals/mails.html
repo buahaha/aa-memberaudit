@@ -1,0 +1,35 @@
+{% load i18n %}
+{% load static %}
+{% load humanize %}
+{% load evelinks %}
+
+<!-- Modal for Mails -->
+<div class="modal" id="modalCharacterMail" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">
+                    &times;
+                </span></button>
+                <h4 class="modal-title" id="myModalLabel">Loading...</h4>
+            </div>
+            <div class="modal-body">
+                <dl class="dl-horizontal">
+                    <dt>From:</dt>
+                    <dd id="mail_from">Loading...</dd>
+                    <dt>To:</dt>
+                    <dd id="mail_to">Loading...</dd>
+                    <dt>Sent:</dt>
+                    <dd id="mail_sent">Loading...</dd>
+                    <br>
+                    <div id="mail_body">Loading...</div>
+                </dl>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

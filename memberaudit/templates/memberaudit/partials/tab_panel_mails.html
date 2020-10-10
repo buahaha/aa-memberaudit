@@ -1,0 +1,24 @@
+{% load i18n %}
+
+<!-- Mails -->
+<div role="tabpanel" class="tab-pane active" id="mail">
+    {% if not character.has_mails %}
+        <p>No data yet...</p>
+    {% else %}
+        <div class="table-responsive">
+            <table class="table table-striped" id="tab_mails" style="width:100%;">
+                <thead>
+                    <tr>
+                        <th>sent</th>
+                        <th>from</th>
+                        <th>to</th>
+                        <th>subject</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</div>

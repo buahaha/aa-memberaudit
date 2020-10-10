@@ -1,264 +1,39 @@
 {% extends 'memberaudit/base.html' %}
+
 {% load i18n %}
 {% load static %}
 {% load humanize %}
 {% load evelinks %}
 
 {% block details %}
-
     <div class="rows">
-
         <div class="col-md-2" id="mainColumnLeft">
-
-            <!-- Summary panel-->
-            <div class="panel panel-default">
-                <div class="panel-body">
-                    <p class="text-center"><img class="img-rounded" src="{{ auth_character|character_portrait_url:128 }}"/></p>
-                    <p class="text-center"><strong>{{ auth_character.character_name }}</strong></p>
-{#                    <p class="text-center">#}
-{#                        <a href="{{ auth_character.corporation_name|dotlan_corporation_url }}" target="_blank">#}
-{#                            <img class="img-circle" src="{{ auth_character.corporation_id|corporation_logo_url:32 }}" width="16px" height="16px">#}
-{#                            {{ auth_character.corporation_name }}#}
-{#                        </a>#}
-{#                    </p>#}
-                    <p class="text-center">
-                        <a href="{{ auth_character|zkillboard_character_url }}" target="_blank">
-                            <img src="{% static 'memberaudit/images/zkillboard.png' %}" title="{{ auth_character.character_name }} on zKillboard">
-                        </a>
-                        <a href="{{ auth_character|evewho_character_url }}" target="_blank">
-                            <img src="{{ 1|character_portrait_url:32 }}" title="{{ auth_character.character_name }} on EveWho" width="16px" height="16px">
-                        </a>
-                    </p>
-
-                    <hr/>
-
-                    <p class="text-center">Characters:</p>
-                    <ul>
-                        {% for character in registered_characters %}
-                            <li><a href="{% url 'memberaudit:character_viewer' character.pk %}">{{ character.name }}</a></li>
-                        {% endfor %}
-                    </ul>
-
-                </div>
-
-            </div>
+            {% include 'memberaudit/partials/sidebar.html' %}
         </div>
 
         <!-- Main panel-->
         <div class="col-md-10" id="mainColumnRight">
-
-            <!-- Header sub panel -->
-            <div class="panel panel-default">
-                <div class="panel-body">
-                    <div class="rows">
-
-                        <div class="col-md-4">
-                            <dl class="dl-horizontal">
-                                <dt>Character:</dt>
-                                <dd>{{ auth_character.character_name}}</dd>
-                                <dt>Corporation:</dt>
-                                <dd>
-                                    <a href="{{ auth_character.corporation_name|dotlan_corporation_url }}" target="_blank">
-                                        {{ auth_character.corporation_name }}
-                                    </a>
-                                </dd>
-                                <dt>Alliance:</dt>
-                                <dd>
-                                    {% if auth_character.alliance_name %}
-                                        <a href="{{ auth_character.alliance_name|dotlan_alliance_url }}" target="_blank">
-                                            {{ auth_character.alliance_name }}
-                                        </a>
-                                    {% else %}
-                                        -
-                                    {% endif %}
-                                </dd>
-                                <dt>Faction:</dt>
-                                <dd>{{ character_details.faction|default:"-" }}</dd>
-                            </dl>
-                        </div>
-
-                        <div class="col-md-4">
-                            <dl class="dl-horizontal">
-                                <dt>Born:</dt>
-                                <dd>{{ character_details.birthday|naturalday|default_if_none:"(no data)" }}</dd>
-                                <dt>Skillpoints:</dt>
-                                <dd>{{ character.skillpoints.total|intword|default_if_none:"(no data)" }}</dd>
-                                <dt>Wallet:</dt>
-                                <dd>{{ character.wallet_balance.total|intword|default_if_none:"(no data)" }}</dd>
-                                <dt>Sec. Status:</dt>
-                                <dd>{{ character_details.security_status|floatformat|default_if_none:"(no data)" }}</dd>
-                            </dl>
-                        </div>
-
-                        <div class="col-md-4">
-                            <dl class="dl-horizontal">
-                                <dt>System</dt>
-                                <dd>
-                                    <div id="div_solar_system">Loading...</div>
-                                </dd>
-                                <dt>Location:</dt>
-                                <dd>
-                                    <div id="div_location">Loading...</div>
-                                </dd>
-                                <dt>Race / Achestry :</dt>
-                                <dd>{{ character_details.eve_bloodline.eve_race }} / {{ character_details.eve_bloodline }}</dd>
-                                <dt>Main:</dt>
-                                <dd>{{ main }}</dd>
-                            </dl>
-                        </div>
-
-                    </div>
-                </div>
-            </div>
+            {% include 'memberaudit/partials/character_summary.html' %}
 
             <!-- Details sub panel -->
             <div class="panel panel-default">
                 <div class="panel-body">
                     <div>
-                        <!-- Nav tabs -->
-                        <ul class="nav nav-tabs" role="tablist">
-                            <li role="presentation" class="disabled"><a href="#assets" aria-controls="assets" role="tab" data-toggle="tab">Assets</a></li>
-                            <li role="presentation"><a href="#bio" aria-controls="bio" role="tab" data-toggle="tab">Bio</a></li>
-                            <li role="presentation"><a href="#clones" aria-controls="clones" role="tab" data-toggle="tab">Clones</a></li>
-                            <li role="presentation" class="disabled"><a href="#contacts" aria-controls="contacts" role="tab" data-toggle="tab">Contacts</a></li>
-                            <li role="presentation"><a href="#contracts" aria-controls="contracts" role="tab" data-toggle="tab">Contracts</a></li>
-                            <li role="presentation"><a href="#history" aria-controls="history" role="tab" data-toggle="tab">Corporation History</a></li>
-                            <li role="presentation" class="active"><a href="#mail" aria-controls="mail" role="tab" data-toggle="tab">Mail</a></li>
-                            <li role="presentation" class="disabled"><a href="#skillqueue" aria-controls="skillqueue" role="tab" data-toggle="tab">Skillqueue</a></li>
-                            <li role="presentation"><a href="#skills" aria-controls="skills" role="tab" data-toggle="tab">Skills</a></li>
-                            <li role="presentation"><a href="#wallet" aria-controls="wallet" role="tab" data-toggle="tab">Wallet</a></li>
-                        </ul>
+                        {% include 'memberaudit/partials/tabs_navigation.html' %}
                         <br>
 
                         <!-- Tab panes -->
                         <div class="tab-content">
-
-                            <div role="tabpanel" class="tab-pane" id="assets">TBD</div>
-                            <div role="tabpanel" class="tab-pane" id="contacts">TBD</div>
-
-                            <!-- Bio -->
-                            <div role="tabpanel" class="tab-pane" id="bio">
-                                {{ character_details.description_plain|default:"-" }}
-                            </div>
-
-                            <!-- Contracts -->
-                            <div role="tabpanel" class="tab-pane" id="contracts">
-                                <div class="table-responsive">
-                                    <table class="table table-striped" id="tab_contracts" style="width:100%;">
-                                        <thead>
-                                            <tr>
-                                                <th>Contract</th>
-                                                <th>Type</th>
-                                                <th>From</th>
-                                                <th>To</th>
-                                                <th>Status</th>
-                                                <th>Date Issued</th>
-                                                <th>Time Left</th>
-                                                <th>Info</th>
-                                                <th></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <!-- Corporation History -->
-                            <div role="tabpanel" class="tab-pane" id="history">
-                                <dl class="dl-horizontal">
-                                    {% for entry in corporation_history %}
-                                    <dt>{{ entry.corporation_html }}</dt>
-                                    <dd>{{ entry.start_date|naturalday }} - {{ entry.end_date|naturalday }}</dd>
-                                    {% endfor %}
-                                </dl>
-                            </div>
-
-                            <!-- Jump Clones -->
-                            <div role="tabpanel" class="tab-pane" id="clones">
-                                <div class="table-responsive">
-                                    <table class="table table-striped" id="tab_jump_clones" style="width:100%;">
-                                        <thead>
-                                            <tr>
-                                                <th>Region</th>
-                                                <th>System</th>
-                                                <th>Location</th>
-                                                <th>Implants</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <!-- Mails -->
-                            <div role="tabpanel" class="tab-pane active" id="mail">
-                                {% if not character.has_mails %}
-                                    <p>No data yet...</p>
-                                {% else %}
-                                    <div class="table-responsive">
-                                        <table class="table table-striped" id="tab_mails" style="width:100%;">
-                                            <thead>
-                                                <tr>
-                                                    <th>sent</th>
-                                                    <th>from</th>
-                                                    <th>to</th>
-                                                    <th>subject</th>
-                                                    <th></th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                {% endif %}
-                            </div>
-
-                            <!-- Skills -->
-                            <div role="tabpanel" class="tab-pane" id="skills">
-                                <div class="table-responsive">
-                                    <table class="table table-striped" id="tab_skills" style="width:100%;">
-                                        <thead>
-                                            <tr>
-                                                <th>Group</th>
-                                                <th>Skill</th>
-                                                <th>Level</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <div role="tabpanel" class="tab-pane" id="skillqueue">TBD</div>
-
-                            <!-- Wallet -->
-                            <div role="tabpanel" class="tab-pane" id="wallet">
-                                {% if not character.has_wallet_journal %}
-                                    <p>No data yet...</p>
-                                {% else %}
-                                    <div class="table-responsive">
-                                        <table class="table table-striped" id="tab_wallet" style="width:100%;">
-                                            <thead>
-                                                <tr>
-                                                    <th>Date</th>
-                                                    <th>Type</th>
-                                                    <th>First party</th>
-                                                    <th>Second party</th>
-                                                    <th>Amount</th>
-                                                    <th>Balance</th>
-                                                    <th>Description</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                {% endif %}
-                            </div>
-
+                            {% include 'memberaudit/partials/tab_panel_assets.html' %}
+                            {% include 'memberaudit/partials/tab_panel_contacts.html' %}
+                            {% include 'memberaudit/partials/tab_panel_character_bio.html' %}
+                            {% include 'memberaudit/partials/tab_panel_contracts.html' %}
+                            {% include 'memberaudit/partials/tab_panel_corporation_history.html' %}
+                            {% include 'memberaudit/partials/tab_panel_jump_clones.html' %}
+                            {% include 'memberaudit/partials/tab_panel_mails.html' %}
+                            {% include 'memberaudit/partials/tab_panel_skills.html' %}
+                            {% include 'memberaudit/partials/tab_panel_skill_queue.html' %}
+                            {% include 'memberaudit/partials/tab_panel_wallet.html' %}
                         </div>
                     </div>
                 </div>
@@ -266,59 +41,8 @@
         </div>
     </div>
 
-    <!-- Modal for Contracts -->
-    <div class="modal" id="modalCharacterContract" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
-        <div class="modal-dialog modal-lg" role="document" id="modalCharacterContractContent">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">
-                        &times;
-                    </span></button>
-                    <h4 class="modal-title" id="myModalLabel">Loading ...</h4>
-                </div>
-                <div class="modal-body">
-                    <img src="{% static 'memberaudit/images/Spinner-1s-64px.gif' %}"/>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">
-                        Close
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal for Mails -->
-    <div class="modal" id="modalCharacterMail" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
-        <div class="modal-dialog" role="document">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">
-                        &times;
-                    </span></button>
-                    <h4 class="modal-title" id="myModalLabel">Loading...</h4>
-                </div>
-                <div class="modal-body">
-                    <dl class="dl-horizontal">
-                        <dt>From:</dt>
-                        <dd id="mail_from">Loading...</dd>
-                        <dt>To:</dt>
-                        <dd id="mail_to">Loading...</dd>
-                        <dt>Sent:</dt>
-                        <dd id="mail_sent">Loading...</dd>
-                        <br>
-                        <div id="mail_body">Loading...</div>
-                    </dl>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">
-                        Close
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
+    {% include 'memberaudit/modals/contracts.html' %}
+    {% include 'memberaudit/modals/mails.html' %}
 {% endblock details %}
 
 {% block extra_javascript %}
@@ -361,9 +85,9 @@
                     { data: 'from' },
                     { data: 'to' },
                     { data: 'status' },
-                    { 
+                    {
                         data: 'date_issued',
-                        render: $.fn.dataTable.render.moment( moment.ISO_8601, DATETIME_FORMAT ) 
+                        render: $.fn.dataTable.render.moment( moment.ISO_8601, DATETIME_FORMAT )
                     },
                     { data: 'time_left' },
                     { data: 'info' },
@@ -372,10 +96,10 @@
                 order: [[5, "desc"]],
                 filterDropDown: {
                     columns: [
-                        { 
+                        {
                             idx: 1
                         },
-                        { 
+                        {
                             idx: 4
                         }
                     ],
@@ -488,13 +212,13 @@
                 order: [[0, "desc"]],
                 filterDropDown: {
                     columns: [
-                        { 
+                        {
                             idx: 1
                         },
-                        { 
+                        {
                             idx: 2
                         },
-                        { 
+                        {
                             idx: 3
                         }
                     ],
