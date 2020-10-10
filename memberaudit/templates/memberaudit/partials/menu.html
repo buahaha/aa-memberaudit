@@ -26,13 +26,13 @@
                             <span class="badge">{{ unregistered_count }}</span>
                         {% endif %}
                     </a>
-                </li>                            
+                </li>
                 {% if "/character_viewer/" in request.path %}
                     <li class="{% renavactive request '/character_viewer/' %}">
                         <a href="#">Character Sheet</a>
                     </li>
                 {% endif %}
-            
+
                 {% if perms.memberaudit.finder_access %}
                     <li class="{% navactive request 'memberaudit:character_finder' %}">
                         <a href="{% url 'memberaudit:character_finder' %}">
