@@ -15,7 +15,15 @@
                 <dt>Info by Issuer:</dt> <dd>{{ contract.title|default:"(None)" }}</dd>
                 <dt>Type:</dt> <dd>{{ contract.get_contract_type_display|title }}</dd>
                 <dt>Issued By:</dt> <dd>{{ contract.issuer.name }}</dd>
-                <dt>Availability:</dt> <dd>{{ contract.get_availability_display|title }}</dd>
+                <dt>Availability:</dt>
+                <dd>
+                    {{ contract.get_availability_display|title }}
+                    {% if contract.availability == contract.AVAILABILITY_PUBLIC  %}
+                        - Region: {{ contract.start_location.eve_solar_system.eve_constellation.eve_region }}
+                    {% else %}
+                        - {{ contract.assignee.name }}
+                    {% endif %}
+                </dd>
                 <dt>Status:</dt> <dd>{{ contract.get_status_display|title }}</dd>
                 <dt>Location:</dt>
                 <dd>

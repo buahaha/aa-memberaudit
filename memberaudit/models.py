@@ -469,6 +469,7 @@ class Character(models.Model):
                         is_included=item.get("is_included"),
                         is_singleton=item.get("is_singleton"),
                         quantity=item.get("quantity"),
+                        raw_quantity=item.get("raw_quantity"),
                         eve_type=get_or_create_eveuniverse_or_none(
                             "type_id", item, EveType
                         ),
@@ -932,7 +933,7 @@ class CharacterContract(models.Model):
     AVAILABILITY_CHOICES = (
         (AVAILABILITY_ALLIANCE, _("alliance")),
         (AVAILABILITY_CORPORATION, _("corporation")),
-        (AVAILABILITY_PERSONAL, _("personal")),
+        (AVAILABILITY_PERSONAL, _("private")),
         (AVAILABILITY_PUBLIC, _("public")),
     )
 
@@ -1122,7 +1123,7 @@ class CharacterContract(models.Model):
             )
         else:
             if self.items.filter(is_included=True).count() > 1:
-                summary = "Multiple Items"
+                summary = _("[Multiple Items]")
             else:
                 first_item = self.items.first()
                 summary = first_item.eve_type.name if first_item else "(no items)"
@@ -1152,7 +1153,7 @@ class CharacterContractItem(models.Model):
     is_included = models.BooleanField()
     is_singleton = models.BooleanField()
     quantity = models.PositiveIntegerField()
-    raw_quantity = models.PositiveIntegerField(default=None, null=True)
+    raw_quantity = models.IntegerField(default=None, null=True)
     eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
 
     def __str__(self) -> str:

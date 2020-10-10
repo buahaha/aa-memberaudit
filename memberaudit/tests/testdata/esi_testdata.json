@@ -133,6 +133,7 @@
                         "is_singleton": false,
                         "quantity": 5,
                         "record_id": 2,
+                        "raw_quantity": -1,
                         "type_id": 19551
                     }
                 ],

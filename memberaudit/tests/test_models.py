@@ -397,6 +397,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertTrue(item.is_included)
         self.assertFalse(item.is_singleton)
         self.assertEqual(item.quantity, 5)
+        self.assertEqual(item.raw_quantity, -1)
         self.assertEqual(item.eve_type, EveType.objects.get(id=19551))
 
     @override_settings(CELERY_ALWAYS_EAGER=True)
@@ -649,7 +650,7 @@ class TestCharacterContract(NoSocketsTestCase):
             quantity=1,
             eve_type=EveType.objects.get(id=19551),
         )
-        self.assertEqual(self.contract.summary(), "Multiple Items")
+        self.assertEqual(self.contract.summary(), "[Multiple Items]")
 
     def test_summary_no_items(self):
         self.assertEqual(self.contract.summary(), "(no items)")

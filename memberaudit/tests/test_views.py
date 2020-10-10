@@ -208,7 +208,7 @@ class TestViews(TestCase):
         self.assertEqual(len(data), 1)
         row = data[0]
         self.assertEqual(row["contract_id"], 42)
-        self.assertEqual(row["summary"], "Multiple Items")
+        self.assertEqual(row["summary"], "[Multiple Items]")
         self.assertEqual(row["type"], "Item Exchange")
 
         # details view
