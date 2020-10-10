@@ -1,4 +1,28 @@
 {% load i18n %}
 
 <!-- Skill queue -->
-<div role="tabpanel" class="tab-pane" id="skillqueue">TBD</div>
+<div role="tabpanel" class="tab-pane" id="skillqueue">
+    {% if skill_queue %}
+        <table class="table table-striped table-responsive">
+            <thead>
+                <tr>
+                    <th>Skill</th>
+                    <th>Level</th>
+                    <th>Finished</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for skill in skill_queue %}
+                    <tr>
+                        <td>{{ skill.skill }}</td>
+                        <td>{{ skill.finished_level }}</td>
+                        <td>{{ skill.finish_date }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Currently no skills in training</p>
+    {% endif %}
+</div>

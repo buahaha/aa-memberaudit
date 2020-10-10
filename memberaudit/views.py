@@ -332,12 +332,28 @@ def character_viewer(request, character_pk: int, character: Character):
     else:
         main = "-"
 
+    # skill queue
+    skill_queue = list()
+    for row in (
+        character.skillqueue.select_related("skill")
+        .filter(character_id=character_pk)
+        .order_by("queue_position")
+    ):
+        skill_queue.append(
+            {
+                "finish_date": row.finish_date,
+                "finished_level": row.finished_level,
+                "skill": row.skill.name,
+            }
+        )
+
     context = {
         "page_title": "Character Sheet",
         "character": character,
         "auth_character": auth_character,
         "character_details": character_details,
         "corporation_history": reversed(corporation_history),
+        "skill_queue": skill_queue,
         "main": main,
     }
     return render(
