@@ -305,6 +305,27 @@
                 "total_sp": 30000,
                 "unallocated_sp": 1000
             }
+        },
+        "get_characters_character_id_skillqueue": {
+            "1001": [
+                {
+                    "finish_date": "2016-06-29T10:47:00Z",
+                    "finished_level": 3,
+                    "queue_position": 0,
+                    "skill_id": 24311,
+                    "start_date": "2016-06-29T10:46:00Z"
+                },
+                {
+                    "finish_date": "2016-07-15T10:47:00Z",
+                    "finished_level": 4,
+                    "level_end_sp": 1000,
+                    "level_start_sp": 100,
+                    "queue_position": 1,
+                    "skill_id": 24312,
+                    "start_date": "2016-06-29T10:47:00Z",
+                    "training_start_sp": 50
+                }
+            ]
         }
     },
     "Universe": {

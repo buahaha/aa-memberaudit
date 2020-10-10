@@ -79,6 +79,12 @@ esi_client_stub = EsiClientStub(
             "character_id",
             needs_token=True,
         ),
+        EsiEndpoint(
+            "Skills",
+            "get_characters_character_id_skillqueue",
+            "character_id",
+            needs_token=True,
+        ),
         EsiEndpoint("Status", "get_status"),
         EsiEndpoint("Universe", "get_universe_stations_station_id", "station_id"),
         EsiEndpoint(

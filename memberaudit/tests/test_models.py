@@ -515,6 +515,27 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T18:07:00Z"))
         self.assertEqual(obj.body, "Another mail")
 
+    def test_update_skillqueue(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_skill_queue()
+        self.assertEqual(self.character_1001.skillqueue.count(), 2)
+
+        entry = self.character_1001.skillqueue.get(skill_id=24311)
+        self.assertEqual(entry.finish_date, parse_datetime("2016-06-29T10:47:00Z"))
+        self.assertEqual(entry.finished_level, 3)
+        self.assertEqual(entry.queue_position, 0)
+        self.assertEqual(entry.start_date, parse_datetime("2016-06-29T10:46:00Z"))
+
+        entry = self.character_1001.skillqueue.get(skill_id=24312)
+        self.assertEqual(entry.finish_date, parse_datetime("2016-07-15T10:47:00Z"))
+        self.assertEqual(entry.finished_level, 4)
+        self.assertEqual(entry.level_end_sp, 1000)
+        self.assertEqual(entry.level_start_sp, 100)
+        self.assertEqual(entry.queue_position, 1)
+        self.assertEqual(entry.start_date, parse_datetime("2016-06-29T10:47:00Z"))
+        self.assertEqual(entry.training_start_sp, 50)
+
     def test_update_skills(self, mock_esi):
         mock_esi.client = esi_client_stub
 

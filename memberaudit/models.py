@@ -187,6 +187,7 @@ class Character(models.Model):
     UPDATE_SECTION_JUMP_CLONES = "JC"
     UPDATE_SECTION_MAILS = "MA"
     UPDATE_SECTION_SKILLS = "SK"
+    UPDATE_SECTION_SKILL_QUEUE = "SQ"
     UPDATE_SECTION_WALLET_BALLANCE = "WB"
     UPDATE_SECTION_WALLET_JOURNAL = "WJ"
     UPDATE_SECTION_CHOICES = (
@@ -196,6 +197,7 @@ class Character(models.Model):
         (UPDATE_SECTION_JUMP_CLONES, _("jump clones")),
         (UPDATE_SECTION_MAILS, _("mails")),
         (UPDATE_SECTION_SKILLS, _("skills")),
+        (UPDATE_SECTION_SKILL_QUEUE, _("skill queue")),
         (UPDATE_SECTION_WALLET_BALLANCE, _("wallet balance")),
         (UPDATE_SECTION_WALLET_JOURNAL, _("wallet journal")),
     )
@@ -764,9 +766,34 @@ class Character(models.Model):
         mail.body = mail_body.get("body", "")
         mail.save()
 
+    @fetch_token("esi-skills.read_skillqueue.v1")
+    def update_skill_queue(self, token):
+        """update the character's skill queue"""
+        add_prefix = make_logger_prefix(self)
+        logger.info(add_prefix("Fetching skill queue from ESI"))
+
+        skillqueue = esi.client.Skills.get_characters_character_id_skillqueue(
+            character_id=self.character_ownership.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+        with transaction.atomic():
+            self.skillqueue.all().delete()
+            for entry in skillqueue:
+                CharacterSkillqueueEntry.objects.create(
+                    character=self,
+                    skill=get_or_create_eveuniverse_or_none("skill_id", entry, EveType),
+                    finish_date=entry.get("finish_date"),
+                    finished_level=entry.get("finished_level"),
+                    level_end_sp=entry.get("level_end_sp"),
+                    level_start_sp=entry.get("level_start_sp"),
+                    queue_position=entry.get("queue_position"),
+                    start_date=entry.get("start_date"),
+                    training_start_sp=entry.get("training_start_sp"),
+                )
+
     @fetch_token("esi-skills.read_skills.v1")
     def update_skills(self, token):
-        """syncs the character's skill"""
+        """update the character's skill"""
         add_prefix = make_logger_prefix(self)
         logger.info(add_prefix("Fetching skills from ESI"))
 
@@ -1440,6 +1467,35 @@ class CharacterSkillpoints(models.Model):
     )
     total = models.BigIntegerField(validators=[MinValueValidator(0)])
     unallocated = models.PositiveIntegerField(default=None, null=True)
+
+
+class CharacterSkillqueueEntry(models.Model):
+    """Entry in the skillqueue of a character"""
+
+    character = models.ForeignKey(
+        Character,
+        on_delete=models.CASCADE,
+        related_name="skillqueue",
+    )
+    skill = models.ForeignKey(EveType, on_delete=models.CASCADE)
+
+    finish_date = models.DateTimeField(default=None, null=True)
+    finished_level = models.PositiveIntegerField()
+    level_end_sp = models.PositiveIntegerField(default=None, null=True)
+    level_start_sp = models.PositiveIntegerField(default=None, null=True)
+    queue_position = models.PositiveIntegerField()
+    start_date = models.DateTimeField(default=None, null=True)
+    training_start_sp = models.PositiveIntegerField(default=None, null=True)
+
+    """ TODO: Enable when design is stable
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "skill"],
+                name="functional_pk_characterskillqueueentry",
+            )
+        ]
+    """
 
 
 class CharacterUpdateStatus(models.Model):
