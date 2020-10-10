@@ -431,4 +431,5 @@ class JSONDateTimeEncoder(json.JSONEncoder):
 
 def generate_invalid_pk(MyModel: models.Model) -> int:
     """return an invalid PK for the given Django model"""
-    return MyModel.objects.aggregate(models.Max("pk"))["pk__max"] + 1
+    pk_max = MyModel.objects.aggregate(models.Max("pk"))["pk__max"]
+    return pk_max + 1 if pk_max else 1

@@ -1,0 +1,37 @@
+{% load humanize %}
+
+<div class="modal-content">
+    <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">
+            &times;
+        </span></button>        
+        <h4 class="modal-title" id="myModalLabel">{{ contract_summary }}</h4>
+    </div>
+    <div class="modal-body">
+        {% if error %}
+            <p class="text-danger">{{ error }}</p>
+        {% else %}
+            <dl class="dl-horizontal">
+                <dt>Info by Issuer:</dt> <dd>{{ contract.title }}</dd>
+                <dt>Type:</dt> <dd>{{ contract.get_contract_type_display|title }}</dd>
+                <dt>Issued By:</dt> <dd>{{ contract.issuer.name }}</dd>
+                <dt>Availability:</dt> <dd>{{ contract.get_availability_display|title }}</dd>
+                <dt>Status:</dt> <dd>{{ contract.get_status_display|title }}</dd>
+                <dt>Location:</dt> <dd>{{ contract.start_location.name }}</dd>
+                <dt>Date Issued:</dt> <dd>{{ contract.date_issued }}</dd>
+                <dt>Expiration Date:</dt> <dd>{{ contract.date_expired }}</dd>
+                <hr>
+                <dt>Complete In:</dt> <dd>{{ contract.days_to_complete }}</dd>
+                <dt>Volume:</dt> <dd>{{ contract.volume|floatformat:2|intcomma }} m3</dd>
+                <dt>Reward:</dt> <dd>{{ contract.reward|floatformat:2|intcomma }} ISK</dd>
+                <dt>Collateral:</dt> <dd>{{ contract.collateral|floatformat:2|intcomma }}</dd>
+                <dt>Destination:</dt> <dd>{{ contract.end_location.name }}</dd>
+            </dl>
+        {% endif %}
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">
+            Close
+        </button>
+    </div>
+</div>

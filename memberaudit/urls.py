@@ -44,9 +44,9 @@ urlpatterns = [
         name="character_contracts_data",
     ),
     path(
-        "character_contract_details_data/<int:character_pk>/<int:contract_pk>/",
-        views.character_contract_details_data,
-        name="character_contract_details_data",
+        "character_contract_details/<int:character_pk>/<int:contract_pk>/",
+        views.character_contract_details,
+        name="character_contract_details",
     ),
     path(
         "character_jump_clones_data/<int:character_pk>/",

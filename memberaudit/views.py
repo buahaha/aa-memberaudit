@@ -361,7 +361,7 @@ def character_contracts_data(
                 time_left = "expired"
 
             ajax_contract_detail = reverse(
-                "memberaudit:character_contract_details_data",
+                "memberaudit:character_contract_details",
                 args=[character.pk, contract.pk],
             )
 
@@ -394,9 +394,10 @@ def character_contracts_data(
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
-def character_contract_details_data(
+def character_contract_details(
     request, character_pk: int, character: Character, contract_pk: int
-) -> JsonResponse:
+) -> HttpResponse:
+    error_msg = None
     try:
         contract = character.contracts.get(pk=contract_pk)
     except CharacterContract.DoesNotExist:
@@ -404,32 +405,19 @@ def character_contract_details_data(
             f"Contract with pk {contract_pk} not found for character {character}"
         )
         logger.warning(error_msg)
-        return HttpResponseNotFound(error_msg)
-
-    data = {
-        "contract_id": contract.contract_id,
-        "summary": contract.summary(),
-        "title": contract.title,
-        "type": contract.get_contract_type_display().title(),
-        "issuer": contract.issuer.name,
-        "availability": contract.get_availability_display().title(),
-        "status": contract.get_status_display().title(),
-        "location": contract.start_location.name if contract.start_location else "-",
-        "date_issued": contract.date_issued.strftime(DATETIME_FORMAT),
-        "date_expired": contract.date_expired.strftime(DATETIME_FORMAT),
-        "days_to_complete": f"{contract.days_to_complete} Day(s)"
-        if contract.days_to_complete is not None
-        else "-",
-        "volume": f"{contract.volume:,.0f} m3" if contract.volume is not None else "-",
-        "reward": f"{contract.reward:,.2f} ISK" if contract.reward is not None else "-",
-        "collateral": f"{contract.collateral:,.2f} ISK"
-        if contract.collateral is not None
-        else "-",
-        "end_location": contract.end_location.name
-        if contract.end_location is not None
-        else "-",
-    }
-    return JsonResponse(data, safe=False)
+        context = {
+            "error": error_msg,
+        }
+    else:
+        context = {
+            "contract": contract,
+            "contract_summary": contract.summary(),
+        }
+    return render(
+        request,
+        "memberaudit/character_contract_details.html",
+        add_common_context(request, context),
+    )
 
 
 @login_required
