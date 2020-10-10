@@ -332,6 +332,8 @@
     <script type="application/javascript"
         src="{% static 'memberaudit/vendor/datatables/plugins/datetime.js' %}"></script>
 
+    <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
+
     <script type="application/javascript">
         var DATETIME_FORMAT = 'YYYY-MMM-DD HH:mm'
 
@@ -367,7 +369,19 @@
                     { data: 'info' },
                     { data: 'actions' },
                 ],
-                order: [[0, "asc"]]
+                order: [[5, "desc"]],
+                filterDropDown: {
+                    columns: [
+                        { 
+                            idx: 1
+                        },
+                        { 
+                            idx: 4
+                        }
+                    ],
+                    autoSize: false,
+                    bootstrap: true
+                }
             });
 
             $('#modalCharacterContract').on('show.bs.modal', function(event) {
@@ -471,7 +485,22 @@
                     },
                     { data: 'description' },
                 ],
-                order: [[0, "desc"]]
+                order: [[0, "desc"]],
+                filterDropDown: {
+                    columns: [
+                        { 
+                            idx: 1
+                        },
+                        { 
+                            idx: 2
+                        },
+                        { 
+                            idx: 3
+                        }
+                    ],
+                    autoSize: false,
+                    bootstrap: true
+                }
             });
         });
     </script>
