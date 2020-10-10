@@ -24,6 +24,7 @@ from eveuniverse.models import (
     EveType,
 )
 
+from allianceauth.eveonline.evelinks import dotlan
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.services.hooks import get_extension_logger
 
@@ -164,6 +165,14 @@ class Location(models.Model):
     @property
     def is_empty(self) -> bool:
         return not self.eve_solar_system and not self.eve_type
+
+    @property
+    def solar_system_url(self) -> str:
+        """returns dotlan URL for this solar system"""
+        try:
+            return dotlan.solar_system_url(self.eve_solar_system.name)
+        except AttributeError:
+            return ""
 
 
 class Character(models.Model):
@@ -349,7 +358,6 @@ class Character(models.Model):
                 },
             )
 
-    # TODO: split loading of items/bids per contract_data into tasks
     @fetch_token("esi-contracts.read_character_contracts.v1")
     def update_contracts(self, token: Token):
         """update the character's contracts"""
@@ -1058,7 +1066,6 @@ class CharacterContract(models.Model):
     title = models.CharField(max_length=NAMES_MAX_LENGTH, default="")
     volume = models.FloatField(default=None, null=True)
 
-    """ TODO: enable once stable
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -1066,7 +1073,6 @@ class CharacterContract(models.Model):
                 name="functional_pk_charactercontract",
             )
         ]
-    """
 
     def __str__(self) -> str:
         return f"{self.character}-{self.contract_id}"
@@ -1115,11 +1121,11 @@ class CharacterContract(models.Model):
                 f"({self.volume:.0f} m3)"
             )
         else:
-            if self.items.count() > 1:
+            if self.items.filter(is_included=True).count() > 1:
                 summary = "Multiple Items"
             else:
                 first_item = self.items.first()
-                summary = first_item.eve_type.name if first_item else "?"
+                summary = first_item.eve_type.name if first_item else "(no items)"
 
         return summary
 

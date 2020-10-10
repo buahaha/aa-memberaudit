@@ -12,20 +12,69 @@
             <p class="text-danger">{{ error }}</p>
         {% else %}
             <dl class="dl-horizontal">
-                <dt>Info by Issuer:</dt> <dd>{{ contract.title }}</dd>
+                <dt>Info by Issuer:</dt> <dd>{{ contract.title|default:"(None)" }}</dd>
                 <dt>Type:</dt> <dd>{{ contract.get_contract_type_display|title }}</dd>
                 <dt>Issued By:</dt> <dd>{{ contract.issuer.name }}</dd>
                 <dt>Availability:</dt> <dd>{{ contract.get_availability_display|title }}</dd>
                 <dt>Status:</dt> <dd>{{ contract.get_status_display|title }}</dd>
-                <dt>Location:</dt> <dd>{{ contract.start_location.name }}</dd>
-                <dt>Date Issued:</dt> <dd>{{ contract.date_issued }}</dd>
-                <dt>Expiration Date:</dt> <dd>{{ contract.date_expired }}</dd>
+                <dt>Location:</dt>
+                <dd>
+                    <a href="{{ contract.start_location.solar_system_url }}" target="_blank">
+                        {{ contract.start_location.name }}
+                    </a>
+                </dd>
+                <dt>Date Issued:</dt> <dd>{{ contract.date_issued|date:MY_DATETIME_FORMAT }}</dd>
+                <dt>Expiration Date:</dt> <dd>{{ contract.date_expired|date:MY_DATETIME_FORMAT }}</dd>
                 <hr>
-                <dt>Complete In:</dt> <dd>{{ contract.days_to_complete }}</dd>
-                <dt>Volume:</dt> <dd>{{ contract.volume|floatformat:2|intcomma }} m3</dd>
-                <dt>Reward:</dt> <dd>{{ contract.reward|floatformat:2|intcomma }} ISK</dd>
-                <dt>Collateral:</dt> <dd>{{ contract.collateral|floatformat:2|intcomma }}</dd>
-                <dt>Destination:</dt> <dd>{{ contract.end_location.name }}</dd>
+                {% if contract.contract_type == contract.TYPE_COURIER %}
+                    <dt>Complete In:</dt> <dd>{{ contract.days_to_complete }}</dd>
+                    <dt>Volume:</dt> <dd>{{ contract.volume|floatformat:2|intcomma }} m3</dd>
+                    <dt>Reward:</dt> <dd>{{ contract.reward|floatformat:2|intcomma }} ISK</dd>
+                    <dt>Collateral:</dt> <dd>{{ contract.collateral|floatformat:2|intcomma }}</dd>
+                    <dt>Destination:</dt>
+                    <dd>
+                        <a href="{{ contract.end_location.solar_system_url }}" target="_blank">
+                            {{ contract.end_location.name }}
+                        </a>
+                    </dd>
+                {% elif contract.contract_type == contract.TYPE_ITEM_EXCHANGE %}                    
+                    {% if contract.price or items_requested %}
+                        <h4 class="text-danger">Buyer will pay</h4>
+                        {% if contract.price %}
+                            <p>{{ contract.price|floatformat:2|intcomma }} ISK</p>
+                        {% endif %}
+                        {% if items_requested %}
+                            {% include "memberaudit/character_contract_items.html" with items=items_requested %}
+                        {% endif %}
+                    {% endif %}
+
+                    <hr>
+                    
+                    {% if contract.reward or items_included %}
+                        <h4 class="text-success">Buyer will get</h4>
+                        {% if contract.reward %}
+                            <p>{{ contract.reward|floatformat:2|intcomma }} ISK</p>
+                        {% endif %}
+                        {% if items_included %}                        
+                            {% include "memberaudit/character_contract_items.html" with items=items_included %}                        
+                        {% endif %}
+                    {% endif %}
+
+                {% elif contract.contract_type == contract.TYPE_AUCTION %}                    
+                    <dt>Starting Bid:</dt> <dd>{{ contract.price|floatformat:2|intcomma }}</dd>
+                    <dt>Buyout Price:</dt> <dd>{{ contract.buyout|floatformat:2|intcomma }}</dd>
+                    <dt>Current Bid:</dt> <dd>{{ current_bid|floatformat:2|intcomma }} ({{ bids_count }} so far)</dd>
+                    <dt>Time Left:</dt> <dd>{{ contract.date_expired|timeuntil }}</dd>
+
+                    <hr>
+                    
+                    <h4 class="text-success">Buyer will get</h4>                    
+                    {% if items_included %}                        
+                        {% include "memberaudit/character_contract_items.html" with items=items_included %}                        
+                    {% endif %}
+                
+
+                {% endif %}
             </dl>
         {% endif %}
     </div>

@@ -1,7 +1,7 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import transaction
-from django.db.models import Count, Q, F
+from django.db.models import Count, Q, F, Max
 from django.http import (
     JsonResponse,
     HttpResponse,
@@ -37,6 +37,7 @@ from .utils import (
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+MY_DATETIME_FORMAT = "Y-M-d H:i"
 
 
 def create_img_html(src: str, classes: list) -> str:
@@ -399,7 +400,11 @@ def character_contract_details(
 ) -> HttpResponse:
     error_msg = None
     try:
-        contract = character.contracts.get(pk=contract_pk)
+        contract = (
+            character.contracts.select_related()
+            .prefetch_related("items")
+            .get(pk=contract_pk)
+        )
     except CharacterContract.DoesNotExist:
         error_msg = (
             f"Contract with pk {contract_pk} not found for character {character}"
@@ -409,9 +414,51 @@ def character_contract_details(
             "error": error_msg,
         }
     else:
+        items_included = None
+        items_requested = None
+        if contract.contract_type in [
+            CharacterContract.TYPE_ITEM_EXCHANGE,
+            CharacterContract.TYPE_AUCTION,
+        ]:
+            try:
+                items_included = (
+                    contract.items.select_related(
+                        "eve_type",
+                        "eve_type__eve_group",
+                        "eve_type__eve_group__eve_category",
+                    )
+                    .filter(is_included=True)
+                    .values(
+                        "quantity",
+                        "eve_type_id",
+                        name=F("eve_type__name"),
+                        group=F("eve_type__eve_group__name"),
+                        category=F("eve_type__eve_group__eve_category__name"),
+                    )
+                )
+                items_requested = contract.items.filter(is_included=False)
+            except ObjectDoesNotExist:
+                pass
+
+        current_bid = None
+        bids_count = None
+        if contract.contract_type == CharacterContract.TYPE_AUCTION:
+            try:
+                current_bid = (
+                    contract.bids.all().aggregate(Max("amount")).get("amount__max")
+                )
+                bids_count = contract.bids.count()
+            except ObjectDoesNotExist:
+                pass
+
         context = {
             "contract": contract,
             "contract_summary": contract.summary(),
+            "MY_DATETIME_FORMAT": MY_DATETIME_FORMAT,
+            "items_included": items_included,
+            "items_requested": items_requested,
+            "current_bid": current_bid,
+            "bids_count": bids_count,
         }
     return render(
         request,

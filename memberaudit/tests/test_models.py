@@ -16,6 +16,7 @@ from . import create_memberaudit_character, create_user_from_evecharacter
 from ..models import (
     Character,
     CharacterContract,
+    CharacterContractItem,
     CharacterDetails,
     CharacterMail,
     CharacterUpdateStatus,
@@ -570,7 +571,88 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(result[1], self.structure_1)
 
 
-# TODO: Tests for CharacterContract.summary()
+class TestCharacterContract(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_eveuniverse()
+        load_entities()
+        load_locations()
+        cls.character_1001 = create_memberaudit_character(1001)
+        cls.character_1002 = create_memberaudit_character(1002)
+        cls.token = cls.character_1001.character_ownership.user.token_set.first()
+        cls.jita = EveSolarSystem.objects.get(id=30000142)
+        cls.jita_44 = Location.objects.get(id=60003760)
+        cls.amamake = EveSolarSystem.objects.get(id=30002537)
+        cls.structure_1 = Location.objects.get(id=1000000000001)
+
+    def setUp(self) -> None:
+        self.contract = CharacterContract.objects.create(
+            character=self.character_1001,
+            contract_id=42,
+            availability=CharacterContract.AVAILABILITY_PERSONAL,
+            contract_type=CharacterContract.TYPE_ITEM_EXCHANGE,
+            date_issued=now(),
+            date_expired=now() + dt.timedelta(days=3),
+            for_corporation=False,
+            issuer=EveEntity.objects.get(id=1001),
+            issuer_corporation=EveEntity.objects.get(id=2001),
+            status=CharacterContract.STATUS_OUTSTANDING,
+            start_location=self.jita_44,
+            end_location=self.jita_44,
+        )
+
+    def test_summary_one_item_1(self):
+        CharacterContractItem.objects.create(
+            contract=self.contract,
+            record_id=1,
+            is_included=True,
+            is_singleton=False,
+            quantity=1,
+            eve_type=EveType.objects.get(id=19540),
+        )
+        self.assertEqual(self.contract.summary(), "High-grade Snake Alpha")
+
+    def test_summary_one_item_2(self):
+        CharacterContractItem.objects.create(
+            contract=self.contract,
+            record_id=1,
+            is_included=True,
+            is_singleton=False,
+            quantity=1,
+            eve_type=EveType.objects.get(id=19540),
+        )
+        CharacterContractItem.objects.create(
+            contract=self.contract,
+            record_id=2,
+            is_included=False,
+            is_singleton=False,
+            quantity=1,
+            eve_type=EveType.objects.get(id=19551),
+        )
+        self.assertEqual(self.contract.summary(), "High-grade Snake Alpha")
+
+    def test_summary_multiple_item(self):
+        CharacterContractItem.objects.create(
+            contract=self.contract,
+            record_id=1,
+            is_included=True,
+            is_singleton=False,
+            quantity=1,
+            eve_type=EveType.objects.get(id=19540),
+        ),
+        CharacterContractItem.objects.create(
+            contract=self.contract,
+            record_id=2,
+            is_included=True,
+            is_singleton=False,
+            quantity=1,
+            eve_type=EveType.objects.get(id=19551),
+        )
+        self.assertEqual(self.contract.summary(), "Multiple Items")
+
+    def test_summary_no_items(self):
+        self.assertEqual(self.contract.summary(), "(no items)")
 
 
 @patch(MANAGERS_PATH + ".esi")

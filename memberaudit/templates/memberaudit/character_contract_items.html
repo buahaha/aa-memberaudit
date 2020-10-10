@@ -1,0 +1,15 @@
+{% load humanize %}
+{% load evelinks %}
+
+{% for item in items|dictsort:"name" %}
+    <div class="rows">
+        <div class="col-md-1">
+            <img width="44" height="44" src="{{ item.eve_type_id|type_icon_url:64 }}"/>
+        </div>
+        <div class="col-md-11">
+            {{ item.name }}&nbsp;&nbsp;x&nbsp;&nbsp;{{ item.quantity|intcomma }}<br>
+            <small>{{ item.category }} / {{ item.group }}</small>
+        </div>
+    </div>
+{% endfor%}
+&nbsp;
