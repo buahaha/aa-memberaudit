@@ -4,7 +4,7 @@
     <div class="modal-header">
         <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">
             &times;
-        </span></button>        
+        </span></button>
         <h4 class="modal-title" id="myModalLabel">{{ contract_summary }}</h4>
     </div>
     <div class="modal-body">
@@ -45,43 +45,40 @@
                             {{ contract.end_location.name }}
                         </a>
                     </dd>
-                {% elif contract.contract_type == contract.TYPE_ITEM_EXCHANGE %}                    
+                {% elif contract.contract_type == contract.TYPE_ITEM_EXCHANGE %}
                     {% if contract.price or items_requested %}
                         <h4 class="text-danger">Buyer will pay</h4>
                         {% if contract.price %}
                             <p>{{ contract.price|floatformat:2|intcomma }} ISK</p>
                         {% endif %}
                         {% if items_requested %}
-                            {% include "memberaudit/character_contract_items.html" with table_name="tab_contract_iitems_requested" items=items_requested %}
+                            {% include "memberaudit/partials/character_contract_items.html" with table_name="tab_contract_iitems_requested" items=items_requested %}
                         {% endif %}
                     {% endif %}
 
                     <hr>
-                    
+
                     {% if contract.reward or items_included %}
                         <h4 class="text-success">Buyer will get</h4>
                         {% if contract.reward %}
                             <p>{{ contract.reward|floatformat:2|intcomma }} ISK</p>
                         {% endif %}
-                        {% if items_included %}                        
-                            {% include "memberaudit/character_contract_items.html" with table_name="tab_contract_items_included" items=items_included %}                        
+                        {% if items_included %}
+                            {% include "memberaudit/partials/character_contract_items.html" with table_name="tab_contract_items_included" items=items_included %}
                         {% endif %}
                     {% endif %}
-
-                {% elif contract.contract_type == contract.TYPE_AUCTION %}                    
+                {% elif contract.contract_type == contract.TYPE_AUCTION %}
                     <dt>Starting Bid:</dt> <dd>{{ contract.price|floatformat:2|intcomma }}</dd>
                     <dt>Buyout Price:</dt> <dd>{{ contract.buyout|floatformat:2|intcomma }}</dd>
                     <dt>Current Bid:</dt> <dd>{{ current_bid|floatformat:2|intcomma }} ({{ bids_count }} so far)</dd>
                     <dt>Time Left:</dt> <dd>{{ contract.date_expired|timeuntil }}</dd>
 
                     <hr>
-                    
-                    <h4 class="text-success">Buyer will get</h4>                    
-                    {% if items_included %}                        
-                        {% include "memberaudit/character_contract_items.html" with table_name="tab_contract_items_included" items=items_included %}                        
-                    {% endif %}
-                
 
+                    <h4 class="text-success">Buyer will get</h4>
+                    {% if items_included %}
+                        {% include "memberaudit/partials/character_contract_items.html" with table_name="tab_contract_items_included" items=items_included %}
+                    {% endif %}
                 {% endif %}
             </dl>
         {% endif %}
@@ -95,18 +92,16 @@
 
 <script>
     $(document).ready(function () {
-        
-        if ( $('#tab_contract_items_requested').length > 0 ) {            
+        if ( $('#tab_contract_items_requested').length > 0 ) {
             $('#tab_contract_items_requested').DataTable({
                 order: [[0, "asc"]]
-            });            
-        }
-        
-        if ( $('#tab_contract_items_included').length > 0 ) {            
-            $('#tab_contract_items_included').DataTable({
-                order: [[0, "asc"]]
-            });        
+            });
         }
 
+        if ( $('#tab_contract_items_included').length > 0 ) {
+            $('#tab_contract_items_included').DataTable({
+                order: [[0, "asc"]]
+            });
+        }
     });
 </script>

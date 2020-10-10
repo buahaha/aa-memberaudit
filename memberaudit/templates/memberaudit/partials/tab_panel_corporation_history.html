@@ -1,0 +1,14 @@
+{% load i18n %}
+{% load static %}
+{% load humanize %}
+{% load evelinks %}
+
+<!-- Corporation History -->
+<div role="tabpanel" class="tab-pane" id="history">
+    <dl class="dl-horizontal">
+        {% for entry in corporation_history %}
+        <dt>{{ entry.corporation_html }}</dt>
+        <dd>{{ entry.start_date|naturalday }} - {{ entry.end_date|naturalday }}</dd>
+        {% endfor %}
+    </dl>
+</div>

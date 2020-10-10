@@ -8,24 +8,26 @@
             <th>Name</th>
             <th>Qty</th>
             <th>Type</th>
-            <th>Category</th>            
+            <th>Category</th>
         </tr>
     </thead>
+
     <tbody>
-        {% for item in items %}    
+        {% for item in items %}
             <tr>
-                
-                    <td data-order="{{ item.name }}">
-                        <img width="32" src="{{ item.eve_type_id|type_icon_url:32 }}" onerror="this.onerror=null;this.src='';"/>
-                        &nbsp;{{ item.name }}
-                    </td>
-                    
+                <td data-order="{{ item.name }}">
+                    <img width="32" src="{{ item.eve_type_id|type_icon_url:32 }}" onerror="this.onerror=null;this.src='';"/>
+                    &nbsp;{{ item.name }}
+                </td>
+
                 <td>
                     {{ item.quantity|intcomma }}
                 </td>
+
                 <td>
                     {{ item.group }}
                 </td>
+
                 <td>
                     {{ item.category }}
                 </td>
