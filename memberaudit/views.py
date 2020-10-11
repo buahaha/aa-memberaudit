@@ -1,5 +1,3 @@
-import datetime
-
 import datetime as dt
 import humanize
 
