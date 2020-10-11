@@ -1497,6 +1497,11 @@ class CharacterSkillqueueEntry(models.Model):
         ]
     """
 
+    @property
+    def is_active(self) -> bool:
+        """Returns true when this skill is currently being trained"""
+        return self.finish_date and self.queue_position == 0
+
 
 class CharacterUpdateStatus(models.Model):
     """Update status for a character"""

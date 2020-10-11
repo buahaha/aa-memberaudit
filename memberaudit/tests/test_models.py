@@ -19,6 +19,7 @@ from ..models import (
     CharacterContractItem,
     CharacterDetails,
     CharacterMail,
+    CharacterSkillqueueEntry,
     CharacterUpdateStatus,
     CharacterWalletJournalEntry,
     Location,
@@ -515,7 +516,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T18:07:00Z"))
         self.assertEqual(obj.body, "Another mail")
 
-    def test_update_skillqueue(self, mock_esi):
+    def test_update_skill_queue(self, mock_esi):
         mock_esi.client = esi_client_stub
 
         self.character_1001.update_skill_queue()
@@ -675,6 +676,52 @@ class TestCharacterContract(NoSocketsTestCase):
 
     def test_summary_no_items(self):
         self.assertEqual(self.contract.summary(), "(no items)")
+
+
+class TestCharacterSkillQueue(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_eveuniverse()
+        load_entities()
+        load_locations()
+        cls.character_1001 = create_memberaudit_character(1001)
+        cls.skill_1 = EveType.objects.get(id=24311)
+        cls.skill_2 = EveType.objects.get(id=24312)
+
+    def test_is_active_1(self):
+        """when training is active and skill is in first position then return True"""
+        entry = CharacterSkillqueueEntry.objects.create(
+            character=self.character_1001,
+            skill=self.skill_1,
+            finish_date=now() + dt.timedelta(days=3),
+            finished_level=5,
+            queue_position=0,
+            start_date=now() - dt.timedelta(days=1),
+        )
+        self.assertTrue(entry.is_active)
+
+    def test_is_active_2(self):
+        """when training is active and skill is not in first position then return False"""
+        entry = CharacterSkillqueueEntry.objects.create(
+            character=self.character_1001,
+            skill=self.skill_1,
+            finish_date=now() + dt.timedelta(days=3),
+            finished_level=5,
+            queue_position=1,
+            start_date=now() - dt.timedelta(days=1),
+        )
+        self.assertFalse(entry.is_active)
+
+    def test_is_active_3(self):
+        """when training is not active and skill is in first position then return False"""
+        entry = CharacterSkillqueueEntry.objects.create(
+            character=self.character_1001,
+            skill=self.skill_1,
+            finished_level=5,
+            queue_position=0,
+        )
+        self.assertFalse(entry.is_active)
 
 
 @patch(MANAGERS_PATH + ".esi")
