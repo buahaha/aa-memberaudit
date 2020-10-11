@@ -1,23 +1,50 @@
-/* dl styling */
-.dl-horizontal dt { text-align: left; }
+@media all {
+    /* dl styling */
+    .dl-horizontal dt {
+        text-align: left;
+    }
 
-/* Style group headers */
-.table > tbody > .table-group > td {background-color: darkgrey;}
+    /* Style group headers */
+    .table > tbody > .table-group > td {
+        background-color: darkgrey;
+    }
 
-/* Wallet */
-#tab_wallet thead th:nth-child(5) { text-align: center;}
-#tab_wallet tbody td:nth-child(5) { text-align: right;}
-#tab_wallet tfoot td:nth-child(5) { text-align: right;}
-#tab_wallet thead th:nth-child(6) { text-align: center;}
-#tab_wallet tbody td:nth-child(6) { text-align: right;}
-#tab_wallet tfoot td:nth-child(6) { text-align: right;}
+    /* Wallet */
+    #tab_wallet thead th:nth-child(5) {
+        text-align: center;
+    }
 
-/* paddings */
-#mainColumnLeft {
-    padding-left: 0;    
-    padding-right: 8px;
-}
+    #tab_wallet tbody td:nth-child(5) {
+        text-align: right;
+    }
 
-#mainColumnRight {
-    padding-right: 0;
+    #tab_wallet tfoot td:nth-child(5) {
+        text-align: right;
+    }
+
+    #tab_wallet thead th:nth-child(6) {
+        text-align: center;
+    }
+
+    #tab_wallet tbody td:nth-child(6) {
+        text-align: right;
+    }
+
+    #tab_wallet tfoot td:nth-child(6) {
+        text-align: right;
+    }
+
+    /* paddings */
+    #mainColumnLeft {
+        padding-left: 0;
+        padding-right: 8px;
+    }
+
+    #mainColumnRight {
+        padding-right: 0;
+    }
+
+    .table-memberaudit-skillqueue .active-skill {
+        font-weight: bold;
+    }
 }

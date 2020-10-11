@@ -342,11 +342,16 @@ def character_viewer(request, character_pk: int, character: Character):
         .filter(character_id=character_pk)
         .order_by("queue_position")
     ):
+        is_currently_trained_skill = False
+        if row.is_active:
+            is_currently_trained_skill = True
+
         skill_queue.append(
             {
                 "finish_date": row.finish_date,
                 "finished_level": map_skillevel_arabic_to_roman[row.finished_level],
                 "skill": row.skill.name,
+                "is_currently_trained_skill": is_currently_trained_skill,
             }
         )
 

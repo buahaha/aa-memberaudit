@@ -3,7 +3,7 @@
 <!-- Skill queue -->
 <div role="tabpanel" class="tab-pane" id="skillqueue">
     {% if skill_queue %}
-        <table class="table table-striped table-responsive">
+        <table class="table table-striped table-responsive table-memberaudit-skillqueue">
             <thead>
                 <tr>
                     <th>Skill</th>
@@ -13,9 +13,18 @@
 
             <tbody>
                 {% for skill in skill_queue %}
-                    <tr>
-                        <td>{{ skill.skill }} {{ skill.finished_level }}</td>
-                        <td>{{ skill.finish_date }}</td>
+                    <tr{% if skill.is_currently_trained_skill %} class="active-skill"{% endif %}>
+                        <td>
+                            {{ skill.skill }} {{ skill.finished_level }}
+                        </td>
+
+                        <td>
+                            {% if skill.finish_date %}
+                                {{ skill.finish_date }}
+                            {% else %}
+                                Skill queue currently not active
+                            {% endif %}
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>
