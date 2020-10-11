@@ -45,5 +45,6 @@ setup(
         "allianceauth>=2.7.3",
         "django-esi>=2",
         "django-eveuniverse>=0.3.4",
+        "humanize",
     ],
 )

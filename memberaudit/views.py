@@ -1,3 +1,8 @@
+import datetime
+
+import datetime as dt
+import humanize
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import transaction
@@ -346,9 +351,21 @@ def character_viewer(request, character_pk: int, character: Character):
         if row.is_active:
             is_currently_trained_skill = True
 
+        finish_date_humanized = None
+        if row.finish_date:
+            finish_date_humanized = humanize.naturaltime(
+                dt.datetime.now()
+                + dt.timedelta(
+                    seconds=(
+                        row.finish_date.timestamp() - dt.datetime.now().timestamp()
+                    )
+                )
+            )
+
         skill_queue.append(
             {
                 "finish_date": row.finish_date,
+                "finish_date_humanized": finish_date_humanized,
                 "finished_level": map_skillevel_arabic_to_roman[row.finished_level],
                 "skill": row.skill.name,
                 "is_currently_trained_skill": is_currently_trained_skill,

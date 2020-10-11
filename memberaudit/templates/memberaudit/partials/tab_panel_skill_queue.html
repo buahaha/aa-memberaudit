@@ -22,6 +22,7 @@
                         <td>
                             {% if skill.finish_date %}
                                 {{ skill.finish_date|date:MY_DATETIME_FORMAT }}
+                                ({{ skill.finish_date_humanized }})
                             {% else %}
                                 Skill queue currently not active
                             {% endif %}
