@@ -27,6 +27,16 @@ esi_client_stub = EsiClientStub(
             "character_id",
         ),
         EsiEndpoint(
+            "Contacts",
+            "get_characters_character_id_contacts",
+            "character_id",
+        ),
+        EsiEndpoint(
+            "Contacts",
+            "get_characters_character_id_contacts_labels",
+            "character_id",
+        ),
+        EsiEndpoint(
             "Contracts",
             "get_characters_character_id_contracts",
             "character_id",

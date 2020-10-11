@@ -15,6 +15,8 @@ from allianceauth.tests.auth_utils import AuthUtils
 from . import create_memberaudit_character, create_user_from_evecharacter
 from ..models import (
     Character,
+    CharacterContact,
+    CharacterContactLabel,
     CharacterContract,
     CharacterContractItem,
     CharacterDetails,
@@ -344,6 +346,89 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         cls.amamake = EveSolarSystem.objects.get(id=30002537)
         cls.structure_1 = Location.objects.get(id=1000000000001)
 
+    def test_update_contact_labels_1(self, mock_esi):
+        """can load contact labels"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_contacts()
+        self.assertEqual(self.character_1001.contact_labels.count(), 2)
+
+        label = self.character_1001.contact_labels.get(label_id=1)
+        self.assertEqual(label.name, "friend")
+
+        label = self.character_1001.contact_labels.get(label_id=2)
+        self.assertEqual(label.name, "pirate")
+
+    def test_update_contact_labels_2(self, mock_esi):
+        """can remove obsolete labels"""
+        mock_esi.client = esi_client_stub
+        CharacterContactLabel.objects.create(
+            character=self.character_1001, label_id=99, name="Obsolete"
+        )
+
+        self.character_1001.update_contacts()
+        self.assertEqual(
+            {x.label_id for x in self.character_1001.contact_labels.all()}, {1, 2}
+        )
+
+    def test_update_contacts_1(self, mock_esi):
+        """can create contacts"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_contacts()
+        self.assertEqual(self.character_1001.contacts.count(), 2)
+
+        obj = self.character_1001.contacts.get(contact_id=1101)
+        self.assertEqual(obj.contact.category, EveEntity.CATEGORY_CHARACTER)
+        self.assertFalse(obj.is_blocked)
+        self.assertTrue(obj.is_watched)
+        self.assertEqual(obj.standing, -10)
+        self.assertEqual({x.label_id for x in obj.labels.all()}, {2})
+
+        obj = self.character_1001.contacts.get(contact_id=2002)
+        self.assertEqual(obj.contact.category, EveEntity.CATEGORY_CORPORATION)
+        self.assertFalse(obj.is_blocked)
+        self.assertFalse(obj.is_watched)
+        self.assertEqual(obj.standing, 5)
+        self.assertEqual(obj.labels.count(), 0)
+
+    def test_update_contacts_2(self, mock_esi):
+        """can remove obsolete contacts"""
+        mock_esi.client = esi_client_stub
+        CharacterContact.objects.create(
+            character=self.character_1001,
+            contact=EveEntity.objects.get(id=3101),
+            standing=-5,
+        )
+        self.character_1001.update_contacts()
+        self.assertEqual(
+            {x.contact_id for x in self.character_1001.contacts.all()}, {1101, 2002}
+        )
+
+    def test_update_contacts_3(self, mock_esi):
+        """can update existing contacts"""
+        mock_esi.client = esi_client_stub
+        my_label = CharacterContactLabel.objects.create(
+            character=self.character_1001, label_id=1, name="Dummy"
+        )
+        my_contact = CharacterContact.objects.create(
+            character=self.character_1001,
+            contact=EveEntity.objects.get(id=1101),
+            is_blocked=True,
+            is_watched=False,
+            standing=-5,
+        )
+        my_contact.labels.add(my_label)
+
+        self.character_1001.update_contacts()
+
+        obj = self.character_1001.contacts.get(contact_id=1101)
+        self.assertEqual(obj.contact.category, EveEntity.CATEGORY_CHARACTER)
+        self.assertFalse(obj.is_blocked)
+        self.assertTrue(obj.is_watched)
+        self.assertEqual(obj.standing, -10)
+        self.assertEqual({x.label_id for x in obj.labels.all()}, {2})
+
     @override_settings(CELERY_ALWAYS_EAGER=True)
     def test_update_contracts_1(self, mock_esi):
         """courier contract"""
@@ -455,7 +540,8 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertFalse(obj.is_deleted)
         self.assertEqual(obj.start_date, parse_datetime("2016-07-26T20:00:00Z"))
 
-    def test_update_jump_clones(self, mock_esi):
+    def test_update_jump_clones_1(self, mock_esi):
+        """can update jump clones with implants"""
         mock_esi.client = esi_client_stub
 
         self.character_1001.update_jump_clones()
@@ -467,6 +553,17 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
             {x for x in obj.implants.values_list("eve_type", flat=True)},
             {19540, 19551, 19553},
         )
+
+    def test_update_jump_clones_2(self, mock_esi):
+        """can update jump clones without implants"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1002.update_jump_clones()
+        self.assertEqual(self.character_1002.jump_clones.count(), 1)
+
+        obj = self.character_1002.jump_clones.get(jump_clone_id=12345)
+        self.assertEqual(obj.location, self.jita_44)
+        self.assertEqual(obj.implants.count(), 0)
 
     @override_settings(CELERY_ALWAYS_EAGER=True)
     def test_update_mails(self, mock_esi):

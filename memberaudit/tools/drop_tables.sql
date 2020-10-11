@@ -1,5 +1,11 @@
 SET FOREIGN_KEY_CHECKS=0;
 DROP TABLE IF EXISTS memberaudit_character;
+DROP TABLE IF EXISTS memberaudit_charactercontact;
+DROP TABLE IF EXISTS memberaudit_charactercontactcontactlabel;
+DROP TABLE IF EXISTS memberaudit_charactercontactlabel; 
+DROP TABLE IF EXISTS memberaudit_charactercontract;        
+DROP TABLE IF EXISTS memberaudit_charactercontractbid;
+DROP TABLE IF EXISTS memberaudit_charactercontractitem;
 DROP TABLE IF EXISTS memberaudit_charactercorporationhistory;
 DROP TABLE IF EXISTS memberaudit_characterdetails;
 DROP TABLE IF EXISTS memberaudit_characterjumpclone;
@@ -12,8 +18,10 @@ DROP TABLE IF EXISTS memberaudit_charactermailrecipient;
 DROP TABLE IF EXISTS memberaudit_charactermailunreadcount;
 DROP TABLE IF EXISTS memberaudit_characterskill;
 DROP TABLE IF EXISTS memberaudit_characterskillpoints;
+DROP TABLE IF EXISTS memberaudit_characterskillqueueentry;
 DROP TABLE IF EXISTS memberaudit_characterupdatestatus;
 DROP TABLE IF EXISTS memberaudit_characterwalletbalance;
 DROP TABLE IF EXISTS memberaudit_characterwalletjournalentry;
 DROP TABLE IF EXISTS memberaudit_location;
 SET FOREIGN_KEY_CHECKS=1;
+

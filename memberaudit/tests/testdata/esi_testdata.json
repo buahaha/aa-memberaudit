@@ -29,6 +29,42 @@
             ]
         }
     },
+    "Contacts": {
+        "get_characters_character_id_contacts": {
+            "1001": [
+                {
+                    "contact_id": 1101,
+                    "contact_type": "character",
+                    "is_blocked": false,
+                    "is_watched": true,
+                    "standing": -10,
+                    "label_ids": [
+                        2
+                    ]
+                },
+                {
+                    "contact_id": 2002,
+                    "contact_type": "corporation",
+                    "is_blocked": false,
+                    "is_watched": false,
+                    "standing": 5,
+                    "label_ids": null
+                }
+            ]
+        },
+        "get_characters_character_id_contacts_labels": {
+            "1001": [
+                {
+                    "label_id": 1,
+                    "label_name": "friend"
+                },
+                {
+                    "label_id": 2,
+                    "label_name": "pirate"
+                }
+            ]
+        }
+    },
     "Contracts": {
         "get_characters_character_id_contracts": {
             "1001": [
@@ -169,6 +205,21 @@
                         "name": null
                     }
                 ]
+            },
+            "1002": {
+                "home_location": {
+                    "location_id": 1000000000001,
+                    "location_type": "structure"
+                },
+                "jump_clones": [
+                    {
+                        "implants": null,
+                        "jump_clone_id": 12345,
+                        "location_id": 60003760,
+                        "location_type": "station",
+                        "name": null
+                    }
+                ]
             }
         }
     },
@@ -269,9 +320,7 @@
             "2": {
                 "body": "Another mail",
                 "from": 1101,
-                "labels": [
-                    3
-                ],
+                "labels": null,
                 "subject": "Mail 2",
                 "timestamp": "2015-09-30T18:07:00Z"
             }

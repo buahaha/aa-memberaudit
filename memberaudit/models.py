@@ -182,6 +182,7 @@ class Character(models.Model):
     """
 
     UPDATE_SECTION_CHARACTER_DETAILS = "CD"
+    UPDATE_SECTION_CONTACTS = "CA"
     UPDATE_SECTION_CONTRACTS = "CR"
     UPDATE_SECTION_CORPORATION_HISTORY = "CH"
     UPDATE_SECTION_JUMP_CLONES = "JC"
@@ -192,6 +193,7 @@ class Character(models.Model):
     UPDATE_SECTION_WALLET_JOURNAL = "WJ"
     UPDATE_SECTION_CHOICES = (
         (UPDATE_SECTION_CHARACTER_DETAILS, _("character details")),
+        (UPDATE_SECTION_CONTACTS, _("contacts")),
         (UPDATE_SECTION_CONTRACTS, _("contracts")),
         (UPDATE_SECTION_CORPORATION_HISTORY, _("corporation history")),
         (UPDATE_SECTION_JUMP_CLONES, _("jump clones")),
@@ -360,6 +362,66 @@ class Character(models.Model):
                 },
             )
 
+    @fetch_token("esi-characters.read_contacts.v1")
+    def update_contacts(self, token: Token):
+        """update the character's contacts"""
+        self._update_contact_labels(token)
+        self._update_contacts(token)
+
+    def _update_contact_labels(self, token):
+        logger.info("%s: Fetching contact labels from ESI", self)
+        labels = esi.client.Contacts.get_characters_character_id_contacts_labels(
+            character_id=self.character_ownership.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+        with transaction.atomic():
+            label_ids = {x["label_id"] for x in labels}
+            self.contact_labels.exclude(label_id__in=label_ids).delete()
+            for label in labels:
+                CharacterContactLabel.objects.update_or_create(
+                    character=self,
+                    label_id=label.get("label_id"),
+                    defaults={
+                        "name": label.get("label_name"),
+                    },
+                )
+
+    def _update_contacts(self, token):
+        logger.info("%s: Fetching contacts from ESI", self)
+        contacts = esi.client.Contacts.get_characters_character_id_contacts(
+            character_id=self.character_ownership.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+        with transaction.atomic():
+            contact_ids = {x["contact_id"] for x in contacts}
+            self.contacts.exclude(contact_id__in=contact_ids).delete()
+            for contact_data in contacts:
+                contact, _ = EveEntity.objects.get_or_create(
+                    id=contact_data.get("contact_id")
+                )
+                character_contact, _ = CharacterContact.objects.update_or_create(
+                    character=self,
+                    contact=contact,
+                    defaults={
+                        "is_blocked": contact_data.get("is_blocked"),
+                        "is_watched": contact_data.get("is_watched"),
+                        "standing": contact_data.get("standing"),
+                    },
+                )
+                character_contact.labels.clear()
+                if contact_data.get("label_ids"):
+                    for label_id in contact_data.get("label_ids"):
+                        try:
+                            label = CharacterContactLabel.objects.get(label_id=label_id)
+                        except CharacterContactLabel.DoesNotExist:
+                            logger.warning(
+                                "%s: Unknown contact label with id %s", self, label_id
+                            )
+                        else:
+                            character_contact.labels.add(label)
+
+            EveEntity.objects.bulk_update_new_esi()
+
     @fetch_token("esi-contracts.read_character_contracts.v1")
     def update_contracts(self, token: Token):
         """update the character's contracts"""
@@ -447,7 +509,7 @@ class Character(models.Model):
 
     @fetch_token("esi-contracts.read_character_contracts.v1")
     def update_contract_details(self, token: Token, contract: "CharacterContract"):
-        """update the character's contracts"""
+        """update the character's contract details"""
         logger.info(
             "%s: Fetching contract details from ESI for ID: %s",
             self,
@@ -527,11 +589,12 @@ class Character(models.Model):
                     location=locations[jump_clone_info.get("location_id")],
                     name=name,
                 )
-                for implant in jump_clone_info.get("implants", []):
-                    eve_type, _ = EveType.objects.get_or_create_esi(id=implant)
-                    CharacterJumpCloneImplant.objects.create(
-                        jump_clone=jump_clone, eve_type=eve_type
-                    )
+                if jump_clone_info.get("implants"):
+                    for implant in jump_clone_info.get("implants"):
+                        eve_type, _ = EveType.objects.get_or_create_esi(id=implant)
+                        CharacterJumpCloneImplant.objects.create(
+                            jump_clone=jump_clone, eve_type=eve_type
+                        )
 
     @fetch_token("esi-mail.read_mail.v1")
     def update_mails(self, token: Token):
@@ -722,16 +785,17 @@ class Character(models.Model):
                             )
 
                 CharacterMailMailLabel.objects.filter(mail=mail_obj).delete()
-                for label_id in header.get("labels", []):
-                    try:
-                        label = self.mail_labels.get(label_id=label_id)
-                        CharacterMailMailLabel.objects.create(
-                            mail=mail_obj, label=label
-                        )
-                    except CharacterMailLabel.DoesNotExist:
-                        logger.warning(
-                            add_prefix(f"Could not find label with id {label_id}")
-                        )
+                if header.get("labels"):
+                    for label_id in header.get("labels"):
+                        try:
+                            label = self.mail_labels.get(label_id=label_id)
+                            CharacterMailMailLabel.objects.create(
+                                mail=mail_obj, label=label
+                            )
+                        except CharacterMailLabel.DoesNotExist:
+                            logger.warning(
+                                add_prefix(f"Could not find label with id {label_id}")
+                            )
 
     def _update_mail_bodies(self):
         from .tasks import (
@@ -948,6 +1012,55 @@ class Character(models.Model):
                 return f"update_{method_partial}"
 
         raise ValueError(f"Unknown update section: {section}")
+
+
+class CharacterContactLabel(models.Model):
+    """An Eve Online contact label belonging to a Character"""
+
+    character = models.ForeignKey(
+        Character, on_delete=models.CASCADE, related_name="contact_labels"
+    )
+    label_id = models.BigIntegerField(validators=[MinValueValidator(0)])
+    name = models.CharField(max_length=NAMES_MAX_LENGTH)
+
+    """ TODO: Enable when design is stable
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "label_id"],
+                name="functional_pk_characterlabel",
+            )
+        ]
+    """
+
+    def __str__(self):
+        return f"{self.character}-{self.name}"
+
+
+class CharacterContact(models.Model):
+    """An Eve Online contract belonging to a Character"""
+
+    character = models.ForeignKey(
+        Character, on_delete=models.CASCADE, related_name="contacts"
+    )
+    contact = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
+    is_blocked = models.BooleanField(default=None, null=True)
+    is_watched = models.BooleanField(default=None, null=True)
+    standing = models.FloatField()
+    labels = models.ManyToManyField(CharacterContactLabel, related_name="contacts")
+
+    """ TODO: Enable when design is stable
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "contact"],
+                name="functional_pk_charactercontact",
+            )
+        ]
+    """
+
+    def __str__(self):
+        return f"{self.character}-{self.contact}"
 
 
 class CharacterContract(models.Model):
@@ -1383,6 +1496,7 @@ class CharacterMailLabel(models.Model):
         return self.name
 
 
+# TODO: Change to M2M
 class CharacterMailMailLabel(models.Model):
     """Mail label used in a mail"""
 
@@ -1496,6 +1610,9 @@ class CharacterSkillqueueEntry(models.Model):
             )
         ]
     """
+
+    def __str__(self):
+        return f"{self.character}-{self.skill}"
 
     @property
     def is_active(self) -> bool:
