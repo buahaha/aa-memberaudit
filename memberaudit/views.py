@@ -362,6 +362,7 @@ def character_viewer(request, character_pk: int, character: Character):
         "character_details": character_details,
         "corporation_history": reversed(corporation_history),
         "skill_queue": skill_queue,
+        "MY_DATETIME_FORMAT": MY_DATETIME_FORMAT,
         "main": main,
     }
     return render(
