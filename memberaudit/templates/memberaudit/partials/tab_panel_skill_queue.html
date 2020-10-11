@@ -7,7 +7,6 @@
             <thead>
                 <tr>
                     <th>Skill</th>
-                    <th>Level</th>
                     <th>Finished</th>
                 </tr>
             </thead>
@@ -15,8 +14,7 @@
             <tbody>
                 {% for skill in skill_queue %}
                     <tr>
-                        <td>{{ skill.skill }}</td>
-                        <td>{{ skill.finished_level }}</td>
+                        <td>{{ skill.skill }} {{ skill.finished_level }}</td>
                         <td>{{ skill.finish_date }}</td>
                     </tr>
                 {% endfor %}

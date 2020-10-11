@@ -334,6 +334,9 @@ def character_viewer(request, character_pk: int, character: Character):
 
     # skill queue
     skill_queue = list()
+
+    map_skillevel_arabic_to_roman = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V"}
+
     for row in (
         character.skillqueue.select_related("skill")
         .filter(character_id=character_pk)
@@ -342,7 +345,7 @@ def character_viewer(request, character_pk: int, character: Character):
         skill_queue.append(
             {
                 "finish_date": row.finish_date,
-                "finished_level": row.finished_level,
+                "finished_level": map_skillevel_arabic_to_roman[row.finished_level],
                 "skill": row.skill.name,
             }
         )
