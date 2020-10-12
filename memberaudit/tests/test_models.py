@@ -21,9 +21,13 @@ from ..models import (
     CharacterContractItem,
     CharacterDetails,
     CharacterMail,
+    CharacterSkill,
     CharacterSkillqueueEntry,
     CharacterUpdateStatus,
     CharacterWalletJournalEntry,
+    Doctrine,
+    DoctrineShip,
+    DoctrineShipSkill,
     Location,
     is_esi_online,
 )
@@ -689,6 +693,124 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         result = self.character_1002.fetch_location()
         self.assertEqual(result[0], self.amamake)
         self.assertEqual(result[1], self.structure_1)
+
+
+class TestCharacterCanFlyDoctrines(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_eveuniverse()
+        load_entities()
+        load_locations()
+        cls.character = create_memberaudit_character(1001)
+        cls.skill_1 = EveType.objects.get(id=24311)
+        cls.skill_2 = EveType.objects.get(id=24312)
+
+    def test_has_all_skills(self):
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=self.skill_1,
+            active_skill_level=5,
+            skillpoints_in_skill=10,
+            trained_skill_level=5,
+        )
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=self.skill_2,
+            active_skill_level=5,
+            skillpoints_in_skill=10,
+            trained_skill_level=5,
+        )
+        ship = DoctrineShip.objects.create(name="Ship 1")
+        DoctrineShipSkill.objects.create(ship=ship, skill=self.skill_1, level=5)
+        DoctrineShipSkill.objects.create(ship=ship, skill=self.skill_2, level=3)
+        doctrine = Doctrine.objects.create(name="Dummy")
+        doctrine.ships.add(ship)
+
+        self.character.update_doctrines()
+
+        self.assertEqual(self.character.doctrine_ships.count(), 1)
+        first = self.character.doctrine_ships.first()
+        self.assertEqual(first.ship.pk, ship.pk)
+        self.assertEqual(first.insufficient_skills.count(), 0)
+
+    def test_one_skill_below(self):
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=self.skill_1,
+            active_skill_level=5,
+            skillpoints_in_skill=10,
+            trained_skill_level=5,
+        )
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=self.skill_2,
+            active_skill_level=2,
+            skillpoints_in_skill=10,
+            trained_skill_level=5,
+        )
+        ship = DoctrineShip.objects.create(name="Ship 1")
+        DoctrineShipSkill.objects.create(ship=ship, skill=self.skill_1, level=5)
+        skill_2 = DoctrineShipSkill.objects.create(
+            ship=ship, skill=self.skill_2, level=3
+        )
+        doctrine = Doctrine.objects.create(name="Dummy")
+        doctrine.ships.add(ship)
+
+        self.character.update_doctrines()
+
+        self.assertEqual(self.character.doctrine_ships.count(), 1)
+        first = self.character.doctrine_ships.first()
+        self.assertEqual(first.ship.pk, ship.pk)
+        self.assertEqual(
+            {obj.pk for obj in first.insufficient_skills.all()}, {skill_2.pk}
+        )
+
+    def test_misses_one_skill(self):
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=self.skill_1,
+            active_skill_level=5,
+            skillpoints_in_skill=10,
+            trained_skill_level=5,
+        )
+        ship = DoctrineShip.objects.create(name="Ship 1")
+        DoctrineShipSkill.objects.create(ship=ship, skill=self.skill_1, level=5)
+        skill_2 = DoctrineShipSkill.objects.create(
+            ship=ship, skill=self.skill_2, level=3
+        )
+        doctrine = Doctrine.objects.create(name="Dummy")
+        doctrine.ships.add(ship)
+
+        self.character.update_doctrines()
+
+        self.assertEqual(self.character.doctrine_ships.count(), 1)
+        first = self.character.doctrine_ships.first()
+        self.assertEqual(first.ship.pk, ship.pk)
+        self.assertEqual(
+            {obj.pk for obj in first.insufficient_skills.all()}, {skill_2.pk}
+        )
+
+    def test_misses_all_skill_below(self):
+        ship = DoctrineShip.objects.create(name="Ship 1")
+        skill_1 = DoctrineShipSkill.objects.create(
+            ship=ship, skill=self.skill_1, level=5
+        )
+        skill_2 = DoctrineShipSkill.objects.create(
+            ship=ship, skill=self.skill_2, level=3
+        )
+        doctrine = Doctrine.objects.create(name="Dummy")
+        doctrine.ships.add(ship)
+
+        self.character.update_doctrines()
+
+        self.assertEqual(self.character.doctrine_ships.count(), 1)
+        first = self.character.doctrine_ships.first()
+        self.assertEqual(first.ship.pk, ship.pk)
+        self.assertEqual(
+            {obj.pk for obj in first.insufficient_skills.all()},
+            {skill_1.pk, skill_2.pk},
+        )
 
 
 class TestCharacterContract(NoSocketsTestCase):

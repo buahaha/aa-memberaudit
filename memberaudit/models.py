@@ -1,10 +1,11 @@
+from collections import namedtuple
 import json
 from typing import Optional
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models, transaction
 from django.utils.html import strip_tags
 from django.utils.safestring import mark_safe
@@ -31,16 +32,23 @@ from allianceauth.services.hooks import get_extension_logger
 from . import __title__
 from .app_settings import MEMBERAUDIT_MAX_MAILS, MEMBERAUDIT_DEVELOPER_MODE
 from .decorators import fetch_token
-from .managers import CharacterManager, LocationManager
+from .managers import CharacterManager, DoctrineManager, LocationManager
 from .providers import esi
 from .utils import LoggerAddTag, make_logger_prefix
 
+CharacterDoctrineResult = namedtuple(
+    "CharacterDoctrineResult", ["doctrine", "ship", "insufficient_skills"]
+)
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 CURRENCY_MAX_DIGITS = 17
 CURRENCY_MAX_DECIMALS = 2
 NAMES_MAX_LENGTH = 100
+
+# Eve IDs
+EVE_CATEGORY_ID_SKILL = 16
+EVE_GROUP_ID_CYBERIMPLANT = 300
 
 
 def eve_xml_to_html(xml: str) -> str:
@@ -146,7 +154,7 @@ class Location(models.Model):
 
     objects = LocationManager()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
     def __repr__(self) -> str:
@@ -219,8 +227,14 @@ class Character(models.Model):
 
     objects = CharacterManager()
 
-    def __str__(self):
-        return str(self.character_ownership)
+    def __str__(self) -> str:
+        return f"{self.character_ownership.character.character_name} ({self.pk})"
+
+    def __repr__(self) -> str:
+        return (
+            f"Character(pk={self.pk}, "
+            f"character_ownership='{self.character_ownership}')"
+        )
 
     @property
     def has_mails(self):
@@ -412,8 +426,10 @@ class Character(models.Model):
                 if contact_data.get("label_ids"):
                     for label_id in contact_data.get("label_ids"):
                         try:
-                            label = CharacterContactLabel.objects.get(label_id=label_id)
+                            label = self.contact_labels.get(label_id=label_id)
                         except CharacterContactLabel.DoesNotExist:
+                            # sometimes label IDs on contacts
+                            # do not refer to actual labels
                             logger.warning(
                                 "%s: Unknown contact label with id %s", self, label_id
                             )
@@ -732,7 +748,7 @@ class Character(models.Model):
 
         logger.info(
             add_prefix(
-                f"Updating {mail_headers_all} mail headers and loading mail bodies"
+                f"Updating {len(mail_headers_all)} mail headers and loading mail bodies"
             )
         )
 
@@ -857,9 +873,12 @@ class Character(models.Model):
 
     @fetch_token("esi-skills.read_skills.v1")
     def update_skills(self, token):
+        self._update_skills(token)
+        self.update_doctrines()
+
+    def _update_skills(self, token):
         """update the character's skill"""
-        add_prefix = make_logger_prefix(self)
-        logger.info(add_prefix("Fetching skills from ESI"))
+        logger.info("%s: Fetching skills from ESI", self)
 
         skills = esi.client.Skills.get_characters_character_id_skills(
             character_id=self.character_ownership.character.character_id,
@@ -885,6 +904,32 @@ class Character(models.Model):
                     skillpoints_in_skill=skill.get("skillpoints_in_skill"),
                     trained_skill_level=skill.get("trained_skill_level"),
                 )
+
+    def update_doctrines(self):
+        """Checks if character can fly doctrine ships
+        and updates results in database
+        """
+        logger.info("%s: Update doctrines", self)
+        character_skills = {
+            obj["eve_type_id"]: obj["active_skill_level"]
+            for obj in self.skills.values("eve_type_id", "active_skill_level")
+        }
+        with transaction.atomic():
+            self.doctrine_ships.all().delete()
+            for doctrine in Doctrine.objects.prefetch_related(
+                "ships", "ships__skills"
+            ).all():
+                for ship in doctrine.ships.all():
+                    doctrine_ship = CharacterDoctrineShipCheck.objects.create(
+                        character=self, ship=ship
+                    )
+                    for skill in ship.skills.select_related("skill").all():
+                        skill_id = skill.skill_id
+                        if (
+                            skill_id not in character_skills
+                            or character_skills[skill_id] < skill.level
+                        ):
+                            doctrine_ship.insufficient_skills.add(skill)
 
     @fetch_token("esi-wallet.read_character_wallet.v1")
     def update_wallet_balance(self, token):
@@ -1033,7 +1078,7 @@ class CharacterContactLabel(models.Model):
         ]
     """
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.character}-{self.name}"
 
 
@@ -1059,7 +1104,7 @@ class CharacterContact(models.Model):
         ]
     """
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.character}-{self.contact}"
 
 
@@ -1317,7 +1362,7 @@ class CharacterCorporationHistory(models.Model):
             )
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(f"{self.character}-{self.record_id}")
 
 
@@ -1365,13 +1410,40 @@ class CharacterDetails(models.Model):
     security_status = models.FloatField(default=None, null=True)
     title = models.TextField()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.character)
 
     @property
     def description_plain(self) -> str:
         """returns the description without tags"""
         return eve_xml_to_html(self.description)
+
+
+class CharacterDoctrineShipCheck(models.Model):
+    """Whether this character can fly this doctrine ship"""
+
+    character = models.ForeignKey(
+        Character, on_delete=models.CASCADE, related_name="doctrine_ships"
+    )
+    ship = models.ForeignKey("DoctrineShip", on_delete=models.CASCADE)
+    insufficient_skills = models.ManyToManyField("DoctrineShipSkill")
+
+    """ TODO: Enable when design is stable
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "ship"],
+                name="functional_pk_characterdoctrineshipcheck",
+            )
+        ]
+    """
+
+    def __str__(self) -> str:
+        return f"{self.character}-{self.ship}"
+
+    @property
+    def can_fly(self) -> bool:
+        return self.insufficient_skills.count() == 0
 
 
 class CharacterJumpClone(models.Model):
@@ -1392,7 +1464,7 @@ class CharacterJumpClone(models.Model):
             )
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(f"{self.character}-{self.jump_clone_id}")
 
 
@@ -1404,7 +1476,7 @@ class CharacterJumpCloneImplant(models.Model):
     )
     eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(f"{self.jump_clone}-{self.eve_type}")
 
 
@@ -1440,7 +1512,7 @@ class CharacterMail(models.Model):
             )
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.mail_id)
 
     @property
@@ -1469,7 +1541,7 @@ class CharacterMailingList(models.Model):
             )
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -1492,7 +1564,7 @@ class CharacterMailLabel(models.Model):
             )
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
 
@@ -1513,7 +1585,7 @@ class CharacterMailMailLabel(models.Model):
             )
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "{}-{}".format(self.mail, self.label)
 
 
@@ -1534,7 +1606,7 @@ class CharacterMailRecipient(models.Model):
         blank=True,
     )
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.mailing_list.name if self.mailing_list else self.eve_entity.name
 
 
@@ -1555,9 +1627,9 @@ class CharacterSkill(models.Model):
         Character, on_delete=models.CASCADE, related_name="skills"
     )
     eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
-    active_skill_level = models.PositiveIntegerField()
+    active_skill_level = models.PositiveIntegerField(validators=[MaxValueValidator(5)])
     skillpoints_in_skill = models.BigIntegerField(validators=[MinValueValidator(0)])
-    trained_skill_level = models.PositiveIntegerField()
+    trained_skill_level = models.PositiveIntegerField(validators=[MaxValueValidator(5)])
 
     class Meta:
         constraints = [
@@ -1566,7 +1638,7 @@ class CharacterSkill(models.Model):
             )
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.character}-{self.eve_type.name}"
 
 
@@ -1594,7 +1666,7 @@ class CharacterSkillqueueEntry(models.Model):
     skill = models.ForeignKey(EveType, on_delete=models.CASCADE)
 
     finish_date = models.DateTimeField(default=None, null=True)
-    finished_level = models.PositiveIntegerField()
+    finished_level = models.PositiveIntegerField(validators=[MaxValueValidator(5)])
     level_end_sp = models.PositiveIntegerField(default=None, null=True)
     level_start_sp = models.PositiveIntegerField(default=None, null=True)
     queue_position = models.PositiveIntegerField()
@@ -1611,7 +1683,7 @@ class CharacterSkillqueueEntry(models.Model):
         ]
     """
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.character}-{self.skill}"
 
     @property
@@ -1639,7 +1711,7 @@ class CharacterUpdateStatus(models.Model):
             )
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"{self.character}-{self.get_section_display()}"
 
 
@@ -1750,7 +1822,7 @@ class CharacterWalletJournalEntry(models.Model):
             )
         ]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.character) + " " + str(self.entry_id)
 
     @classmethod
@@ -1761,3 +1833,52 @@ class CharacterWalletJournalEntry(models.Model):
                     return id_type
 
         return cls.CONTEXT_ID_TYPE_UNDEFINED
+
+
+class Doctrine(models.Model):
+    """A doctrine"""
+
+    name = models.CharField(max_length=NAMES_MAX_LENGTH, unique=True)
+    description = models.TextField(blank=True)
+    ships = models.ManyToManyField("DoctrineShip")
+    is_active = models.BooleanField(
+        default=True, help_text="Whether this doctrine is in active use"
+    )
+    objects = DoctrineManager()
+
+    def __str__(self) -> str:
+        return str(self.name)
+
+
+class DoctrineShip(models.Model):
+    """A ship for doctrines"""
+
+    name = models.CharField(max_length=NAMES_MAX_LENGTH, unique=True)
+
+    def __str__(self) -> str:
+        return str(self.name)
+
+
+class DoctrineShipSkill(models.Model):
+    """A required skill for a doctrine"""
+
+    ship = models.ForeignKey(
+        DoctrineShip, on_delete=models.CASCADE, related_name="skills"
+    )
+    skill = models.ForeignKey(EveType, on_delete=models.CASCADE)
+    level = models.PositiveIntegerField(
+        validators=[MaxValueValidator(5)], help_text="Minimum required skill level"
+    )
+
+    """ TODO: Enable when design is stable
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["doctrine", "skill"],
+                name="functional_pk_doctrineskill",
+            )
+        ]
+    """
+
+    def __str__(self) -> str:
+        return f"{self.ship}-{self.skill}"

@@ -247,3 +247,7 @@ class CharacterManager(models.Manager):
                 qs = qs | self.filter(is_shared=True)
 
         return qs
+
+
+class DoctrineManager(models.Manager):
+    pass
