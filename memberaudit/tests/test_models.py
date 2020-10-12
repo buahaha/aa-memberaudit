@@ -791,7 +791,7 @@ class TestCharacterCanFlyDoctrines(NoSocketsTestCase):
             {obj.pk for obj in first.insufficient_skills.all()}, {skill_2.pk}
         )
 
-    def test_misses_all_skill_below(self):
+    def test_misses_all_skills(self):
         ship = DoctrineShip.objects.create(name="Ship 1")
         skill_1 = DoctrineShipSkill.objects.create(
             ship=ship, skill=self.skill_1, level=5
@@ -801,6 +801,25 @@ class TestCharacterCanFlyDoctrines(NoSocketsTestCase):
         )
         doctrine = Doctrine.objects.create(name="Dummy")
         doctrine.ships.add(ship)
+
+        self.character.update_doctrines()
+
+        self.assertEqual(self.character.doctrine_ships.count(), 1)
+        first = self.character.doctrine_ships.first()
+        self.assertEqual(first.ship.pk, ship.pk)
+        self.assertEqual(
+            {obj.pk for obj in first.insufficient_skills.all()},
+            {skill_1.pk, skill_2.pk},
+        )
+
+    def test_does_not_require_doctrine_definition(self):
+        ship = DoctrineShip.objects.create(name="Ship 1")
+        skill_1 = DoctrineShipSkill.objects.create(
+            ship=ship, skill=self.skill_1, level=5
+        )
+        skill_2 = DoctrineShipSkill.objects.create(
+            ship=ship, skill=self.skill_2, level=3
+        )
 
         self.character.update_doctrines()
 

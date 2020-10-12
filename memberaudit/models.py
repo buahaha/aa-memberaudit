@@ -228,7 +228,7 @@ class Character(models.Model):
     objects = CharacterManager()
 
     def __str__(self) -> str:
-        return f"{self.character_ownership.character.character_name} ({self.pk})"
+        return f"{self.character_ownership.character.character_name} (#{self.pk})"
 
     def __repr__(self) -> str:
         return (
@@ -916,20 +916,17 @@ class Character(models.Model):
         }
         with transaction.atomic():
             self.doctrine_ships.all().delete()
-            for doctrine in Doctrine.objects.prefetch_related(
-                "ships", "ships__skills"
-            ).all():
-                for ship in doctrine.ships.all():
-                    doctrine_ship = CharacterDoctrineShipCheck.objects.create(
-                        character=self, ship=ship
-                    )
-                    for skill in ship.skills.select_related("skill").all():
-                        skill_id = skill.skill_id
-                        if (
-                            skill_id not in character_skills
-                            or character_skills[skill_id] < skill.level
-                        ):
-                            doctrine_ship.insufficient_skills.add(skill)
+            for ship in DoctrineShip.objects.prefetch_related("skills").all():
+                doctrine_ship = CharacterDoctrineShipCheck.objects.create(
+                    character=self, ship=ship
+                )
+                for skill in ship.skills.select_related("skill").all():
+                    skill_id = skill.skill_id
+                    if (
+                        skill_id not in character_skills
+                        or character_skills[skill_id] < skill.level
+                    ):
+                        doctrine_ship.insufficient_skills.add(skill)
 
     @fetch_token("esi-wallet.read_character_wallet.v1")
     def update_wallet_balance(self, token):
