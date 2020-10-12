@@ -41,6 +41,7 @@ def _load_character(character_pk: int) -> Character:
 @shared_task
 def update_character_section(character_pk: int, section: str) -> None:
     character = _load_character(character_pk)
+    character.update_status_set.filter(section=section).delete()
     try:
         getattr(character, Character.section_method_name(section))()
         CharacterUpdateStatus.objects.create(
@@ -69,7 +70,6 @@ def update_character(character_pk: int) -> None:
     """update all data for a character from ESI"""
     character = _load_character(character_pk)
     logger.info("%s: Starting character update", character)
-    character.update_status_set.all().delete()
     for section, _ in Character.UPDATE_SECTION_CHOICES:
         update_character_section.apply_async(
             kwargs={

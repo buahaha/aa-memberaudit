@@ -1,9 +1,19 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
+from eveuniverse.models import EveType
+
 from allianceauth.authentication.admin import user_main_organization
 
-from .models import Character, CharacterUpdateStatus, Location
+from .models import (
+    Character,
+    CharacterUpdateStatus,
+    Doctrine,
+    DoctrineShip,
+    DoctrineShipSkill,
+    Location,
+    EVE_CATEGORY_ID_SKILL,
+)
 from .tasks import update_character as task_update_character
 
 
@@ -160,3 +170,49 @@ class LocationAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+
+@admin.register(Doctrine)
+class DoctrineAdmin(admin.ModelAdmin):
+    list_display = ("name", "_ships")
+    ordering = ["name"]
+    filter_horizontal = ("ships",)
+
+    def _ships(self, obj):
+        return [x.name for x in obj.ships.all().order_by("name")]
+
+
+class DoctrineMinimumSkillAdminInline(admin.TabularInline):
+    model = DoctrineShipSkill
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "skill":
+            kwargs["queryset"] = (
+                EveType.objects.select_related("eve_group__eve_category")
+                .filter(eve_group__eve_category=EVE_CATEGORY_ID_SKILL)
+                .order_by("name")
+            )
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+@admin.register(DoctrineShip)
+class DoctrineShipAdmin(admin.ModelAdmin):
+    list_display = ("name", "_skills")
+    ordering = ["name"]
+
+    def _skills(self, obj):
+        return [
+            f"{x.skill.name} {x.level}"
+            for x in obj.skills.all().order_by("skill__name")
+        ]
+
+    inlines = (DoctrineMinimumSkillAdminInline,)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "ship_type":
+            kwargs["queryset"] = (
+                EveType.objects.select_related("eve_group__eve_category")
+                .filter(eve_group__eve_category=6)
+                .order_by("name")
+            )
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
