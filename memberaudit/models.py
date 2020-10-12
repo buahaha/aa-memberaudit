@@ -228,7 +228,7 @@ class Character(models.Model):
     objects = CharacterManager()
 
     def __str__(self) -> str:
-        return f"{self.character_ownership.character.character_name} (#{self.pk})"
+        return f"{self.character_ownership.character.character_name} (PK:{self.pk})"
 
     def __repr__(self) -> str:
         return (
@@ -297,8 +297,7 @@ class Character(models.Model):
 
     def update_character_details(self):
         """syncs the character details for the given character"""
-        add_prefix = make_logger_prefix(self)
-        logger.info(add_prefix("Fetching character details from ESI"))
+        logger.info("%s: Fetching character details from ESI", self)
         details = esi.client.Character.get_characters_character_id(
             character_id=self.character_ownership.character.character_id,
         ).results()
@@ -357,8 +356,7 @@ class Character(models.Model):
 
     def update_corporation_history(self):
         """syncs the character's corporation history"""
-        add_prefix = make_logger_prefix(self)
-        logger.info(add_prefix("Fetching corporation history from ESI"))
+        logger.info("%s: Fetching corporation history from ESI", self)
         history = esi.client.Character.get_characters_character_id_corporationhistory(
             character_id=self.character_ownership.character.character_id,
         ).results()
@@ -445,8 +443,7 @@ class Character(models.Model):
             update_contract_details_esi as task_update_contract_details_esi,
         )
 
-        add_prefix = make_logger_prefix(self)
-        logger.info(add_prefix("Fetching contracts from ESI"))
+        logger.info("%s: Fetching contracts from ESI", self)
         contracts_data = esi.client.Contracts.get_characters_character_id_contracts(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
@@ -577,8 +574,7 @@ class Character(models.Model):
     @fetch_token("esi-clones.read_clones.v1")
     def update_jump_clones(self, token: Token):
         """updates the character's jump clones"""
-        add_prefix = make_logger_prefix(self)
-        logger.info(add_prefix("Fetching jump clones from ESI"))
+        logger.info("%s: Fetching jump clones from ESI", self)
         jump_clones_info = esi.client.Clones.get_characters_character_id_clones(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
@@ -594,7 +590,7 @@ class Character(models.Model):
             locations[location_id] = location
 
         with transaction.atomic():
-            CharacterJumpClone.objects.filter(character=self).delete()
+            self.jump_clones.all().delete()
             for jump_clone_info in jump_clones_info.get("jump_clones", []):
                 name = (
                     jump_clone_info.get("name") if jump_clone_info.get("name") else ""
@@ -623,16 +619,11 @@ class Character(models.Model):
         """syncs the mailing list for the given character"""
         add_prefix = make_logger_prefix(self)
         logger.info(add_prefix("Fetching mailing lists from ESI"))
-
         mailing_lists = esi.client.Mail.get_characters_character_id_mail_lists(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
-
-        logger.info(
-            add_prefix("Received {} mailing lists from ESI".format(len(mailing_lists)))
-        )
-
+        logger.info(add_prefix(f"Received {len(mailing_lists)} mailing lists from ESI"))
         created_count = 0
         for mailing_list in mailing_lists:
             _, created = CharacterMailingList.objects.update_or_create(
@@ -644,23 +635,18 @@ class Character(models.Model):
                 created_count += 1
 
         if created_count > 0:
-            logger.info(
-                add_prefix("Added/Updated {} mailing lists".format(created_count))
-            )
+            logger.info(add_prefix(f"Added/Updated {created_count} mailing lists"))
 
     def _update_maillabels(self, token: Token):
         """syncs the mail lables for the given character"""
         add_prefix = make_logger_prefix(self)
         logger.info(add_prefix("Fetching mail labels from ESI"))
-
         mail_labels_info = esi.client.Mail.get_characters_character_id_mail_labels(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
         mail_labels = mail_labels_info.get("labels")
-        logger.info(
-            add_prefix("Received {} mail labels from ESI".format(len(mail_labels)))
-        )
+        logger.info(add_prefix(f"Received {len(mail_labels)} mail labels from ESI"))
         CharacterMailUnreadCount.objects.update_or_create(
             character=self,
             defaults={"total": mail_labels_info.get("total_unread_count")},
@@ -680,30 +666,29 @@ class Character(models.Model):
                 created_count += 1
 
         if created_count > 0:
-            logger.info(
-                add_prefix("Added/Updated {} mail labels".format(created_count))
-            )
+            logger.info(add_prefix(f"Added/Updated {created_count} mail labels"))
 
     def _update_mail_headers(self, token: Token):
-        add_prefix = make_logger_prefix(self)
+        mail_headers = self._fetch_mail_headers(token)
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_mail_headers_to_disk(mail_headers)
 
-        # fetch mail headers
+        self._update_mail_header_ids_from_esi(mail_headers)
+        self._create_mail_headers(mail_headers)
+
+    def _fetch_mail_headers(self, token) -> list:
+        add_prefix = make_logger_prefix(self)
         last_mail_id = None
         mail_headers_all = list()
         page = 1
-
         while True:
-            logger.info(
-                add_prefix("Fetching mail headers from ESI - page {}".format(page))
-            )
+            logger.info(add_prefix(f"Fetching mail headers from ESI - page {page}"))
             mail_headers = esi.client.Mail.get_characters_character_id_mail(
                 character_id=self.character_ownership.character.character_id,
                 last_mail_id=last_mail_id,
                 token=token.valid_access_token(),
             ).results()
-
             mail_headers_all += mail_headers
-
             if len(mail_headers) < 50 or len(mail_headers_all) >= MEMBERAUDIT_MAX_MAILS:
                 break
             else:
@@ -711,33 +696,26 @@ class Character(models.Model):
                 page += 1
 
         logger.info(
-            add_prefix(
-                "Received {} mail headers from ESI".format(len(mail_headers_all))
-            )
+            add_prefix(f"Received {len(mail_headers_all)} mail headers from ESI")
         )
+        return mail_headers_all
 
-        if MEMBERAUDIT_DEVELOPER_MODE:
-            # store to disk (for debugging)
-            with open(
-                "mail_headers_raw_{}.json".format(
-                    self.character_ownership.character.character_id
-                ),
-                "w",
-                encoding="utf-8",
-            ) as f:
-                json.dump(
-                    mail_headers_all, f, cls=DjangoJSONEncoder, sort_keys=True, indent=4
-                )
+    def _store_mail_headers_to_disk(self, mail_headers):
+        """For debugging only"""
+        with open(
+            "mail_headers_raw_{}.json".format(
+                self.character_ownership.character.character_id
+            ),
+            "w",
+            encoding="utf-8",
+        ) as f:
+            json.dump(mail_headers, f, cls=DjangoJSONEncoder, sort_keys=True, indent=4)
 
-        # update IDs from ESI
+    def _update_mail_header_ids_from_esi(self, mail_headers) -> None:
+        logger.info("%s: Updating mail header IDs from ESI", self)
         ids = set()
-        mailing_list_ids = [
-            x["list_id"]
-            for x in CharacterMailingList.objects.filter(character=self)
-            .select_related()
-            .values("list_id")
-        ]
-        for header in mail_headers_all:
+        mailing_list_ids = [x["list_id"] for x in self.mailing_lists.values("list_id")]
+        for header in mail_headers:
             if header.get("from") not in mailing_list_ids:
                 ids.add(header.get("from"))
             for recipient in header.get("recipients", []):
@@ -746,17 +724,13 @@ class Character(models.Model):
 
         EveEntity.objects.bulk_create_esi(ids)
 
-        logger.info(
-            add_prefix(
-                f"Updating {len(mail_headers_all)} mail headers and loading mail bodies"
-            )
-        )
-
+    def _create_mail_headers(self, mail_headers) -> None:
         # load mail headers
-        for header in mail_headers_all:
+        logger.info("%s: Updating %s mail headers", self, len(mail_headers))
+        for header in mail_headers:
             with transaction.atomic():
                 try:
-                    from_mailing_list = CharacterMailingList.objects.get(
+                    from_mailing_list = self.mailing_lists.get(
                         list_id=header.get("from")
                     )
                     from_entity = None
@@ -777,7 +751,7 @@ class Character(models.Model):
                         "timestamp": header.get("timestamp"),
                     },
                 )
-                CharacterMailRecipient.objects.filter(mail=mail_obj).delete()
+                mail_obj.recipients.all().delete()
                 for recipient in header.get("recipients"):
                     recipient_id = recipient.get("recipient_id")
                     if recipient.get("recipient_type") != "mailing_list":
@@ -800,7 +774,7 @@ class Character(models.Model):
                                 mail=mail_obj, mailing_list=mailing_list
                             )
 
-                CharacterMailMailLabel.objects.filter(mail=mail_obj).delete()
+                mail_obj.labels.all().delete()
                 if header.get("labels"):
                     for label_id in header.get("labels"):
                         try:
@@ -810,7 +784,7 @@ class Character(models.Model):
                             )
                         except CharacterMailLabel.DoesNotExist:
                             logger.warning(
-                                add_prefix(f"Could not find label with id {label_id}")
+                                ("%s: Could not find label with id %s", self, label_id)
                             )
 
     def _update_mail_bodies(self):
@@ -819,6 +793,7 @@ class Character(models.Model):
             DEFAULT_TASK_PRIORITY,
         )
 
+        logger.info("%s: Updating mailbodies", self)
         mails_without_body_qs = self.mails.filter(body="")
         for mail in mails_without_body_qs:
             task_update_mail_body_esi.apply_async(
@@ -826,18 +801,13 @@ class Character(models.Model):
                 priority=DEFAULT_TASK_PRIORITY,
             )
 
-        if mails_without_body_qs.count() > 0:
-            logger.info(
-                "Character %s: loaded %d mail bodies",
-                self.pk,
-                mails_without_body_qs.count(),
-            )
+        new_bodies_count = mails_without_body_qs.count()
+        if new_bodies_count > 0:
+            logger.info("%s: loaded %d mail bodies", self, new_bodies_count)
 
     @fetch_token("esi-mail.read_mail.v1")
     def update_mail_body(self, token: Token, mail: "CharacterMail") -> None:
-        logger.debug(
-            "Character %s: Fetching body from ESI for mail ID %s", self.pk, mail.mail_id
-        )
+        logger.debug("%s: Fetching body from ESI for mail ID %s", self, mail.mail_id)
         mail_body = esi.client.Mail.get_characters_character_id_mail_mail_id(
             character_id=self.character_ownership.character.character_id,
             mail_id=mail.mail_id,
@@ -849,9 +819,7 @@ class Character(models.Model):
     @fetch_token("esi-skills.read_skillqueue.v1")
     def update_skill_queue(self, token):
         """update the character's skill queue"""
-        add_prefix = make_logger_prefix(self)
-        logger.info(add_prefix("Fetching skill queue from ESI"))
-
+        logger.info("%s: Fetching skill queue from ESI", self)
         skillqueue = esi.client.Skills.get_characters_character_id_skillqueue(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
@@ -892,7 +860,7 @@ class Character(models.Model):
             },
         )
         with transaction.atomic():
-            CharacterSkill.objects.filter(character=self).delete()
+            self.skills.all().delete()
             for skill in skills.get("skills"):
                 eve_type, _ = EveType.objects.get_or_create_esi(
                     id=skill.get("skill_id")
@@ -931,8 +899,7 @@ class Character(models.Model):
     @fetch_token("esi-wallet.read_character_wallet.v1")
     def update_wallet_balance(self, token):
         """syncs the character's wallet balance"""
-        add_prefix = make_logger_prefix(self)
-        logger.info(add_prefix("Fetching wallet balance from ESI"))
+        logger.info("%s: Fetching wallet balance from ESI", self)
         balance = esi.client.Wallet.get_characters_character_id_wallet(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
@@ -944,8 +911,7 @@ class Character(models.Model):
     @fetch_token("esi-wallet.read_character_wallet.v1")
     def update_wallet_journal(self, token):
         """syncs the character's wallet journal"""
-        add_prefix = make_logger_prefix(self)
-        logger.info(add_prefix("Fetching wallet journal from ESI"))
+        logger.info("%s: Fetching wallet journal from ESI", self)
 
         journal = esi.client.Wallet.get_characters_character_id_wallet_journal(
             character_id=self.character_ownership.character.character_id,
@@ -988,8 +954,7 @@ class Character(models.Model):
 
     @fetch_token("esi-location.read_location.v1")
     def fetch_location(self, token) -> Optional[dict]:
-        add_prefix = make_logger_prefix(self)
-        logger.info(add_prefix("Fetching character location ESI"))
+        logger.info("%s: Fetching character location ESI", self)
         if not is_esi_online():
             return None, None
 
@@ -1510,7 +1475,7 @@ class CharacterMail(models.Model):
         ]
 
     def __str__(self) -> str:
-        return str(self.mail_id)
+        return f"{self.character}-{self.mail_id}"
 
     @property
     def body_html(self) -> str:
