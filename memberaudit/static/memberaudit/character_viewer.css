@@ -5,9 +5,17 @@
     }
 
     /* Style group headers */
-    .table > tbody > .table-group > td {
-        background-color: darkgrey;
+    .template-light-mode .table > tbody > .table-group > td {
+        background-color: dimgrey;
+        color: white;
+        font-weight: bold;
     }
+
+    .template-dark-mode .table > tbody > .table-group > td {
+        background-color: dimgrey;
+        color: white;
+        font-weight: bold;
+    } 
 
     /* Assets */    
     #tab_assets tbody td:nth-child(3) {

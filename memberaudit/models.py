@@ -47,6 +47,8 @@ CURRENCY_MAX_DIGITS = 17
 CURRENCY_MAX_DECIMALS = 2
 NAMES_MAX_LENGTH = 100
 
+BULK_CREATE_BATCH_SIZE = 500
+
 
 def eve_xml_to_html(xml: str) -> str:
     x = xml.replace("<br>", "\n")
@@ -330,13 +332,20 @@ class Character(models.Model):
         else:
             return None
 
-    # @transaction.atomic()
     @fetch_token("esi-skills.read_skillqueue.v1")
     def update_assets(self, token):
         """update the character's assets"""
-        logger.info("%s: Fetching assets from ESI", self)
 
-        # fetch all assets
+        asset_list = self._fetch_assets_from_esi(token)
+        asset_names = self._fetch_names_for_assets(token, asset_list)
+        self._preload_all_eve_types(asset_list)
+        location_ids = self._preload_all_locations(token, asset_list)
+        self._create_assets(
+            asset_list=asset_list, asset_names=asset_names, location_ids=location_ids
+        )
+
+    def _fetch_assets_from_esi(self, token) -> list:
+        logger.info("%s: Fetching assets from ESI", self)
         asset_list = esi.client.Assets.get_characters_character_id_assets(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
@@ -345,86 +354,125 @@ class Character(models.Model):
         if MEMBERAUDIT_DEVELOPER_MODE:
             store_list_to_disk(asset_list, f"asset_list_{self.pk}")
 
-        # fetch names for all assets
+        return asset_list
+
+    def _fetch_names_for_assets(self, token, asset_list: list) -> list:
         logger.info("%s: Fetching asset names from ESI", self)
-        asset_ids = [x["item_id"] for x in asset_list]
+        asset_ids = {x["item_id"] for x in asset_list}
         names = list()
-        for asset_ids_chunk in chunks(asset_ids, 999):
+        for asset_ids_chunk in chunks(list(asset_ids), 999):
             names += esi.client.Assets.post_characters_character_id_assets_names(
                 character_id=self.character_ownership.character.character_id,
                 token=token.valid_access_token(),
                 item_ids=asset_ids_chunk,
             ).results()
 
-        asset_names = {x["item_id"]: x["name"] for x in names if x["name"] != "None"}
+        return {x["item_id"]: x["name"] for x in names if x["name"] != "None"}
 
-        logger.info("%s: Building asset tree", self)
+    def _preload_all_eve_types(self, asset_list: list) -> None:
+        required_ids = {x["type_id"] for x in asset_list}
+        existing_ids = set(EveType.objects.values_list("id", flat=True))
+        missing_ids = required_ids.difference(existing_ids)
+        logger.info("%s: Loading %s missing types from ESI", self, len(missing_ids))
+        for type_id in missing_ids:
+            EveType.objects.update_or_create_esi(id=type_id)
+
+    def _preload_all_locations(self, token: Token, asset_list: list) -> None:
+        asset_ids = {x["item_id"] for x in asset_list}
+        required_ids = {
+            obj.get("location_id")
+            for obj in asset_list
+            if obj.get("location_id") not in asset_ids
+        }
+        existing_ids = set(Location.objects.values_list("id", flat=True))
+        missing_ids = required_ids.difference(existing_ids)
+        logger.info("%s: Loading %s missing locations from ESI", self, len(missing_ids))
+        for location_id in missing_ids:
+            try:
+                Location.objects.update_or_create_esi(id=location_id, token=token)
+                existing_ids.add(location_id)
+            except ValueError:
+                pass
+
+        return existing_ids
+
+    @transaction.atomic()
+    def _create_assets(self, asset_list: list, asset_names: list, location_ids: list):
+        logger.info("%s: Building tree for %s assets", self, len(asset_list))
         self.assets.all().delete()
 
-        # create parent and single assets
+        # create parent assets
+        logger.info("%s: Creating parent assets", self)
         parent_asset_ids = set()
+        new_assets = list()
         for asset_data in copy(asset_list):
             location_id = asset_data.get("location_id")
-            if location_id not in set(asset_ids):
+            if location_id in location_ids:
                 item_id = asset_data.get("item_id")
-                try:
-                    location = get_or_create_location_or_none(
-                        "location_id", asset_data, token
-                    )
-                except ValueError:
-                    pass
-
-                else:
-                    CharacterAsset.objects.create(
+                new_assets.append(
+                    CharacterAsset(
                         character=self,
                         item_id=item_id,
-                        location=location,
-                        eve_type=get_or_create_eveuniverse_or_none(
-                            "type_id", asset_data, EveType
-                        ),
+                        location_id=location_id,
+                        eve_type_id=asset_data.get("type_id"),
                         name=asset_names.get(item_id, ""),
                         is_blueprint_copy=asset_data.get("is_blueprint_copy"),
                         is_singleton=asset_data.get("is_singleton"),
                         location_flag=asset_data.get("location_flag"),
                         quantity=asset_data.get("quantity"),
                     )
-                    asset_list.remove(asset_data)
-                    parent_asset_ids.add(item_id)
+                )
+                asset_list.remove(asset_data)
+                parent_asset_ids.add(item_id)
+
+        logger.info("%s: Writing %s parent assets", self, len(new_assets))
+        CharacterAsset.objects.bulk_create(
+            new_assets, batch_size=BULK_CREATE_BATCH_SIZE, ignore_conflicts=True
+        )
 
         # create child assets
+        round = 0
         while True:
-            found_parent = False
+            round += 1
+            logger.info("%s: Creating child assets - pass %s", self, round)
+            new_assets = list()
             for asset_data in copy(asset_list):
                 item_id = asset_data.get("item_id")
                 location_id = asset_data.get("location_id")
                 if location_id in parent_asset_ids:
-                    CharacterAsset.objects.create(
-                        character=self,
-                        item_id=item_id,
-                        parent=self.assets.get(item_id=location_id),
-                        eve_type=get_or_create_eveuniverse_or_none(
-                            "type_id", asset_data, EveType
-                        ),
-                        name=asset_names.get(item_id, ""),
-                        is_blueprint_copy=asset_data.get("is_blueprint_copy"),
-                        is_singleton=asset_data.get("is_singleton"),
-                        location_flag=asset_data.get("location_flag"),
-                        quantity=asset_data.get("quantity"),
+                    new_assets.append(
+                        CharacterAsset(
+                            character=self,
+                            item_id=item_id,
+                            parent=self.assets.get(item_id=location_id),
+                            eve_type_id=asset_data.get("type_id"),
+                            name=asset_names.get(item_id, ""),
+                            is_blueprint_copy=asset_data.get("is_blueprint_copy"),
+                            is_singleton=asset_data.get("is_singleton"),
+                            location_flag=asset_data.get("location_flag"),
+                            quantity=asset_data.get("quantity"),
+                        )
                     )
                     asset_list.remove(asset_data)
-                    parent_asset_ids.add(item_id)
-                    found_parent = True
 
-            if not found_parent:
+            if new_assets:
+                logger.info("%s: Writing %s child assets", self, len(new_assets))
+                CharacterAsset.objects.bulk_create(
+                    new_assets, batch_size=BULK_CREATE_BATCH_SIZE, ignore_conflicts=True
+                )
+                parent_asset_ids = parent_asset_ids.union(
+                    {obj.item_id for obj in new_assets}
+                )
+
+            if not new_assets or not asset_list:
                 break
 
         if len(asset_list) > 0:
-            asset_ids = [x["item_id"] for x in asset_list]
             logger.warning(
                 "%s: Failed to add %s assets to the tree: %s",
                 self,
                 len(asset_list),
-                asset_ids,
+                [x["item_id"] for x in asset_list],
             )
 
     def update_character_details(self):

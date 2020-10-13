@@ -27,6 +27,7 @@ from allianceauth.eveonline.evelinks import dotlan
 from allianceauth.services.hooks import get_extension_logger
 
 from . import tasks, __title__
+from .constants import EVE_CATEGORY_ID_SHIP
 from .decorators import fetch_character_if_allowed
 from .helpers import eve_solar_system_to_html
 from .models import Character, CharacterContract, CharacterMail
@@ -36,6 +37,7 @@ from .utils import (
     create_link_html,
     DATETIME_FORMAT,
     create_fa_button_html,
+    yesno_str,
 )
 
 
@@ -398,6 +400,7 @@ def character_assets_data(
         for asset in character.assets.select_related(
             "eve_type",
             "eve_type__eve_group",
+            "eve_type__eve_group__eve_category",
             "location",
             "location__eve_solar_system__eve_constellation__eve_region",
         ).filter(location__isnull=False):
@@ -408,17 +411,30 @@ def character_assets_data(
                 name = asset.eve_type.name
                 group = asset.eve_type.eve_group.name
 
+            if asset.location.eve_solar_system:
+                region = (
+                    asset.location.eve_solar_system.eve_constellation.eve_region.name
+                )
+                solar_system = asset.location.eve_solar_system.name
+            else:
+                region = ""
+                solar_system = ""
+
+            is_ship = yesno_str(
+                asset.eve_type.eve_group.eve_category_id == EVE_CATEGORY_ID_SHIP
+            )
             data.append(
                 {
                     "item_id": asset.item_id,
-                    "location": asset.location.name,
+                    "location": asset.location.name_plus,
                     "icon": create_img_html(asset.eve_type.icon_url(32), []),
                     "name": name,
                     "quantity": asset.quantity if not asset.is_singleton else "",
                     "group": group,
                     "volume": asset.eve_type.volume,
-                    "region": asset.location.eve_solar_system.eve_constellation.eve_region.name,
-                    "solar_system": asset.location.eve_solar_system.name,
+                    "region": region,
+                    "solar_system": solar_system,
+                    "is_ship": is_ship,
                 }
             )
     except ObjectDoesNotExist:
@@ -501,22 +517,19 @@ def character_contract_details(
             CharacterContract.TYPE_AUCTION,
         ]:
             try:
-                items_included = (
-                    contract.items.select_related(
-                        "eve_type",
-                        "eve_type__eve_group",
-                        "eve_type__eve_group__eve_category",
-                    )
-                    .filter(is_included=True)
-                    .values(
-                        "quantity",
-                        "eve_type_id",
-                        name=F("eve_type__name"),
-                        group=F("eve_type__eve_group__name"),
-                        category=F("eve_type__eve_group__eve_category__name"),
-                    )
+                items_qs = contract.items.select_related(
+                    "eve_type",
+                    "eve_type__eve_group",
+                    "eve_type__eve_group__eve_category",
+                ).values(
+                    "quantity",
+                    "eve_type_id",
+                    name=F("eve_type__name"),
+                    group=F("eve_type__eve_group__name"),
+                    category=F("eve_type__eve_group__eve_category__name"),
                 )
-                items_requested = contract.items.filter(is_included=False)
+                items_included = items_qs.filter(is_included=True)
+                items_requested = items_qs.filter(is_included=False)
             except ObjectDoesNotExist:
                 pass
 

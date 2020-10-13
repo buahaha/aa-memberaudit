@@ -95,6 +95,7 @@
                     /* hidden columns */
                     { data: 'region' },
                     { data: 'solar_system' },
+                    { data: 'is_ship' },
                 ],
                 order: [[0, "asc"], [2, "asc"], [3, "asc"]],
                 rowGroup: {
@@ -102,7 +103,7 @@
                     className: 'table-group'
                 },
                 columnDefs: [
-                    { "visible": false, "targets": [0, 6, 7] }
+                    { "visible": false, "targets": [0, 6, 7, 8] }
                 ],
                 filterDropDown: {
                     columns: [                        
@@ -116,7 +117,11 @@
                         },
                         {
                             idx: 0
-                        }
+                        },
+                        {
+                            idx: 8,
+                            title: "Ship?"
+                        },
                     ],
                     autoSize: false,
                     bootstrap: true
