@@ -73,6 +73,56 @@
                 "{% url 'memberaudit:character_location_data' character.pk %}"
             );
 
+            $('#tab_assets').DataTable({
+                ajax: {
+                    url: "{% url 'memberaudit:character_assets_data' character.pk %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    { data: 'location' },
+                    { data: 'icon' },
+                    { data: 'name' },
+                    { 
+                        data: 'quantity',                         
+                        render: $.fn.dataTable.render.number( ',', '.', 0 )
+                    },
+                    { data: 'group' },
+                    { 
+                        data: 'volume',
+                        render: $.fn.dataTable.render.number( ',', '.', 2 )
+                    },
+                    /* hidden columns */
+                    { data: 'region' },
+                    { data: 'solar_system' },
+                ],
+                order: [[0, "asc"], [2, "asc"], [3, "asc"]],
+                rowGroup: {
+                    dataSrc: 'location',
+                    className: 'table-group'
+                },
+                columnDefs: [
+                    { "visible": false, "targets": [0, 6, 7] }
+                ],
+                filterDropDown: {
+                    columns: [                        
+                        {
+                            idx: 6,
+                            title: "Region"
+                        },
+                        {
+                            idx: 7,
+                            title: "Solar System"
+                        },
+                        {
+                            idx: 0
+                        }
+                    ],
+                    autoSize: false,
+                    bootstrap: true
+                }
+            });
+
             $('#tab_contracts').DataTable({
                 ajax: {
                     url: "{% url 'memberaudit:character_contracts_data' character.pk %}",

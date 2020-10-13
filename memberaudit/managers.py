@@ -14,6 +14,7 @@ from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
+from .constants import EVE_TYPE_ID_SOLAR_SYSTEM
 from .app_settings import MEMBERAUDIT_LOCATION_STALE_HOURS
 from .providers import esi
 from .utils import LoggerAddTag, make_logger_prefix
@@ -25,7 +26,7 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 class LocationManager(models.Manager):
     """Manager for Location model
 
-    We recommend preferring the "async" variants, because they  include protection
+    We recommend preferring the "async" variants, because it includes protection
     against exceeding the ESI error limit due to characters no longer having access
     to structures within their assets, contracts, etc.
 
@@ -38,8 +39,6 @@ class LocationManager(models.Manager):
     Additional requests for the same location will be ignored within a grace period.
     """
 
-    _STATION_ID_START = 60000000
-    _STATION_ID_END = 69999999
     _UPDATE_EMPTY_GRACE_MINUTES = 5
 
     def get_or_create_esi(self, id: int, token: Token) -> Tuple[models.Model, bool]:
@@ -103,7 +102,18 @@ class LocationManager(models.Manager):
     ) -> Tuple[models.Model, bool]:
         id = int(id)
         add_prefix = make_logger_prefix(id)
-        if self._STATION_ID_START <= id <= self._STATION_ID_END:
+        if self.model.is_solar_system_id(id):
+            eve_solar_system, _ = EveSolarSystem.objects.get_or_create_esi(id=id)
+            eve_type, _ = EveType.objects.get_or_create_esi(id=EVE_TYPE_ID_SOLAR_SYSTEM)
+            location, created = self.update_or_create(
+                id=id,
+                defaults={
+                    "name": eve_solar_system.name,
+                    "eve_solar_system": eve_solar_system,
+                    "eve_type": eve_type,
+                },
+            )
+        elif self.model.is_station_id(id):
             logger.info(add_prefix("Fetching station from ESI"))
             station = esi.client.Universe.get_universe_stations_station_id(
                 station_id=id
@@ -112,7 +122,7 @@ class LocationManager(models.Manager):
                 id=id, station=station
             )
 
-        else:
+        elif self.model.is_structure_id(id):
             if update_async:
                 location, created = self._structure_update_or_create_esi_async(
                     id=id, token=token
@@ -121,6 +131,8 @@ class LocationManager(models.Manager):
                 location, created = self.structure_update_or_create_esi(
                     id=id, token=token
                 )
+        else:
+            raise ValueError(f"Invalid id: {id}")
 
         return location, created
 

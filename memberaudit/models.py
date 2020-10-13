@@ -1,3 +1,4 @@
+from copy import copy
 from collections import namedtuple
 import json
 from typing import Optional
@@ -34,7 +35,7 @@ from .app_settings import MEMBERAUDIT_MAX_MAILS, MEMBERAUDIT_DEVELOPER_MODE
 from .decorators import fetch_token
 from .managers import CharacterManager, DoctrineManager, LocationManager
 from .providers import esi
-from .utils import LoggerAddTag, make_logger_prefix
+from .utils import LoggerAddTag, make_logger_prefix, chunks
 
 CharacterDoctrineResult = namedtuple(
     "CharacterDoctrineResult", ["doctrine", "ship", "insufficient_skills"]
@@ -45,10 +46,6 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 CURRENCY_MAX_DIGITS = 17
 CURRENCY_MAX_DECIMALS = 2
 NAMES_MAX_LENGTH = 100
-
-# Eve IDs
-EVE_CATEGORY_ID_SKILL = 16
-EVE_GROUP_ID_CYBERIMPLANT = 300
 
 
 def eve_xml_to_html(xml: str) -> str:
@@ -93,6 +90,12 @@ def get_or_create_location_or_none(
     return obj
 
 
+def store_list_to_disk(lst: list, name: str):
+    """stores the given list as JSON file to disk. For debugging"""
+    with open(f"{name}.json", "w", encoding="utf-8") as f:
+        json.dump(lst, f, cls=DjangoJSONEncoder, sort_keys=True, indent=4)
+
+
 class General(models.Model):
     """Meta model for app permissions"""
 
@@ -114,7 +117,13 @@ class General(models.Model):
 
 
 class Location(models.Model):
-    """An Eve Online location: Station or Upwell Structure"""
+    """An Eve Online location: Station or Upwell Structure or Solar System"""
+
+    _SOLAR_SYSTEM_ID_START = 30_000_000
+    _SOLAR_SYSTEM_ID_END = 33_000_000
+    _STATION_ID_START = 60_000_000
+    _STATION_ID_END = 64_000_000
+    _STRUCTURE_ID_START = 1_000_000_000_000
 
     id = models.BigIntegerField(
         primary_key=True,
@@ -182,6 +191,30 @@ class Location(models.Model):
         except AttributeError:
             return ""
 
+    @property
+    def is_solar_system(self) -> bool:
+        return self.is_solar_system_id(self.id)
+
+    @property
+    def is_station(self) -> bool:
+        return self.is_station_id(self.id)
+
+    @property
+    def is_structure(self) -> bool:
+        return self.is_structure_id(self.id)
+
+    @classmethod
+    def is_solar_system_id(cls, location_id: int) -> bool:
+        return cls._SOLAR_SYSTEM_ID_START <= location_id <= cls._SOLAR_SYSTEM_ID_END
+
+    @classmethod
+    def is_station_id(cls, location_id: int) -> bool:
+        return cls._STATION_ID_START <= location_id <= cls._STATION_ID_END
+
+    @classmethod
+    def is_structure_id(cls, location_id: int) -> bool:
+        return location_id >= cls._STRUCTURE_ID_START
+
 
 class Character(models.Model):
     """A character synced by this app
@@ -189,6 +222,7 @@ class Character(models.Model):
     This is the head model for all characters
     """
 
+    UPDATE_SECTION_ASSETS = "AS"
     UPDATE_SECTION_CHARACTER_DETAILS = "CD"
     UPDATE_SECTION_CONTACTS = "CA"
     UPDATE_SECTION_CONTRACTS = "CR"
@@ -200,6 +234,7 @@ class Character(models.Model):
     UPDATE_SECTION_WALLET_BALLANCE = "WB"
     UPDATE_SECTION_WALLET_JOURNAL = "WJ"
     UPDATE_SECTION_CHOICES = (
+        (UPDATE_SECTION_ASSETS, _("assets")),
         (UPDATE_SECTION_CHARACTER_DETAILS, _("character details")),
         (UPDATE_SECTION_CONTACTS, _("contacts")),
         (UPDATE_SECTION_CONTRACTS, _("contracts")),
@@ -294,6 +329,103 @@ class Character(models.Model):
             return True
         else:
             return None
+
+    # @transaction.atomic()
+    @fetch_token("esi-skills.read_skillqueue.v1")
+    def update_assets(self, token):
+        """update the character's assets"""
+        logger.info("%s: Fetching assets from ESI", self)
+
+        # fetch all assets
+        asset_list = esi.client.Assets.get_characters_character_id_assets(
+            character_id=self.character_ownership.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            store_list_to_disk(asset_list, f"asset_list_{self.pk}")
+
+        # fetch names for all assets
+        logger.info("%s: Fetching asset names from ESI", self)
+        asset_ids = [x["item_id"] for x in asset_list]
+        names = list()
+        for asset_ids_chunk in chunks(asset_ids, 999):
+            names += esi.client.Assets.post_characters_character_id_assets_names(
+                character_id=self.character_ownership.character.character_id,
+                token=token.valid_access_token(),
+                item_ids=asset_ids_chunk,
+            ).results()
+
+        asset_names = {x["item_id"]: x["name"] for x in names if x["name"] != "None"}
+
+        logger.info("%s: Building asset tree", self)
+        self.assets.all().delete()
+
+        # create parent and single assets
+        parent_asset_ids = set()
+        for asset_data in copy(asset_list):
+            location_id = asset_data.get("location_id")
+            if location_id not in set(asset_ids):
+                item_id = asset_data.get("item_id")
+                try:
+                    location = get_or_create_location_or_none(
+                        "location_id", asset_data, token
+                    )
+                except ValueError:
+                    pass
+
+                else:
+                    CharacterAsset.objects.create(
+                        character=self,
+                        item_id=item_id,
+                        location=location,
+                        eve_type=get_or_create_eveuniverse_or_none(
+                            "type_id", asset_data, EveType
+                        ),
+                        name=asset_names.get(item_id, ""),
+                        is_blueprint_copy=asset_data.get("is_blueprint_copy"),
+                        is_singleton=asset_data.get("is_singleton"),
+                        location_flag=asset_data.get("location_flag"),
+                        quantity=asset_data.get("quantity"),
+                    )
+                    asset_list.remove(asset_data)
+                    parent_asset_ids.add(item_id)
+
+        # create child assets
+        while True:
+            found_parent = False
+            for asset_data in copy(asset_list):
+                item_id = asset_data.get("item_id")
+                location_id = asset_data.get("location_id")
+                if location_id in parent_asset_ids:
+                    CharacterAsset.objects.create(
+                        character=self,
+                        item_id=item_id,
+                        parent=self.assets.get(item_id=location_id),
+                        eve_type=get_or_create_eveuniverse_or_none(
+                            "type_id", asset_data, EveType
+                        ),
+                        name=asset_names.get(item_id, ""),
+                        is_blueprint_copy=asset_data.get("is_blueprint_copy"),
+                        is_singleton=asset_data.get("is_singleton"),
+                        location_flag=asset_data.get("location_flag"),
+                        quantity=asset_data.get("quantity"),
+                    )
+                    asset_list.remove(asset_data)
+                    parent_asset_ids.add(item_id)
+                    found_parent = True
+
+            if not found_parent:
+                break
+
+        if len(asset_list) > 0:
+            asset_ids = [x["item_id"] for x in asset_list]
+            logger.warning(
+                "%s: Failed to add %s assets to the tree: %s",
+                self,
+                len(asset_list),
+                asset_ids,
+            )
 
     def update_character_details(self):
         """syncs the character details for the given character"""
@@ -671,7 +803,7 @@ class Character(models.Model):
     def _update_mail_headers(self, token: Token):
         mail_headers = self._fetch_mail_headers(token)
         if MEMBERAUDIT_DEVELOPER_MODE:
-            self._store_mail_headers_to_disk(mail_headers)
+            store_list_to_disk(mail_headers, f"mail_headers_{self.pk}")
 
         self._update_mail_header_ids_from_esi(mail_headers)
         self._create_mail_headers(mail_headers)
@@ -699,17 +831,6 @@ class Character(models.Model):
             add_prefix(f"Received {len(mail_headers_all)} mail headers from ESI")
         )
         return mail_headers_all
-
-    def _store_mail_headers_to_disk(self, mail_headers):
-        """For debugging only"""
-        with open(
-            "mail_headers_raw_{}.json".format(
-                self.character_ownership.character.character_id
-            ),
-            "w",
-            encoding="utf-8",
-        ) as f:
-            json.dump(mail_headers, f, cls=DjangoJSONEncoder, sort_keys=True, indent=4)
 
     def _update_mail_header_ids_from_esi(self, mail_headers) -> None:
         logger.info("%s: Updating mail header IDs from ESI", self)
@@ -1021,6 +1142,62 @@ class Character(models.Model):
         raise ValueError(f"Unknown update section: {section}")
 
 
+class CharacterAsset(models.Model):
+    """An Eve Online asset belonging to a Character"""
+
+    character = models.ForeignKey(
+        Character, on_delete=models.CASCADE, related_name="assets"
+    )
+    item_id = models.BigIntegerField(validators=[MinValueValidator(0)])
+
+    location = models.ForeignKey(
+        Location, on_delete=models.CASCADE, default=None, null=True
+    )
+    parent = models.ForeignKey(
+        "CharacterAsset",
+        on_delete=models.CASCADE,
+        default=None,
+        null=True,
+        related_name="children",
+    )
+
+    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
+    is_blueprint_copy = models.BooleanField(default=None, null=True)
+    is_singleton = models.BooleanField()
+    location_flag = models.CharField(max_length=NAMES_MAX_LENGTH)
+    name = models.CharField(max_length=NAMES_MAX_LENGTH, default="")
+    quantity = models.PositiveIntegerField()
+
+    """ TODO: Enable when design is stable
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "item_id"],
+                name="functional_pk_characterasset",
+            )
+        ]
+    """
+
+    def __str__(self) -> str:
+        return f"{self.character}-{self.item_id}"
+
+
+"""
+class CharacterAssetPosition(models.Model):
+   # Location of an asset
+
+    asset = models.OneToOneField(
+        CharacterAsset,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="position",
+    )
+    x = models.FloatField()
+    y = models.FloatField()
+    z = models.FloatField()
+"""
+
+
 class CharacterContactLabel(models.Model):
     """An Eve Online contact label belonging to a Character"""
 
@@ -1045,7 +1222,7 @@ class CharacterContactLabel(models.Model):
 
 
 class CharacterContact(models.Model):
-    """An Eve Online contract belonging to a Character"""
+    """An Eve Online contact belonging to a Character"""
 
     character = models.ForeignKey(
         Character, on_delete=models.CASCADE, related_name="contacts"

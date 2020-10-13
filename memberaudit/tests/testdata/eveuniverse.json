@@ -26,6 +26,11 @@
     ],
     "EveCategory": [
         {
+            "id": 2,
+            "name": "Celestial",
+            "published": true
+        },
+        {
             "id": 3,
             "name": "Station",
             "published": false
@@ -101,10 +106,28 @@
     ],
     "EveGroup": [
         {
+            "eve_category_id": 2,
+            "id": 5,
+            "name": "Solar System",
+            "published": false
+        },
+        {
+            "eve_category_id": 2,
+            "id": 12,
+            "name": "Cargo Container",
+            "published": true
+        },
+        {
             "eve_category_id": 3,
             "id": 15,
             "name": "Station",
             "published": false
+        },
+        {
+            "eve_category_id": 6,
+            "id": 25,
+            "name": "Frigate",
+            "published": true
         },
         {
             "eve_category_id": 6,
@@ -122,6 +145,12 @@
             "eve_category_id": 20,
             "id": 300,
             "name": "Cyberimplant",
+            "published": true
+        },
+        {
+            "eve_category_id": 6,
+            "id": 513,
+            "name": "Freighter",
             "published": true
         },
         {
@@ -221,6 +250,36 @@
     ],
     "EveType": [
         {
+            "capacity": 0.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 5,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 5,
+            "mass": 0.0,
+            "name": "Solar System",
+            "packaged_volume": 1.0,
+            "portion_size": 1,
+            "published": false,
+            "radius": 5000000000000.0,
+            "volume": 1.0
+        },
+        {
+            "capacity": 27500.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 12,
+            "eve_market_group_id": null,
+            "icon_id": 16,
+            "id": 23,
+            "mass": 10000.0,
+            "name": "Cargo Container",
+            "packaged_volume": 27500.0,
+            "portion_size": 1,
+            "published": false,
+            "radius": 14.0,
+            "volume": 27500.0
+        },
+        {
             "capacity": 125.0,
             "eve_graphic_id": null,
             "eve_group_id": 237,
@@ -234,6 +293,21 @@
             "published": true,
             "radius": 47.0,
             "volume": 15000.0
+        },
+        {
+            "capacity": 150.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 25,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 603,
+            "mass": 997000.0,
+            "name": "Merlin",
+            "packaged_volume": 2500.0,
+            "portion_size": 1,
+            "published": true,
+            "radius": 39.0,
+            "volume": 16500.0
         },
         {
             "capacity": 0.0,
@@ -279,6 +353,21 @@
             "published": true,
             "radius": 1.0,
             "volume": 1.0
+        },
+        {
+            "capacity": 465000.0,
+            "eve_graphic_id": null,
+            "eve_group_id": 513,
+            "eve_market_group_id": null,
+            "icon_id": null,
+            "id": 20185,
+            "mass": 960000000.0,
+            "name": "Charon",
+            "packaged_volume": 1300000.0,
+            "portion_size": 1,
+            "published": true,
+            "radius": 800.0,
+            "volume": 16250000.0
         },
         {
             "capacity": 0.0,

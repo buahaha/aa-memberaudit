@@ -390,6 +390,46 @@ def character_viewer(request, character_pk: int, character: Character):
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
+def character_assets_data(
+    request, character_pk: int, character: Character
+) -> JsonResponse:
+    data = list()
+    try:
+        for asset in character.assets.select_related(
+            "eve_type",
+            "eve_type__eve_group",
+            "location",
+            "location__eve_solar_system__eve_constellation__eve_region",
+        ).filter(location__isnull=False):
+            if asset.name:
+                name = asset.name
+                group = asset.eve_type.name
+            else:
+                name = asset.eve_type.name
+                group = asset.eve_type.eve_group.name
+
+            data.append(
+                {
+                    "item_id": asset.item_id,
+                    "location": asset.location.name,
+                    "icon": create_img_html(asset.eve_type.icon_url(32), []),
+                    "name": name,
+                    "quantity": asset.quantity if not asset.is_singleton else "",
+                    "group": group,
+                    "volume": asset.eve_type.volume,
+                    "region": asset.location.eve_solar_system.eve_constellation.eve_region.name,
+                    "solar_system": asset.location.eve_solar_system.name,
+                }
+            )
+    except ObjectDoesNotExist:
+        pass
+
+    return JsonResponse(data, safe=False)
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
 def character_contracts_data(
     request, character_pk: int, character: Character
 ) -> JsonResponse:

@@ -17,6 +17,16 @@ esi_client_stub = EsiClientStub(
     _load_test_data(),
     [
         EsiEndpoint(
+            "Assets",
+            "get_characters_character_id_assets",
+            "character_id",
+        ),
+        EsiEndpoint(
+            "Assets",
+            "post_characters_character_id_assets_names",
+            "character_id",
+        ),
+        EsiEndpoint(
             "Character",
             "get_characters_character_id_corporationhistory",
             "character_id",

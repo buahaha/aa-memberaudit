@@ -3,7 +3,7 @@ from django.core.management import call_command
 from django.core.management.base import BaseCommand
 
 from ... import __title__
-from ...models import EVE_CATEGORY_ID_SKILL, EVE_GROUP_ID_CYBERIMPLANT
+from ...constants import EVE_CATEGORY_ID_SKILL, EVE_GROUP_ID_CYBERIMPLANT
 from ...utils import LoggerAddTag
 
 

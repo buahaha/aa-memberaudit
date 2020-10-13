@@ -5,6 +5,7 @@ from eveuniverse.models import EveType
 
 from allianceauth.authentication.admin import user_main_organization
 
+from .constants import EVE_CATEGORY_ID_SKILL
 from .models import (
     Character,
     CharacterUpdateStatus,
@@ -12,7 +13,6 @@ from .models import (
     DoctrineShip,
     DoctrineShipSkill,
     Location,
-    EVE_CATEGORY_ID_SKILL,
 )
 from .tasks import update_character as task_update_character
 

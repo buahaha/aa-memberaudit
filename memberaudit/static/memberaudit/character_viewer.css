@@ -9,11 +9,15 @@
         background-color: darkgrey;
     }
 
-    /* Wallet */
-    #tab_wallet thead th:nth-child(5) {
-        text-align: center;
+    /* Assets */    
+    #tab_assets tbody td:nth-child(3) {
+        text-align: right;
+    }
+    #tab_assets tbody td:nth-child(5) {
+        text-align: right;
     }
 
+    /* Wallet */    
     #tab_wallet tbody td:nth-child(5) {
         text-align: right;
     }
@@ -21,11 +25,7 @@
     #tab_wallet tfoot td:nth-child(5) {
         text-align: right;
     }
-
-    #tab_wallet thead th:nth-child(6) {
-        text-align: center;
-    }
-
+    
     #tab_wallet tbody td:nth-child(6) {
         text-align: right;
     }

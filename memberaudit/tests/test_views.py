@@ -22,6 +22,7 @@ from .testdata.load_locations import load_locations
 from . import create_memberaudit_character
 from ..models import (
     Character,
+    CharacterAsset,
     CharacterContract,
     CharacterContractItem,
     CharacterJumpClone,
@@ -39,6 +40,7 @@ from ..views import (
     launcher,
     character_viewer,
     character_location_data,
+    character_assets_data,
     character_contracts_data,
     character_contract_details,
     character_jump_clones_data,
@@ -93,6 +95,66 @@ class TestViews(TestCase):
         request.user = self.user
         response = character_viewer(request, self.character.pk)
         self.assertEqual(response.status_code, 200)
+
+    def test_character_assets_data_1(self):
+        CharacterAsset.objects.create(
+            character=self.character,
+            item_id=1,
+            location=self.jita_44,
+            eve_type=EveType.objects.get(id=20185),
+            is_singleton=False,
+            name="Travel Buddy",
+            quantity=1,
+        )
+        request = self.factory.get(
+            reverse("memberaudit:character_assets_data", args=[self.character.pk])
+        )
+        request.user = self.user
+        response = character_assets_data(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertEqual(len(data), 1)
+        row = data[0]
+        self.assertEqual(row["item_id"], 1)
+        self.assertEqual(
+            row["location"], "Jita IV - Moon 4 - Caldari Navy Assembly Plant"
+        )
+        self.assertTrue(row["icon"])
+        self.assertEqual(row["name"], "Travel Buddy")
+        self.assertEqual(row["quantity"], 1)
+        self.assertEqual(row["group"], "Charon")
+        self.assertEqual(row["volume"], 16250000.0)
+        self.assertEqual(row["solar_system"], "Jita")
+        self.assertEqual(row["region"], "The Forge")
+
+    def test_character_assets_data_2(self):
+        CharacterAsset.objects.create(
+            character=self.character,
+            item_id=1,
+            location=self.jita_44,
+            eve_type=EveType.objects.get(id=20185),
+            is_singleton=False,
+            name="",
+            quantity=1,
+        )
+        request = self.factory.get(
+            reverse("memberaudit:character_assets_data", args=[self.character.pk])
+        )
+        request.user = self.user
+        response = character_assets_data(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertEqual(len(data), 1)
+        row = data[0]
+        self.assertEqual(row["item_id"], 1)
+        self.assertEqual(
+            row["location"], "Jita IV - Moon 4 - Caldari Navy Assembly Plant"
+        )
+        self.assertTrue(row["icon"])
+        self.assertEqual(row["name"], "Charon")
+        self.assertEqual(row["quantity"], 1)
+        self.assertEqual(row["group"], "Freighter")
+        self.assertEqual(row["volume"], 16250000.0)
 
     @patch(MODULE_PATH + ".now")
     def test_character_contracts_data_1(self, mock_now):

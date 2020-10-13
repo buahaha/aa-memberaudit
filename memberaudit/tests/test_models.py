@@ -350,6 +350,55 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         cls.amamake = EveSolarSystem.objects.get(id=30002537)
         cls.structure_1 = Location.objects.get(id=1000000000001)
 
+    def test_update_assets(self, mock_esi):
+        """can load assets"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_assets()
+        self.assertEqual(self.character_1001.assets.count(), 8)
+
+        asset = self.character_1001.assets.get(item_id=1100000000001)
+        self.assertTrue(asset.is_blueprint_copy)
+        self.assertTrue(asset.is_singleton)
+        self.assertEqual(asset.location_flag, "Hangar")
+        self.assertEqual(asset.location_id, 60003760)
+        self.assertEqual(asset.quantity, 1)
+        self.assertEqual(asset.eve_type, EveType.objects.get(id=20185))
+        self.assertEqual(asset.name, "Parent Item 1")
+
+        asset = self.character_1001.assets.get(item_id=1100000000002)
+        self.assertFalse(asset.is_blueprint_copy)
+        self.assertTrue(asset.is_singleton)
+        self.assertEqual(asset.location_flag, "???")
+        self.assertEqual(asset.parent.item_id, 1100000000001)
+        self.assertEqual(asset.quantity, 1)
+        self.assertEqual(asset.eve_type, EveType.objects.get(id=19540))
+        self.assertEqual(asset.name, "Leaf Item 2")
+
+        asset = self.character_1001.assets.get(item_id=1100000000003)
+        self.assertEqual(asset.parent.item_id, 1100000000001)
+        self.assertEqual(asset.eve_type, EveType.objects.get(id=23))
+
+        asset = self.character_1001.assets.get(item_id=1100000000004)
+        self.assertEqual(asset.parent.item_id, 1100000000003)
+        self.assertEqual(asset.eve_type, EveType.objects.get(id=19553))
+
+        asset = self.character_1001.assets.get(item_id=1100000000005)
+        self.assertEqual(asset.location, self.structure_1)
+        self.assertEqual(asset.eve_type, EveType.objects.get(id=20185))
+
+        asset = self.character_1001.assets.get(item_id=1100000000006)
+        self.assertEqual(asset.parent.item_id, 1100000000005)
+        self.assertEqual(asset.eve_type, EveType.objects.get(id=19540))
+
+        asset = self.character_1001.assets.get(item_id=1100000000007)
+        self.assertEqual(asset.location_id, 30000142)
+        self.assertEqual(asset.name, "")
+        self.assertEqual(asset.eve_type, EveType.objects.get(id=19540))
+
+        asset = self.character_1001.assets.get(item_id=1100000000008)
+        self.assertEqual(asset.location_id, 1000000000001)
+
     def test_update_contact_labels_1(self, mock_esi):
         """can load contact labels"""
         mock_esi.client = esi_client_stub
@@ -962,6 +1011,35 @@ class TestCharacterSkillQueue(NoSocketsTestCase):
         self.assertFalse(entry.is_active)
 
 
+class TestLocation(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_eveuniverse()
+        load_entities()
+        load_locations()
+
+    def test_is_solar_system(self):
+        location = Location.objects.create(
+            id=30000142, eve_solar_system=EveSolarSystem.objects.get(id=30000142)
+        )
+        self.assertTrue(location.is_solar_system)
+        self.assertFalse(location.is_station)
+        self.assertFalse(location.is_structure)
+
+    def test_is_station(self):
+        location = Location.objects.get(id=60003760)
+        self.assertFalse(location.is_solar_system)
+        self.assertTrue(location.is_station)
+        self.assertFalse(location.is_structure)
+
+    def test_is_structure(self):
+        location = Location.objects.get(id=1000000000001)
+        self.assertFalse(location.is_solar_system)
+        self.assertFalse(location.is_station)
+        self.assertTrue(location.is_structure)
+
+
 @patch(MANAGERS_PATH + ".esi")
 class TestLocationManager(NoSocketsTestCase):
     @classmethod
@@ -1076,7 +1154,7 @@ class TestLocationManager(NoSocketsTestCase):
         mock_esi.client = esi_client_stub
 
         with self.assertRaises(HTTPNotFound):
-            Location.objects.update_or_create_esi(id=42, token=self.token)
+            Location.objects.update_or_create_esi(id=1000000000099, token=self.token)
 
     def test_propagates_exceptions_on_structure_create(self, mock_esi):
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
@@ -1084,25 +1162,29 @@ class TestLocationManager(NoSocketsTestCase):
         )
 
         with self.assertRaises(RuntimeError):
-            Location.objects.update_or_create_esi(id=42, token=self.token)
+            Location.objects.update_or_create_esi(id=1000000000099, token=self.token)
 
     def test_can_create_empty_location_on_access_error_1(self, mock_esi):
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
             HTTPForbidden(Mock())
         )
 
-        obj, created = Location.objects.update_or_create_esi(id=42, token=self.token)
+        obj, created = Location.objects.update_or_create_esi(
+            id=1000000000099, token=self.token
+        )
         self.assertTrue(created)
-        self.assertEqual(obj.id, 42)
+        self.assertEqual(obj.id, 1000000000099)
 
     def test_can_create_empty_location_on_access_error_2(self, mock_esi):
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
             HTTPUnauthorized(Mock())
         )
 
-        obj, created = Location.objects.update_or_create_esi(id=42, token=self.token)
+        obj, created = Location.objects.update_or_create_esi(
+            id=1000000000099, token=self.token
+        )
         self.assertTrue(created)
-        self.assertEqual(obj.id, 42)
+        self.assertEqual(obj.id, 1000000000099)
 
     def test_does_not_creates_empty_location_on_access_errors_if_requested(
         self, mock_esi
@@ -1111,7 +1193,7 @@ class TestLocationManager(NoSocketsTestCase):
             RuntimeError
         )
         with self.assertRaises(RuntimeError):
-            Location.objects.update_or_create_esi(id=42, token=self.token)
+            Location.objects.update_or_create_esi(id=1000000000099, token=self.token)
 
     # Stations
 
@@ -1154,7 +1236,22 @@ class TestLocationManager(NoSocketsTestCase):
         mock_esi.client = esi_client_stub
 
         with self.assertRaises(HTTPNotFound):
-            Location.objects.update_or_create_esi(id=42, token=self.token)
+            Location.objects.update_or_create_esi(id=1000000000099, token=self.token)
+
+    # Solar System
+
+    def test_can_create_solar_system(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        obj, created = Location.objects.update_or_create_esi(
+            id=30002537, token=self.token
+        )
+        self.assertTrue(created)
+        self.assertEqual(obj.id, 30002537)
+        self.assertEqual(obj.name, "Amamake")
+        self.assertEqual(obj.eve_solar_system, self.amamake)
+        self.assertEqual(obj.eve_type, EveType.objects.get(id=5))
+        self.assertIsNone(obj.owner)
 
 
 @patch(MANAGERS_PATH + ".esi")
