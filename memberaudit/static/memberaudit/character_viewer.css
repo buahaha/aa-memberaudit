@@ -65,4 +65,8 @@
     .table-memberaudit-skillqueue .active-skill {
         font-weight: bold;
     }
+
+    .sidebar_characters {
+        margin: 0.4em;
+    }
 }

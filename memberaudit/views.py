@@ -61,19 +61,10 @@ def add_common_context(request, context: dict) -> dict:
     unregistered_count = Character.objects.unregistered_characters_of_user_count(
         request.user
     )
-    registered_characters = list(
-        Character.objects.select_related(
-            "character_ownership", "character_ownership__character"
-        )
-        .filter(character_ownership__user=request.user)
-        .order_by("character_ownership__character__character_name")
-        .values("pk", name=F("character_ownership__character__character_name"))
-    )
     new_context = {
         **{
             "app_title": __title__,
             "unregistered_count": unregistered_count,
-            "registered_characters": registered_characters,
         },
         **context,
     }
@@ -378,6 +369,19 @@ def character_viewer(request, character_pk: int, character: Character):
             }
         )
 
+    registered_characters = list(
+        Character.objects.select_related(
+            "character_ownership", "character_ownership__character"
+        )
+        .filter(character_ownership__user=request.user)
+        .order_by("character_ownership__character__character_name")
+        .values(
+            "pk",
+            name=F("character_ownership__character__character_name"),
+            character_id=F("character_ownership__character__character_id"),
+        )
+    )
+
     context = {
         "page_title": "Character Sheet",
         "character": character,
@@ -387,6 +391,7 @@ def character_viewer(request, character_pk: int, character: Character):
         "skill_queue": skill_queue,
         "MY_DATETIME_FORMAT": MY_DATETIME_FORMAT,
         "main": main,
+        "registered_characters": registered_characters,
     }
     return render(
         request,
@@ -596,8 +601,10 @@ def character_contract_details(
     error_msg = None
     try:
         contract = (
-            character.contracts.select_related()
-            .prefetch_related("items")
+            character.contracts.select_related(
+                "issuer", "start_location", "end_location", "assignee"
+            )
+            .prefetch_related("items", "bids")
             .get(pk=contract_pk)
         )
     except CharacterContract.DoesNotExist:
