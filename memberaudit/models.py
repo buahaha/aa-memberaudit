@@ -337,52 +337,49 @@ class Character(models.Model):
         """update the character's assets"""
 
         asset_list = self._fetch_assets_from_esi(token)
-        asset_names = self._fetch_names_for_assets(token, asset_list)
         self._preload_all_eve_types(asset_list)
         location_ids = self._preload_all_locations(token, asset_list)
-        self._create_assets(
-            asset_list=asset_list, asset_names=asset_names, location_ids=location_ids
-        )
+        self._create_assets(asset_list=asset_list, location_ids=location_ids)
 
-    def _fetch_assets_from_esi(self, token) -> list:
+    def _fetch_assets_from_esi(self, token) -> dict:
         logger.info("%s: Fetching assets from ESI", self)
         asset_list = esi.client.Assets.get_characters_character_id_assets(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
+        asset_list_2 = {int(x["item_id"]): x for x in asset_list}
 
-        if MEMBERAUDIT_DEVELOPER_MODE:
-            store_list_to_disk(asset_list, f"asset_list_{self.pk}")
-
-        return asset_list
-
-    def _fetch_names_for_assets(self, token, asset_list: list) -> list:
         logger.info("%s: Fetching asset names from ESI", self)
-        asset_ids = {x["item_id"] for x in asset_list}
         names = list()
-        for asset_ids_chunk in chunks(list(asset_ids), 999):
+        for asset_ids_chunk in chunks(list(asset_list_2.keys()), 999):
             names += esi.client.Assets.post_characters_character_id_assets_names(
                 character_id=self.character_ownership.character.character_id,
                 token=token.valid_access_token(),
                 item_ids=asset_ids_chunk,
             ).results()
 
-        return {x["item_id"]: x["name"] for x in names if x["name"] != "None"}
+        asset_names = {x["item_id"]: x["name"] for x in names if x["name"] != "None"}
+        for item_id in asset_list_2.keys():
+            asset_list_2[item_id]["name"] = asset_names.get(item_id, "")
 
-    def _preload_all_eve_types(self, asset_list: list) -> None:
-        required_ids = {x["type_id"] for x in asset_list}
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            store_list_to_disk(asset_list_2, f"asset_list_{self.pk}")
+
+        return asset_list_2
+
+    def _preload_all_eve_types(self, asset_list: dict) -> None:
+        required_ids = {x["type_id"] for x in asset_list.values() if "type_id" in x}
         existing_ids = set(EveType.objects.values_list("id", flat=True))
         missing_ids = required_ids.difference(existing_ids)
         logger.info("%s: Loading %s missing types from ESI", self, len(missing_ids))
         for type_id in missing_ids:
             EveType.objects.update_or_create_esi(id=type_id)
 
-    def _preload_all_locations(self, token: Token, asset_list: list) -> None:
-        asset_ids = {x["item_id"] for x in asset_list}
+    def _preload_all_locations(self, token: Token, asset_list: dict) -> None:
         required_ids = {
-            obj.get("location_id")
-            for obj in asset_list
-            if obj.get("location_id") not in asset_ids
+            x["location_id"]
+            for x in asset_list.values()
+            if "location_id" in x and x["location_id"] not in asset_list
         }
         existing_ids = set(Location.objects.values_list("id", flat=True))
         missing_ids = required_ids.difference(existing_ids)
@@ -397,7 +394,7 @@ class Character(models.Model):
         return existing_ids
 
     @transaction.atomic()
-    def _create_assets(self, asset_list: list, asset_names: list, location_ids: list):
+    def _create_assets(self, asset_list: dict, location_ids: list):
         logger.info("%s: Building tree for %s assets", self, len(asset_list))
         self.assets.all().delete()
 
@@ -405,24 +402,23 @@ class Character(models.Model):
         logger.info("%s: Creating parent assets", self)
         parent_asset_ids = set()
         new_assets = list()
-        for asset_data in copy(asset_list):
-            location_id = asset_data.get("location_id")
-            if location_id in location_ids:
-                item_id = asset_data.get("item_id")
+        for item_id, asset_info in copy(asset_list).items():
+            location_id = asset_info.get("location_id")
+            if location_id and location_id in location_ids:
                 new_assets.append(
                     CharacterAsset(
                         character=self,
                         item_id=item_id,
                         location_id=location_id,
-                        eve_type_id=asset_data.get("type_id"),
-                        name=asset_names.get(item_id, ""),
-                        is_blueprint_copy=asset_data.get("is_blueprint_copy"),
-                        is_singleton=asset_data.get("is_singleton"),
-                        location_flag=asset_data.get("location_flag"),
-                        quantity=asset_data.get("quantity"),
+                        eve_type_id=asset_info.get("type_id"),
+                        name=asset_info.get("name"),
+                        is_blueprint_copy=asset_info.get("is_blueprint_copy"),
+                        is_singleton=asset_info.get("is_singleton"),
+                        location_flag=asset_info.get("location_flag"),
+                        quantity=asset_info.get("quantity"),
                     )
                 )
-                asset_list.remove(asset_data)
+                asset_list.pop(item_id)
                 parent_asset_ids.add(item_id)
 
         logger.info("%s: Writing %s parent assets", self, len(new_assets))
@@ -436,24 +432,23 @@ class Character(models.Model):
             round += 1
             logger.info("%s: Creating child assets - pass %s", self, round)
             new_assets = list()
-            for asset_data in copy(asset_list):
-                item_id = asset_data.get("item_id")
-                location_id = asset_data.get("location_id")
-                if location_id in parent_asset_ids:
+            for item_id, asset_info in copy(asset_list).items():
+                location_id = asset_info.get("location_id")
+                if location_id and location_id in parent_asset_ids:
                     new_assets.append(
                         CharacterAsset(
                             character=self,
                             item_id=item_id,
                             parent=self.assets.get(item_id=location_id),
-                            eve_type_id=asset_data.get("type_id"),
-                            name=asset_names.get(item_id, ""),
-                            is_blueprint_copy=asset_data.get("is_blueprint_copy"),
-                            is_singleton=asset_data.get("is_singleton"),
-                            location_flag=asset_data.get("location_flag"),
-                            quantity=asset_data.get("quantity"),
+                            eve_type_id=asset_info.get("type_id"),
+                            name=asset_info.get("name"),
+                            is_blueprint_copy=asset_info.get("is_blueprint_copy"),
+                            is_singleton=asset_info.get("is_singleton"),
+                            location_flag=asset_info.get("location_flag"),
+                            quantity=asset_info.get("quantity"),
                         )
                     )
-                    asset_list.remove(asset_data)
+                    asset_list.pop(item_id)
 
             if new_assets:
                 logger.info("%s: Writing %s child assets", self, len(new_assets))
@@ -1227,7 +1222,17 @@ class CharacterAsset(models.Model):
     """
 
     def __str__(self) -> str:
-        return f"{self.character}-{self.item_id}"
+        return f"{self.character}-{self.item_id}-{self.name_display}"
+
+    @property
+    def name_display(self) -> str:
+        """name of this asset to be displayed to user"""
+        return self.name if self.name else self.eve_type.name
+
+    @property
+    def group_display(self) -> str:
+        """group of this asset to be displayed to user"""
+        return self.eve_type.name if self.name else self.eve_type.eve_group.name
 
 
 """

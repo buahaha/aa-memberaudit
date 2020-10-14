@@ -30,7 +30,13 @@ from . import tasks, __title__
 from .constants import EVE_CATEGORY_ID_SHIP
 from .decorators import fetch_character_if_allowed
 from .helpers import eve_solar_system_to_html
-from .models import Character, CharacterContract, CharacterMail
+from .models import (
+    Character,
+    CharacterAsset,
+    CharacterContract,
+    CharacterMail,
+    Location,
+)
 from .utils import (
     messages_plus,
     LoggerAddTag,
@@ -397,48 +403,141 @@ def character_assets_data(
 ) -> JsonResponse:
     data = list()
     try:
-        for asset in character.assets.select_related(
+        asset_qs = character.assets.select_related(
             "eve_type",
             "eve_type__eve_group",
             "eve_type__eve_group__eve_category",
             "location",
             "location__eve_solar_system__eve_constellation__eve_region",
-        ).filter(location__isnull=False):
-            if asset.name:
-                name = asset.name
-                group = asset.eve_type.name
-            else:
-                name = asset.eve_type.name
-                group = asset.eve_type.eve_group.name
+        ).filter(location__isnull=False)
 
-            if asset.location.eve_solar_system:
-                region = (
-                    asset.location.eve_solar_system.eve_constellation.eve_region.name
-                )
-                solar_system = asset.location.eve_solar_system.name
-            else:
-                region = ""
-                solar_system = ""
-
-            is_ship = yesno_str(
-                asset.eve_type.eve_group.eve_category_id == EVE_CATEGORY_ID_SHIP
-            )
-            data.append(
-                {
-                    "item_id": asset.item_id,
-                    "location": asset.location.name_plus,
-                    "icon": create_img_html(asset.eve_type.icon_url(32), []),
-                    "name": name,
-                    "quantity": asset.quantity if not asset.is_singleton else "",
-                    "group": group,
-                    "volume": asset.eve_type.volume,
-                    "region": region,
-                    "solar_system": solar_system,
-                    "is_ship": is_ship,
-                }
-            )
     except ObjectDoesNotExist:
-        pass
+        return HttpResponseNotFound()
+
+    assets_with_children_ids = set(
+        character.assets.filter(children__isnull=False).values_list(
+            "item_id", flat=True
+        )
+    )
+
+    location_counts = {
+        obj["id"]: obj["items_count"]
+        for obj in (
+            Location.objects.filter(characterasset__character=character)
+            .annotate(items_count=Count("characterasset"))
+            .values("id", "items_count")
+        )
+    }
+
+    for asset in asset_qs:
+        if asset.location.eve_solar_system:
+            region = asset.location.eve_solar_system.eve_constellation.eve_region.name
+            solar_system = asset.location.eve_solar_system.name
+        else:
+            region = ""
+            solar_system = ""
+
+        is_ship = yesno_str(
+            asset.eve_type.eve_group.eve_category_id == EVE_CATEGORY_ID_SHIP
+        )
+
+        if asset.item_id in assets_with_children_ids:
+            ajax_children_url = reverse(
+                "memberaudit:character_asset_container",
+                args=[character.pk, asset.pk],
+            )
+            actions_html = (
+                '<button type="button" class="btn btn-default btn-sm" '
+                'data-toggle="modal" data-target="#modalCharacterAssetContainer" '
+                f"data-ajax_children_url={ajax_children_url}>"
+                '<i class="fas fa-search"></i></button>'
+            )
+        else:
+            actions_html = ""
+
+        location_name = (
+            f"{asset.location.name_plus} ({location_counts.get(asset.location_id, 0)})"
+        )
+
+        data.append(
+            {
+                "item_id": asset.item_id,
+                "location": location_name,
+                "icon": create_img_html(asset.eve_type.icon_url(32), []),
+                "name": asset.name_display,
+                "quantity": asset.quantity if not asset.is_singleton else "",
+                "group": asset.group_display,
+                "volume": asset.eve_type.volume,
+                "actions": actions_html,
+                "region": region,
+                "solar_system": solar_system,
+                "is_ship": is_ship,
+            }
+        )
+
+    return JsonResponse(data, safe=False)
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_asset_container(
+    request, character_pk: int, character: Character, parent_asset_pk: int
+) -> JsonResponse:
+    try:
+        parent_asset = character.assets.select_related("location").get(
+            pk=parent_asset_pk
+        )
+    except CharacterAsset.DoesNotExist:
+        error_msg = (
+            f"Asset with pk {parent_asset_pk} not found for character {character}"
+        )
+        logger.warning(error_msg)
+        context = {
+            "error": error_msg,
+        }
+    else:
+        context = {
+            "character": character,
+            "parent_asset": parent_asset,
+        }
+    return render(request, "memberaudit/character_asset_container.html", context)
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_asset_container_data(
+    request, character_pk: int, character: Character, parent_asset_pk: int
+) -> JsonResponse:
+    data = list()
+    try:
+        parent_asset = character.assets.get(pk=parent_asset_pk)
+    except CharacterAsset.DoesNotExist:
+        error_msg = (
+            f"Asset with pk {parent_asset_pk} not found for character {character}"
+        )
+        logger.warning(error_msg)
+        return HttpResponseNotFound(error_msg)
+
+    try:
+        assets_qs = parent_asset.children.select_related(
+            "eve_type", "eve_type__eve_group", "eve_type__eve_group__eve_category"
+        )
+    except ObjectDoesNotExist:
+        return HttpResponseNotFound()
+
+    for asset in assets_qs:
+        data.append(
+            {
+                "item_id": asset.item_id,
+                "icon": create_img_html(asset.eve_type.icon_url(32), []),
+                "name": asset.name_display,
+                "quantity": asset.quantity if not asset.is_singleton else "",
+                "group": asset.group_display,
+                "volume": asset.eve_type.volume,
+            }
+        )
 
     return JsonResponse(data, safe=False)
 

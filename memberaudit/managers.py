@@ -17,7 +17,7 @@ from . import __title__
 from .constants import EVE_TYPE_ID_SOLAR_SYSTEM
 from .app_settings import MEMBERAUDIT_LOCATION_STALE_HOURS
 from .providers import esi
-from .utils import LoggerAddTag, make_logger_prefix
+from .utils import LoggerAddTag
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -101,7 +101,6 @@ class LocationManager(models.Manager):
         self, id: int, token: Token, update_async: bool = True
     ) -> Tuple[models.Model, bool]:
         id = int(id)
-        add_prefix = make_logger_prefix(id)
         if self.model.is_solar_system_id(id):
             eve_solar_system, _ = EveSolarSystem.objects.get_or_create_esi(id=id)
             eve_type, _ = EveType.objects.get_or_create_esi(id=EVE_TYPE_ID_SOLAR_SYSTEM)
@@ -114,7 +113,7 @@ class LocationManager(models.Manager):
                 },
             )
         elif self.model.is_station_id(id):
-            logger.info(add_prefix("Fetching station from ESI"))
+            logger.info("%s: Fetching station from ESI", id)
             station = esi.client.Universe.get_universe_stations_station_id(
                 station_id=id
             ).results()
@@ -132,7 +131,10 @@ class LocationManager(models.Manager):
                     id=id, token=token
                 )
         else:
-            raise ValueError(f"Invalid id: {id}")
+            logger.warning(
+                "%s: Creating empty location for ID not matching any known pattern:", id
+            )
+            location, created = self.get_or_create(id=id)
 
         return location, created
 
@@ -183,13 +185,12 @@ class LocationManager(models.Manager):
     def structure_update_or_create_esi(self, id: int, token: Token):
         """Update or creates structure from ESI"""
 
-        add_prefix = make_logger_prefix(id)
         try:
             structure = esi.client.Universe.get_universe_structures_structure_id(
                 structure_id=id, token=token.valid_access_token()
             ).results()
         except (HTTPUnauthorized, HTTPForbidden):
-            logger.warn(add_prefix("No access to this structure"), exc_info=True)
+            logger.warn("%s: No access to this structure", id, exc_info=True)
             location, created = self.get_or_create(id=id)
 
         else:

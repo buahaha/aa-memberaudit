@@ -41,6 +41,8 @@ from ..views import (
     character_viewer,
     character_location_data,
     character_assets_data,
+    character_asset_container,
+    character_asset_container_data,
     character_contracts_data,
     character_contract_details,
     character_jump_clones_data,
@@ -103,7 +105,7 @@ class TestViews(TestCase):
             location=self.jita_44,
             eve_type=EveType.objects.get(id=20185),
             is_singleton=False,
-            name="Travel Buddy",
+            name="Trucker",
             quantity=1,
         )
         request = self.factory.get(
@@ -117,10 +119,10 @@ class TestViews(TestCase):
         row = data[0]
         self.assertEqual(row["item_id"], 1)
         self.assertEqual(
-            row["location"], "Jita IV - Moon 4 - Caldari Navy Assembly Plant"
+            row["location"], "Jita IV - Moon 4 - Caldari Navy Assembly Plant (1)"
         )
         self.assertTrue(row["icon"])
-        self.assertEqual(row["name"], "Travel Buddy")
+        self.assertEqual(row["name"], "Trucker")
         self.assertEqual(row["quantity"], 1)
         self.assertEqual(row["group"], "Charon")
         self.assertEqual(row["volume"], 16250000.0)
@@ -148,13 +150,118 @@ class TestViews(TestCase):
         row = data[0]
         self.assertEqual(row["item_id"], 1)
         self.assertEqual(
-            row["location"], "Jita IV - Moon 4 - Caldari Navy Assembly Plant"
+            row["location"], "Jita IV - Moon 4 - Caldari Navy Assembly Plant (1)"
         )
         self.assertTrue(row["icon"])
         self.assertEqual(row["name"], "Charon")
         self.assertEqual(row["quantity"], 1)
         self.assertEqual(row["group"], "Freighter")
         self.assertEqual(row["volume"], 16250000.0)
+
+    def test_character_asset_children_normal(self):
+        parent_asset = CharacterAsset.objects.create(
+            character=self.character,
+            item_id=1,
+            location=self.jita_44,
+            eve_type=EveType.objects.get(id=20185),
+            is_singleton=True,
+            name="Trucker",
+            quantity=1,
+        )
+        CharacterAsset.objects.create(
+            character=self.character,
+            item_id=2,
+            parent=parent_asset,
+            eve_type=EveType.objects.get(id=603),
+            is_singleton=True,
+            name="My Precious",
+            quantity=1,
+        )
+        request = self.factory.get(
+            reverse(
+                "memberaudit:character_asset_container",
+                args=[self.character.pk, parent_asset.pk],
+            )
+        )
+        request.user = self.user
+        response = character_asset_container(
+            request, self.character.pk, parent_asset.pk
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_character_asset_children_error(self):
+        parent_asset_pk = generate_invalid_pk(CharacterAsset)
+        request = self.factory.get(
+            reverse(
+                "memberaudit:character_asset_container",
+                args=[self.character.pk, parent_asset_pk],
+            )
+        )
+        request.user = self.user
+        response = character_asset_container(
+            request, self.character.pk, parent_asset_pk
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "not found for character", response_content_to_str(response.content)
+        )
+
+    def test_character_asset_children_data(self):
+        parent_asset = CharacterAsset.objects.create(
+            character=self.character,
+            item_id=1,
+            location=self.jita_44,
+            eve_type=EveType.objects.get(id=20185),
+            is_singleton=True,
+            name="Trucker",
+            quantity=1,
+        )
+        CharacterAsset.objects.create(
+            character=self.character,
+            item_id=2,
+            parent=parent_asset,
+            eve_type=EveType.objects.get(id=603),
+            is_singleton=True,
+            name="My Precious",
+            quantity=1,
+        )
+        CharacterAsset.objects.create(
+            character=self.character,
+            item_id=3,
+            parent=parent_asset,
+            eve_type=EveType.objects.get(id=19540),
+            is_singleton=False,
+            quantity=3,
+        )
+        request = self.factory.get(
+            reverse(
+                "memberaudit:character_asset_container_data",
+                args=[self.character.pk, parent_asset.pk],
+            )
+        )
+        request.user = self.user
+        response = character_asset_container_data(
+            request, self.character.pk, parent_asset.pk
+        )
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertEqual(len(data), 2)
+
+        row = data[0]
+        self.assertEqual(row["item_id"], 2)
+        self.assertTrue(row["icon"])
+        self.assertEqual(row["name"], "My Precious")
+        self.assertEqual(row["quantity"], "")
+        self.assertEqual(row["group"], "Merlin")
+        self.assertEqual(row["volume"], 16500.0)
+
+        row = data[1]
+        self.assertEqual(row["item_id"], 3)
+        self.assertTrue(row["icon"])
+        self.assertEqual(row["name"], "High-grade Snake Alpha")
+        self.assertEqual(row["quantity"], 3)
+        self.assertEqual(row["group"], "Cyberimplant")
+        self.assertEqual(row["volume"], 1.0)
 
     @patch(MODULE_PATH + ".now")
     def test_character_contracts_data_1(self, mock_now):

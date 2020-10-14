@@ -15,7 +15,17 @@
         background-color: dimgrey;
         color: white;
         font-weight: bold;
-    } 
+    }
+
+    /* Breadcrumbs */
+    .template-light-mode .breadcrumb >.active {
+        color: black;
+        font-weight: bold;
+    }
+    .template-dark-mode .breadcrumb >.active {
+        color: white;
+        font-weight: bold;
+    }
 
     /* Assets */    
     #tab_assets tbody td:nth-child(3) {

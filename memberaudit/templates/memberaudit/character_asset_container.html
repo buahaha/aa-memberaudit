@@ -1,0 +1,73 @@
+{% load humanize %}
+{% load memberaudit %}
+
+<div class="modal-content">
+    <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">
+            &times;
+        </span></button>
+        <h4 class="modal-title" id="myModalLabel">Asset Container</h4>
+    </div>
+    <div class="modal-body">
+        {% if error %}
+            <p class="text-danger">{{ error }}</p>
+        {% else %}            
+            <ol class="breadcrumb">
+                <li>{{ parent_asset.location.name }}</li>
+                <li class="active"><img src="{{ parent_asset.eve_type|evetype_icon_url:32 }}"/>&nbsp;&nbsp;{{ parent_asset.name_display }} ({{ parent_asset.group_display }})</li>
+            </ol>
+            
+            <div class="table-responsive">
+                <table class="table table-striped" id="tab_asset_children" style="width:100%;">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Name</th>
+                            <th>Qty</th>
+                            <th>Group</th>
+                            <th>Volume</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">
+            Close
+        </button>
+    </div>
+</div>
+
+<script>
+    {% if parent_asset %}
+        $(document).ready(function () {            
+            $('#tab_asset_children').DataTable({
+                ajax: {
+                    url: "{% url 'memberaudit:character_asset_container_data' character.pk parent_asset.pk %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [                
+                    { data: 'icon' },
+                    { data: 'name' },
+                    { 
+                        data: 'quantity',                         
+                        render: $.fn.dataTable.render.number( ',', '.', 0 )
+                    },
+                    { data: 'group' },
+                    { 
+                        data: 'volume',
+                        render: $.fn.dataTable.render.number( ',', '.', 2 )
+                    }                
+                ],
+                order: [[1, "asc"], [2, "asc"]],
+                columnDefs: [
+                    { "orderable": false, "targets": [ 0 ] },
+                ]
+            });        
+        });
+    {% endif %}
+</script>

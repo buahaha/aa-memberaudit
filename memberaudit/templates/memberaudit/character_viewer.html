@@ -41,6 +41,7 @@
         </div>
     </div>
 
+    {% include 'memberaudit/modals/asset_container.html' %}
     {% include 'memberaudit/modals/contracts.html' %}
     {% include 'memberaudit/modals/mails.html' %}
 {% endblock details %}
@@ -92,6 +93,8 @@
                         data: 'volume',
                         render: $.fn.dataTable.render.number( ',', '.', 2 )
                     },
+                    { data: 'actions' },
+
                     /* hidden columns */
                     { data: 'region' },
                     { data: 'solar_system' },
@@ -103,29 +106,36 @@
                     className: 'table-group'
                 },
                 columnDefs: [
-                    { "visible": false, "targets": [0, 6, 7, 8] }
+                    { "orderable": false, "targets": [ 1, 6 ] },
+                    { "visible": false, "targets": [ 0, 7, 8, 9 ] }                    
                 ],
                 filterDropDown: {
                     columns: [                        
                         {
-                            idx: 6,
+                            idx: 7,
                             title: "Region"
                         },
                         {
-                            idx: 7,
+                            idx: 8,
                             title: "Solar System"
                         },
                         {
                             idx: 0
                         },
                         {
-                            idx: 8,
+                            idx: 9,
                             title: "Ship?"
                         },
                     ],
                     autoSize: false,
                     bootstrap: true
                 }
+            });
+
+            $('#modalCharacterAssetContainer').on('show.bs.modal', function(event) {
+                var button = $(event.relatedTarget)
+                var ajax_children_url = button.data('ajax_children_url');
+                $("#modalCharacterAssetContainerContent").load(ajax_children_url)
             });
 
             $('#tab_contracts').DataTable({

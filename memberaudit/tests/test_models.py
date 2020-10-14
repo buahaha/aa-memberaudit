@@ -1093,7 +1093,7 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertEqual(obj.eve_type, self.astrahus)
         self.assertEqual(obj.owner, self.corporation_2001)
 
-    def test_does_not_update_existing_location(self, mock_esi):
+    def test_does_not_update_existing_location_during_grace_period(self, mock_esi):
         mock_esi.client = esi_client_stub
 
         obj_existing = Location.objects.create(
@@ -1155,6 +1155,15 @@ class TestLocationManager(NoSocketsTestCase):
 
         with self.assertRaises(HTTPNotFound):
             Location.objects.update_or_create_esi(id=1000000000099, token=self.token)
+
+    def test_always_creates_empty_location_for_invalid_ids(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        obj, created = Location.objects.update_or_create_esi(
+            id=80000000, token=self.token
+        )
+        self.assertTrue(created)
+        self.assertTrue(obj.is_empty)
 
     def test_propagates_exceptions_on_structure_create(self, mock_esi):
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (

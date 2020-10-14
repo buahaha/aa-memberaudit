@@ -4,12 +4,13 @@ from django.core.management.base import BaseCommand
 
 from ... import __title__
 from ...constants import (
-    EVE_CATEGORY_ID_SHIP,
-    EVE_CATEGORY_ID_MODULE,
+    EVE_CATEGORY_ID_BLUEPRINT,
     EVE_CATEGORY_ID_CHARGE,
     EVE_CATEGORY_ID_DRONE,
-    EVE_CATEGORY_ID_IMPLANT,
     EVE_CATEGORY_ID_FIGHTER,
+    EVE_CATEGORY_ID_IMPLANT,
+    EVE_CATEGORY_ID_MODULE,
+    EVE_CATEGORY_ID_SHIP,
     EVE_CATEGORY_ID_SKILL,
     EVE_CATEGORY_ID_STRUCTURE,
 )
@@ -26,6 +27,8 @@ class Command(BaseCommand):
         call_command(
             "eveuniverse_load_types",
             __title__,
+            "--category_id",
+            str(EVE_CATEGORY_ID_BLUEPRINT),
             "--category_id",
             str(EVE_CATEGORY_ID_SHIP),
             "--category_id",

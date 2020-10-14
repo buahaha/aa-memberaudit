@@ -39,14 +39,24 @@ urlpatterns = [
         name="character_solar_system_data",
     ),
     path(
-        "character_contracts_data/<int:character_pk>/",
-        views.character_contracts_data,
-        name="character_contracts_data",
-    ),
-    path(
         "character_assets_data/<int:character_pk>/",
         views.character_assets_data,
         name="character_assets_data",
+    ),
+    path(
+        "character_asset_container/<int:character_pk>/<int:parent_asset_pk>/",
+        views.character_asset_container,
+        name="character_asset_container",
+    ),
+    path(
+        "character_asset_container_data/<int:character_pk>/<int:parent_asset_pk>/",
+        views.character_asset_container_data,
+        name="character_asset_container_data",
+    ),
+    path(
+        "character_contracts_data/<int:character_pk>/",
+        views.character_contracts_data,
+        name="character_contracts_data",
     ),
     path(
         "character_contract_details/<int:character_pk>/<int:contract_pk>/",
