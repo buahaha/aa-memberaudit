@@ -69,4 +69,9 @@
     .sidebar_characters {
         margin: 0.4em;
     }
+
+    #history_divider {
+        margin-top: 5px; 
+        margin-bottom: 5px;
+    }
 }

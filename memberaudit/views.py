@@ -65,6 +65,7 @@ def add_common_context(request, context: dict) -> dict:
         **{
             "app_title": __title__,
             "unregistered_count": unregistered_count,
+            "MY_DATETIME_FORMAT": MY_DATETIME_FORMAT,
         },
         **context,
     }
@@ -310,6 +311,7 @@ def character_viewer(request, character_pk: int, character: Character):
     ):
         if len(corporation_history) > 0:
             corporation_history[-1]["end_date"] = entry.start_date
+            corporation_history[-1]["is_last"] = False
 
         corporation_history.append(
             {
@@ -319,6 +321,7 @@ def character_viewer(request, character_pk: int, character: Character):
                 ),
                 "start_date": entry.start_date,
                 "end_date": now(),
+                "is_last": True,
             }
         )
 
@@ -373,7 +376,7 @@ def character_viewer(request, character_pk: int, character: Character):
         Character.objects.select_related(
             "character_ownership", "character_ownership__character"
         )
-        .filter(character_ownership__user=request.user)
+        .filter(character_ownership__user=character.character_ownership.user)
         .order_by("character_ownership__character__character_name")
         .values(
             "pk",
@@ -389,7 +392,6 @@ def character_viewer(request, character_pk: int, character: Character):
         "character_details": character_details,
         "corporation_history": reversed(corporation_history),
         "skill_queue": skill_queue,
-        "MY_DATETIME_FORMAT": MY_DATETIME_FORMAT,
         "main": main,
         "registered_characters": registered_characters,
     }

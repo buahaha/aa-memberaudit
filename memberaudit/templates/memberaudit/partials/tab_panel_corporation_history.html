@@ -4,11 +4,16 @@
 {% load evelinks %}
 
 <!-- Corporation History -->
-<div role="tabpanel" class="tab-pane" id="history">
-    <dl class="dl-horizontal">
-        {% for entry in corporation_history %}
-        <dt>{{ entry.corporation_html }}</dt>
-        <dd>{{ entry.start_date|naturalday }} - {{ entry.end_date|naturalday }}</dd>
-        {% endfor %}
-    </dl>
+<div role="tabpanel" class="tab-pane" id="history">    
+    {% for entry in corporation_history %}
+        <small class="text-muted">Corporation</small><br>
+        {{ entry.corporation_html }}&nbsp;
+        {{ entry.start_date|date:MY_DATETIME_FORMAT }} to 
+        {% if not entry.is_last %}
+            {{ entry.end_date|date:MY_DATETIME_FORMAT }}
+        {% else %}
+            TODAY
+        {% endif %}
+        <hr id="history_divider">
+    {% endfor %}    
 </div>
