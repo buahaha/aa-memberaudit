@@ -43,6 +43,9 @@ def update_character_section(character_pk: int, section: str) -> None:
     character = _load_character(character_pk)
     character.update_status_set.filter(section=section).delete()
     try:
+        logger.info(
+            "%s: Updating %s", character, Character.section_display_name(section)
+        )
         getattr(character, Character.section_method_name(section))()
         CharacterUpdateStatus.objects.create(
             character=character, section=section, is_success=True
@@ -52,7 +55,7 @@ def update_character_section(character_pk: int, section: str) -> None:
         logger.error(
             "%s: %s: Error ocurred: %s",
             character,
-            section,
+            Character.section_display_name(section),
             error_message,
             exc_info=True,
         )

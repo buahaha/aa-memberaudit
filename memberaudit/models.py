@@ -47,7 +47,7 @@ CURRENCY_MAX_DIGITS = 17
 CURRENCY_MAX_DECIMALS = 2
 NAMES_MAX_LENGTH = 100
 
-BULK_CREATE_BATCH_SIZE = 500
+BULK_METHOD_BATCH_SIZE = 500
 
 
 def eve_xml_to_html(xml: str) -> str:
@@ -70,9 +70,28 @@ def is_esi_online() -> bool:
     return True
 
 
-def get_or_create_eveuniverse_or_none(
+def get_or_create_esi_or_none(
     prop_name: str, dct: dict, Model: type
 ) -> Optional[models.Model]:
+    """tries to create a new eveuniverse object from a dictionary entry
+
+    return the object on success or None
+    """
+    if dct.get(prop_name):
+        obj, _ = Model.objects.get_or_create_esi(id=dct.get(prop_name))
+    else:
+        obj = None
+
+    return obj
+
+
+def get_or_create_or_none(
+    prop_name: str, dct: dict, Model: type
+) -> Optional[models.Model]:
+    """tries to create a new Django object from a dictionary entry
+
+    return the object on success or None
+    """
     if dct.get(prop_name):
         obj, _ = Model.objects.get_or_create_esi(id=dct.get(prop_name))
     else:
@@ -371,9 +390,10 @@ class Character(models.Model):
         required_ids = {x["type_id"] for x in asset_list.values() if "type_id" in x}
         existing_ids = set(EveType.objects.values_list("id", flat=True))
         missing_ids = required_ids.difference(existing_ids)
-        logger.info("%s: Loading %s missing types from ESI", self, len(missing_ids))
-        for type_id in missing_ids:
-            EveType.objects.update_or_create_esi(id=type_id)
+        if missing_ids:
+            logger.info("%s: Loading %s missing types from ESI", self, len(missing_ids))
+            for type_id in missing_ids:
+                EveType.objects.update_or_create_esi(id=type_id)
 
     def _preload_all_locations(self, token: Token, asset_list: dict) -> None:
         required_ids = {
@@ -383,13 +403,18 @@ class Character(models.Model):
         }
         existing_ids = set(Location.objects.values_list("id", flat=True))
         missing_ids = required_ids.difference(existing_ids)
-        logger.info("%s: Loading %s missing locations from ESI", self, len(missing_ids))
-        for location_id in missing_ids:
-            try:
-                Location.objects.update_or_create_esi(id=location_id, token=token)
-                existing_ids.add(location_id)
-            except ValueError:
-                pass
+        if missing_ids:
+            logger.info(
+                "%s: Loading %s missing locations from ESI", self, len(missing_ids)
+            )
+            for location_id in missing_ids:
+                try:
+                    Location.objects.get_or_create_esi_async(
+                        id=location_id, token=token
+                    )
+                    existing_ids.add(location_id)
+                except ValueError:
+                    pass
 
         return existing_ids
 
@@ -423,7 +448,7 @@ class Character(models.Model):
 
         logger.info("%s: Writing %s parent assets", self, len(new_assets))
         CharacterAsset.objects.bulk_create(
-            new_assets, batch_size=BULK_CREATE_BATCH_SIZE, ignore_conflicts=True
+            new_assets, batch_size=BULK_METHOD_BATCH_SIZE
         )
 
         # create child assets
@@ -453,7 +478,7 @@ class Character(models.Model):
             if new_assets:
                 logger.info("%s: Writing %s child assets", self, len(new_assets))
                 CharacterAsset.objects.bulk_create(
-                    new_assets, batch_size=BULK_CREATE_BATCH_SIZE, ignore_conflicts=True
+                    new_assets, batch_size=BULK_METHOD_BATCH_SIZE
                 )
                 parent_asset_ids = parent_asset_ids.union(
                     {obj.item_id for obj in new_assets}
@@ -476,58 +501,40 @@ class Character(models.Model):
         details = esi.client.Character.get_characters_character_id(
             character_id=self.character_ownership.character.character_id,
         ).results()
-        if details.get("alliance_id"):
-            alliance, _ = EveEntity.objects.get_or_create_esi(
-                id=details.get("alliance_id")
-            )
-        else:
-            alliance = None
-
-        if details.get("ancestry_id"):
-            eve_ancestry, _ = EveAncestry.objects.get_or_create_esi(
-                id=details.get("ancestry_id")
-            )
-        else:
-            eve_ancestry = None
-
-        eve_bloodline, _ = EveBloodline.objects.get_or_create_esi(
-            id=details.get("bloodline_id")
+        description = (
+            details.get("description", "") if details.get("description") else ""
         )
-        corporation, _ = EveEntity.objects.get_or_create_esi(
-            id=details.get("corporation_id")
+        gender = (
+            CharacterDetails.GENDER_MALE
+            if details.get("gender") == "male"
+            else CharacterDetails.GENDER_FEMALE
         )
-        description = details.get("description") if details.get("description") else ""
-        if details.get("faction_id"):
-            faction, _ = EveFaction.objects.get_or_create_esi(
-                id=details.get("faction_id")
-            )
-        else:
-            faction = None
-
-        if details.get("gender") == "male":
-            gender = CharacterDetails.GENDER_MALE
-        else:
-            gender = CharacterDetails.GENDER_FEMALE
-
-        race, _ = EveRace.objects.get_or_create_esi(id=details.get("race_id"))
-        title = details.get("title") if details.get("title") else ""
         CharacterDetails.objects.update_or_create(
             character=self,
             defaults={
-                "alliance": alliance,
+                "alliance": get_or_create_or_none("alliance_id", details, EveEntity),
                 "birthday": details.get("birthday"),
-                "eve_ancestry": eve_ancestry,
-                "eve_bloodline": eve_bloodline,
-                "eve_faction": faction,
-                "eve_race": race,
-                "corporation": corporation,
+                "eve_ancestry": get_or_create_esi_or_none(
+                    "ancestry_id", details, EveAncestry
+                ),
+                "eve_bloodline": get_or_create_esi_or_none(
+                    "bloodline_id", details, EveBloodline
+                ),
+                "eve_faction": get_or_create_esi_or_none(
+                    "faction_id", details, EveFaction
+                ),
+                "eve_race": get_or_create_esi_or_none("race_id", details, EveRace),
+                "corporation": get_or_create_or_none(
+                    "corporation_id", details, EveEntity
+                ),
                 "description": description,
                 "gender": gender,
-                "name": details.get("name"),
+                "name": details.get("name", ""),
                 "security_status": details.get("security_status"),
-                "title": title,
+                "title": details.get("title", "") if details.get("title") else "",
             },
         )
+        EveEntity.objects.bulk_update_new_esi()
 
     def update_corporation_history(self):
         """syncs the character's corporation history"""
@@ -535,19 +542,24 @@ class Character(models.Model):
         history = esi.client.Character.get_characters_character_id_corporationhistory(
             character_id=self.character_ownership.character.character_id,
         ).results()
+
+        entries = list()
         for row in history:
-            corporation, _ = EveEntity.objects.get_or_create_esi(
-                id=row.get("corporation_id")
+            entries.append(
+                CharacterCorporationHistory(
+                    character=self,
+                    record_id=row.get("record_id"),
+                    corporation=get_or_create_or_none("corporation_id", row, EveEntity),
+                    is_deleted=row.get("is_deleted"),
+                    start_date=row.get("start_date"),
+                )
             )
-            CharacterCorporationHistory.objects.update_or_create(
-                character=self,
-                record_id=row.get("record_id"),
-                defaults={
-                    "corporation": corporation,
-                    "is_deleted": row.get("is_deleted"),
-                    "start_date": row.get("start_date"),
-                },
-            )
+
+        with transaction.atomic():
+            self.corporation_history.all().delete()
+            CharacterCorporationHistory.objects.bulk_create(entries)
+
+        EveEntity.objects.bulk_update_new_esi()
 
     @fetch_token("esi-characters.read_contacts.v1")
     def update_contacts(self, token: Token):
@@ -579,16 +591,16 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
+        logger.info("%s: Writing %s contacts", self, len(contacts))
         with transaction.atomic():
             contact_ids = {x["contact_id"] for x in contacts}
             self.contacts.exclude(contact_id__in=contact_ids).delete()
             for contact_data in contacts:
-                contact, _ = EveEntity.objects.get_or_create(
-                    id=contact_data.get("contact_id")
-                )
                 character_contact, _ = CharacterContact.objects.update_or_create(
                     character=self,
-                    contact=contact,
+                    contact=get_or_create_or_none(
+                        "contact_id", contact_data, EveEntity
+                    ),
                     defaults={
                         "is_blocked": contact_data.get("is_blocked"),
                         "is_watched": contact_data.get("is_watched"),
@@ -614,137 +626,235 @@ class Character(models.Model):
     @fetch_token("esi-contracts.read_character_contracts.v1")
     def update_contracts(self, token: Token):
         """update the character's contracts"""
-        from .tasks import (
-            update_contract_details_esi as task_update_contract_details_esi,
-        )
 
+        contracts_list = self._fetch_contracts_from_esi(token)
+        with transaction.atomic():
+            incoming_ids = set(contracts_list.keys())
+            existing_ids = set(self.contracts.values_list("contract_id", flat=True))
+
+            create_ids = incoming_ids.difference(existing_ids)
+            if create_ids:
+                self._create_new_contracts(
+                    contracts_list=contracts_list, contract_ids=create_ids, token=token
+                )
+
+            update_ids = incoming_ids.difference(create_ids)
+            if update_ids:
+                self._update_existing_contracts(
+                    contracts_list=contracts_list, contract_ids=update_ids
+                )
+
+        self._start_contracts_detail_updates(incoming_ids)
+        EveEntity.objects.bulk_update_new_esi()
+
+    def _fetch_contracts_from_esi(self, token) -> dict:
         logger.info("%s: Fetching contracts from ESI", self)
         contracts_data = esi.client.Contracts.get_characters_character_id_contracts(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
-        availability_map = {
-            "alliance": CharacterContract.AVAILABILITY_ALLIANCE,
-            "corporation": CharacterContract.AVAILABILITY_CORPORATION,
-            "personal": CharacterContract.AVAILABILITY_PERSONAL,
-            "public": CharacterContract.AVAILABILITY_PUBLIC,
+        contracts_list = {
+            obj["contract_id"]: obj for obj in contracts_data if "contract_id" in obj
         }
-        status_map = {
-            "canceled": CharacterContract.STATUS_CANCELED,
-            "deleted": CharacterContract.STATUS_DELETED,
-            "failed": CharacterContract.STATUS_FAILED,
-            "finished": CharacterContract.STATUS_FINISHED,
-            "finished_contractor": CharacterContract.STATUS_FINISHED_CONTRACTOR,
-            "finished_issuer": CharacterContract.STATUS_FINISHED_ISSUER,
-            "in_progress": CharacterContract.STATUS_IN_PROGRESS,
-            "outstanding": CharacterContract.STATUS_OUTSTANDING,
-            "rejected": CharacterContract.STATUS_REJECTED,
-            "reversed": CharacterContract.STATUS_REVERSED,
-        }
-        type_map = {
-            "auction": CharacterContract.TYPE_AUCTION,
-            "courier": CharacterContract.TYPE_COURIER,
-            "item_exchange": CharacterContract.TYPE_ITEM_EXCHANGE,
-            "loan": CharacterContract.TYPE_LOAN,
-            "unknown": CharacterContract.TYPE_UNKNOWN,
-        }
-        for contract_data in contracts_data:
-            contract, _ = CharacterContract.objects.update_or_create(
-                character=self,
-                contract_id=contract_data.get("contract_id"),
-                defaults={
-                    "acceptor": get_or_create_eveuniverse_or_none(
-                        "acceptor_id", contract_data, EveEntity
-                    ),
-                    "acceptor_corporation": get_or_create_eveuniverse_or_none(
-                        "acceptor_corporation_id", contract_data, EveEntity
-                    ),
-                    "assignee": get_or_create_eveuniverse_or_none(
-                        "assignee_id", contract_data, EveEntity
-                    ),
-                    "availability": availability_map[contract_data.get("availability")],
-                    "buyout": contract_data.get("buyout"),
-                    "collateral": contract_data.get("collateral"),
-                    "contract_type": type_map[contract_data.get("type")],
-                    "date_accepted": contract_data.get("date_accepted"),
-                    "date_completed": contract_data.get("date_completed"),
-                    "date_expired": contract_data.get("date_expired"),
-                    "date_issued": contract_data.get("date_issued"),
-                    "days_to_complete": contract_data.get("days_to_complete"),
-                    "end_location": get_or_create_location_or_none(
-                        "end_location_id", contract_data, token
-                    ),
-                    "for_corporation": contract_data.get("for_corporation"),
-                    "issuer_corporation": get_or_create_eveuniverse_or_none(
-                        "issuer_corporation_id", contract_data, EveEntity
-                    ),
-                    "issuer": get_or_create_eveuniverse_or_none(
-                        "issuer_id", contract_data, EveEntity
-                    ),
-                    "price": contract_data.get("price"),
-                    "reward": contract_data.get("reward"),
-                    "start_location": get_or_create_location_or_none(
-                        "start_location_id", contract_data, token
-                    ),
-                    "status": status_map[contract_data.get("status")],
-                    "title": contract_data.get("title", ""),
-                    "volume": contract_data.get("volume"),
-                },
+        return contracts_list
+
+    def _create_new_contracts(
+        self, contracts_list: dict, contract_ids: set, token: Token
+    ) -> None:
+        logger.info("%s: Storing %s new contracts", self, len(contract_ids))
+        new_contracts = list()
+        for contract_id in contract_ids:
+            contract_data = contracts_list.get(contract_id)
+            if contract_data:
+                new_contracts.append(
+                    CharacterContract(
+                        character=self,
+                        contract_id=contract_data.get("contract_id"),
+                        acceptor=get_or_create_or_none(
+                            "acceptor_id", contract_data, EveEntity
+                        ),
+                        acceptor_corporation=get_or_create_or_none(
+                            "acceptor_corporation_id", contract_data, EveEntity
+                        ),
+                        assignee=get_or_create_or_none(
+                            "assignee_id", contract_data, EveEntity
+                        ),
+                        availability=CharacterContract.ESI_AVAILABILITY_MAP[
+                            contract_data.get("availability")
+                        ],
+                        buyout=contract_data.get("buyout"),
+                        collateral=contract_data.get("collateral"),
+                        contract_type=CharacterContract.ESI_TYPE_MAP.get(
+                            contract_data.get("type"),
+                            CharacterContract.TYPE_UNKNOWN,
+                        ),
+                        date_accepted=contract_data.get("date_accepted"),
+                        date_completed=contract_data.get("date_completed"),
+                        date_expired=contract_data.get("date_expired"),
+                        date_issued=contract_data.get("date_issued"),
+                        days_to_complete=contract_data.get("days_to_complete"),
+                        end_location=get_or_create_location_or_none(
+                            "end_location_id", contract_data, token
+                        ),
+                        for_corporation=contract_data.get("for_corporation"),
+                        issuer_corporation=get_or_create_or_none(
+                            "issuer_corporation_id", contract_data, EveEntity
+                        ),
+                        issuer=get_or_create_or_none(
+                            "issuer_id", contract_data, EveEntity
+                        ),
+                        price=contract_data.get("price"),
+                        reward=contract_data.get("reward"),
+                        start_location=get_or_create_location_or_none(
+                            "start_location_id", contract_data, token
+                        ),
+                        status=CharacterContract.ESI_STATUS_MAP[
+                            contract_data.get("status")
+                        ],
+                        title=contract_data.get("title", ""),
+                        volume=contract_data.get("volume"),
+                    )
+                )
+
+        CharacterContract.objects.bulk_create(
+            new_contracts, batch_size=BULK_METHOD_BATCH_SIZE
+        )
+
+    def _update_existing_contracts(
+        self, contracts_list: dict, contract_ids: set
+    ) -> None:
+        logger.info("%s: Updating %s contracts", self, len(contract_ids))
+        update_contract_pks = list(
+            self.contracts.filter(contract_id__in=contract_ids).values_list(
+                "pk", flat=True
             )
+        )
+        contracts = self.contracts.in_bulk(update_contract_pks)
+        for contract in contracts.values():
+            contract_data = contracts_list.get(contract.contract_id)
+            if contract_data:
+                contract.acceptor = get_or_create_or_none(
+                    "acceptor_id", contract_data, EveEntity
+                )
+                contract.acceptor_corporation = get_or_create_or_none(
+                    "acceptor_corporation_id", contract_data, EveEntity
+                )
+                contract.date_accepted = contract_data.get("date_accepted")
+                contract.date_completed = contract_data.get("date_completed")
+                contract.status = CharacterContract.ESI_STATUS_MAP[
+                    contract_data.get("status")
+                ]
+
+        CharacterContract.objects.bulk_update(
+            contracts.values(),
+            fields=[
+                "acceptor",
+                "acceptor_corporation",
+                "date_accepted",
+                "date_completed",
+                "status",
+            ],
+            batch_size=BULK_METHOD_BATCH_SIZE,
+        )
+
+    def _start_contracts_detail_updates(self, incoming_ids: set):
+        from .tasks import (
+            update_contract_details_esi as task_update_contract_details_esi,
+        )
+
+        contract_pks = set(
+            self.contracts.filter(
+                contract_type__in=[
+                    CharacterContract.TYPE_ITEM_EXCHANGE,
+                    CharacterContract.TYPE_AUCTION,
+                ]
+            )
+            .filter(contract_id__in=incoming_ids)
+            .values_list("pk", flat=True)
+        )
+        logger.info(
+            "%s: Starting updating details for %s contracts", self, len(contract_pks)
+        )
+        for contract_pk in contract_pks:
             task_update_contract_details_esi(
-                character_pk=self.pk, contract_pk=contract.pk
+                character_pk=self.pk, contract_pk=contract_pk
             )
 
     @fetch_token("esi-contracts.read_character_contracts.v1")
     def update_contract_details(self, token: Token, contract: "CharacterContract"):
         """update the character's contract details"""
-        logger.info(
-            "%s: Fetching contract details from ESI for ID: %s",
-            self,
-            contract.contract_id,
-        )
         if contract.contract_type in [
             CharacterContract.TYPE_ITEM_EXCHANGE,
             CharacterContract.TYPE_AUCTION,
         ]:
-            with transaction.atomic():
-                contract.items.all().delete()
-                items = esi.client.Contracts.get_characters_character_id_contracts_contract_id_items(
-                    character_id=self.character_ownership.character.character_id,
-                    contract_id=contract.contract_id,
-                    token=token.valid_access_token(),
-                ).results()
-                for item in items:
-                    CharacterContractItem.objects.create(
-                        contract=contract,
-                        record_id=item.get("record_id"),
-                        is_included=item.get("is_included"),
-                        is_singleton=item.get("is_singleton"),
-                        quantity=item.get("quantity"),
-                        raw_quantity=item.get("raw_quantity"),
-                        eve_type=get_or_create_eveuniverse_or_none(
-                            "type_id", item, EveType
-                        ),
-                    )
+            self._create_contract_items(token=token, contract=contract)
 
         if contract.contract_type == CharacterContract.TYPE_AUCTION:
-            with transaction.atomic():
-                contract.bids.all().delete()
-                bids = esi.client.Contracts.get_characters_character_id_contracts_contract_id_bids(
-                    character_id=self.character_ownership.character.character_id,
-                    contract_id=contract.contract_id,
-                    token=token.valid_access_token(),
-                ).results()
-                for bid in bids:
-                    CharacterContractBid.objects.create(
-                        contract=contract,
-                        bid_id=bid.get("bid_id"),
-                        amount=bid.get("amount"),
-                        bidder=get_or_create_eveuniverse_or_none(
-                            "bidder_id", bid, EveEntity
-                        ),
-                        date_bid=bid.get("date_bid"),
-                    )
+            self._create_contract_bids(token=token, contract=contract)
+
+    def _create_contract_items(self, token: Token, contract: "CharacterContract"):
+        logger.info(
+            "%s, %s: Fetching contract items from ESI", self, contract.contract_id
+        )
+        items_data = esi.client.Contracts.get_characters_character_id_contracts_contract_id_items(
+            character_id=self.character_ownership.character.character_id,
+            contract_id=contract.contract_id,
+            token=token.valid_access_token(),
+        ).results()
+        logger.info(
+            "%s, %s: Storing %s contract items",
+            self,
+            contract.contract_id,
+            len(items_data),
+        )
+        items = [
+            CharacterContractItem(
+                contract=contract,
+                record_id=item.get("record_id"),
+                is_included=item.get("is_included"),
+                is_singleton=item.get("is_singleton"),
+                quantity=item.get("quantity"),
+                raw_quantity=item.get("raw_quantity"),
+                eve_type=get_or_create_esi_or_none("type_id", item, EveType),
+            )
+            for item in items_data
+            if "record_id" in item
+        ]
+        with transaction.atomic():
+            contract.items.all().delete()
+            CharacterContractItem.objects.bulk_create(
+                items, batch_size=BULK_METHOD_BATCH_SIZE
+            )
+
+    def _create_contract_bids(self, token: Token, contract: "CharacterContract"):
+        logger.info(
+            "%s, %s: Fetching contract bids from ESI", self, contract.contract_id
+        )
+        bids_data = (
+            esi.client.Contracts.get_characters_character_id_contracts_contract_id_bids(
+                character_id=self.character_ownership.character.character_id,
+                contract_id=contract.contract_id,
+                token=token.valid_access_token(),
+            ).results()
+        )
+        logger.info(
+            "%s, %s: Storing %s contract bids", self, contract.contract_id, bids_data
+        )
+        bids = [
+            CharacterContractBid(
+                contract=contract,
+                bid_id=bid.get("bid_id"),
+                amount=bid.get("amount"),
+                bidder=get_or_create_esi_or_none("bidder_id", bid, EveEntity),
+                date_bid=bid.get("date_bid"),
+            )
+            for bid in bids_data
+        ]
+        with transaction.atomic():
+            contract.bids.all().delete()
+            CharacterContractBid.objects.bulk_create(
+                bids, batch_size=BULK_METHOD_BATCH_SIZE
+            )
 
     @fetch_token("esi-clones.read_clones.v1")
     def update_jump_clones(self, token: Token):
@@ -766,22 +876,40 @@ class Character(models.Model):
 
         with transaction.atomic():
             self.jump_clones.all().delete()
-            for jump_clone_info in jump_clones_info.get("jump_clones", []):
-                name = (
-                    jump_clone_info.get("name") if jump_clone_info.get("name") else ""
+            if "jump_clones" in jump_clones_info:
+                jump_clones = [
+                    CharacterJumpClone(
+                        character=self,
+                        jump_clone_id=jump_clone_info.get("jump_clone_id"),
+                        location=locations[jump_clone_info.get("location_id")],
+                        name=jump_clone_info.get("name")
+                        if jump_clone_info.get("name")
+                        else "",
+                    )
+                    for jump_clone_info in jump_clones_info["jump_clones"]
+                ]
+                CharacterJumpClone.objects.bulk_create(
+                    jump_clones,
+                    batch_size=BULK_METHOD_BATCH_SIZE,
                 )
-                jump_clone = CharacterJumpClone.objects.create(
-                    character=self,
-                    jump_clone_id=jump_clone_info.get("jump_clone_id"),
-                    location=locations[jump_clone_info.get("location_id")],
-                    name=name,
+                implants = list()
+                for jump_clone_info in jump_clones_info["jump_clones"]:
+                    if jump_clone_info.get("implants"):
+                        for implant in jump_clone_info["implants"]:
+                            eve_type, _ = EveType.objects.get_or_create_esi(id=implant)
+                            jump_clone = self.jump_clones.get(
+                                jump_clone_id=jump_clone_info.get("jump_clone_id")
+                            )
+                            implants.append(
+                                CharacterJumpCloneImplant(
+                                    jump_clone=jump_clone, eve_type=eve_type
+                                )
+                            )
+
+                CharacterJumpCloneImplant.objects.bulk_create(
+                    implants,
+                    batch_size=BULK_METHOD_BATCH_SIZE,
                 )
-                if jump_clone_info.get("implants"):
-                    for implant in jump_clone_info.get("implants"):
-                        eve_type, _ = EveType.objects.get_or_create_esi(id=implant)
-                        CharacterJumpCloneImplant.objects.create(
-                            jump_clone=jump_clone, eve_type=eve_type
-                        )
 
     @fetch_token("esi-mail.read_mail.v1")
     def update_mails(self, token: Token):
@@ -993,7 +1121,7 @@ class Character(models.Model):
             for entry in skillqueue:
                 CharacterSkillqueueEntry.objects.create(
                     character=self,
-                    skill=get_or_create_eveuniverse_or_none("skill_id", entry, EveType),
+                    skill=get_or_create_esi_or_none("skill_id", entry, EveType),
                     finish_date=entry.get("finish_date"),
                     finished_level=entry.get("finished_level"),
                     level_end_sp=entry.get("level_end_sp"),
@@ -1182,7 +1310,15 @@ class Character(models.Model):
                 method_partial = long_name.replace(" ", "_")
                 return f"update_{method_partial}"
 
-        raise ValueError(f"Unknown update section: {section}")
+        raise ValueError(f"Unknown section: {section}")
+
+    @classmethod
+    def section_display_name(cls, section: str) -> str:
+        for short_name, long_name in cls.UPDATE_SECTION_CHOICES:
+            if short_name == section:
+                return long_name
+
+        raise ValueError(f"Unknown section: {section}")
 
 
 class CharacterAsset(models.Model):
@@ -1313,6 +1449,12 @@ class CharacterContract(models.Model):
         (AVAILABILITY_PERSONAL, _("private")),
         (AVAILABILITY_PUBLIC, _("public")),
     )
+    ESI_AVAILABILITY_MAP = {
+        "alliance": AVAILABILITY_ALLIANCE,
+        "corporation": AVAILABILITY_CORPORATION,
+        "personal": AVAILABILITY_PERSONAL,
+        "public": AVAILABILITY_PUBLIC,
+    }
 
     STATUS_OUTSTANDING = "OS"
     STATUS_IN_PROGRESS = "IP"
@@ -1324,7 +1466,6 @@ class CharacterContract(models.Model):
     STATUS_FAILED = "FL"
     STATUS_DELETED = "DL"
     STATUS_REVERSED = "RV"
-
     STATUS_CHOICES = (
         (STATUS_CANCELED, _("canceled")),
         (STATUS_DELETED, _("deleted")),
@@ -1337,6 +1478,18 @@ class CharacterContract(models.Model):
         (STATUS_REJECTED, _("rejected")),
         (STATUS_REVERSED, _("reversed")),
     )
+    ESI_STATUS_MAP = {
+        "canceled": STATUS_CANCELED,
+        "deleted": STATUS_DELETED,
+        "failed": STATUS_FAILED,
+        "finished": STATUS_FINISHED,
+        "finished_contractor": STATUS_FINISHED_CONTRACTOR,
+        "finished_issuer": STATUS_FINISHED_ISSUER,
+        "in_progress": STATUS_IN_PROGRESS,
+        "outstanding": STATUS_OUTSTANDING,
+        "rejected": STATUS_REJECTED,
+        "reversed": STATUS_REVERSED,
+    }
 
     TYPE_AUCTION = "AT"
     TYPE_COURIER = "CR"
@@ -1350,6 +1503,13 @@ class CharacterContract(models.Model):
         (TYPE_LOAN, _("loan")),
         (TYPE_UNKNOWN, _("unknown")),
     )
+    ESI_TYPE_MAP = {
+        "auction": TYPE_AUCTION,
+        "courier": TYPE_COURIER,
+        "item_exchange": TYPE_ITEM_EXCHANGE,
+        "loan": TYPE_LOAN,
+        "unknown": TYPE_UNKNOWN,
+    }
 
     character = models.ForeignKey(
         Character,

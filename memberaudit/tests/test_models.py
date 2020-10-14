@@ -350,6 +350,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         cls.amamake = EveSolarSystem.objects.get(id=30002537)
         cls.structure_1 = Location.objects.get(id=1000000000001)
 
+    @override_settings(CELERY_ALWAYS_EAGER=True)
     def test_update_assets(self, mock_esi):
         """can load assets"""
         mock_esi.client = esi_client_stub
@@ -557,6 +558,81 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(float(bid.amount), 1000000.23)
         self.assertEqual(bid.date_bid, parse_datetime("2017-01-01T10:10:10Z"))
         self.assertEqual(bid.bidder, EveEntity.objects.get(id=1101))
+
+    @override_settings(CELERY_ALWAYS_EAGER=True)
+    def test_update_contracts_4(self, mock_esi):
+        """old contracts must be kept"""
+        mock_esi.client = esi_client_stub
+
+        CharacterContract.objects.create(
+            character=self.character_1001,
+            contract_id=190000001,
+            availability=CharacterContract.AVAILABILITY_PERSONAL,
+            contract_type=CharacterContract.TYPE_COURIER,
+            assignee=EveEntity.objects.get(id=1002),
+            date_issued=now() - dt.timedelta(days=60),
+            date_expired=now() - dt.timedelta(days=30),
+            for_corporation=False,
+            issuer=EveEntity.objects.get(id=1001),
+            issuer_corporation=EveEntity.objects.get(id=2001),
+            status=CharacterContract.STATUS_IN_PROGRESS,
+            start_location=self.jita_44,
+            end_location=self.structure_1,
+            title="Old contract",
+        )
+
+        self.character_1001.update_contracts()
+        self.assertEqual(self.character_1001.contracts.count(), 4)
+
+    @override_settings(CELERY_ALWAYS_EAGER=True)
+    def test_update_contracts_5(self, mock_esi):
+        """Existing contracts can be updated"""
+        mock_esi.client = esi_client_stub
+
+        CharacterContract.objects.create(
+            character=self.character_1001,
+            contract_id=100000001,
+            availability=CharacterContract.AVAILABILITY_PERSONAL,
+            contract_type=CharacterContract.TYPE_COURIER,
+            assignee=EveEntity.objects.get(id=2101),
+            date_issued=parse_datetime("2019-10-02T13:15:21Z"),
+            date_expired=parse_datetime("2019-10-09T13:15:21Z"),
+            for_corporation=False,
+            issuer=EveEntity.objects.get(id=1001),
+            issuer_corporation=EveEntity.objects.get(id=2001),
+            status=CharacterContract.STATUS_OUTSTANDING,
+            start_location=self.jita_44,
+            end_location=self.structure_1,
+            title="Test 1",
+            collateral=550000000,
+            reward=500000000,
+            volume=486000,
+            days_to_complete=3,
+        )
+
+        self.character_1001.update_contracts()
+
+        obj = self.character_1001.contracts.get(contract_id=100000001)
+        self.assertEqual(obj.contract_type, CharacterContract.TYPE_COURIER)
+        self.assertEqual(obj.acceptor, EveEntity.objects.get(id=1101))
+        self.assertEqual(obj.assignee, EveEntity.objects.get(id=2101))
+        self.assertEqual(obj.availability, CharacterContract.AVAILABILITY_PERSONAL)
+        self.assertIsNone(obj.buyout)
+        self.assertEqual(float(obj.collateral), 550000000.0)
+        self.assertEqual(obj.date_accepted, parse_datetime("2019-10-06T13:15:21Z"))
+        self.assertEqual(obj.date_completed, parse_datetime("2019-10-07T13:15:21Z"))
+        self.assertEqual(obj.date_expired, parse_datetime("2019-10-09T13:15:21Z"))
+        self.assertEqual(obj.date_issued, parse_datetime("2019-10-02T13:15:21Z"))
+        self.assertEqual(obj.days_to_complete, 3)
+        self.assertEqual(obj.end_location, self.structure_1)
+        self.assertFalse(obj.for_corporation)
+        self.assertEqual(obj.issuer_corporation, EveEntity.objects.get(id=2001))
+        self.assertEqual(obj.issuer, EveEntity.objects.get(id=1001))
+        self.assertEqual(float(obj.reward), 500000000.0)
+        self.assertEqual(obj.start_location, self.jita_44)
+        self.assertEqual(obj.status, CharacterContract.STATUS_IN_PROGRESS)
+        self.assertEqual(obj.title, "Test 1")
+        self.assertEqual(obj.volume, 486000.0)
 
     def test_update_character_details(self, mock_esi):
         mock_esi.client = esi_client_stub
