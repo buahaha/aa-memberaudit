@@ -4,7 +4,6 @@ import json
 from typing import Optional
 
 from django.contrib.auth.models import User
-from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models, transaction
@@ -35,7 +34,7 @@ from .app_settings import MEMBERAUDIT_MAX_MAILS, MEMBERAUDIT_DEVELOPER_MODE
 from .decorators import fetch_token
 from .managers import CharacterManager, DoctrineManager, LocationManager
 from .providers import esi
-from .utils import LoggerAddTag, make_logger_prefix, chunks
+from .utils import LoggerAddTag, chunks
 
 CharacterDoctrineResult = namedtuple(
     "CharacterDoctrineResult", ["doctrine", "ship", "insufficient_skills"]
@@ -93,11 +92,26 @@ def get_or_create_or_none(
     return the object on success or None
     """
     if dct.get(prop_name):
-        obj, _ = Model.objects.get_or_create_esi(id=dct.get(prop_name))
+        obj, _ = Model.objects.get_or_create(id=dct.get(prop_name))
     else:
         obj = None
 
     return obj
+
+
+def get_or_none(prop_name: str, dct: dict, Model: type) -> Optional[models.Model]:
+    """tries to create a new Django object from a dictionary entry
+
+    return the object on success or None
+    """
+    id = dct.get(prop_name)
+    if id:
+        try:
+            return Model.objects.get(id=id)
+        except Model.DoesNotExist:
+            pass
+
+    return None
 
 
 def get_or_create_location_or_none(
@@ -353,14 +367,65 @@ class Character(models.Model):
         else:
             return None
 
-    @fetch_token("esi-skills.read_skillqueue.v1")
+    def _preload_all_locations(self, token: Token, incoming_ids: set) -> None:
+        """loads location objects specified by given set
+
+        returns list of existing location IDs after preload
+        """
+        existing_ids = set(Location.objects.values_list("id", flat=True))
+        missing_ids = incoming_ids.difference(existing_ids)
+        if missing_ids:
+            logger.info(
+                "%s: Loading %s missing locations from ESI", self, len(missing_ids)
+            )
+            for location_id in missing_ids:
+                try:
+                    Location.objects.get_or_create_esi_async(
+                        id=location_id, token=token
+                    )
+                except ValueError:
+                    pass
+                else:
+                    existing_ids.add(location_id)
+
+        return existing_ids
+
+    @fetch_token(["esi-assets.read_assets.v1", "esi-universe.read_structures.v1"])
     def update_assets(self, token):
         """update the character's assets"""
 
         asset_list = self._fetch_assets_from_esi(token)
         self._preload_all_eve_types(asset_list)
-        location_ids = self._preload_all_locations(token, asset_list)
-        self._create_assets(asset_list=asset_list, location_ids=location_ids)
+        incoming_location_ids = {
+            x["location_id"]
+            for x in asset_list.values()
+            if "location_id" in x and x["location_id"] not in asset_list
+        }
+        location_ids = self._preload_all_locations(
+            token=token, incoming_ids=incoming_location_ids
+        )
+        with transaction.atomic():
+            incoming_ids = set(asset_list.keys())
+            existing_ids = set(self.assets.values_list("item_id", flat=True))
+            obsolete_ids = existing_ids.difference(incoming_ids)
+            if obsolete_ids:
+                logger.info("%s: Removing %s obsolete assets", self, len(obsolete_ids))
+                self.assets.filter(item_id__in=obsolete_ids).delete()
+
+            # need to update existing ids, because obsolete assets might have
+            # contained child assets that have now been moved to another
+            # location / container
+            existing_ids = set(self.assets.values_list("item_id", flat=True))
+            create_ids = incoming_ids.difference(existing_ids)
+            if create_ids:
+                self._create_assets(
+                    asset_list=asset_list,
+                    item_ids=create_ids,
+                    location_ids=location_ids,
+                )
+
+        if not obsolete_ids and not create_ids:
+            logger.info("%s: Assets have not changed", self)
 
     def _fetch_assets_from_esi(self, token) -> dict:
         logger.info("%s: Fetching assets from ESI", self)
@@ -397,39 +462,16 @@ class Character(models.Model):
             for type_id in missing_ids:
                 EveType.objects.update_or_create_esi(id=type_id)
 
-    def _preload_all_locations(self, token: Token, asset_list: dict) -> None:
-        required_ids = {
-            x["location_id"]
-            for x in asset_list.values()
-            if "location_id" in x and x["location_id"] not in asset_list
+    def _create_assets(self, asset_list: dict, item_ids: list, location_ids: list):
+        logger.info("%s: Adding %s new assets", self, len(item_ids))
+        new_asset_list = {
+            item_id: obj for item_id, obj in asset_list.items() if item_id in item_ids
         }
-        existing_ids = set(Location.objects.values_list("id", flat=True))
-        missing_ids = required_ids.difference(existing_ids)
-        if missing_ids:
-            logger.info(
-                "%s: Loading %s missing locations from ESI", self, len(missing_ids)
-            )
-            for location_id in missing_ids:
-                try:
-                    Location.objects.get_or_create_esi_async(
-                        id=location_id, token=token
-                    )
-                    existing_ids.add(location_id)
-                except ValueError:
-                    pass
-
-        return existing_ids
-
-    @transaction.atomic()
-    def _create_assets(self, asset_list: dict, location_ids: list):
-        logger.info("%s: Building tree for %s assets", self, len(asset_list))
-        self.assets.all().delete()
-
         # create parent assets
         logger.info("%s: Creating parent assets", self)
-        parent_asset_ids = set()
+        parent_asset_ids = set(self.assets.values_list("item_id", flat=True))
         new_assets = list()
-        for item_id, asset_info in copy(asset_list).items():
+        for item_id, asset_info in copy(new_asset_list).items():
             location_id = asset_info.get("location_id")
             if location_id and location_id in location_ids:
                 new_assets.append(
@@ -445,7 +487,7 @@ class Character(models.Model):
                         quantity=asset_info.get("quantity"),
                     )
                 )
-                asset_list.pop(item_id)
+                new_asset_list.pop(item_id)
                 parent_asset_ids.add(item_id)
 
         logger.info("%s: Writing %s parent assets", self, len(new_assets))
@@ -459,7 +501,7 @@ class Character(models.Model):
             round += 1
             logger.info("%s: Creating child assets - pass %s", self, round)
             new_assets = list()
-            for item_id, asset_info in copy(asset_list).items():
+            for item_id, asset_info in copy(new_asset_list).items():
                 location_id = asset_info.get("location_id")
                 if location_id and location_id in parent_asset_ids:
                     new_assets.append(
@@ -475,7 +517,7 @@ class Character(models.Model):
                             quantity=asset_info.get("quantity"),
                         )
                     )
-                    asset_list.pop(item_id)
+                    new_asset_list.pop(item_id)
 
             if new_assets:
                 logger.info("%s: Writing %s child assets", self, len(new_assets))
@@ -486,15 +528,15 @@ class Character(models.Model):
                     {obj.item_id for obj in new_assets}
                 )
 
-            if not new_assets or not asset_list:
+            if not new_assets or not new_asset_list:
                 break
 
-        if len(asset_list) > 0:
+        if len(new_asset_list) > 0:
             logger.warning(
                 "%s: Failed to add %s assets to the tree: %s",
                 self,
-                len(asset_list),
-                [x["item_id"] for x in asset_list],
+                len(new_asset_list),
+                new_asset_list.keys(),
             )
 
     def update_character_details(self):
@@ -545,23 +587,28 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
         ).results()
 
-        entries = list()
-        for row in history:
-            entries.append(
-                CharacterCorporationHistory(
-                    character=self,
-                    record_id=row.get("record_id"),
-                    corporation=get_or_create_or_none("corporation_id", row, EveEntity),
-                    is_deleted=row.get("is_deleted"),
-                    start_date=row.get("start_date"),
-                )
+        entries = [
+            CharacterCorporationHistory(
+                character=self,
+                record_id=row.get("record_id"),
+                corporation=get_or_create_or_none("corporation_id", row, EveEntity),
+                is_deleted=row.get("is_deleted"),
+                start_date=row.get("start_date"),
             )
-
+            for row in history
+        ]
         with transaction.atomic():
             self.corporation_history.all().delete()
-            CharacterCorporationHistory.objects.bulk_create(entries)
-
-        EveEntity.objects.bulk_update_new_esi()
+            if entries:
+                logger.info(
+                    "%s: Creating %s entries for corporation history",
+                    self,
+                    len(entries),
+                )
+                CharacterCorporationHistory.objects.bulk_create(entries)
+                EveEntity.objects.bulk_update_new_esi()
+            else:
+                logger.info("%s: Corporation history is empty", self, len(entries))
 
     @fetch_token("esi-characters.read_contacts.v1")
     def update_contacts(self, token: Token):
@@ -575,61 +622,156 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
+        # TODO: replace with bulk methods to optimize
         with transaction.atomic():
-            label_ids = {x["label_id"] for x in labels}
-            self.contact_labels.exclude(label_id__in=label_ids).delete()
-            for label in labels:
-                CharacterContactLabel.objects.update_or_create(
-                    character=self,
-                    label_id=label.get("label_id"),
-                    defaults={
-                        "name": label.get("label_name"),
-                    },
-                )
+            if labels:
+                incoming_ids = {x["label_id"] for x in labels}
+            else:
+                incoming_ids = set()
+
+            existing_ids = set(self.contact_labels.values_list("label_id", flat=True))
+            obsolete_ids = existing_ids.difference(incoming_ids)
+            if obsolete_ids:
+                logger.info("%s: Removing %s obsolete skills", self, len(obsolete_ids))
+                self.contact_labels.filter(label_id__in=obsolete_ids).delete()
+
+            if incoming_ids:
+                logger.info("%s: Storing %s contact labels", self, len(incoming_ids))
+                for label in labels:
+                    CharacterContactLabel.objects.update_or_create(
+                        character=self,
+                        label_id=label.get("label_id"),
+                        defaults={
+                            "name": label.get("label_name"),
+                        },
+                    )
+            else:
+                logger.info("%s: No contact labels", self)
 
     def _update_contacts(self, token):
         logger.info("%s: Fetching contacts from ESI", self)
-        contacts = esi.client.Contacts.get_characters_character_id_contacts(
+        contacts_data = esi.client.Contacts.get_characters_character_id_contacts(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
-        logger.info("%s: Writing %s contacts", self, len(contacts))
-        with transaction.atomic():
-            contact_ids = {x["contact_id"] for x in contacts}
-            self.contacts.exclude(contact_id__in=contact_ids).delete()
-            for contact_data in contacts:
-                character_contact, _ = CharacterContact.objects.update_or_create(
-                    character=self,
-                    contact=get_or_create_or_none(
-                        "contact_id", contact_data, EveEntity
-                    ),
-                    defaults={
-                        "is_blocked": contact_data.get("is_blocked"),
-                        "is_watched": contact_data.get("is_watched"),
-                        "standing": contact_data.get("standing"),
-                    },
-                )
-                character_contact.labels.clear()
-                if contact_data.get("label_ids"):
-                    for label_id in contact_data.get("label_ids"):
-                        try:
-                            label = self.contact_labels.get(label_id=label_id)
-                        except CharacterContactLabel.DoesNotExist:
-                            # sometimes label IDs on contacts
-                            # do not refer to actual labels
-                            logger.warning(
-                                "%s: Unknown contact label with id %s", self, label_id
-                            )
-                        else:
-                            character_contact.labels.add(label)
+        if contacts_data:
+            contacts_list = {int(x["contact_id"]): x for x in contacts_data}
+        else:
+            contacts_list = dict()
 
-            EveEntity.objects.bulk_update_new_esi()
+        with transaction.atomic():
+            incoming_ids = set(contacts_list.keys())
+            existing_ids = set(self.contacts.values_list("contact_id", flat=True))
+            obsolete_ids = existing_ids.difference(incoming_ids)
+            if obsolete_ids:
+                logger.info(
+                    "%s: Removing %s obsolete contacts", self, len(obsolete_ids)
+                )
+                self.contacts.filter(contact_id__in=obsolete_ids).delete()
+
+            create_ids = incoming_ids.difference(existing_ids)
+            if create_ids:
+                self._create_new_contacts(
+                    contacts_list=contacts_list, contact_ids=create_ids
+                )
+
+            update_ids = incoming_ids.difference(create_ids)
+            if update_ids:
+                self._update_existing_contacts(
+                    contacts_list=contacts_list, contact_ids=update_ids
+                )
+
+            if not obsolete_ids and not create_ids and not update_ids:
+                logger.info("%s: Contacts have not changed", self)
+
+    def _create_new_contacts(self, contacts_list: dict, contact_ids: list):
+        logger.info("%s: Storing %s new contacts", self, len(contact_ids))
+        new_contacts_list = {
+            contact_id: obj
+            for contact_id, obj in contacts_list.items()
+            if contact_id in contact_ids
+        }
+        new_contacts = [
+            CharacterContact(
+                character=self,
+                contact=get_or_create_or_none("contact_id", contact_data, EveEntity),
+                is_blocked=contact_data.get("is_blocked"),
+                is_watched=contact_data.get("is_watched"),
+                standing=contact_data.get("standing"),
+            )
+            for contact_data in new_contacts_list.values()
+        ]
+        CharacterContact.objects.bulk_create(
+            new_contacts, batch_size=BULK_METHOD_BATCH_SIZE
+        )
+        EveEntity.objects.bulk_update_new_esi()
+        self._update_contact_contact_labels(
+            contacts_list=contacts_list, contact_ids=contact_ids, is_new=True
+        )
+
+    def _update_contact_contact_labels(
+        self, contacts_list: dict, contact_ids: list, is_new=False
+    ):
+        for contact_id, contact_data in contacts_list.items():
+            if contact_id in contact_ids and contact_data.get("label_ids"):
+                character_contact = self.contacts.get(contact_id=contact_id)
+                if not is_new:
+                    character_contact.labels.clear()
+
+                labels = list()
+                for label_id in contact_data.get("label_ids"):
+                    try:
+                        label = self.contact_labels.get(label_id=label_id)
+                    except CharacterContactLabel.DoesNotExist:
+                        # sometimes label IDs on contacts
+                        # do not refer to actual labels
+                        logger.warning(
+                            "%s: Unknown contact label with id %s",
+                            self,
+                            label_id,
+                        )
+                    else:
+                        labels.append(label)
+
+                    character_contact.labels.add(*labels)
+
+    def _update_existing_contacts(self, contacts_list: dict, contact_ids: list):
+        logger.info("%s: Updating %s contacts", self, len(contact_ids))
+        update_contact_pks = list(
+            self.contacts.filter(contact_id__in=contact_ids).values_list(
+                "pk", flat=True
+            )
+        )
+        contacts = self.contacts.in_bulk(update_contact_pks)
+        for contact in contacts.values():
+            contact_data = contacts_list.get(contact.contact_id)
+            if contact_data:
+                contact.is_blocked = contact_data.get("is_blocked")
+                contact.is_watched = contact_data.get("is_watched")
+                contact.standing = contact_data.get("standing")
+
+        CharacterContact.objects.bulk_update(
+            contacts.values(),
+            fields=["is_blocked", "is_watched", "standing"],
+            batch_size=BULK_METHOD_BATCH_SIZE,
+        )
+        self._update_contact_contact_labels(
+            contacts_list=contacts_list, contact_ids=contact_ids
+        )
 
     @fetch_token("esi-contracts.read_character_contracts.v1")
     def update_contracts(self, token: Token):
         """update the character's contracts"""
 
         contracts_list = self._fetch_contracts_from_esi(token)
+        existing_ids = set(self.contracts.values_list("contract_id", flat=True))
+        incoming_location_ids = {
+            obj["start_location_id"]
+            for contract_id, obj in contracts_list.items()
+            if contract_id not in existing_ids
+        }
+        incoming_location_ids |= {x["end_location_id"] for x in contracts_list.values()}
+        self._preload_all_locations(token=token, incoming_ids=incoming_location_ids)
         with transaction.atomic():
             incoming_ids = set(contracts_list.keys())
             existing_ids = set(self.contracts.values_list("contract_id", flat=True))
@@ -646,7 +788,11 @@ class Character(models.Model):
                     contracts_list=contracts_list, contract_ids=update_ids
                 )
 
-        self._start_contracts_detail_updates(incoming_ids)
+            if not create_ids and not update_ids:
+                logger.info("%s: Contracts headers have not changed", self)
+
+        self._start_contracts_items_updates(create_ids)
+        self._start_contracts_bids_updates(create_ids | update_ids)
         EveEntity.objects.bulk_update_new_esi()
 
     def _fetch_contracts_from_esi(self, token) -> dict:
@@ -695,8 +841,8 @@ class Character(models.Model):
                         date_expired=contract_data.get("date_expired"),
                         date_issued=contract_data.get("date_issued"),
                         days_to_complete=contract_data.get("days_to_complete"),
-                        end_location=get_or_create_location_or_none(
-                            "end_location_id", contract_data, token
+                        end_location=get_or_none(
+                            "end_location_id", contract_data, Location
                         ),
                         for_corporation=contract_data.get("for_corporation"),
                         issuer_corporation=get_or_create_or_none(
@@ -707,8 +853,8 @@ class Character(models.Model):
                         ),
                         price=contract_data.get("price"),
                         reward=contract_data.get("reward"),
-                        start_location=get_or_create_location_or_none(
-                            "start_location_id", contract_data, token
+                        start_location=get_or_none(
+                            "start_location_id", contract_data, Location
                         ),
                         status=CharacterContract.ESI_STATUS_MAP[
                             contract_data.get("status")
@@ -759,9 +905,9 @@ class Character(models.Model):
             batch_size=BULK_METHOD_BATCH_SIZE,
         )
 
-    def _start_contracts_detail_updates(self, incoming_ids: set):
+    def _start_contracts_items_updates(self, incoming_ids: set):
         from .tasks import (
-            update_contract_details_esi as task_update_contract_details_esi,
+            update_contract_items_esi as task_update_contract_items_esi,
         )
 
         contract_pks = set(
@@ -769,32 +915,53 @@ class Character(models.Model):
                 contract_type__in=[
                     CharacterContract.TYPE_ITEM_EXCHANGE,
                     CharacterContract.TYPE_AUCTION,
-                ]
-            )
-            .filter(contract_id__in=incoming_ids)
-            .values_list("pk", flat=True)
+                ],
+                contract_id__in=incoming_ids,
+            ).values_list("pk", flat=True)
         )
-        logger.info(
-            "%s: Starting updating details for %s contracts", self, len(contract_pks)
-        )
-        for contract_pk in contract_pks:
-            task_update_contract_details_esi(
-                character_pk=self.pk, contract_pk=contract_pk
+        if len(contract_pks) > 0:
+            logger.info(
+                "%s: Starting updating items for %s contracts", self, len(contract_pks)
             )
+            for contract_pk in contract_pks:
+                task_update_contract_items_esi(
+                    character_pk=self.pk, contract_pk=contract_pk
+                )
+
+    def _start_contracts_bids_updates(self, incoming_ids: set):
+        from .tasks import (
+            update_contract_bids_esi as task_update_contract_bids_esi,
+        )
+
+        contract_pks = set(
+            self.contracts.filter(
+                contract_type__in=[CharacterContract.TYPE_AUCTION],
+                contract_id__in=incoming_ids,
+            ).values_list("pk", flat=True)
+        )
+        if len(contract_pks) > 0:
+            logger.info(
+                "%s: Starting updating bids for %s contracts", self, len(contract_pks)
+            )
+            for contract_pk in contract_pks:
+                task_update_contract_bids_esi(
+                    character_pk=self.pk, contract_pk=contract_pk
+                )
 
     @fetch_token("esi-contracts.read_character_contracts.v1")
-    def update_contract_details(self, token: Token, contract: "CharacterContract"):
+    def update_contract_items(self, token: Token, contract: "CharacterContract"):
         """update the character's contract details"""
-        if contract.contract_type in [
+        if contract.contract_type not in [
             CharacterContract.TYPE_ITEM_EXCHANGE,
             CharacterContract.TYPE_AUCTION,
         ]:
-            self._create_contract_items(token=token, contract=contract)
+            logger.warning(
+                "%s, %s: Can not update items. Wrong contract type.",
+                self,
+                contract.contract_id,
+            )
+            return
 
-        if contract.contract_type == CharacterContract.TYPE_AUCTION:
-            self._create_contract_bids(token=token, contract=contract)
-
-    def _create_contract_items(self, token: Token, contract: "CharacterContract"):
         logger.info(
             "%s, %s: Fetching contract items from ESI", self, contract.contract_id
         )
@@ -828,7 +995,17 @@ class Character(models.Model):
                 items, batch_size=BULK_METHOD_BATCH_SIZE
             )
 
-    def _create_contract_bids(self, token: Token, contract: "CharacterContract"):
+    @fetch_token("esi-contracts.read_character_contracts.v1")
+    def update_contract_bids(self, token: Token, contract: "CharacterContract"):
+        """update the character's contract details"""
+        if contract.contract_type != CharacterContract.TYPE_AUCTION:
+            logger.warning(
+                "%s, %s: Can not update bids. Wrong contract type.",
+                self,
+                contract.contract_id,
+            )
+            return
+
         logger.info(
             "%s, %s: Fetching contract bids from ESI", self, contract.contract_id
         )
@@ -840,8 +1017,12 @@ class Character(models.Model):
             ).results()
         )
         logger.info(
-            "%s, %s: Storing %s contract bids", self, contract.contract_id, bids_data
+            "%s, %s: Storing %s contract bids",
+            self,
+            contract.contract_id,
+            len(bids_data),
         )
+        # TODO: Bids can only be added, no need to recreate bid list
         bids = [
             CharacterContractBid(
                 contract=contract,
@@ -858,7 +1039,55 @@ class Character(models.Model):
                 bids, batch_size=BULK_METHOD_BATCH_SIZE
             )
 
-    @fetch_token("esi-clones.read_clones.v1")
+    def update_doctrines(self):
+        """Checks if character can fly doctrine ships
+        and updates results in database
+        """
+        character_skills = {
+            obj["eve_type_id"]: obj["active_skill_level"]
+            for obj in self.skills.values("eve_type_id", "active_skill_level")
+        }
+        with transaction.atomic():
+            self.doctrine_ships.all().delete()
+
+            # create empty new objects
+            doctrine_ships_qs = DoctrineShip.objects.prefetch_related(
+                "skills", "skills__skill"
+            ).all()
+            doctrine_ships_count = doctrine_ships_qs.count()
+            if doctrine_ships_count == 0:
+                logger.info("%s: No doctrine ships defined", self)
+                return
+
+            logger.info("%s: Checking %s doctrine ships", self, doctrine_ships_count)
+            doctrine_ships = [
+                CharacterDoctrineShipCheck(character=self, ship=ship)
+                for ship in doctrine_ships_qs
+            ]
+            CharacterDoctrineShipCheck.objects.bulk_create(
+                doctrine_ships, batch_size=BULK_METHOD_BATCH_SIZE
+            )
+
+            # add insufficient skills to objects if any
+            obj_pks = list(self.doctrine_ships.values_list("pk", flat=True))
+            doctrine_ships = self.doctrine_ships.in_bulk(obj_pks)
+            doctrine_ships_by_ship_id = {
+                obj.ship_id: obj for obj in doctrine_ships.values()
+            }
+            for ship in doctrine_ships_qs:
+                skills = list()
+                for skill in ship.skills.all():
+                    skill_id = skill.skill_id
+                    if (
+                        skill_id not in character_skills
+                        or character_skills[skill_id] < skill.level
+                    ):
+                        skills.append(skill)
+
+                if skills:
+                    doctrine_ships_by_ship_id[ship.id].insufficient_skills.add(*skills)
+
+    @fetch_token(["esi-clones.read_clones.v1", "esi-universe.read_structures.v1"])
     def update_jump_clones(self, token: Token):
         """updates the character's jump clones"""
         logger.info("%s: Fetching jump clones from ESI", self)
@@ -880,116 +1109,141 @@ class Character(models.Model):
 
         with transaction.atomic():
             self.jump_clones.all().delete()
-            if "jump_clones" in jump_clones_info:
-                jump_clones = [
-                    CharacterJumpClone(
-                        character=self,
-                        jump_clone_id=jump_clone_info.get("jump_clone_id"),
-                        location=locations[jump_clone_info.get("location_id")],
-                        name=jump_clone_info.get("name")
-                        if jump_clone_info.get("name")
-                        else "",
-                    )
-                    for jump_clone_info in jump_clones_info["jump_clones"]
-                ]
-                CharacterJumpClone.objects.bulk_create(
-                    jump_clones,
-                    batch_size=BULK_METHOD_BATCH_SIZE,
-                )
-                implants = list()
-                for jump_clone_info in jump_clones_info["jump_clones"]:
-                    if jump_clone_info.get("implants"):
-                        for implant in jump_clone_info["implants"]:
-                            eve_type, _ = EveType.objects.get_or_create_esi(id=implant)
-                            jump_clone = self.jump_clones.get(
-                                jump_clone_id=jump_clone_info.get("jump_clone_id")
-                            )
-                            implants.append(
-                                CharacterJumpCloneImplant(
-                                    jump_clone=jump_clone, eve_type=eve_type
-                                )
-                            )
+            if not jump_clones_info.get("jump_clones"):
+                logger.info("%s: No jump clones", self)
+                return
 
-                CharacterJumpCloneImplant.objects.bulk_create(
-                    implants,
-                    batch_size=BULK_METHOD_BATCH_SIZE,
+            jump_clones_list = jump_clones_info.get("jump_clones")
+            logger.info("%s: Storing %s jump clones", self, len(jump_clones_list))
+            jump_clones = [
+                CharacterJumpClone(
+                    character=self,
+                    jump_clone_id=jump_clone_info.get("jump_clone_id"),
+                    location=locations[jump_clone_info.get("location_id")],
+                    name=jump_clone_info.get("name")
+                    if jump_clone_info.get("name")
+                    else "",
                 )
+                for jump_clone_info in jump_clones_list
+            ]
+            CharacterJumpClone.objects.bulk_create(
+                jump_clones,
+                batch_size=BULK_METHOD_BATCH_SIZE,
+            )
+            implants = list()
+            for jump_clone_info in jump_clones_list:
+                if jump_clone_info.get("implants"):
+                    for implant in jump_clone_info["implants"]:
+                        eve_type, _ = EveType.objects.get_or_create_esi(id=implant)
+                        jump_clone = self.jump_clones.get(
+                            jump_clone_id=jump_clone_info.get("jump_clone_id")
+                        )
+                        implants.append(
+                            CharacterJumpCloneImplant(
+                                jump_clone=jump_clone, eve_type=eve_type
+                            )
+                        )
+
+            CharacterJumpCloneImplant.objects.bulk_create(
+                implants,
+                batch_size=BULK_METHOD_BATCH_SIZE,
+            )
 
     @fetch_token("esi-mail.read_mail.v1")
     def update_mails(self, token: Token):
         self._update_mailinglists(token)
         self._update_maillabels(token)
-        self._update_mail_headers(token)
+        self._process_mail_headers(token)
         self._update_mail_bodies()
 
     def _update_mailinglists(self, token: Token):
-        """syncs the mailing list for the given character"""
-        add_prefix = make_logger_prefix(self)
-        logger.info(add_prefix("Fetching mailing lists from ESI"))
+        """update the mailing lists for the given character"""
+        logger.info("%s: Fetching mailing lists from ESI", self)
         mailing_lists = esi.client.Mail.get_characters_character_id_mail_lists(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
-        logger.info(add_prefix(f"Received {len(mailing_lists)} mailing lists from ESI"))
-        created_count = 0
-        for mailing_list in mailing_lists:
-            _, created = CharacterMailingList.objects.update_or_create(
-                character=self,
-                list_id=mailing_list.get("mailing_list_id"),
-                defaults={"name": mailing_list.get("name")},
-            )
-            if created:
-                created_count += 1
+        # TODO: Replace delete + create with create + update
+        if not mailing_lists:
+            logger.info("%s: No mailing lists", self)
+            return
 
-        if created_count > 0:
-            logger.info(add_prefix(f"Added/Updated {created_count} mailing lists"))
+        logger.info("%s: Storing %s mailing lists", self, len(mailing_lists))
+        with transaction.atomic():
+            self.mailing_lists.all().delete()
+            new_lists = [
+                CharacterMailingList(
+                    character=self,
+                    list_id=mailing_list.get("mailing_list_id"),
+                    name=mailing_list.get("name"),
+                )
+                for mailing_list in mailing_lists
+            ]
+            CharacterMailingList.objects.bulk_create(
+                new_lists, batch_size=BULK_METHOD_BATCH_SIZE
+            )
 
     def _update_maillabels(self, token: Token):
-        """syncs the mail lables for the given character"""
-        add_prefix = make_logger_prefix(self)
-        logger.info(add_prefix("Fetching mail labels from ESI"))
+        """update the mail lables for the given character"""
+        logger.info("%s: Fetching mail labels from ESI", self)
         mail_labels_info = esi.client.Mail.get_characters_character_id_mail_labels(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
-        mail_labels = mail_labels_info.get("labels")
-        logger.info(add_prefix(f"Received {len(mail_labels)} mail labels from ESI"))
-        CharacterMailUnreadCount.objects.update_or_create(
-            character=self,
-            defaults={"total": mail_labels_info.get("total_unread_count")},
-        )
-        created_count = 0
-        for label in mail_labels:
-            _, created = CharacterMailLabel.objects.update_or_create(
+        if mail_labels_info.get("total_unread_count"):
+            CharacterMailUnreadCount.objects.update_or_create(
                 character=self,
-                label_id=label.get("label_id"),
-                defaults={
-                    "color": label.get("color"),
-                    "name": label.get("name"),
-                    "unread_count": label.get("unread_count"),
-                },
+                defaults={"total": mail_labels_info.get("total_unread_count")},
             )
-            if created:
-                created_count += 1
+        # TODO: Replace delete + create with create + update
+        mail_labels = mail_labels_info.get("labels")
+        if not mail_labels:
+            logger.info("%s: No mail labels", self)
+            return
 
-        if created_count > 0:
-            logger.info(add_prefix(f"Added/Updated {created_count} mail labels"))
+        logger.info("%s: Storing %s mail labels", self, len(mail_labels))
+        with transaction.atomic():
+            self.mail_labels.all().delete()
+            new_labels = [
+                CharacterMailLabel(
+                    character=self,
+                    label_id=label.get("label_id"),
+                    color=label.get("color"),
+                    name=label.get("name"),
+                    unread_count=label.get("unread_count"),
+                )
+                for label in mail_labels
+            ]
+            CharacterMailLabel.objects.bulk_create(
+                new_labels, batch_size=BULK_METHOD_BATCH_SIZE
+            )
 
-    def _update_mail_headers(self, token: Token):
+    def _process_mail_headers(self, token: Token):
         mail_headers = self._fetch_mail_headers(token)
         if MEMBERAUDIT_DEVELOPER_MODE:
             store_list_to_disk(mail_headers, f"mail_headers_{self.pk}")
 
-        self._update_mail_header_ids_from_esi(mail_headers)
-        self._create_mail_headers(mail_headers)
+        with transaction.atomic():
+            incoming_ids = set(mail_headers.keys())
+            existing_ids = set(self.mails.values_list("mail_id", flat=True))
+
+            create_ids = incoming_ids.difference(existing_ids)
+            if create_ids:
+                self._create_mail_headers(mail_headers, create_ids)
+
+            update_ids = incoming_ids.difference(create_ids)
+            if update_ids:
+                self._update_mail_headers(mail_headers, update_ids)
+
+            if not create_ids and not update_ids:
+                logger.info("%s: No mails", self)
 
     def _fetch_mail_headers(self, token) -> list:
-        add_prefix = make_logger_prefix(self)
         last_mail_id = None
         mail_headers_all = list()
         page = 1
         while True:
-            logger.info(add_prefix(f"Fetching mail headers from ESI - page {page}"))
+            logger.info("%s: Fetching mail headers from ESI - page %s", self, page)
             mail_headers = esi.client.Mail.get_characters_character_id_mail(
                 character_id=self.character_ownership.character.character_id,
                 last_mail_id=last_mail_id,
@@ -1002,86 +1256,111 @@ class Character(models.Model):
                 last_mail_id = min([x["mail_id"] for x in mail_headers])
                 page += 1
 
+        mail_headers_all_2 = {x["mail_id"]: x for x in mail_headers_all}
         logger.info(
-            add_prefix(f"Received {len(mail_headers_all)} mail headers from ESI")
+            "%s: Received %s mail headers from ESI", self, len(mail_headers_all_2)
         )
-        return mail_headers_all
+        return mail_headers_all_2
 
-    def _update_mail_header_ids_from_esi(self, mail_headers) -> None:
-        logger.info("%s: Updating mail header IDs from ESI", self)
-        ids = set()
-        mailing_list_ids = [x["list_id"] for x in self.mailing_lists.values("list_id")]
-        for header in mail_headers:
-            if header.get("from") not in mailing_list_ids:
-                ids.add(header.get("from"))
-            for recipient in header.get("recipients", []):
-                if recipient.get("recipient_type") != "mailing_list":
-                    ids.add(recipient.get("recipient_id"))
+    def _create_mail_headers(self, mail_headers: dict, create_ids) -> None:
+        logger.info("%s: Create %s new mail headers", self, len(create_ids))
+        mailing_list_ids = set(self.mailing_lists.values_list("list_id", flat=True))
+        new_mail_headers_list = {
+            mail_info["mail_id"]: mail_info
+            for mail_id, mail_info in mail_headers.items()
+            if mail_id in create_ids
+        }
 
-        EveEntity.objects.bulk_create_esi(ids)
+        # create headers
+        new_headers = list()
+        for mail_id, header in new_mail_headers_list.items():
+            from_id = header.get("from")
+            if from_id in mailing_list_ids:
+                from_mailing_list = self.mailing_lists.get(list_id=from_id)
+                from_entity = None
+            else:
+                from_entity = get_or_create_or_none("from", header, EveEntity)
+                from_mailing_list = None
 
-    def _create_mail_headers(self, mail_headers) -> None:
-        # load mail headers
-        logger.info("%s: Updating %s mail headers", self, len(mail_headers))
-        for header in mail_headers:
-            with transaction.atomic():
-                try:
-                    from_mailing_list = self.mailing_lists.get(
-                        list_id=header.get("from")
-                    )
-                    from_entity = None
-                except CharacterMailingList.DoesNotExist:
-                    from_entity, _ = EveEntity.objects.get_or_create_esi(
-                        id=header.get("from")
-                    )
-                    from_mailing_list = None
-
-                mail_obj, _ = CharacterMail.objects.update_or_create(
+            new_headers.append(
+                CharacterMail(
                     character=self,
-                    mail_id=header.get("mail_id"),
-                    defaults={
-                        "from_entity": from_entity,
-                        "from_mailing_list": from_mailing_list,
-                        "is_read": bool(header.get("is_read")),
-                        "subject": header.get("subject", ""),
-                        "timestamp": header.get("timestamp"),
-                    },
+                    mail_id=mail_id,
+                    from_entity=from_entity,
+                    from_mailing_list=from_mailing_list,
+                    is_read=bool(header.get("is_read")),
+                    subject=header.get("subject", ""),
+                    timestamp=header.get("timestamp"),
                 )
-                mail_obj.recipients.all().delete()
-                for recipient in header.get("recipients"):
-                    recipient_id = recipient.get("recipient_id")
-                    if recipient.get("recipient_type") != "mailing_list":
-                        eve_entity, _ = EveEntity.objects.get_or_create_esi(
-                            id=recipient_id
+            )
+
+        CharacterMail.objects.bulk_create(
+            new_headers, batch_size=BULK_METHOD_BATCH_SIZE
+        )
+
+        # add recipients and labels
+        label_ids = set(self.mail_labels.values_list("label_id", flat=True))
+        new_recipients = list()
+        new_labels = list()
+        for mail_id, header in new_mail_headers_list.items():
+            mail_obj = self.mails.get(mail_id=mail_id)
+            for recipient in header.get("recipients"):
+                if recipient.get("recipient_type") != "mailing_list":
+                    new_recipients.append(
+                        CharacterMailRecipient(
+                            mail=mail_obj,
+                            eve_entity=get_or_create_or_none(
+                                "recipient_id", recipient, EveEntity
+                            ),
                         )
-                        CharacterMailRecipient.objects.create(
-                            mail=mail_obj, eve_entity=eve_entity
+                    )
+                else:
+                    recipient_id = recipient.get("recipient_id")
+                    if recipient_id and recipient_id in mailing_list_ids:
+                        new_recipients.append(
+                            CharacterMailRecipient(
+                                mail=mail_obj,
+                                mailing_list=self.mailing_lists.get(
+                                    list_id=recipient_id
+                                ),
+                            )
                         )
                     else:
-                        try:
-                            mailing_list = self.mailing_lists.get(list_id=recipient_id)
-                        except (CharacterMailingList.DoesNotExist, ObjectDoesNotExist):
-                            logger.warning(
-                                f"{self}: Unknown mailing list with "
-                                f"id {recipient_id} for mail id {mail_obj.mail_id}",
-                            )
-                        else:
-                            CharacterMailRecipient.objects.create(
-                                mail=mail_obj, mailing_list=mailing_list
-                            )
+                        logger.warning(
+                            f"{self}: Unknown mailing list with "
+                            f"id {recipient_id} for mail id {mail_obj.mail_id}",
+                        )
 
-                mail_obj.labels.all().delete()
-                if header.get("labels"):
-                    for label_id in header.get("labels"):
-                        try:
-                            label = self.mail_labels.get(label_id=label_id)
-                            CharacterMailMailLabel.objects.create(
-                                mail=mail_obj, label=label
-                            )
-                        except CharacterMailLabel.DoesNotExist:
-                            logger.warning(
-                                ("%s: Could not find label with id %s", self, label_id)
-                            )
+            if header.get("labels"):
+                new_labels += [
+                    CharacterMailMailLabel(
+                        mail=mail_obj,
+                        label=self.mail_labels.get(label_id=label_id),
+                    )
+                    for label_id in header.get("labels")
+                    if label_id in label_ids
+                ]
+
+        if new_recipients:
+            CharacterMailRecipient.objects.bulk_create(
+                new_recipients, batch_size=BULK_METHOD_BATCH_SIZE
+            )
+        if new_labels:
+            CharacterMailMailLabel.objects.bulk_create(
+                new_labels, batch_size=BULK_METHOD_BATCH_SIZE
+            )
+        EveEntity.objects.bulk_update_new_esi()
+
+    def _update_mail_headers(self, mail_headers: dict, update_ids) -> None:
+        logger.info("%s: Updating %s mail headers", self, len(update_ids))
+        mail_pks = CharacterMail.objects.filter(mail_id__in=update_ids).values_list(
+            "pk", flat=True
+        )
+        mails = CharacterMail.objects.in_bulk(mail_pks)
+        for mail in mails.values():
+            mail.is_read = bool(mail_headers[mail.mail_id].get("is_read"))
+
+        CharacterMail.objects.bulk_update(mails.values(), ["is_read"])
 
     def _update_mail_bodies(self):
         from .tasks import (
@@ -1089,17 +1368,15 @@ class Character(models.Model):
             DEFAULT_TASK_PRIORITY,
         )
 
-        logger.info("%s: Updating mailbodies", self)
         mails_without_body_qs = self.mails.filter(body="")
-        for mail in mails_without_body_qs:
-            task_update_mail_body_esi.apply_async(
-                kwargs={"character_pk": self.pk, "mail_pk": mail.pk},
-                priority=DEFAULT_TASK_PRIORITY,
-            )
-
-        new_bodies_count = mails_without_body_qs.count()
-        if new_bodies_count > 0:
-            logger.info("%s: loaded %d mail bodies", self, new_bodies_count)
+        mails_without_body_count = mails_without_body_qs.count()
+        if mails_without_body_count > 0:
+            logger.info("%s: Loading %s mailbodies", self, mails_without_body_count)
+            for mail in mails_without_body_qs:
+                task_update_mail_body_esi.apply_async(
+                    kwargs={"character_pk": self.pk, "mail_pk": mail.pk},
+                    priority=DEFAULT_TASK_PRIORITY,
+                )
 
     @fetch_token("esi-mail.read_mail.v1")
     def update_mail_body(self, token: Token, mail: "CharacterMail") -> None:
@@ -1120,20 +1397,35 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
+
+        # TODO: Replace delete + create with create + update
         with transaction.atomic():
             self.skillqueue.all().delete()
-            for entry in skillqueue:
-                CharacterSkillqueueEntry.objects.create(
-                    character=self,
-                    skill=get_or_create_esi_or_none("skill_id", entry, EveType),
-                    finish_date=entry.get("finish_date"),
-                    finished_level=entry.get("finished_level"),
-                    level_end_sp=entry.get("level_end_sp"),
-                    level_start_sp=entry.get("level_start_sp"),
-                    queue_position=entry.get("queue_position"),
-                    start_date=entry.get("start_date"),
-                    training_start_sp=entry.get("training_start_sp"),
+            if skillqueue:
+                entries = [
+                    CharacterSkillqueueEntry(
+                        character=self,
+                        skill=get_or_create_esi_or_none("skill_id", entry, EveType),
+                        finish_date=entry.get("finish_date"),
+                        finished_level=entry.get("finished_level"),
+                        level_end_sp=entry.get("level_end_sp"),
+                        level_start_sp=entry.get("level_start_sp"),
+                        queue_position=entry.get("queue_position"),
+                        start_date=entry.get("start_date"),
+                        training_start_sp=entry.get("training_start_sp"),
+                    )
+                    for entry in skillqueue
+                ]
+            else:
+                entries = list()
+
+            if entries:
+                logger.info("%s: Writing skill queue of size %s", self, len(entries))
+                CharacterSkillqueueEntry.objects.bulk_create(
+                    entries, batch_size=BULK_METHOD_BATCH_SIZE
                 )
+            else:
+                logger.info("%s: Skill queue is empty", self)
 
     @fetch_token("esi-skills.read_skills.v1")
     def update_skills(self, token):
@@ -1142,55 +1434,94 @@ class Character(models.Model):
 
     def _update_skills(self, token):
         """update the character's skill"""
-        logger.info("%s: Fetching skills from ESI", self)
+        skills_list = self._fetch_skills_from_esi(token)
+        with transaction.atomic():
+            incoming_ids = set(skills_list.keys())
+            existing_ids = set(self.skills.values_list("eve_type_id", flat=True))
+            obsolete_ids = existing_ids.difference(incoming_ids)
+            if obsolete_ids:
+                logger.info("%s: Removing %s obsolete skills", self, len(obsolete_ids))
+                self.skills.filter(eve_type_id__in=obsolete_ids).delete()
 
-        skills = esi.client.Skills.get_characters_character_id_skills(
+            create_ids = None
+            update_ids = None
+            if skills_list:
+                create_ids = incoming_ids.difference(existing_ids)
+                if create_ids:
+                    self._create_new_skills(
+                        skills_list=skills_list, create_ids=create_ids
+                    )
+
+                update_ids = incoming_ids.difference(create_ids)
+                if update_ids:
+                    self._update_existing_skills(
+                        skills_list=skills_list, update_ids=update_ids
+                    )
+
+            if not obsolete_ids and not create_ids and not update_ids:
+                logger.info("%s: Skills have not changed", self)
+
+    def _fetch_skills_from_esi(self, token: Token) -> dict:
+        logger.info("%s: Fetching skills from ESI", self)
+        skills_info = esi.client.Skills.get_characters_character_id_skills(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
         CharacterSkillpoints.objects.update_or_create(
             character=self,
             defaults={
-                "total": skills.get("total_sp"),
-                "unallocated": skills.get("unallocated_sp"),
+                "total": skills_info.get("total_sp"),
+                "unallocated": skills_info.get("unallocated_sp"),
             },
         )
-        with transaction.atomic():
-            self.skills.all().delete()
-            for skill in skills.get("skills"):
-                eve_type, _ = EveType.objects.get_or_create_esi(
-                    id=skill.get("skill_id")
-                )
-                CharacterSkill.objects.create(
-                    character=self,
-                    eve_type=eve_type,
-                    active_skill_level=skill.get("active_skill_level"),
-                    skillpoints_in_skill=skill.get("skillpoints_in_skill"),
-                    trained_skill_level=skill.get("trained_skill_level"),
-                )
+        if skills_info.get("skills"):
+            skills_list = {
+                obj["skill_id"]: obj
+                for obj in skills_info.get("skills")
+                if "skill_id" in obj
+            }
+        else:
+            skills_list = dict()
 
-    def update_doctrines(self):
-        """Checks if character can fly doctrine ships
-        and updates results in database
-        """
-        logger.info("%s: Update doctrines", self)
-        character_skills = {
-            obj["eve_type_id"]: obj["active_skill_level"]
-            for obj in self.skills.values("eve_type_id", "active_skill_level")
-        }
-        with transaction.atomic():
-            self.doctrine_ships.all().delete()
-            for ship in DoctrineShip.objects.prefetch_related("skills").all():
-                doctrine_ship = CharacterDoctrineShipCheck.objects.create(
-                    character=self, ship=ship
-                )
-                for skill in ship.skills.select_related("skill").all():
-                    skill_id = skill.skill_id
-                    if (
-                        skill_id not in character_skills
-                        or character_skills[skill_id] < skill.level
-                    ):
-                        doctrine_ship.insufficient_skills.add(skill)
+        return skills_list
+
+    def _create_new_skills(self, skills_list: dict, create_ids: list):
+        logger.info("%s: Storing %s new skills", self, len(create_ids))
+        skills = [
+            CharacterSkill(
+                character=self,
+                eve_type=get_or_create_esi_or_none("skill_id", skill_info, EveType),
+                active_skill_level=skill_info.get("active_skill_level"),
+                skillpoints_in_skill=skill_info.get("skillpoints_in_skill"),
+                trained_skill_level=skill_info.get("trained_skill_level"),
+            )
+            for skill_id, skill_info in skills_list.items()
+            if skill_id in create_ids
+        ]
+        CharacterSkill.objects.bulk_create(skills, batch_size=BULK_METHOD_BATCH_SIZE)
+
+    def _update_existing_skills(self, skills_list: dict, update_ids: list):
+        logger.info("%s: Updating %s skills", self, len(update_ids))
+        update_pks = list(
+            self.skills.filter(eve_type_id__in=update_ids).values_list("pk", flat=True)
+        )
+        skills = CharacterSkill.objects.in_bulk(update_pks)
+        for skill in skills.values():
+            skill_info = skills_list.get(skill.eve_type_id)
+            if skill_info:
+                skill.active_skill_level = skill_info.get("active_skill_level")
+                skill.skillpoints_in_skill = skill_info.get("skillpoints_in_skill")
+                skill.trained_skill_level = skill_info.get("trained_skill_level")
+
+        CharacterSkill.objects.bulk_update(
+            skills.values(),
+            fields=[
+                "active_skill_level",
+                "skillpoints_in_skill",
+                "trained_skill_level",
+            ],
+            batch_size=BULK_METHOD_BATCH_SIZE,
+        )
 
     @fetch_token("esi-wallet.read_character_wallet.v1")
     def update_wallet_balance(self, token):
@@ -1213,42 +1544,50 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
-        for row in journal:
-            if row.get("first_party_id"):
-                first_party, _ = EveEntity.objects.get_or_create_esi(
-                    id=row.get("first_party_id")
-                )
-            else:
-                first_party = None
+        entries_list = {x["id"]: x for x in journal if "id" in x}
 
-            if row.get("second_party_id"):
-                second_party, _ = EveEntity.objects.get_or_create_esi(
-                    id=row.get("second_party_id")
-                )
-            else:
-                second_party = None
+        with transaction.atomic():
+            incoming_ids = set(entries_list.keys())
+            existing_ids = set(self.wallet_journal.values_list("entry_id", flat=True))
+            create_ids = incoming_ids.difference(existing_ids)
+            if not create_ids:
+                logger.info("%s: No new wallet journal entries", self)
+                return
 
-            CharacterWalletJournalEntry.objects.update_or_create(
-                character=self,
-                entry_id=row.get("id"),
-                defaults={
-                    "amount": row.get("amount"),
-                    "balance": row.get("balance"),
-                    "context_id": row.get("context_id"),
-                    "context_id_type": CharacterWalletJournalEntry.match_context_type_id(
-                        row.get("context_id_type")
-                    ),
-                    "date": row.get("date"),
-                    "description": row.get("description"),
-                    "first_party": first_party,
-                    "ref_type": row.get("ref_type"),
-                    "second_party": second_party,
-                    "tax": row.get("tax"),
-                    "tax_receiver": row.get("tax_receiver"),
-                },
+            logger.info(
+                "%s: Adding %s new wallet journal entries", self, len(create_ids)
             )
+            entries = [
+                CharacterWalletJournalEntry(
+                    character=self,
+                    entry_id=entry_id,
+                    amount=row.get("amount"),
+                    balance=row.get("balance"),
+                    context_id=row.get("context_id"),
+                    context_id_type=(
+                        CharacterWalletJournalEntry.match_context_type_id(
+                            row.get("context_id_type")
+                        )
+                    ),
+                    date=row.get("date"),
+                    description=row.get("description"),
+                    first_party=get_or_create_or_none("first_party_id", row, EveEntity),
+                    ref_type=row.get("ref_type"),
+                    second_party=get_or_create_or_none(
+                        "second_party_id", row, EveEntity
+                    ),
+                    tax=row.get("tax"),
+                    tax_receiver=row.get("tax_receiver"),
+                )
+                for entry_id, row in entries_list.items()
+                if entry_id in create_ids
+            ]
+            CharacterWalletJournalEntry.objects.bulk_create(
+                entries, batch_size=BULK_METHOD_BATCH_SIZE
+            )
+            EveEntity.objects.bulk_update_new_esi()
 
-    @fetch_token("esi-location.read_location.v1")
+    @fetch_token(["esi-location.read_location.v1", "esi-universe.read_structures.v1"])
     def fetch_location(self, token) -> Optional[dict]:
         logger.info("%s: Fetching character location ESI", self)
         if not is_esi_online():
@@ -1691,7 +2030,8 @@ class CharacterContractItem(models.Model):
         CharacterContract, on_delete=models.CASCADE, related_name="items"
     )
     record_id = models.PositiveIntegerField(db_index=True)
-    is_included = models.BooleanField()
+
+    is_included = models.BooleanField(db_index=True)
     is_singleton = models.BooleanField()
     quantity = models.PositiveIntegerField()
     raw_quantity = models.IntegerField(default=None, null=True)
@@ -1706,6 +2046,7 @@ class CharacterCorporationHistory(models.Model):
         Character, on_delete=models.CASCADE, related_name="corporation_history"
     )
     record_id = models.PositiveIntegerField(db_index=True)
+
     corporation = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
     is_deleted = models.BooleanField(null=True, default=None, db_index=True)
     start_date = models.DateTimeField(db_index=True)
@@ -1808,7 +2149,8 @@ class CharacterJumpClone(models.Model):
     character = models.ForeignKey(
         Character, on_delete=models.CASCADE, related_name="jump_clones"
     )
-    jump_clone_id = models.PositiveIntegerField()
+    jump_clone_id = models.PositiveIntegerField(db_index=True)
+
     location = models.ForeignKey(Location, on_delete=models.CASCADE)
     name = models.CharField(max_length=NAMES_MAX_LENGTH, default="")
 
@@ -1845,7 +2187,8 @@ class CharacterMail(models.Model):
         related_name="mails",
         help_text="character this mail belongs to",
     )
-    mail_id = models.PositiveIntegerField()
+    mail_id = models.PositiveIntegerField(db_index=True)
+
     from_entity = models.ForeignKey(
         EveEntity, on_delete=models.CASCADE, null=True, default=None
     )
@@ -1886,7 +2229,7 @@ class CharacterMailingList(models.Model):
         related_name="mailing_lists",
         help_text="character this mailling list belongs to",
     )
-    list_id = models.PositiveIntegerField()
+    list_id = models.PositiveIntegerField(db_index=True)
     name = models.CharField(max_length=254)
 
     class Meta:
@@ -1908,7 +2251,8 @@ class CharacterMailLabel(models.Model):
         Character, on_delete=models.CASCADE, related_name="mail_labels"
     )
     label_id = models.PositiveIntegerField(db_index=True)
-    name = models.CharField(max_length=40)
+
+    name = models.CharField(max_length=40, db_index=True)
     color = models.CharField(max_length=16, default="")
     unread_count = models.PositiveIntegerField(default=None, null=True)
 
@@ -1983,9 +2327,14 @@ class CharacterSkill(models.Model):
         Character, on_delete=models.CASCADE, related_name="skills"
     )
     eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
-    active_skill_level = models.PositiveIntegerField(validators=[MaxValueValidator(5)])
+
+    active_skill_level = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
     skillpoints_in_skill = models.BigIntegerField(validators=[MinValueValidator(0)])
-    trained_skill_level = models.PositiveIntegerField(validators=[MaxValueValidator(5)])
+    trained_skill_level = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
 
     class Meta:
         constraints = [
@@ -2022,10 +2371,12 @@ class CharacterSkillqueueEntry(models.Model):
     skill = models.ForeignKey(EveType, on_delete=models.CASCADE)
 
     finish_date = models.DateTimeField(default=None, null=True)
-    finished_level = models.PositiveIntegerField(validators=[MaxValueValidator(5)])
+    finished_level = models.PositiveIntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
     level_end_sp = models.PositiveIntegerField(default=None, null=True)
     level_start_sp = models.PositiveIntegerField(default=None, null=True)
-    queue_position = models.PositiveIntegerField()
+    queue_position = models.PositiveIntegerField(db_index=True)
     start_date = models.DateTimeField(default=None, null=True)
     training_start_sp = models.PositiveIntegerField(default=None, null=True)
 
@@ -2100,19 +2451,33 @@ class CharacterWalletJournalEntry(models.Model):
     CONTEXT_ID_TYPE_SYSTEM_ID = "SYS"
     CONTEXT_ID_TYPE_TYPE_ID = "TYP"
     CONTEXT_ID_CHOICES = (
-        (CONTEXT_ID_TYPE_UNDEFINED, "undefined"),
-        (CONTEXT_ID_TYPE_STATION_ID, "station_id"),
-        (CONTEXT_ID_TYPE_MARKET_TRANSACTION_ID, "market_transaction_id"),
-        (CONTEXT_ID_TYPE_CHARACTER_ID, "character_id"),
-        (CONTEXT_ID_TYPE_CORPORATION_ID, "corporation_id"),
-        (CONTEXT_ID_TYPE_ALLIANCE_ID, "alliance_id"),
-        (CONTEXT_ID_TYPE_EVE_SYSTEM, "eve_system"),
-        (CONTEXT_ID_TYPE_INDUSTRY_JOB_ID, "industry_job_id"),
-        (CONTEXT_ID_TYPE_CONTRACT_ID, "contract_id"),
-        (CONTEXT_ID_TYPE_PLANET_ID, "planet_id"),
-        (CONTEXT_ID_TYPE_SYSTEM_ID, "system_id"),
-        (CONTEXT_ID_TYPE_TYPE_ID, "type_id "),
+        (CONTEXT_ID_TYPE_UNDEFINED, _("undefined")),
+        (CONTEXT_ID_TYPE_STATION_ID, _("station ID")),
+        (CONTEXT_ID_TYPE_MARKET_TRANSACTION_ID, _("market transaction ID")),
+        (CONTEXT_ID_TYPE_CHARACTER_ID, _("character ID")),
+        (CONTEXT_ID_TYPE_CORPORATION_ID, _("corporation ID")),
+        (CONTEXT_ID_TYPE_ALLIANCE_ID, _("alliance ID")),
+        (CONTEXT_ID_TYPE_EVE_SYSTEM, _("eve system")),
+        (CONTEXT_ID_TYPE_INDUSTRY_JOB_ID, _("industry job ID")),
+        (CONTEXT_ID_TYPE_CONTRACT_ID, _("contract ID")),
+        (CONTEXT_ID_TYPE_PLANET_ID, _("planet ID")),
+        (CONTEXT_ID_TYPE_SYSTEM_ID, _("system ID")),
+        (CONTEXT_ID_TYPE_TYPE_ID, _("type ID")),
     )
+    CONTEXT_ID_MAPS = {
+        "undefined": CONTEXT_ID_TYPE_UNDEFINED,
+        "station_id": CONTEXT_ID_TYPE_STATION_ID,
+        "market_transaction_id": CONTEXT_ID_TYPE_MARKET_TRANSACTION_ID,
+        "character_id": CONTEXT_ID_TYPE_CHARACTER_ID,
+        "corporation_id": CONTEXT_ID_TYPE_CORPORATION_ID,
+        "alliance_id": CONTEXT_ID_TYPE_ALLIANCE_ID,
+        "eve_system": CONTEXT_ID_TYPE_EVE_SYSTEM,
+        "industry_job_id": CONTEXT_ID_TYPE_INDUSTRY_JOB_ID,
+        "contract_id": CONTEXT_ID_TYPE_CONTRACT_ID,
+        "planet_id": CONTEXT_ID_TYPE_PLANET_ID,
+        "system_id": CONTEXT_ID_TYPE_SYSTEM_ID,
+        "type_id": CONTEXT_ID_TYPE_TYPE_ID,
+    }
 
     character = models.ForeignKey(
         Character, on_delete=models.CASCADE, related_name="wallet_journal"
@@ -2183,10 +2548,9 @@ class CharacterWalletJournalEntry(models.Model):
 
     @classmethod
     def match_context_type_id(cls, query: str) -> str:
-        if query is not None:
-            for id_type, id_type_value in cls.CONTEXT_ID_CHOICES:
-                if id_type_value == query:
-                    return id_type
+        result = cls.CONTEXT_ID_MAPS.get(query)
+        if result:
+            return result
 
         return cls.CONTEXT_ID_TYPE_UNDEFINED
 
@@ -2222,8 +2586,10 @@ class DoctrineShipSkill(models.Model):
         DoctrineShip, on_delete=models.CASCADE, related_name="skills"
     )
     skill = models.ForeignKey(EveType, on_delete=models.CASCADE)
+
     level = models.PositiveIntegerField(
-        validators=[MaxValueValidator(5)], help_text="Minimum required skill level"
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+        help_text="Minimum required skill level",
     )
 
     """ TODO: Enable when design is stable

@@ -15,12 +15,16 @@ from allianceauth.tests.auth_utils import AuthUtils
 from . import create_memberaudit_character, create_user_from_evecharacter
 from ..models import (
     Character,
+    CharacterAsset,
     CharacterContact,
     CharacterContactLabel,
     CharacterContract,
     CharacterContractItem,
     CharacterDetails,
     CharacterMail,
+    CharacterMailingList,
+    CharacterMailLabel,
+    CharacterMailRecipient,
     CharacterSkill,
     CharacterSkillqueueEntry,
     CharacterUpdateStatus,
@@ -351,12 +355,24 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         cls.amamake = EveSolarSystem.objects.get(id=30002537)
         cls.structure_1 = Location.objects.get(id=1000000000001)
 
-    def test_update_assets(self, mock_esi):
-        """can load assets"""
+    def test_update_assets_1(self, mock_esi):
+        """can create assets from scratch"""
         mock_esi.client = esi_client_stub
 
         self.character_1001.update_assets()
-        self.assertEqual(self.character_1001.assets.count(), 8)
+        self.assertSetEqual(
+            set(self.character_1001.assets.values_list("item_id", flat=True)),
+            {
+                1100000000001,
+                1100000000002,
+                1100000000003,
+                1100000000004,
+                1100000000005,
+                1100000000006,
+                1100000000007,
+                1100000000008,
+            },
+        )
 
         asset = self.character_1001.assets.get(item_id=1100000000001)
         self.assertTrue(asset.is_blueprint_copy)
@@ -400,8 +416,108 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         asset = self.character_1001.assets.get(item_id=1100000000008)
         self.assertEqual(asset.location_id, 1000000000001)
 
+    def test_update_assets_2(self, mock_esi):
+        """can remove obsolete assets"""
+        mock_esi.client = esi_client_stub
+        CharacterAsset.objects.create(
+            character=self.character_1001,
+            item_id=1100000000666,
+            location=self.jita_44,
+            eve_type=EveType.objects.get(id=20185),
+            is_singleton=False,
+            name="Trucker",
+            quantity=1,
+        )
+
+        self.character_1001.update_assets()
+        self.assertSetEqual(
+            set(self.character_1001.assets.values_list("item_id", flat=True)),
+            {
+                1100000000001,
+                1100000000002,
+                1100000000003,
+                1100000000004,
+                1100000000005,
+                1100000000006,
+                1100000000007,
+                1100000000008,
+            },
+        )
+
+    def test_update_assets_3(self, mock_esi):
+        """can add assets to existing set"""
+        mock_esi.client = esi_client_stub
+        CharacterAsset.objects.create(
+            character=self.character_1001,
+            item_id=1100000000001,
+            location=self.jita_44,
+            eve_type=EveType.objects.get(id=20185),
+            is_singleton=True,
+            name="Parent Item 1",
+            quantity=1,
+        )
+
+        self.character_1001.update_assets()
+        self.assertSetEqual(
+            set(self.character_1001.assets.values_list("item_id", flat=True)),
+            {
+                1100000000001,
+                1100000000002,
+                1100000000003,
+                1100000000004,
+                1100000000005,
+                1100000000006,
+                1100000000007,
+                1100000000008,
+            },
+        )
+
+        asset = self.character_1001.assets.get(item_id=1100000000001)
+        self.assertTrue(asset.is_singleton)
+        self.assertEqual(asset.location_id, 60003760)
+        self.assertEqual(asset.quantity, 1)
+        self.assertEqual(asset.eve_type, EveType.objects.get(id=20185))
+        self.assertEqual(asset.name, "Parent Item 1")
+
+    def test_update_assets_4(self, mock_esi):
+        """assets moved to different locations are kept"""
+        mock_esi.client = esi_client_stub
+        parent_asset = CharacterAsset.objects.create(
+            character=self.character_1001,
+            item_id=1100000000666,
+            location=self.jita_44,
+            eve_type=EveType.objects.get(id=20185),
+            is_singleton=True,
+            name="Obsolete Container",
+            quantity=1,
+        )
+        CharacterAsset.objects.create(
+            character=self.character_1001,
+            item_id=1100000000002,
+            parent=parent_asset,
+            eve_type=EveType.objects.get(id=19540),
+            is_singleton=True,
+            is_blueprint_copy=False,
+            quantity=1,
+        )
+
+        self.character_1001.update_assets()
+        self.assertSetEqual(
+            set(self.character_1001.assets.values_list("item_id", flat=True)),
+            {
+                1100000000001,
+                1100000000002,
+                1100000000003,
+                1100000000004,
+                1100000000005,
+                1100000000006,
+                1100000000007,
+                1100000000008,
+            },
+        )
+
     def test_update_contact_labels_1(self, mock_esi):
-        """can load contact labels"""
+        """can create new contact labels from scratch"""
         mock_esi.client = esi_client_stub
 
         self.character_1001.update_contacts()
@@ -424,6 +540,21 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(
             {x.label_id for x in self.character_1001.contact_labels.all()}, {1, 2}
         )
+
+    def test_update_contact_labels_3(self, mock_esi):
+        """can update existing labels"""
+        mock_esi.client = esi_client_stub
+        CharacterContactLabel.objects.create(
+            character=self.character_1001, label_id=1, name="Obsolete"
+        )
+
+        self.character_1001.update_contacts()
+        self.assertEqual(
+            {x.label_id for x in self.character_1001.contact_labels.all()}, {1, 2}
+        )
+
+        label = self.character_1001.contact_labels.get(label_id=1)
+        self.assertEqual(label.name, "friend")
 
     def test_update_contacts_1(self, mock_esi):
         """can create contacts"""
@@ -553,7 +684,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(obj.items.count(), 1)
 
         bid = obj.bids.get(bid_id=1)
-        self.assertEqual(float(bid.amount), 1000000.23)
+        self.assertEqual(float(bid.amount), 1_000_000.23)
         self.assertEqual(bid.date_bid, parse_datetime("2017-01-01T10:10:10Z"))
         self.assertEqual(bid.bidder, EveEntity.objects.get(id=1101))
 
@@ -690,23 +821,48 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(obj.location, self.jita_44)
         self.assertEqual(obj.implants.count(), 0)
 
-    def test_update_mails(self, mock_esi):
+    def test_update_mailing_lists_1(self, mock_esi):
+        """can create new mailing lists from scratch"""
         mock_esi.client = esi_client_stub
 
         self.character_1001.update_mails()
 
-        # mailing lists
-        self.assertEqual(self.character_1001.mailing_lists.count(), 2)
+        self.assertSetEqual(
+            set(self.character_1001.mailing_lists.values_list("list_id", flat=True)),
+            {9001, 9002},
+        )
 
-        obj = self.character_1001.mailing_lists.get(list_id=1)
+        obj = self.character_1001.mailing_lists.get(list_id=9001)
         self.assertEqual(obj.name, "Dummy 1")
 
-        obj = self.character_1001.mailing_lists.get(list_id=2)
+        obj = self.character_1001.mailing_lists.get(list_id=9002)
         self.assertEqual(obj.name, "Dummy 2")
 
-        # mail labels
-        self.assertEqual(self.character_1001.mail_labels.count(), 2)
+    def test_update_mailing_lists_2(self, mock_esi):
+        """removes obsolete mailing lists"""
+        mock_esi.client = esi_client_stub
+        CharacterMailingList.objects.create(
+            character=self.character_1001, list_id=5, name="Obsolete"
+        )
+
+        self.character_1001.update_mails()
+
+        self.assertSetEqual(
+            set(self.character_1001.mailing_lists.values_list("list_id", flat=True)),
+            {9001, 9002},
+        )
+
+    def test_update_mail_labels_1(self, mock_esi):
+        """can create from scratch"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_mails()
+
         self.assertEqual(self.character_1001.unread_mail_count.total, 5)
+        self.assertSetEqual(
+            set(self.character_1001.mail_labels.values_list("label_id", flat=True)),
+            {3, 17},
+        )
 
         obj = self.character_1001.mail_labels.get(label_id=3)
         self.assertEqual(obj.name, "PINK")
@@ -718,24 +874,78 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(obj.unread_count, 1)
         self.assertEqual(obj.color, "#ffffff")
 
-        # mail
-        self.assertEqual(self.character_1001.mails.count(), 2)
+    def test_update_mail_labels_2(self, mock_esi):
+        """will remove obsolete labels"""
+        mock_esi.client = esi_client_stub
+        CharacterMailLabel.objects.create(
+            character=self.character_1001, label_id=666, name="Obsolete"
+        )
+
+        self.character_1001.update_mails()
+
+        self.assertSetEqual(
+            set(self.character_1001.mail_labels.values_list("label_id", flat=True)),
+            {3, 17},
+        )
+
+    def test_update_mails_1(self, mock_esi):
+        """can create new mail from scratch"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_mails()
+        self.assertSetEqual(
+            set(self.character_1001.mails.values_list("mail_id", flat=True)),
+            {1, 2},
+        )
 
         obj = self.character_1001.mails.get(mail_id=1)
         self.assertEqual(obj.from_entity.id, 1002)
+        self.assertIsNone(obj.from_mailing_list)
         self.assertTrue(obj.is_read)
         self.assertEqual(obj.subject, "Mail 1")
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T16:07:00Z"))
         self.assertEqual(obj.body, "blah blah blah")
         self.assertTrue(obj.recipients.filter(eve_entity_id=1001).exists())
-        self.assertTrue(obj.recipients.filter(mailing_list__list_id=1).exists())
+        self.assertTrue(obj.recipients.filter(mailing_list__list_id=9001).exists())
 
         obj = self.character_1001.mails.get(mail_id=2)
-        self.assertEqual(obj.from_entity.id, 1101)
+        self.assertIsNone(obj.from_entity)
+        self.assertEqual(obj.from_mailing_list.list_id, 9001)
         self.assertFalse(obj.is_read)
         self.assertEqual(obj.subject, "Mail 2")
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T18:07:00Z"))
         self.assertEqual(obj.body, "Another mail")
+
+    def test_update_mails_2(self, mock_esi):
+        """can update existing mail"""
+        mock_esi.client = esi_client_stub
+        mail = CharacterMail.objects.create(
+            character=self.character_1001,
+            mail_id=1,
+            from_entity=EveEntity.objects.get(id=1002),
+            subject="Mail 1",
+            body="blah blah blah",
+            is_read=False,
+            timestamp=parse_datetime("2015-09-30T16:07:00Z"),
+        )
+        CharacterMailRecipient.objects.create(
+            mail=mail, eve_entity=EveEntity.objects.get(id=1001)
+        )
+
+        self.character_1001.update_mails()
+        self.assertSetEqual(
+            set(self.character_1001.mails.values_list("mail_id", flat=True)),
+            {1, 2},
+        )
+
+        obj = self.character_1001.mails.get(mail_id=1)
+        self.assertEqual(obj.from_entity.id, 1002)
+        self.assertIsNone(obj.from_mailing_list)
+        self.assertTrue(obj.is_read)
+        self.assertEqual(obj.subject, "Mail 1")
+        self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T16:07:00Z"))
+        self.assertEqual(obj.body, "blah blah blah")
+        self.assertTrue(obj.recipients.filter(eve_entity_id=1001).exists())
 
     def test_update_skill_queue(self, mock_esi):
         mock_esi.client = esi_client_stub
@@ -758,14 +968,18 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(entry.start_date, parse_datetime("2016-06-29T10:47:00Z"))
         self.assertEqual(entry.training_start_sp, 50)
 
-    def test_update_skills(self, mock_esi):
+    def test_update_skills_1(self, mock_esi):
+        """can create new skills"""
         mock_esi.client = esi_client_stub
 
         self.character_1001.update_skills()
         self.assertEqual(self.character_1001.skillpoints.total, 30_000)
         self.assertEqual(self.character_1001.skillpoints.unallocated, 1_000)
 
-        self.assertEqual(self.character_1001.skills.count(), 2)
+        self.assertSetEqual(
+            set(self.character_1001.skills.values_list("eve_type_id", flat=True)),
+            {24311, 24312},
+        )
 
         skill = self.character_1001.skills.get(eve_type_id=24311)
         self.assertEqual(skill.active_skill_level, 3)
@@ -777,18 +991,62 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(skill.skillpoints_in_skill, 10_000)
         self.assertEqual(skill.trained_skill_level, 1)
 
+    def test_update_skills_2(self, mock_esi):
+        """can update existing skills"""
+        mock_esi.client = esi_client_stub
+
+        CharacterSkill.objects.create(
+            character=self.character_1001,
+            eve_type=EveType.objects.get(id=24311),
+            active_skill_level=1,
+            skillpoints_in_skill=1,
+            trained_skill_level=1,
+        )
+
+        self.character_1001.update_skills()
+
+        self.assertEqual(self.character_1001.skills.count(), 2)
+        skill = self.character_1001.skills.get(eve_type_id=24311)
+        self.assertEqual(skill.active_skill_level, 3)
+        self.assertEqual(skill.skillpoints_in_skill, 20_000)
+        self.assertEqual(skill.trained_skill_level, 4)
+
+    def test_update_skills_3(self, mock_esi):
+        """can delete obsolete skills"""
+        mock_esi.client = esi_client_stub
+
+        CharacterSkill.objects.create(
+            character=self.character_1001,
+            eve_type=EveType.objects.get(id=20185),
+            active_skill_level=1,
+            skillpoints_in_skill=1,
+            trained_skill_level=1,
+        )
+
+        self.character_1001.update_skills()
+
+        self.assertSetEqual(
+            set(self.character_1001.skills.values_list("eve_type_id", flat=True)),
+            {24311, 24312},
+        )
+
     def test_update_wallet_balance(self, mock_esi):
         mock_esi.client = esi_client_stub
 
         self.character_1001.update_wallet_balance()
         self.assertEqual(self.character_1001.wallet_balance.total, 123456789)
 
-    def test_update_wallet_journal(self, mock_esi):
+    def test_update_wallet_journal_1(self, mock_esi):
+        """can create wallet journal entry from scratch"""
         mock_esi.client = esi_client_stub
 
         self.character_1001.update_wallet_journal()
-        self.assertEqual(self.character_1001.wallet_journal.count(), 1)
-        obj = self.character_1001.wallet_journal.first()
+
+        self.assertSetEqual(
+            set(self.character_1001.wallet_journal.values_list("entry_id", flat=True)),
+            {89},
+        )
+        obj = self.character_1001.wallet_journal.get(entry_id=89)
         self.assertEqual(obj.amount, -100_000)
         self.assertEqual(float(obj.balance), 500_000.43)
         self.assertEqual(obj.context_id, 4)
@@ -796,9 +1054,72 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(obj.date, parse_datetime("2018-02-23T14:31:32Z"))
         self.assertEqual(obj.description, "Contract Deposit")
         self.assertEqual(obj.first_party.id, 2001)
-        self.assertEqual(obj.entry_id, 89)
         self.assertEqual(obj.ref_type, "contract_deposit")
         self.assertEqual(obj.second_party.id, 2002)
+
+    def test_update_wallet_journal_2(self, mock_esi):
+        """can add entry to existing wallet journal"""
+        mock_esi.client = esi_client_stub
+        CharacterWalletJournalEntry.objects.create(
+            character=self.character_1001,
+            entry_id=1,
+            amount=1_000_000,
+            balance=10_000_000,
+            context_id_type=CharacterWalletJournalEntry.CONTEXT_ID_TYPE_UNDEFINED,
+            date=now(),
+            description="dummy",
+            first_party=EveEntity.objects.get(id=1001),
+            second_party=EveEntity.objects.get(id=1002),
+        )
+
+        self.character_1001.update_wallet_journal()
+
+        self.assertSetEqual(
+            set(self.character_1001.wallet_journal.values_list("entry_id", flat=True)),
+            {1, 89},
+        )
+
+        obj = self.character_1001.wallet_journal.get(entry_id=89)
+        self.assertEqual(obj.amount, -100_000)
+        self.assertEqual(float(obj.balance), 500_000.43)
+        self.assertEqual(obj.context_id, 4)
+        self.assertEqual(obj.context_id_type, obj.CONTEXT_ID_TYPE_CONTRACT_ID)
+        self.assertEqual(obj.date, parse_datetime("2018-02-23T14:31:32Z"))
+        self.assertEqual(obj.description, "Contract Deposit")
+        self.assertEqual(obj.first_party.id, 2001)
+        self.assertEqual(obj.ref_type, "contract_deposit")
+        self.assertEqual(obj.second_party.id, 2002)
+
+    def test_update_wallet_journal_3(self, mock_esi):
+        """does not update existing entries"""
+        mock_esi.client = esi_client_stub
+        CharacterWalletJournalEntry.objects.create(
+            character=self.character_1001,
+            entry_id=89,
+            amount=1_000_000,
+            balance=10_000_000,
+            context_id_type=CharacterWalletJournalEntry.CONTEXT_ID_TYPE_UNDEFINED,
+            date=now(),
+            description="dummy",
+            first_party=EveEntity.objects.get(id=1001),
+            second_party=EveEntity.objects.get(id=1002),
+        )
+
+        self.character_1001.update_wallet_journal()
+
+        self.assertSetEqual(
+            set(self.character_1001.wallet_journal.values_list("entry_id", flat=True)),
+            {89},
+        )
+        obj = self.character_1001.wallet_journal.get(entry_id=89)
+        self.assertEqual(obj.amount, 1_000_000)
+        self.assertEqual(float(obj.balance), 10_000_000)
+        self.assertEqual(
+            obj.context_id_type, CharacterWalletJournalEntry.CONTEXT_ID_TYPE_UNDEFINED
+        )
+        self.assertEqual(obj.description, "dummy")
+        self.assertEqual(obj.first_party.id, 1001)
+        self.assertEqual(obj.second_party.id, 1002)
 
     def test_fetch_location_station(self, mock_esi):
         mock_esi.client = esi_client_stub
@@ -1371,3 +1692,19 @@ class TestLocationManagerAsync(TestCase):
         self.assertEqual(obj.eve_solar_system, self.amamake)
         self.assertEqual(obj.eve_type, self.astrahus)
         self.assertEqual(obj.owner, self.corporation_2001)
+
+
+class TestCharacterWalletJournalEntry(NoSocketsTestCase):
+    def test_match_context_type_id(self):
+        self.assertEqual(
+            CharacterWalletJournalEntry.match_context_type_id("character_id"),
+            CharacterWalletJournalEntry.CONTEXT_ID_TYPE_CHARACTER_ID,
+        )
+        self.assertEqual(
+            CharacterWalletJournalEntry.match_context_type_id("contract_id"),
+            CharacterWalletJournalEntry.CONTEXT_ID_TYPE_CONTRACT_ID,
+        )
+        self.assertEqual(
+            CharacterWalletJournalEntry.match_context_type_id(None),
+            CharacterWalletJournalEntry.CONTEXT_ID_TYPE_UNDEFINED,
+        )

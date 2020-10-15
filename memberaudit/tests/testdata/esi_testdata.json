@@ -361,11 +361,11 @@
         "get_characters_character_id_mail_lists": {
             "1001": [
                 {
-                    "mailing_list_id": 1,
+                    "mailing_list_id": 9001,
                     "name": "Dummy 1"
                 },
                 {
-                    "mailing_list_id": 2,
+                    "mailing_list_id": 9002,
                     "name": "Dummy 2"
                 }
             ]
@@ -404,7 +404,7 @@
                             "recipient_type": "character"
                         },
                         {
-                            "recipient_id": 1,
+                            "recipient_id": 9001,
                             "recipient_type": "mailing_list"
                         }
                     ],
@@ -412,7 +412,7 @@
                     "timestamp": "2015-09-30T16:07:00Z"
                 },
                 {
-                    "from": 1101,
+                    "from": 9001,
                     "labels": [
                         3
                     ],

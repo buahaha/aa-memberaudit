@@ -156,14 +156,22 @@ class LocationAdmin(admin.ModelAdmin):
     def _name(self, obj):
         return obj.name_plus
 
+    _name.admin_order_field = "name"
+
     def _solar_system(self, obj):
         return obj.eve_solar_system.name if obj.eve_solar_system else None
+
+    _solar_system.admin_order_field = "eve_solar_system__name"
 
     def _type(self, obj):
         return obj.eve_type.name if obj.eve_type else None
 
+    _type.admin_order_field = "eve_type__name"
+
     def _group(self, obj):
         return obj.eve_type.eve_group.name if obj.eve_type else None
+
+    _group.admin_order_field = "eve_type__eve_group__name"
 
     def has_add_permission(self, request):
         return False

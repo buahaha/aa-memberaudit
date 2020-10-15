@@ -131,7 +131,14 @@ def update_mail_body_esi(character_pk: int, mail_pk: int):
 
 
 @shared_task
-def update_contract_details_esi(character_pk: int, contract_pk: int):
+def update_contract_items_esi(character_pk: int, contract_pk: int):
     character = _load_character(character_pk)
     contract = CharacterContract.objects.get(pk=contract_pk)
-    character.update_contract_details(contract)
+    character.update_contract_items(contract)
+
+
+@shared_task
+def update_contract_bids_esi(character_pk: int, contract_pk: int):
+    character = _load_character(character_pk)
+    contract = CharacterContract.objects.get(pk=contract_pk)
+    character.update_contract_bids(contract)
