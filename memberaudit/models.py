@@ -104,7 +104,9 @@ def get_or_create_location_or_none(
     prop_name: str, dct: dict, token: Token
 ) -> Optional[models.Model]:
     if dct.get(prop_name):
-        obj, _ = Location.objects.get_or_create_esi(id=dct.get(prop_name), token=token)
+        obj, _ = Location.objects.get_or_create_esi_async(
+            id=dct.get(prop_name), token=token
+        )
     else:
         obj = None
 
@@ -866,13 +868,15 @@ class Character(models.Model):
         ).results()
 
         # fetch locations ahead of transaction
-        locations = dict()
-        for jump_clone_info in jump_clones_info.get("jump_clones", []):
-            location_id = jump_clone_info.get("location_id")
-            location, _ = Location.objects.get_or_create_esi_async(
-                id=location_id, token=token
-            )
-            locations[location_id] = location
+        if jump_clones_info.get("jump_clones"):
+            locations = {
+                info["location_id"]: get_or_create_location_or_none(
+                    "location_id", info, token
+                )
+                for info in jump_clones_info["jump_clones"]
+            }
+        else:
+            locations = dict()
 
         with transaction.atomic():
             self.jump_clones.all().delete()
@@ -1259,11 +1263,11 @@ class Character(models.Model):
             id=location_info.get("solar_system_id")
         )
         if location_info.get("station_id"):
-            location, _ = Location.objects.get_or_create_esi(
+            location, _ = Location.objects.get_or_create_esi_async(
                 id=location_info.get("station_id"), token=token
             )
         elif location_info.get("structure_id"):
-            location, _ = Location.objects.get_or_create_esi(
+            location, _ = Location.objects.get_or_create_esi_async(
                 id=location_info.get("structure_id"), token=token
             )
         else:

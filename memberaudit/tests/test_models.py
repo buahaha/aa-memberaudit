@@ -334,6 +334,7 @@ class TestCharacterHasTopic(TestCase):
         self.assertFalse(self.character.has_wallet_journal)
 
 
+@override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(MODELS_PATH + ".esi")
 class TestCharacterEsiAccess(NoSocketsTestCase):
     @classmethod
@@ -350,7 +351,6 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         cls.amamake = EveSolarSystem.objects.get(id=30002537)
         cls.structure_1 = Location.objects.get(id=1000000000001)
 
-    @override_settings(CELERY_ALWAYS_EAGER=True)
     def test_update_assets(self, mock_esi):
         """can load assets"""
         mock_esi.client = esi_client_stub
@@ -514,7 +514,6 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(obj.title, "Test 1")
         self.assertEqual(obj.volume, 486000.0)
 
-    @override_settings(CELERY_ALWAYS_EAGER=True)
     def test_update_contracts_2(self, mock_esi):
         """item exchange contract"""
         mock_esi.client = esi_client_stub
@@ -540,7 +539,6 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(item.raw_quantity, -1)
         self.assertEqual(item.eve_type, EveType.objects.get(id=19551))
 
-    @override_settings(CELERY_ALWAYS_EAGER=True)
     def test_update_contracts_3(self, mock_esi):
         """auction contract"""
         mock_esi.client = esi_client_stub
@@ -559,7 +557,6 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(bid.date_bid, parse_datetime("2017-01-01T10:10:10Z"))
         self.assertEqual(bid.bidder, EveEntity.objects.get(id=1101))
 
-    @override_settings(CELERY_ALWAYS_EAGER=True)
     def test_update_contracts_4(self, mock_esi):
         """old contracts must be kept"""
         mock_esi.client = esi_client_stub
@@ -584,7 +581,6 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.character_1001.update_contracts()
         self.assertEqual(self.character_1001.contracts.count(), 4)
 
-    @override_settings(CELERY_ALWAYS_EAGER=True)
     def test_update_contracts_5(self, mock_esi):
         """Existing contracts can be updated"""
         mock_esi.client = esi_client_stub
@@ -694,7 +690,6 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(obj.location, self.jita_44)
         self.assertEqual(obj.implants.count(), 0)
 
-    @override_settings(CELERY_ALWAYS_EAGER=True)
     def test_update_mails(self, mock_esi):
         mock_esi.client = esi_client_stub
 
