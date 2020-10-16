@@ -69,9 +69,14 @@ urlpatterns = [
         name="character_jump_clones_data",
     ),
     path(
-        "character_mail_headers_data/<int:character_pk>/<int:label_id>/",
-        views.character_mail_headers_data,
-        name="character_mail_headers_data",
+        "character_mail_headers_by_label_data/<int:character_pk>/<int:label_id>/",
+        views.character_mail_headers_by_label_data,
+        name="character_mail_headers_by_label_data",
+    ),
+    path(
+        "character_mail_headers_by_list_data/<int:character_pk>/<int:list_id>/",
+        views.character_mail_headers_by_list_data,
+        name="character_mail_headers_by_list_data",
     ),
     path(
         "character_mail_data/<int:character_pk>/<int:mail_pk>/",

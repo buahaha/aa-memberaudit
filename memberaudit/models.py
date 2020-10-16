@@ -2174,7 +2174,7 @@ class CharacterMail(models.Model):
         default=None,
         blank=True,
     )
-    is_read = models.BooleanField(null=True, default=None)
+    is_read = models.BooleanField(null=True, default=None, db_index=True)
     subject = models.CharField(max_length=255, default="")
     body = models.TextField()
     timestamp = models.DateTimeField(null=True, default=None)

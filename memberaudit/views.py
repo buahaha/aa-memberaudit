@@ -346,7 +346,6 @@ def character_viewer(request, character_pk: int, character: Character):
     # mail labels
     mail_labels = list(character.mail_labels.values("label_id", "name", "unread_count"))
     total_unread_count = character.mails.filter(is_read=False).count()
-
     mail_labels.append(
         {
             "label_id": MAIL_LABEL_ID_ALL_MAILS,
@@ -354,6 +353,14 @@ def character_viewer(request, character_pk: int, character: Character):
             "unread_count": total_unread_count,
         }
     )
+
+    # mailing_lists = character.mailing_lists.values("list_id", "name")
+    mailing_lists = character.mailing_lists.annotate(
+        unread_count=Count(
+            "charactermailrecipient",
+            filter=Q(charactermailrecipient__mail__is_read=False),
+        )
+    ).values("list_id", "name", "unread_count")
 
     # skill queue
     skill_queue = list()
@@ -410,6 +417,7 @@ def character_viewer(request, character_pk: int, character: Character):
         "corporation_history": reversed(corporation_history),
         "skill_queue": skill_queue,
         "mail_labels": mail_labels,
+        "mailing_lists": mailing_lists,
         "main": main,
         "registered_characters": registered_characters,
     }
@@ -735,23 +743,12 @@ def character_jump_clones_data(
     return JsonResponse(data, safe=False)
 
 
-@login_required
-@permission_required("memberaudit.basic_access")
-@fetch_character_if_allowed()
-def character_mail_headers_data(
-    request, character_pk: int, character: Character, label_id: int
-) -> HttpResponse:
+def _character_mail_headers_data(request, character, mail_headers_qs) -> JsonResponse:
     mails_data = list()
     try:
-        mail_headers_qs = character.mails.select_related(
-            "from_entity", "from_mailing_list", "from_mailing_list"
-        ).prefetch_related("recipients")
-        if label_id == MAIL_LABEL_ID_ALL_MAILS:
-            mail_headers_qs = mail_headers_qs.all()
-        else:
-            mail_headers_qs = mail_headers_qs.filter(labels__label__label_id=label_id)
-
-        for mail in mail_headers_qs:
+        for mail in mail_headers_qs.select_related(
+            "from_entity", "from_mailing_list"
+        ).prefetch_related("recipients"):
             mail_ajax_url = reverse(
                 "memberaudit:character_mail_data", args=[character.pk, mail.pk]
             )
@@ -763,10 +760,15 @@ def character_mail_headers_data(
                 '<i class="fas fa-search"></i></button>'
             )
 
+            from_name = (
+                mail.from_mailing_list.name
+                if mail.from_mailing_list
+                else mail.from_entity.name
+            )
             mails_data.append(
                 {
                     "mail_id": mail.mail_id,
-                    "from": mail.from_entity.name,
+                    "from": from_name,
                     "to": ", ".join(
                         sorted(
                             [
@@ -787,6 +789,32 @@ def character_mail_headers_data(
         pass
 
     return JsonResponse(mails_data, safe=False)
+
+
+@cache_page(60)
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_mail_headers_by_label_data(
+    request, character_pk: int, character: Character, label_id: int
+) -> JsonResponse:
+    if label_id == MAIL_LABEL_ID_ALL_MAILS:
+        mail_headers_qs = character.mails.all()
+    else:
+        mail_headers_qs = character.mails.filter(labels__label__label_id=label_id)
+
+    return _character_mail_headers_data(request, character, mail_headers_qs)
+
+
+@cache_page(60)
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_mail_headers_by_list_data(
+    request, character_pk: int, character: Character, list_id: int
+) -> JsonResponse:
+    mail_headers_qs = character.mails.filter(recipients__mailing_list__list_id=list_id)
+    return _character_mail_headers_data(request, character, mail_headers_qs)
 
 
 @login_required

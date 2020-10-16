@@ -141,8 +141,7 @@
             $('#tab_contracts').DataTable({
                 ajax: {
                     url: "{% url 'memberaudit:character_contracts_data' character.pk %}",
-                    dataSrc: '',
-                    cache: false
+                    dataSrc: ''
                 },
                 columns: [
                     { data: 'summary' },
@@ -196,9 +195,9 @@
 
             var table = $('#tab_mails').DataTable({
                 ajax: {
-                    url: "{% url 'memberaudit:character_mail_headers_data' character.pk 1 %}",
+                    url: "{% url 'memberaudit:character_mail_headers_by_label_data' character.pk 1 %}",
                     dataSrc: '',
-                    cache: false
+                    cache: true
                 },
                 columns: [
                     {
@@ -222,7 +221,8 @@
             /* reload mails when a label is selected*/
             $(".pillMailLabel").on("click", function (event) {						
                 var element = $(event.currentTarget);
-                var labelId = element.data('label-id');						
+                var labelId = element.data('label-id');
+                var listId = element.data('list-id');
                 
                 // remove active class from all pills
                 // and make current pill active
@@ -230,8 +230,14 @@
                 element.addClass("active");
                                                 
                 // reload data table for selected label
-                var url2 = "{% url 'memberaudit:character_mail_headers_data' character.pk 0 %}".replace("0", labelId);
-                table.ajax.url( url2 ).load();	
+                if (listId!=undefined) {
+                    var url2 = "{% url 'memberaudit:character_mail_headers_by_list_data' character.pk 0 %}".replace("0", listId);
+                    table.ajax.url( url2 ).load();	
+                }
+                else {
+                    var url2 = "{% url 'memberaudit:character_mail_headers_by_label_data' character.pk 0 %}".replace("0", labelId);
+                    table.ajax.url( url2 ).load();	
+                }
                 
             }); 
 

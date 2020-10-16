@@ -10,12 +10,23 @@
             <!-- Mail Labels -->
             <div class="col-md-2">
                 <ul class="nav nav-pills nav-stacked">
-                    {% for label in mail_labels|dictsort:"label_id" %}                    
-                        <li role="presentation" class="pillMailLabel{% if label.label_id == 1%} active{% endif %}" data-label-id="{{ label.label_id }}">
+                    {% for item in mail_labels|dictsort:"label_id" %}
+                        <li role="presentation" class="pillMailLabel{% if item.label_id == 1%} active{% endif %}" data-label-id="{{ item.label_id }}">
                             <a href="#">
-                                {{ label.name }}
-                                {% if label.unread_count %}
-                                    <span class="badge">{{ label.unread_count }}</span>
+                                {{ item.name }}
+                                {% if item.unread_count %}
+                                    <span class="badge">{{ item.unread_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                    {% endfor %}
+                    <hr>
+                    {% for item in mailing_lists|dictsort:"name.lower" %}
+                        <li role="presentation" class="pillMailLabel" data-list-id="{{ item.list_id }}">
+                            <a href="#">
+                                {{ item.name }}
+                                {% if item.unread_count %}
+                                    <span class="badge">{{ item.unread_count }}</span>
                                 {% endif %}
                             </a>
                         </li>

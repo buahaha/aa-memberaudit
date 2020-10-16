@@ -48,7 +48,8 @@ from ..views import (
     character_contracts_data,
     character_contract_details,
     character_jump_clones_data,
-    character_mail_headers_data,
+    character_mail_headers_by_label_data,
+    character_mail_headers_by_list_data,
     character_mail_data,
     character_skills_data,
     character_wallet_journal_data,
@@ -608,13 +609,15 @@ class TestMailHeaderData(TestCase):
             mail_id=7001,
             from_entity=EveEntity.objects.get(id=1002),
             subject="Dummy 1",
-            body="This is the body",
+            body="Mail with normal entity and mailing list as recipient",
             timestamp=now(),
         )
         CharacterMailRecipient.objects.create(
             mail=mail_1, eve_entity=EveEntity.objects.get(id=1001)
         )
-        CharacterMailRecipient.objects.create(mail=mail_1, mailing_list=mailing_list)
+        CharacterMailRecipient.objects.create(
+            mail=mail_1, eve_entity=EveEntity.objects.get(id=1003)
+        )
         label = CharacterMailLabel.objects.create(
             character=cls.character, label_id=42, name="Dummy"
         )
@@ -625,7 +628,7 @@ class TestMailHeaderData(TestCase):
             mail_id=7002,
             from_entity=EveEntity.objects.get(id=1002),
             subject="Dummy 2",
-            body="Another mail",
+            body="Mail with another label",
             timestamp=now(),
         )
         label = CharacterMailLabel.objects.create(
@@ -633,16 +636,36 @@ class TestMailHeaderData(TestCase):
         )
         CharacterMailMailLabel.objects.create(mail=mail_2, label=label)
 
-    def test_normal_label(self):
+        CharacterMail.objects.create(
+            character=cls.character,
+            mail_id=7003,
+            from_mailing_list=mailing_list,
+            subject="Dummy 3",
+            body="Mailing List as sender",
+            timestamp=now(),
+        )
+
+        mail_4 = CharacterMail.objects.create(
+            character=cls.character,
+            mail_id=7004,
+            from_entity=EveEntity.objects.get(id=1002),
+            subject="Dummy 4",
+            body="Mailing List as recipient",
+            timestamp=now(),
+        )
+        CharacterMailRecipient.objects.create(mail=mail_4, mailing_list=mailing_list)
+
+    def test_mail_by_Label(self):
         """returns list of mails for given label only"""
 
         request = self.factory.get(
             reverse(
-                "memberaudit:character_mail_headers_data", args=[self.character.pk, 42]
+                "memberaudit:character_mail_headers_by_label_data",
+                args=[self.character.pk, 42],
             )
         )
         request.user = self.user
-        response = character_mail_headers_data(request, self.character.pk, 42)
+        response = character_mail_headers_by_label_data(request, self.character.pk, 42)
 
         self.assertEqual(response.status_code, 200)
         data = json_response_to_python(response)
@@ -651,23 +674,43 @@ class TestMailHeaderData(TestCase):
         row = data[0]
         self.assertEqual(row["mail_id"], 7001)
         self.assertEqual(row["from"], "Clark Kent")
-        self.assertEqual(row["to"], "Bruce Wayne, Mailing List")
+        self.assertEqual(row["to"], "Bruce Wayne, Peter Parker")
 
     def test_all_mails(self):
         """can return all mails"""
 
         request = self.factory.get(
             reverse(
-                "memberaudit:character_mail_headers_data", args=[self.character.pk, 0]
+                "memberaudit:character_mail_headers_by_label_data",
+                args=[self.character.pk, 0],
             )
         )
         request.user = self.user
-        response = character_mail_headers_data(request, self.character.pk, 0)
+        response = character_mail_headers_by_label_data(request, self.character.pk, 0)
 
         self.assertEqual(response.status_code, 200)
         data = json_response_to_python(response)
 
-        self.assertSetEqual({x["mail_id"] for x in data}, {7001, 7002})
+        self.assertSetEqual({x["mail_id"] for x in data}, {7001, 7002, 7003, 7004})
+
+    def test_mail_to_mailinglist(self):
+        """can return mail sent to mailing list"""
+
+        request = self.factory.get(
+            reverse(
+                "memberaudit:character_mail_headers_by_list_data",
+                args=[self.character.pk, 5],
+            )
+        )
+        request.user = self.user
+        response = character_mail_headers_by_list_data(request, self.character.pk, 5)
+
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+
+        self.assertSetEqual({x["mail_id"] for x in data}, {7004})
+        row = data[0]
+        self.assertEqual(row["to"], "Mailing List")
 
 
 @patch(MODULE_PATH + ".messages_plus")
