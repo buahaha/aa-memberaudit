@@ -404,28 +404,7 @@ class Character(models.Model):
         location_ids = self._preload_all_locations(
             token=token, incoming_ids=incoming_location_ids
         )
-        with transaction.atomic():
-            incoming_ids = set(asset_list.keys())
-            existing_ids = set(self.assets.values_list("item_id", flat=True))
-            obsolete_ids = existing_ids.difference(incoming_ids)
-            if obsolete_ids:
-                logger.info("%s: Removing %s obsolete assets", self, len(obsolete_ids))
-                self.assets.filter(item_id__in=obsolete_ids).delete()
-
-            # need to update existing ids, because obsolete assets might have
-            # contained child assets that have now been moved to another
-            # location / container
-            existing_ids = set(self.assets.values_list("item_id", flat=True))
-            create_ids = incoming_ids.difference(existing_ids)
-            if create_ids:
-                self._create_assets(
-                    asset_list=asset_list,
-                    item_ids=create_ids,
-                    location_ids=location_ids,
-                )
-
-        if not obsolete_ids and not create_ids:
-            logger.info("%s: Assets have not changed", self)
+        self._recreate_assets(asset_list=asset_list, location_ids=location_ids)
 
     def _fetch_assets_from_esi(self, token) -> dict:
         logger.info("%s: Fetching assets from ESI", self)
@@ -462,16 +441,18 @@ class Character(models.Model):
             for type_id in missing_ids:
                 EveType.objects.update_or_create_esi(id=type_id)
 
-    def _create_assets(self, asset_list: dict, item_ids: list, location_ids: list):
-        logger.info("%s: Adding %s new assets", self, len(item_ids))
-        new_asset_list = {
-            item_id: obj for item_id, obj in asset_list.items() if item_id in item_ids
-        }
+    @transaction.atomic()
+    def _recreate_assets(self, asset_list: dict, location_ids: list):
+        logger.info("%s: Recreating asset tree for %s assets", self, len(asset_list))
+
+        # remove old asset tree
+        self.assets.all().delete()
+
         # create parent assets
         logger.info("%s: Creating parent assets", self)
-        parent_asset_ids = set(self.assets.values_list("item_id", flat=True))
+        parent_asset_ids = set()
         new_assets = list()
-        for item_id, asset_info in copy(new_asset_list).items():
+        for item_id, asset_info in copy(asset_list).items():
             location_id = asset_info.get("location_id")
             if location_id and location_id in location_ids:
                 new_assets.append(
@@ -487,7 +468,7 @@ class Character(models.Model):
                         quantity=asset_info.get("quantity"),
                     )
                 )
-                new_asset_list.pop(item_id)
+                asset_list.pop(item_id)
                 parent_asset_ids.add(item_id)
 
         logger.info("%s: Writing %s parent assets", self, len(new_assets))
@@ -501,7 +482,7 @@ class Character(models.Model):
             round += 1
             logger.info("%s: Creating child assets - pass %s", self, round)
             new_assets = list()
-            for item_id, asset_info in copy(new_asset_list).items():
+            for item_id, asset_info in copy(asset_list).items():
                 location_id = asset_info.get("location_id")
                 if location_id and location_id in parent_asset_ids:
                     new_assets.append(
@@ -517,7 +498,7 @@ class Character(models.Model):
                             quantity=asset_info.get("quantity"),
                         )
                     )
-                    new_asset_list.pop(item_id)
+                    asset_list.pop(item_id)
 
             if new_assets:
                 logger.info("%s: Writing %s child assets", self, len(new_assets))
@@ -528,15 +509,15 @@ class Character(models.Model):
                     {obj.item_id for obj in new_assets}
                 )
 
-            if not new_assets or not new_asset_list:
+            if not new_assets or not asset_list:
                 break
 
-        if len(new_asset_list) > 0:
+        if len(asset_list) > 0:
             logger.warning(
                 "%s: Failed to add %s assets to the tree: %s",
                 self,
-                len(new_asset_list),
-                new_asset_list.keys(),
+                len(asset_list),
+                asset_list.keys(),
             )
 
     def update_character_details(self):

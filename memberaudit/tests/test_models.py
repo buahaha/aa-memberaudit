@@ -445,7 +445,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         )
 
     def test_update_assets_3(self, mock_esi):
-        """can add assets to existing set"""
+        """can update existing assets"""
         mock_esi.client = esi_client_stub
         CharacterAsset.objects.create(
             character=self.character_1001,
@@ -454,7 +454,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
             eve_type=EveType.objects.get(id=20185),
             is_singleton=True,
             name="Parent Item 1",
-            quantity=1,
+            quantity=10,
         )
 
         self.character_1001.update_assets()
