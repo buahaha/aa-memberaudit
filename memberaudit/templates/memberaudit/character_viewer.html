@@ -194,9 +194,9 @@
                 order: [[0, "asc"], [1, "asc"]]
             });
 
-            $('#tab_mails').DataTable({
+            var table = $('#tab_mails').DataTable({
                 ajax: {
-                    url: "{% url 'memberaudit:character_mail_headers_data' character.pk %}",
+                    url: "{% url 'memberaudit:character_mail_headers_data' character.pk 1 %}",
                     dataSrc: '',
                     cache: false
                 },
@@ -211,7 +211,29 @@
                     { data: 'action' }
                 ],
                 order: [[0, "desc"]],
+
+                createdRow: function( row, data, dataIndex ) {
+                    if ( !data['is_read'] ) {
+                        $(row).addClass( 'info' );
+                    }							
+                }
             });
+
+            /* reload mails when a label is selected*/
+            $(".pillMailLabel").on("click", function (event) {						
+                var element = $(event.currentTarget);
+                var labelId = element.data('label-id');						
+                
+                // remove active class from all pills
+                // and make current pill active
+                $(".pillMailLabel").removeClass("active");
+                element.addClass("active");
+                                                
+                // reload data table for selected label
+                var url2 = "{% url 'memberaudit:character_mail_headers_data' character.pk 0 %}".replace("0", labelId);
+                table.ajax.url( url2 ).load();	
+                
+            }); 
 
             $('#modalCharacterMail').on('show.bs.modal', function(event) {
                 var button = $(event.relatedTarget)
