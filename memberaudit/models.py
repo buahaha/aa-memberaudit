@@ -32,6 +32,7 @@ from allianceauth.services.hooks import get_extension_logger
 from . import __title__
 from .app_settings import MEMBERAUDIT_MAX_MAILS, MEMBERAUDIT_DEVELOPER_MODE
 from .decorators import fetch_token
+from .helpers import get_or_create_esi_or_none, get_or_none, get_or_create_or_none
 from .managers import CharacterManager, DoctrineManager, LocationManager
 from .providers import esi
 from .utils import LoggerAddTag, chunks
@@ -67,64 +68,6 @@ def is_esi_online() -> bool:
         return False
 
     return True
-
-
-def get_or_create_esi_or_none(
-    prop_name: str, dct: dict, Model: type
-) -> Optional[models.Model]:
-    """tries to create a new eveuniverse object from a dictionary entry
-
-    return the object on success or None
-    """
-    if dct.get(prop_name):
-        obj, _ = Model.objects.get_or_create_esi(id=dct.get(prop_name))
-    else:
-        obj = None
-
-    return obj
-
-
-def get_or_create_or_none(
-    prop_name: str, dct: dict, Model: type
-) -> Optional[models.Model]:
-    """tries to create a new Django object from a dictionary entry
-
-    return the object on success or None
-    """
-    if dct.get(prop_name):
-        obj, _ = Model.objects.get_or_create(id=dct.get(prop_name))
-    else:
-        obj = None
-
-    return obj
-
-
-def get_or_none(prop_name: str, dct: dict, Model: type) -> Optional[models.Model]:
-    """tries to create a new Django object from a dictionary entry
-
-    return the object on success or None
-    """
-    id = dct.get(prop_name)
-    if id:
-        try:
-            return Model.objects.get(id=id)
-        except Model.DoesNotExist:
-            pass
-
-    return None
-
-
-def get_or_create_location_or_none(
-    prop_name: str, dct: dict, token: Token
-) -> Optional[models.Model]:
-    if dct.get(prop_name):
-        obj, _ = Location.objects.get_or_create_esi_async(
-            id=dct.get(prop_name), token=token
-        )
-    else:
-        obj = None
-
-    return obj
 
 
 def store_list_to_disk(lst: list, name: str):
@@ -367,7 +310,7 @@ class Character(models.Model):
         else:
             return None
 
-    def _preload_all_locations(self, token: Token, incoming_ids: set) -> None:
+    def _preload_all_locations(self, token: Token, incoming_ids: set) -> list:
         """loads location objects specified by given set
 
         returns list of existing location IDs after preload
@@ -745,6 +688,9 @@ class Character(models.Model):
         """update the character's contracts"""
 
         contracts_list = self._fetch_contracts_from_esi(token)
+        if not contracts_list:
+            logger.info("%s: No contracts received from ESI", self)
+
         existing_ids = set(self.contracts.values_list("contract_id", flat=True))
         incoming_location_ids = {
             obj["start_location_id"]
@@ -768,9 +714,6 @@ class Character(models.Model):
                 self._update_existing_contracts(
                     contracts_list=contracts_list, contract_ids=update_ids
                 )
-
-            if not create_ids and not update_ids:
-                logger.info("%s: Contracts headers have not changed", self)
 
         self._start_contracts_items_updates(create_ids)
         self._start_contracts_bids_updates(create_ids | update_ids)
@@ -946,7 +889,8 @@ class Character(models.Model):
         logger.info(
             "%s, %s: Fetching contract items from ESI", self, contract.contract_id
         )
-        items_data = esi.client.Contracts.get_characters_character_id_contracts_contract_id_items(
+        my_esi = esi.client.Contracts
+        items_data = my_esi.get_characters_character_id_contracts_contract_id_items(
             character_id=self.character_ownership.character.character_id,
             contract_id=contract.contract_id,
             token=token.valid_access_token(),
@@ -997,25 +941,34 @@ class Character(models.Model):
                 token=token.valid_access_token(),
             ).results()
         )
-        logger.info(
-            "%s, %s: Storing %s contract bids",
-            self,
-            contract.contract_id,
-            len(bids_data),
-        )
-        # TODO: Bids can only be added, no need to recreate bid list
-        bids = [
-            CharacterContractBid(
-                contract=contract,
-                bid_id=bid.get("bid_id"),
-                amount=bid.get("amount"),
-                bidder=get_or_create_esi_or_none("bidder_id", bid, EveEntity),
-                date_bid=bid.get("date_bid"),
-            )
-            for bid in bids_data
-        ]
+        bids_list = {int(x["bid_id"]): x for x in bids_data if "bid_id" in x}
         with transaction.atomic():
-            contract.bids.all().delete()
+            incoming_ids = set(bids_list.keys())
+            existing_ids = set(contract.bids.values_list("bid_id", flat=True))
+            create_ids = incoming_ids.difference(existing_ids)
+            if not create_ids:
+                logger.info(
+                    "%s, %s: No new contract bids to add", self, contract.contract_id
+                )
+                return
+
+            logger.info(
+                "%s, %s: Storing %s new contract bids",
+                self,
+                contract.contract_id,
+                len(create_ids),
+            )
+            bids = [
+                CharacterContractBid(
+                    contract=contract,
+                    bid_id=bid.get("bid_id"),
+                    amount=bid.get("amount"),
+                    bidder=get_or_create_esi_or_none("bidder_id", bid, EveEntity),
+                    date_bid=bid.get("date_bid"),
+                )
+                for bid_id, bid in bids_list.items()
+                if bid_id in create_ids
+            ]
             CharacterContractBid.objects.bulk_create(
                 bids, batch_size=BULK_METHOD_BATCH_SIZE
             )
@@ -1079,14 +1032,12 @@ class Character(models.Model):
 
         # fetch locations ahead of transaction
         if jump_clones_info.get("jump_clones"):
-            locations = {
-                info["location_id"]: get_or_create_location_or_none(
-                    "location_id", info, token
-                )
-                for info in jump_clones_info["jump_clones"]
+            incoming_location_ids = {
+                record["location_id"]
+                for record in jump_clones_info["jump_clones"]
+                if "location_id" in record
             }
-        else:
-            locations = dict()
+            self._preload_all_locations(token, incoming_location_ids)
 
         with transaction.atomic():
             self.jump_clones.all().delete()
@@ -1099,13 +1050,11 @@ class Character(models.Model):
             jump_clones = [
                 CharacterJumpClone(
                     character=self,
-                    jump_clone_id=jump_clone_info.get("jump_clone_id"),
-                    location=locations[jump_clone_info.get("location_id")],
-                    name=jump_clone_info.get("name")
-                    if jump_clone_info.get("name")
-                    else "",
+                    jump_clone_id=record.get("jump_clone_id"),
+                    location=get_or_none("location_id", record, Location),
+                    name=record.get("name") if record.get("name") else "",
                 )
-                for jump_clone_info in jump_clones_list
+                for record in jump_clones_list
             ]
             CharacterJumpClone.objects.bulk_create(
                 jump_clones,
@@ -1166,6 +1115,32 @@ class Character(models.Model):
 
     def _update_maillabels(self, token: Token):
         """update the mail lables for the given character"""
+        mail_labels_list = self._fetch_mail_labels_from_esi(token)
+        if not mail_labels_list:
+            logger.info("%s: No mail labels", self)
+            return
+
+        logger.info("%s: Storing %s mail labels", self, len(mail_labels_list))
+        with transaction.atomic():
+            incoming_ids = set(mail_labels_list.keys())
+            existing_ids = set(self.mail_labels.values_list("label_id", flat=True))
+            obsolete_ids = existing_ids.difference(incoming_ids)
+            if obsolete_ids:
+                self.mail_labels.filter(label_id__in=obsolete_ids).delete()
+
+            create_ids = incoming_ids.difference(existing_ids)
+            if create_ids:
+                self._create_new_mail_labels(
+                    mail_labels_list=mail_labels_list, label_ids=create_ids
+                )
+
+            update_ids = incoming_ids.difference(create_ids)
+            if update_ids:
+                self._update_existing_mail_labels(
+                    mail_labels_list=mail_labels_list, label_ids=update_ids
+                )
+
+    def _fetch_mail_labels_from_esi(self, token) -> dict:
         logger.info("%s: Fetching mail labels from ESI", self)
         mail_labels_info = esi.client.Mail.get_characters_character_id_mail_labels(
             character_id=self.character_ownership.character.character_id,
@@ -1176,28 +1151,47 @@ class Character(models.Model):
                 character=self,
                 defaults={"total": mail_labels_info.get("total_unread_count")},
             )
-        # TODO: Replace delete + create with create + update
-        mail_labels = mail_labels_info.get("labels")
-        if not mail_labels:
-            logger.info("%s: No mail labels", self)
-            return
 
-        logger.info("%s: Storing %s mail labels", self, len(mail_labels))
-        with transaction.atomic():
-            self.mail_labels.all().delete()
-            new_labels = [
-                CharacterMailLabel(
-                    character=self,
-                    label_id=label.get("label_id"),
-                    color=label.get("color"),
-                    name=label.get("name"),
-                    unread_count=label.get("unread_count"),
-                )
-                for label in mail_labels
-            ]
-            CharacterMailLabel.objects.bulk_create(
-                new_labels, batch_size=BULK_METHOD_BATCH_SIZE
+        mail_labels = mail_labels_info.get("labels")
+        if mail_labels:
+            return {obj["label_id"]: obj for obj in mail_labels if "label_id" in obj}
+        else:
+            return dict()
+
+    def _create_new_mail_labels(self, mail_labels_list: dict, label_ids: set):
+        new_labels = [
+            CharacterMailLabel(
+                character=self,
+                label_id=label.get("label_id"),
+                color=label.get("color"),
+                name=label.get("name"),
+                unread_count=label.get("unread_count"),
             )
+            for label_id, label in mail_labels_list.items()
+            if label_id in label_ids
+        ]
+        CharacterMailLabel.objects.bulk_create(
+            new_labels, batch_size=BULK_METHOD_BATCH_SIZE
+        )
+
+    def _update_existing_mail_labels(self, mail_labels_list: dict, label_ids: set):
+        logger.info("%s: Updating %s mail labels", self, len(label_ids))
+        update_pks = list(
+            self.mail_labels.filter(label_id__in=label_ids).values_list("pk", flat=True)
+        )
+        labels = CharacterMailLabel.objects.in_bulk(update_pks)
+        for label in labels.values():
+            record = mail_labels_list.get(label.label_id)
+            if record:
+                label.name = record.get("name")
+                label.color = record.get("color")
+                label.unread_count = record.get("unread_count")
+
+        CharacterMailLabel.objects.bulk_update(
+            labels.values(),
+            fields=["name", "color", "unread_count"],
+            batch_size=BULK_METHOD_BATCH_SIZE,
+        )
 
     def _process_mail_headers(self, token: Token):
         mail_headers = self._fetch_mail_headers(token)

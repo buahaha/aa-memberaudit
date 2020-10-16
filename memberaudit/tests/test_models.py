@@ -19,6 +19,7 @@ from ..models import (
     CharacterContact,
     CharacterContactLabel,
     CharacterContract,
+    CharacterContractBid,
     CharacterContractItem,
     CharacterDetails,
     CharacterMail,
@@ -616,7 +617,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
 
     @override_settings(CELERY_ALWAYS_EAGER=True)
     def test_update_contracts_1(self, mock_esi):
-        """courier contract"""
+        """can create new courier contract"""
         mock_esi.client = esi_client_stub
 
         self.character_1001.update_contracts()
@@ -646,7 +647,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(obj.volume, 486000.0)
 
     def test_update_contracts_2(self, mock_esi):
-        """item exchange contract"""
+        """can create new item exchange contract"""
         mock_esi.client = esi_client_stub
 
         self.character_1001.update_contracts()
@@ -671,14 +672,14 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(item.eve_type, EveType.objects.get(id=19551))
 
     def test_update_contracts_3(self, mock_esi):
-        """auction contract"""
+        """can create new auction contract"""
         mock_esi.client = esi_client_stub
 
         self.character_1001.update_contracts()
         obj = self.character_1001.contracts.get(contract_id=100000003)
         self.assertEqual(obj.contract_type, CharacterContract.TYPE_AUCTION)
-        self.assertEqual(float(obj.buyout), 200000000.0)
-        self.assertEqual(float(obj.price), 20000000.0)
+        self.assertEqual(float(obj.buyout), 200_000_000.0)
+        self.assertEqual(float(obj.price), 20_000_000.0)
         self.assertEqual(obj.volume, 400.0)
         self.assertEqual(obj.status, CharacterContract.STATUS_OUTSTANDING)
         self.assertEqual(obj.items.count(), 1)
@@ -713,7 +714,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(self.character_1001.contracts.count(), 4)
 
     def test_update_contracts_5(self, mock_esi):
-        """Existing contracts can be updated"""
+        """Existing contracts are updated"""
         mock_esi.client = esi_client_stub
 
         CharacterContract.objects.create(
@@ -760,6 +761,49 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(obj.status, CharacterContract.STATUS_IN_PROGRESS)
         self.assertEqual(obj.title, "Test 1")
         self.assertEqual(obj.volume, 486000.0)
+
+    def test_update_contracts_6(self, mock_esi):
+        """can add new bids to auction contract"""
+        mock_esi.client = esi_client_stub
+
+        contract = CharacterContract.objects.create(
+            character=self.character_1001,
+            contract_id=100000003,
+            availability=CharacterContract.AVAILABILITY_PERSONAL,
+            contract_type=CharacterContract.TYPE_AUCTION,
+            assignee=EveEntity.objects.get(id=2101),
+            date_issued=parse_datetime("2019-10-02T13:15:21Z"),
+            date_expired=parse_datetime("2019-10-09T13:15:21Z"),
+            for_corporation=False,
+            issuer=EveEntity.objects.get(id=1001),
+            issuer_corporation=EveEntity.objects.get(id=2001),
+            status=CharacterContract.STATUS_OUTSTANDING,
+            start_location=self.jita_44,
+            end_location=self.jita_44,
+            buyout=200_000_000,
+            price=20_000_000,
+            volume=400,
+        )
+        CharacterContractBid.objects.create(
+            contract=contract,
+            bid_id=2,
+            amount=21_000_000,
+            bidder=EveEntity.objects.get(id=1003),
+            date_bid=now(),
+        )
+
+        self.character_1001.update_contracts()
+
+        obj = self.character_1001.contracts.get(contract_id=100000003)
+        self.assertEqual(obj.bids.count(), 2)
+
+        bid = obj.bids.get(bid_id=1)
+        self.assertEqual(float(bid.amount), 1_000_000.23)
+        self.assertEqual(bid.date_bid, parse_datetime("2017-01-01T10:10:10Z"))
+        self.assertEqual(bid.bidder, EveEntity.objects.get(id=1101))
+
+        bid = obj.bids.get(bid_id=2)
+        self.assertEqual(float(bid.amount), 21_000_000)
 
     def test_update_character_details(self, mock_esi):
         mock_esi.client = esi_client_stub
@@ -887,6 +931,29 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
             set(self.character_1001.mail_labels.values_list("label_id", flat=True)),
             {3, 17},
         )
+
+    def test_update_mail_labels_3(self, mock_esi):
+        """will update existing labels"""
+        mock_esi.client = esi_client_stub
+        CharacterMailLabel.objects.create(
+            character=self.character_1001,
+            label_id=3,
+            name="Update me",
+            unread_count=0,
+            color=0,
+        )
+
+        self.character_1001.update_mails()
+
+        self.assertSetEqual(
+            set(self.character_1001.mail_labels.values_list("label_id", flat=True)),
+            {3, 17},
+        )
+
+        obj = self.character_1001.mail_labels.get(label_id=3)
+        self.assertEqual(obj.name, "PINK")
+        self.assertEqual(obj.unread_count, 4)
+        self.assertEqual(obj.color, "#660066")
 
     def test_update_mails_1(self, mock_esi):
         """can create new mail from scratch"""
