@@ -30,10 +30,13 @@
         flex-direction: column;
         min-width: 0;
         word-wrap: break-word;
-        background-color: rgb(100, 100, 100);
         background-clip: border-box;
         border: 1px solid rgba(0, 0, 0, .125);
         border-radius: 0.25rem;
+    }
+
+    .template-dark-mode .cards_container .card {
+        background-color: rgb(100, 100, 100);
     }
 
     .cards_container .card-header,
