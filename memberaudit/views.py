@@ -49,6 +49,7 @@ from .utils import (
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 MY_DATETIME_FORMAT = "Y-M-d H:i"
+MAIL_LABEL_ID_ALL_MAILS = 0
 
 
 def create_img_html(src: str, classes: list) -> str:
@@ -303,6 +304,9 @@ def character_location_data(
     "character_ownership__user__profile__main_character",
 )
 def character_viewer(request, character_pk: int, character: Character):
+    """main view showing a character with all details"""
+
+    # corporation history
     corporation_history = list()
     for entry in (
         character.corporation_history.exclude(is_deleted=True)
@@ -325,11 +329,13 @@ def character_viewer(request, character_pk: int, character: Character):
             }
         )
 
+    # corporation details
     try:
         character_details = character.details
     except ObjectDoesNotExist:
         character_details = None
 
+    # main character
     auth_character = character.character_ownership.character
     if character.character_ownership.user.profile.main_character:
         main_character = character.character_ownership.user.profile.main_character
@@ -337,11 +343,21 @@ def character_viewer(request, character_pk: int, character: Character):
     else:
         main = "-"
 
+    # mail labels
+    mail_labels = list(character.mail_labels.values("label_id", "name", "unread_count"))
+    total_unread_count = character.mails.filter(is_read=False).count()
+
+    mail_labels.append(
+        {
+            "label_id": MAIL_LABEL_ID_ALL_MAILS,
+            "name": "All Mails",
+            "unread_count": total_unread_count,
+        }
+    )
+
     # skill queue
     skill_queue = list()
-
     map_skillevel_arabic_to_roman = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V"}
-
     for row in (
         character.skillqueue.select_related("skill")
         .filter(character_id=character_pk)
@@ -372,6 +388,7 @@ def character_viewer(request, character_pk: int, character: Character):
             }
         )
 
+    # registered characters
     registered_characters = list(
         Character.objects.select_related(
             "character_ownership", "character_ownership__character"
@@ -392,6 +409,7 @@ def character_viewer(request, character_pk: int, character: Character):
         "character_details": character_details,
         "corporation_history": reversed(corporation_history),
         "skill_queue": skill_queue,
+        "mail_labels": mail_labels,
         "main": main,
         "registered_characters": registered_characters,
     }
@@ -721,13 +739,19 @@ def character_jump_clones_data(
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
 def character_mail_headers_data(
-    request, character_pk: int, character: Character
+    request, character_pk: int, character: Character, label_id: int
 ) -> HttpResponse:
     mails_data = list()
     try:
-        for mail in character.mails.select_related(
+        mail_headers_qs = character.mails.select_related(
             "from_entity", "from_mailing_list", "from_mailing_list"
-        ).all():
+        ).prefetch_related("recipients")
+        if label_id == MAIL_LABEL_ID_ALL_MAILS:
+            mail_headers_qs = mail_headers_qs.all()
+        else:
+            mail_headers_qs = mail_headers_qs.filter(labels__label__label_id=label_id)
+
+        for mail in mail_headers_qs:
             mail_ajax_url = reverse(
                 "memberaudit:character_mail_data", args=[character.pk, mail.pk]
             )
@@ -742,7 +766,6 @@ def character_mail_headers_data(
             mails_data.append(
                 {
                     "mail_id": mail.mail_id,
-                    "labels": list(mail.labels.values_list("label_id", flat=True)),
                     "from": mail.from_entity.name,
                     "to": ", ".join(
                         sorted(
@@ -757,6 +780,7 @@ def character_mail_headers_data(
                     "subject": mail.subject,
                     "sent": mail.timestamp.strftime(DATETIME_FORMAT),
                     "action": actions_html,
+                    "is_read": mail.is_read,
                 }
             )
     except ObjectDoesNotExist:

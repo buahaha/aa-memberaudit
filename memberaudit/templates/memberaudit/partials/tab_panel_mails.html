@@ -5,20 +5,42 @@
     {% if not character.has_mails %}
         <p>No data yet...</p>
     {% else %}
-        <div class="table-responsive">
-            <table class="table table-striped" id="tab_mails" style="width:100%;">
-                <thead>
-                    <tr>
-                        <th>sent</th>
-                        <th>from</th>
-                        <th>to</th>
-                        <th>subject</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
+        <div class="row">
+            
+            <!-- Mail Labels -->
+            <div class="col-md-2">
+                <ul class="nav nav-pills nav-stacked">
+                    {% for label in mail_labels|dictsort:"label_id" %}                    
+                        <li role="presentation" class="pillMailLabel{% if label.label_id == 1%} active{% endif %}" data-label-id="{{ label.label_id }}">
+                            <a href="#">
+                                {{ label.name }}
+                                {% if label.unread_count %}
+                                    <span class="badge">{{ label.unread_count }}</span>
+                                {% endif %}
+                            </a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            
+            <!-- Mails for current label-->
+            <div class="col-md-10">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="tab_mails" style="width:100%;">
+                        <thead>
+                            <tr>
+                                <th>sent</th>
+                                <th>from</th>
+                                <th>to</th>
+                                <th>subject</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     {% endif %}
 </div>
