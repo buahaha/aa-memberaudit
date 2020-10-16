@@ -6,28 +6,28 @@
 
     /* Style group headers */
     .template-light-mode .table > tbody > .table-group > td {
-        background-color: dimgrey;
-        color: white;
+        background-color: rgb(105, 105, 105);
+        color: rgb(255, 255, 255);
         font-weight: bold;
     }
 
     .template-dark-mode .table > tbody > .table-group > td {
-        background-color: dimgrey;
-        color: white;
+        background-color: rgb(105, 105, 105);
+        color: rgb(255, 255, 255);
         font-weight: bold;
     }
 
     /* Breadcrumbs */
     .template-light-mode .breadcrumb >.active {
-        color: black;
+        color: rgb(0, 0, 0);
         font-weight: bold;
     }
     .template-dark-mode .breadcrumb >.active {
-        color: white;
+        color: rgb(255, 255, 255);
         font-weight: bold;
     }
 
-    /* Assets */    
+    /* Assets */
     #tab_assets tbody td:nth-child(3) {
         text-align: right;
     }
@@ -35,7 +35,7 @@
         text-align: right;
     }
 
-    /* Wallet */    
+    /* Wallet */
     #tab_wallet tbody td:nth-child(5) {
         text-align: right;
     }
@@ -43,7 +43,7 @@
     #tab_wallet tfoot td:nth-child(5) {
         text-align: right;
     }
-    
+
     #tab_wallet tbody td:nth-child(6) {
         text-align: right;
     }
@@ -67,11 +67,31 @@
     }
 
     .sidebar_characters {
-        margin: 0.4em;
+        list-style-type: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    .sidebar_character {
+        margin: 0.2rem 0;
+    }
+
+    .sidebar_character > a {
+        display: block;
+        padding: 0.2rem 0.4rem;
+        text-decoration: none;
+    }
+
+    .template-light-mode .sidebar_character:hover > a {
+        background-color: rgb(236, 240, 241);
+    }
+
+    .template-dark-mode .sidebar_character:hover > a {
+        background-color: rgb(34, 34, 34);
     }
 
     #history_divider {
-        margin-top: 5px; 
+        margin-top: 5px;
         margin-bottom: 5px;
     }
 }

@@ -2,7 +2,6 @@
 {% load static %}
 {% load evelinks %}
 
-
 <!-- Sidebar panel-->
 <div class="panel panel-default">
     <div class="panel-body">
@@ -35,17 +34,15 @@
 
         <p class="text-center">Characters:</p>
 
-        
-        {% for character in registered_characters %}            
-            <p class="sidebar_characters">
-                &nbsp;&nbsp;
-                <img height="20" width="20" src="{{ character.character_id|character_portrait_url:32 }}"/>
-                <a href="{% url 'memberaudit:character_viewer' character.pk %}">
-                    {{ character.name }}
-                </a>
-            </p>
-        {% endfor %}
-        
-
+        <ul class="sidebar_characters">
+            {% for character in registered_characters %}
+                <li class="sidebar_character character-{{ character.pk }}">
+                    <a href="{% url 'memberaudit:character_viewer' character.pk %}">
+                        <img height="20" width="20" src="{{ character.character_id|character_portrait_url:32 }}"/>
+                        {{ character.name }}
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
     </div>
 </div>
