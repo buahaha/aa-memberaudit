@@ -50,6 +50,7 @@ from .utils import (
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 MY_DATETIME_FORMAT = "Y-M-d H:i"
 MAIL_LABEL_ID_ALL_MAILS = 0
+MAP_SKILL_LEVEL_ARABIC_TO_ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V"}
 
 
 def create_img_html(src: str, classes: list) -> str:
@@ -364,7 +365,6 @@ def character_viewer(request, character_pk: int, character: Character):
 
     # skill queue
     skill_queue = list()
-    map_skillevel_arabic_to_roman = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V"}
     for row in (
         character.skillqueue.select_related("skill")
         .filter(character_id=character_pk)
@@ -389,7 +389,7 @@ def character_viewer(request, character_pk: int, character: Character):
             {
                 "finish_date": row.finish_date,
                 "finish_date_humanized": finish_date_humanized,
-                "finished_level": map_skillevel_arabic_to_roman[row.finished_level],
+                "finished_level": MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[row.finished_level],
                 "skill": row.skill.name,
                 "is_currently_trained_skill": is_currently_trained_skill,
             }
@@ -692,6 +692,61 @@ def character_contract_details(
         "memberaudit/character_contract_details.html",
         add_common_context(request, context),
     )
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_doctrines_data(
+    request, character_pk: int, character: Character
+) -> JsonResponse:
+    def create_data_row(doctrine_name) -> dict:
+        url = (
+            ship_check.ship.ship_type.icon_url(32) if ship_check.ship.ship_type else ""
+        )
+        ship_icon = f'<img width="24" heigh="24" src="{url}"/>'
+        return {
+            "ship_check_id": ship_check.id,
+            "doctrine": doctrine_name,
+            "ship": ship_icon + "&nbsp;&nbsp;" + ship_check.ship.name,
+            "ship_name": ship_check.ship.name,
+            "can_fly": can_fly,
+            "can_fly_str": yesno_str(can_fly),
+            "insufficient_skills": ", ".join(insufficient_skills_2)
+            if insufficient_skills_2
+            else "-",
+        }
+
+    data = list()
+    try:
+        for ship_check in character.doctrine_ships.filter(ship__is_visible=True):
+            insufficient_skills_1 = sorted(
+                ship_check.insufficient_skills.values("skill__name", "level"),
+                key=lambda k: k["skill__name"].lower(),
+            )
+            insufficient_skills_2 = [
+                obj["skill__name"]
+                + "&nbsp;"
+                + MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[obj["level"]]
+                for obj in insufficient_skills_1
+            ]
+            can_fly = not bool(insufficient_skills_2)
+            if not ship_check.ship.doctrines.exists():
+                data.append(create_data_row("(No Doctrine)"))
+            else:
+                for doctrine in ship_check.ship.doctrines.all():
+                    doctrine_name = (
+                        doctrine.name
+                        if doctrine.is_active
+                        else doctrine.name + " [Not active]"
+                    )
+                    data.append(create_data_row(doctrine_name))
+
+    except ObjectDoesNotExist:
+        pass
+
+    data = sorted(data, key=lambda k: (k["doctrine"].lower(), k["ship_name"].lower()))
+    return JsonResponse(data, safe=False)
 
 
 @login_required

@@ -29,6 +29,7 @@
                             {% include 'memberaudit/partials/tab_panel_character_bio.html' %}
                             {% include 'memberaudit/partials/tab_panel_contracts.html' %}
                             {% include 'memberaudit/partials/tab_panel_corporation_history.html' %}
+                            {% include 'memberaudit/partials/tab_panel_doctrines.html' %}
                             {% include 'memberaudit/partials/tab_panel_jump_clones.html' %}
                             {% include 'memberaudit/partials/tab_panel_mails.html' %}
                             {% include 'memberaudit/partials/tab_panel_skills.html' %}
@@ -64,6 +65,12 @@
 
         function title(text) {
             return text.replace(/(^\w|\s\w)/g, m => m.toUpperCase());
+        }
+
+        function bool_to_icon(value) {
+            return value === true
+                ? '<i class="fas fa-check" style="color: green;"></i>'
+                : '<i class="fas fa-times" style="color: red;"></i>';
         }
 
         $(document).ready(function () {
@@ -176,6 +183,52 @@
                 var button = $(event.relatedTarget)
                 var ajax_contract_detail = button.data('ajax_contract_detail');
                 $("#modalCharacterContractContent").load(ajax_contract_detail)
+            });
+
+            $('#tab_doctrines').DataTable({
+                ajax: {
+                    url: "{% url 'memberaudit:character_doctrines_data' character.pk %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    { data: 'doctrine' },                    
+                    { data: 'ship' },
+                    { 
+                        data: 'can_fly',
+                        render: function ( data, type, row, meta ) {
+                            if (type === 'display') {
+                                return bool_to_icon(data)
+                            }
+                            else {
+                                return data;                                
+                            }
+                        }
+                    },
+                    { data: 'insufficient_skills' },
+                    { data: 'can_fly_str' }
+                ],
+                order: [[0, "asc"], [1, "asc"]],
+                rowGroup: {
+                    dataSrc: 'doctrine',
+                    className: 'table-group'
+                },
+                columnDefs: [
+                    { "visible": false, "targets": [0, 4] }
+                ],
+                filterDropDown: {
+                    columns: [
+                        {
+                            idx: 0
+                        },
+                        {
+                            idx: 4,
+                            title: "Can Fly?"
+                        }
+                    ],
+                    autoSize: false,
+                    bootstrap: true
+                }
             });
 
             $('#tab_jump_clones').DataTable({

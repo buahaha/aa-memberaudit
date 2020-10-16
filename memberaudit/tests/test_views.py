@@ -34,6 +34,9 @@ from ..models import (
     CharacterMailMailLabel,
     CharacterSkill,
     CharacterWalletJournalEntry,
+    Doctrine,
+    DoctrineShip,
+    DoctrineShipSkill,
     Location,
 )
 from .utils import reload_user
@@ -47,6 +50,7 @@ from ..views import (
     character_asset_container_data,
     character_contracts_data,
     character_contract_details,
+    character_doctrines_data,
     character_jump_clones_data,
     character_mail_headers_by_label_data,
     character_mail_headers_by_list_data,
@@ -461,6 +465,78 @@ class TestViews(TestCase):
         self.assertIn(
             "not found for character", response_content_to_str(response.content)
         )
+
+    def test_doctrines_data(self):
+        skill_type_1 = EveType.objects.get(id=24311)
+        skill_type_2 = EveType.objects.get(id=24312)
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=skill_type_1,
+            active_skill_level=5,
+            skillpoints_in_skill=10,
+            trained_skill_level=5,
+        )
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=skill_type_2,
+            active_skill_level=2,
+            skillpoints_in_skill=10,
+            trained_skill_level=5,
+        )
+
+        doctrine_1 = Doctrine.objects.create(name="Alpha")
+        doctrine_2 = Doctrine.objects.create(name="Bravo")
+
+        # can fly ship 1
+        ship_1 = DoctrineShip.objects.create(name="Ship 1")
+        DoctrineShipSkill.objects.create(ship=ship_1, skill=skill_type_1, level=3)
+        doctrine_1.ships.add(ship_1)
+        doctrine_2.ships.add(ship_1)
+
+        # can not fly ship 2
+        ship_2 = DoctrineShip.objects.create(name="Ship 2")
+        DoctrineShipSkill.objects.create(ship=ship_2, skill=skill_type_1, level=5)
+        DoctrineShipSkill.objects.create(ship=ship_2, skill=skill_type_2, level=3)
+        doctrine_1.ships.add(ship_2)
+
+        # can fly ship 3 (No Doctrine)
+        ship_3 = DoctrineShip.objects.create(name="Ship 3")
+        DoctrineShipSkill.objects.create(ship=ship_3, skill=skill_type_1, level=1)
+
+        self.character.update_doctrines()
+
+        request = self.factory.get(
+            reverse("memberaudit:character_doctrines_data", args=[self.character.pk])
+        )
+        request.user = self.user
+        response = character_doctrines_data(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertEqual(len(data), 4)
+
+        row = data[0]
+        self.assertEqual(row["doctrine"], "(No Doctrine)")
+        self.assertEqual(row["ship_name"], "Ship 3")
+        self.assertTrue(row["can_fly"])
+        self.assertEqual(row["insufficient_skills"], "-")
+
+        row = data[1]
+        self.assertEqual(row["doctrine"], "Alpha")
+        self.assertEqual(row["ship_name"], "Ship 1")
+        self.assertTrue(row["can_fly"])
+        self.assertEqual(row["insufficient_skills"], "-")
+
+        row = data[2]
+        self.assertEqual(row["doctrine"], "Alpha")
+        self.assertEqual(row["ship_name"], "Ship 2")
+        self.assertFalse(row["can_fly"])
+        self.assertEqual(row["insufficient_skills"], "Caldari Carrier&nbsp;III")
+
+        row = data[3]
+        self.assertEqual(row["doctrine"], "Bravo")
+        self.assertEqual(row["ship_name"], "Ship 1")
+        self.assertTrue(row["can_fly"])
+        self.assertEqual(row["insufficient_skills"], "-")
 
     def test_character_jump_clones_data(self):
         jump_clone = CharacterJumpClone.objects.create(

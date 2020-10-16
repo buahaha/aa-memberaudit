@@ -182,7 +182,7 @@ class LocationAdmin(admin.ModelAdmin):
 
 @admin.register(Doctrine)
 class DoctrineAdmin(admin.ModelAdmin):
-    list_display = ("name", "_ships")
+    list_display = ("name", "_ships", "is_active")
     ordering = ["name"]
     filter_horizontal = ("ships",)
 
@@ -205,7 +205,7 @@ class DoctrineMinimumSkillAdminInline(admin.TabularInline):
 
 @admin.register(DoctrineShip)
 class DoctrineShipAdmin(admin.ModelAdmin):
-    list_display = ("name", "_skills")
+    list_display = ("name", "ship_type", "_skills", "_doctrines", "is_visible")
     ordering = ["name"]
 
     def _skills(self, obj):
@@ -213,6 +213,10 @@ class DoctrineShipAdmin(admin.ModelAdmin):
             f"{x.skill.name} {x.level}"
             for x in obj.skills.all().order_by("skill__name")
         ]
+
+    def _doctrines(self, obj) -> list:
+        doctrines = [f"{x.name}" for x in obj.doctrines.all().order_by("name")]
+        return doctrines if doctrines else None
 
     inlines = (DoctrineMinimumSkillAdminInline,)
 

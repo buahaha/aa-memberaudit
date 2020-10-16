@@ -2535,9 +2535,9 @@ class Doctrine(models.Model):
 
     name = models.CharField(max_length=NAMES_MAX_LENGTH, unique=True)
     description = models.TextField(blank=True)
-    ships = models.ManyToManyField("DoctrineShip")
+    ships = models.ManyToManyField("DoctrineShip", related_name="doctrines")
     is_active = models.BooleanField(
-        default=True, help_text="Whether this doctrine is in active use"
+        default=True, db_index=True, help_text="Whether this doctrine is in active use"
     )
     objects = DoctrineManager()
 
@@ -2549,6 +2549,17 @@ class DoctrineShip(models.Model):
     """A ship for doctrines"""
 
     name = models.CharField(max_length=NAMES_MAX_LENGTH, unique=True)
+    ship_type = models.ForeignKey(
+        EveType, on_delete=models.SET_DEFAULT, default=None, null=True, blank=True
+    )
+    is_visible = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text=(
+            "Non visible doctrine ships are not shown to users "
+            "on their character sheet and used for reporting only."
+        ),
+    )
 
     def __str__(self) -> str:
         return str(self.name)
