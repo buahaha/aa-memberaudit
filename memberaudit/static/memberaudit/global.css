@@ -1,0 +1,16 @@
+/* Global styles shared by all pages */
+
+@media all {
+    /* Style group headers */
+    .template-light-mode .table > tbody > .table-group > td {
+        background-color: rgb(105, 105, 105);
+        color: rgb(255, 255, 255);
+        font-weight: bold;
+    }
+
+    .template-dark-mode .table > tbody > .table-group > td {
+        background-color: rgb(105, 105, 105);
+        color: rgb(255, 255, 255);
+        font-weight: bold;
+    }
+}

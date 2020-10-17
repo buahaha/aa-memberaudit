@@ -16,9 +16,9 @@
                             User Compliance
                         </a>
                     </li>
-                    <li role="presentation" class="disabled">
-                        <a href="#profile" aria-controls="profile" role="tab" data-toggle="tab">
-                            Dummy 1
+                    <li role="presentation">
+                        <a href="#doctrines" aria-controls="doctrines" role="tab" data-toggle="tab">
+                            Doctrines
                         </a>
                     </li>
                     <li role="presentation" class="disabled">
@@ -35,6 +35,8 @@
 
                 <!-- Tab panes -->
                 <div class="tab-content">
+                    
+                    <!-- user compliance -->
                     <div role="tabpanel" class="tab-pane active" id="compliance">
                         <h3>User Compliance</h3>
                         <div class="table-responsive">
@@ -56,7 +58,27 @@
                             </table>
                         </div>
                     </div>
-                    <div role="tabpanel" class="tab-pane" id="profile">...</div>
+                    
+                    <!-- user compliance -->
+                    <div role="tabpanel" class="tab-pane" id="doctrines">
+                        <h3>Doctrines</h3>
+                        <div class="table-responsive">
+                            <table class="table table-striped" id="tab_doctrines" style="width:100%;">
+                                <thead>
+                                    <tr>
+                                        <th>Doctrine</th>
+                                        <th>Main</th>
+                                        <th>Organization</th>
+                                        <th>Character</th>
+                                        <th>Can Fly</th>
+                                    </tr>
+                                </thead>
+                                <tbody>                   
+                                </tbody>                
+                            </table>
+                        </div>
+                    </div>
+
                     <div role="tabpanel" class="tab-pane" id="messages">...</div>
                     <div role="tabpanel" class="tab-pane" id="settings">...</div>
                 </div>
@@ -70,19 +92,20 @@
 {% block extra_javascript %}
     {% include 'bundles/datatables-js.html' %}    
     
-    <!--load JS for filterDropDown plugin -->
-    <script type="text/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}">
-    </script>
+    <script type="application/javascript"
+        src="{% static 'memberaudit/vendor/datatables/plugins/dataTables.rowGroup.min.js' %}"></script>
+
+    <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
     
     <script>
         $(document).ready(function() {
+            
             $('#tab_contracts').DataTable({            
                 ajax: {
                     url: '{% url 'memberaudit:compliance_report_data' %}',
                     dataSrc: '',
                     cache: false
                 },
-
                 columns: [
                     { data: 'portrait' },
                     { data: 'name' },
@@ -93,13 +116,10 @@
                     { data: 'unregistered_chars' },
                     { data: 'compliance_str' }
                 ],
-
                 columnDefs: [														
                     { "orderable": false, "targets": [ 0 ] },                
                 ],
-
                 order: [ [ 1, "asc" ] ],
-
                 filterDropDown: {										
                     columns: [	                                                          
                         {
@@ -120,7 +140,6 @@
                     ],
                     bootstrap: true
                 },
-                
                 createdRow: function( row, data, dataIndex ) 
                 {
                     if (!data['is_compliant'])
@@ -128,14 +147,64 @@
                         $(row).addClass('danger');
                     }                
                 }            
-            });       
+            });
+
+            $('#tab_doctrines').DataTable({
+                ajax: {
+                    url: "{% url 'memberaudit:doctrines_report_data' %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    { data: 'doctrine' },                    
+                    { data: 'main_html' },
+                    { data: 'organization_html' },
+                    { data: 'character_html' },                    
+                    { data: 'can_fly' },
+                    
+                    /* hidden columns */                    
+                    { data: 'alliance' },
+                    { data: 'corporation' },
+                    { data: 'can_fly_str' },                    
+                ],
+                order: [[0, "asc"], [1, "asc"], [3, "asc"]],
+                rowGroup: {
+                    dataSrc: 'doctrine',
+                    className: 'table-group'
+                },
+                columnDefs: [
+                    { "visible": false, "targets": [0, 5, 6, 7] }
+                ],
+                filterDropDown: {
+                    columns: [
+                        {
+                            idx: 0
+                        },
+                        {
+                            idx: 5,
+                            title: "Alliance"
+                        },
+                        {
+                            idx: 6,
+                            title: "Corporation"
+                        },
+                        {
+                            idx: 7,
+                            title: "Can Fly?"
+                        }
+                    ],
+                    autoSize: false,
+                    bootstrap: true
+                }
+            });
+            
         });
     </script>
 {% endblock %}
 
 {% block extra_css %}
     {% include 'bundles/datatables-css.html' %}
-    <link href="{% static 'memberaudit/contracts.css' %}" type="text/css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'memberaudit/global.css' %}" type="text/css">
 {% endblock %}
 
 {% block extra_script %}

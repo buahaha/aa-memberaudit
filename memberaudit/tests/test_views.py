@@ -19,7 +19,7 @@ from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
 from .testdata.load_locations import load_locations
 
-from . import create_memberaudit_character
+from . import create_memberaudit_character, add_memberaudit_character_to_user
 from ..models import (
     Character,
     CharacterAsset,
@@ -58,6 +58,7 @@ from ..views import (
     character_wallet_journal_data,
     character_finder_data,
     compliance_report_data,
+    doctrines_report_data,
     remove_character,
     share_character,
     unshare_character,
@@ -1054,3 +1055,148 @@ class TestCharacterLocationData(TestCase):
         response = orig_view(request, self.character.pk)
         self.assertEqual(response.status_code, 200)
         self.assertIn("Unexpected error", response.content.decode("utf8"))
+
+
+class TestDoctrineReportData(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.factory = RequestFactory()
+        load_eveuniverse()
+        load_entities()
+        state = AuthUtils.get_member_state()
+        state.member_alliances.add(EveAllianceInfo.objects.get(alliance_id=3001))
+
+        # user 1 is manager requesting the report
+        cls.character_1001 = create_memberaudit_character(1001)
+        cls.user = cls.character_1001.character_ownership.user
+        cls.user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.reports_access", cls.user
+        )
+        cls.user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_everything", cls.user
+        )
+
+        # user 2 is normal user and has two characters
+        cls.character_1002 = create_memberaudit_character(1002)
+        cls.character_1101 = add_memberaudit_character_to_user(
+            cls.character_1002.character_ownership.user, 1101
+        )
+        # cls.character_1003 = create_memberaudit_character(1003)
+
+    def test_normal(self):
+        def make_data_id(doctrine: Doctrine, character: Character) -> str:
+            doctrine_pk = doctrine.pk if doctrine else 0
+            return f"{doctrine_pk}_{character.pk}"
+
+        def multi_assert_in(items, container) -> bool:
+            for item in items:
+                if item not in container:
+                    return False
+
+            return True
+
+        def multi_assert_not_in(items, container) -> bool:
+            for item in items:
+                if item in container:
+                    return False
+
+            return True
+
+        # define doctrines
+        skill_type_1 = EveType.objects.get(id=24311)
+        skill_type_2 = EveType.objects.get(id=24312)
+
+        ship_1 = DoctrineShip.objects.create(name="Ship 1")
+        DoctrineShipSkill.objects.create(ship=ship_1, skill=skill_type_1, level=3)
+
+        ship_2 = DoctrineShip.objects.create(name="Ship 2")
+        DoctrineShipSkill.objects.create(ship=ship_2, skill=skill_type_1, level=5)
+        DoctrineShipSkill.objects.create(ship=ship_2, skill=skill_type_2, level=3)
+
+        ship_3 = DoctrineShip.objects.create(name="Ship 3")
+        DoctrineShipSkill.objects.create(ship=ship_3, skill=skill_type_1, level=1)
+
+        doctrine_1 = Doctrine.objects.create(name="Alpha")
+        doctrine_1.ships.add(ship_1)
+        doctrine_1.ships.add(ship_2)
+
+        doctrine_2 = Doctrine.objects.create(name="Bravo")
+        doctrine_2.ships.add(ship_1)
+
+        # character 1002
+        CharacterSkill.objects.create(
+            character=self.character_1002,
+            eve_type=skill_type_1,
+            active_skill_level=5,
+            skillpoints_in_skill=10,
+            trained_skill_level=5,
+        )
+        CharacterSkill.objects.create(
+            character=self.character_1002,
+            eve_type=skill_type_2,
+            active_skill_level=2,
+            skillpoints_in_skill=10,
+            trained_skill_level=2,
+        )
+
+        # character 1101
+        CharacterSkill.objects.create(
+            character=self.character_1101,
+            eve_type=skill_type_1,
+            active_skill_level=5,
+            skillpoints_in_skill=10,
+            trained_skill_level=5,
+        )
+        CharacterSkill.objects.create(
+            character=self.character_1101,
+            eve_type=skill_type_2,
+            active_skill_level=5,
+            skillpoints_in_skill=10,
+            trained_skill_level=5,
+        )
+
+        self.character_1001.update_doctrines()
+        self.character_1002.update_doctrines()
+        self.character_1101.update_doctrines()
+
+        request = self.factory.get(reverse("memberaudit:doctrines_report_data"))
+        request.user = self.user
+        response = doctrines_report_data(request)
+
+        self.assertEqual(response.status_code, 200)
+        data = {x["id"]: x for x in json_response_to_python(response)}
+        self.assertEqual(len(data), 9)
+
+        row = data[make_data_id(doctrine_1, self.character_1001)]
+        self.assertEqual(row["doctrine"], "Alpha")
+        self.assertEqual(row["character"], "Bruce Wayne")
+        self.assertEqual(row["main"], "Bruce Wayne")
+        self.assertTrue(multi_assert_not_in(["Ship 1", "Ship 2"], row["can_fly"]))
+
+        row = data[make_data_id(doctrine_1, self.character_1002)]
+        self.assertEqual(row["doctrine"], "Alpha")
+        self.assertEqual(row["character"], "Clark Kent")
+        self.assertEqual(row["main"], "Clark Kent")
+
+        self.assertTrue(multi_assert_in(["Ship 1"], row["can_fly"]))
+        self.assertTrue(multi_assert_not_in(["Ship 2", "Ship 3"], row["can_fly"]))
+
+        row = data[make_data_id(doctrine_1, self.character_1101)]
+        self.assertEqual(row["doctrine"], "Alpha")
+        self.assertEqual(row["character"], "Lex Luther")
+        self.assertEqual(row["main"], "Clark Kent")
+        self.assertTrue(multi_assert_in(["Ship 1", "Ship 2"], row["can_fly"]))
+
+        row = data[make_data_id(doctrine_2, self.character_1101)]
+        self.assertEqual(row["doctrine"], "Bravo")
+        self.assertEqual(row["character"], "Lex Luther")
+        self.assertEqual(row["main"], "Clark Kent")
+        self.assertTrue(multi_assert_in(["Ship 1"], row["can_fly"]))
+        self.assertTrue(multi_assert_not_in(["Ship 2"], row["can_fly"]))
+
+        row = data[make_data_id(None, self.character_1101)]
+        self.assertEqual(row["doctrine"], "(No Doctrine)")
+        self.assertEqual(row["character"], "Lex Luther")
+        self.assertEqual(row["main"], "Clark Kent")
+        self.assertTrue(multi_assert_in(["Ship 3"], row["can_fly"]))

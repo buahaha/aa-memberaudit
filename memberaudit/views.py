@@ -16,6 +16,7 @@ from django.urls import reverse
 from django.utils.timesince import timeuntil
 from django.utils.html import format_html
 from django.utils.timezone import now
+from django.utils.translation import gettext_lazy
 from django.views.decorators.cache import cache_page
 
 from bravado.exception import HTTPError
@@ -35,14 +36,15 @@ from .models import (
     CharacterAsset,
     CharacterContract,
     CharacterMail,
+    Doctrine,
     Location,
 )
 from .utils import (
-    messages_plus,
-    LoggerAddTag,
     create_link_html,
-    DATETIME_FORMAT,
     create_fa_button_html,
+    DATETIME_FORMAT,
+    LoggerAddTag,
+    messages_plus,
     yesno_str,
 )
 
@@ -51,11 +53,14 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 MY_DATETIME_FORMAT = "Y-M-d H:i"
 MAIL_LABEL_ID_ALL_MAILS = 0
 MAP_SKILL_LEVEL_ARABIC_TO_ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V"}
+NO_DOCTRINE_NAME = gettext_lazy("(No Doctrine)")
+DEFAULT_ICON_SIZE = 32
 
 
-def create_img_html(src: str, classes: list) -> str:
-    classes_str = 'class="{}"'.format(" ".join(classes)) if classes else ""
-    return f'<img {classes_str}src="{str(src)}">'
+def create_img_html(src: str, classes: list = None, size=None) -> str:
+    classes_str = format_html('class="{}"', (" ".join(classes)) if classes else "")
+    size_html = format_html('width="{}" height="{}"', size, size) if size else ""
+    return format_html('<img {} {} src="{}">', classes_str, size_html, src)
 
 
 def add_common_context(request, context: dict) -> dict:
@@ -496,7 +501,7 @@ def character_assets_data(
             {
                 "item_id": asset.item_id,
                 "location": location_name,
-                "icon": create_img_html(asset.eve_type.icon_url(32), []),
+                "icon": create_img_html(asset.eve_type.icon_url(DEFAULT_ICON_SIZE), []),
                 "name": asset.name_display,
                 "quantity": asset.quantity if not asset.is_singleton else "",
                 "group": asset.group_display,
@@ -564,7 +569,7 @@ def character_asset_container_data(
         data.append(
             {
                 "item_id": asset.item_id,
-                "icon": create_img_html(asset.eve_type.icon_url(32), []),
+                "icon": create_img_html(asset.eve_type.icon_url(DEFAULT_ICON_SIZE), []),
                 "name": asset.name_display,
                 "quantity": asset.quantity if not asset.is_singleton else "",
                 "group": asset.group_display,
@@ -702,7 +707,9 @@ def character_doctrines_data(
 ) -> JsonResponse:
     def create_data_row(doctrine_name) -> dict:
         url = (
-            ship_check.ship.ship_type.icon_url(32) if ship_check.ship.ship_type else ""
+            ship_check.ship.ship_type.icon_url(DEFAULT_ICON_SIZE)
+            if ship_check.ship.ship_type
+            else ""
         )
         ship_icon = f'<img width="24" heigh="24" src="{url}"/>'
         return {
@@ -732,7 +739,7 @@ def character_doctrines_data(
             ]
             can_fly = not bool(insufficient_skills_2)
             if not ship_check.ship.doctrines.exists():
-                data.append(create_data_row("(No Doctrine)"))
+                data.append(create_data_row(NO_DOCTRINE_NAME))
             else:
                 for doctrine in ship_check.ship.doctrines.all():
                     doctrine_name = (
@@ -961,76 +968,7 @@ def character_wallet_journal_data(
 
 
 #############################
-# Section: Analysis
-
-
-@login_required
-@permission_required("memberaudit.reports_access")
-def reports(request) -> HttpResponse:
-    context = {
-        "page_title": "Reports",
-    }
-    return render(
-        request,
-        "memberaudit/reports.html",
-        add_common_context(request, context),
-    )
-
-
-@login_required
-@permission_required("memberaudit.reports_access")
-def compliance_report_data(request) -> JsonResponse:
-    if request.user.has_perm("memberaudit.view_everyhing"):
-        users_qs = User.objects.all()
-    else:
-        users_qs = User.objects.none()
-        if (
-            request.user.has_perm("memberaudit.view_same_alliance")
-            and request.user.profile.main_character.alliance_id
-        ):
-            users_qs = User.objects.select_related("profile__main_character").filter(
-                profile__main_character__alliance_id=request.user.profile.main_character.alliance_id
-            )
-        elif request.user.has_perm("memberaudit.view_same_corporation"):
-            users_qs = User.objects.select_related("profile__main_character").filter(
-                profile__main_character__corporation_id=request.user.profile.main_character.corporation_id
-            )
-
-    member_users = (
-        users_qs.filter(profile__state__name="Member")
-        .annotate(total_chars=Count("character_ownerships"))
-        .annotate(
-            unregistered_chars=Count(
-                "character_ownerships",
-                filter=Q(character_ownerships__memberaudit_character=None),
-            )
-        )
-        .select_related("profile__main_character")
-    )
-
-    user_data = list()
-    for user in member_users:
-        if user.profile.main_character:
-            portrait_html = create_img_html(
-                user.profile.main_character.portrait_url(), ["ra-avatar", "img-circle"]
-            )
-            main_character = user.profile.main_character
-            user_data.append(
-                {
-                    "user_pk": user.pk,
-                    "portrait": portrait_html,
-                    "name": user.username,
-                    "main": main_character.character_name,
-                    "corporation": main_character.corporation_name,
-                    "alliance": main_character.alliance_name,
-                    "total_chars": user.total_chars,
-                    "unregistered_chars": user.unregistered_chars,
-                    "is_compliant": user.unregistered_chars == 0,
-                    "compliance_str": "yes" if user.unregistered_chars == 0 else "no",
-                }
-            )
-
-    return JsonResponse(user_data, safe=False)
+# Section: Character Finder
 
 
 @login_required
@@ -1090,3 +1028,181 @@ def character_finder_data(request) -> JsonResponse:
             }
         )
     return JsonResponse(character_list, safe=False)
+
+
+#############################
+# Section: Reports
+
+
+def _report_user_qs(request):
+    if request.user.has_perm("memberaudit.view_everything"):
+        users_qs = User.objects.all()
+    else:
+        users_qs = User.objects.none()
+        if (
+            request.user.has_perm("memberaudit.view_same_alliance")
+            and request.user.profile.main_character.alliance_id
+        ):
+            users_qs = User.objects.select_related("profile__main_character").filter(
+                profile__main_character__alliance_id=request.user.profile.main_character.alliance_id
+            )
+        elif request.user.has_perm("memberaudit.view_same_corporation"):
+            users_qs = User.objects.select_related("profile__main_character").filter(
+                profile__main_character__corporation_id=request.user.profile.main_character.corporation_id
+            )
+
+    return users_qs
+
+
+@login_required
+@permission_required("memberaudit.reports_access")
+def reports(request) -> HttpResponse:
+    context = {
+        "page_title": "Reports",
+    }
+    return render(
+        request,
+        "memberaudit/reports.html",
+        add_common_context(request, context),
+    )
+
+
+@login_required
+@permission_required("memberaudit.reports_access")
+def compliance_report_data(request) -> JsonResponse:
+    users_qs = _report_user_qs(request)
+
+    member_users = (
+        users_qs.filter(profile__state__name="Member")
+        .annotate(total_chars=Count("character_ownerships"))
+        .annotate(
+            unregistered_chars=Count(
+                "character_ownerships",
+                filter=Q(character_ownerships__memberaudit_character=None),
+            )
+        )
+        .select_related("profile__main_character")
+    )
+
+    user_data = list()
+    for user in member_users:
+        if user.profile.main_character:
+            portrait_html = create_img_html(
+                user.profile.main_character.portrait_url(), ["ra-avatar", "img-circle"]
+            )
+            main_character = user.profile.main_character
+            user_data.append(
+                {
+                    "user_pk": user.pk,
+                    "portrait": portrait_html,
+                    "name": user.username,
+                    "main": main_character.character_name,
+                    "corporation": main_character.corporation_name,
+                    "alliance": main_character.alliance_name,
+                    "total_chars": user.total_chars,
+                    "unregistered_chars": user.unregistered_chars,
+                    "is_compliant": user.unregistered_chars == 0,
+                    "compliance_str": "yes" if user.unregistered_chars == 0 else "no",
+                }
+            )
+
+    return JsonResponse(user_data, safe=False)
+
+
+def create_icon_plus_name_html(icon_url, name) -> str:
+    return format_html(
+        "{}&nbsp;&nbsp;{}",
+        create_img_html(icon_url, ["ra-avatar", "img-circle"], size=DEFAULT_ICON_SIZE),
+        name,
+    )
+
+
+@login_required
+@permission_required("memberaudit.reports_access")
+def doctrines_report_data(request) -> JsonResponse:
+    def create_data_row(doctrine) -> dict:
+        user = character.character_ownership.user
+        auth_character = character.character_ownership.character
+        main_character = user.profile.main_character
+        main_html = create_icon_plus_name_html(
+            user.profile.main_character.portrait_url(), main_character.character_name
+        )
+        main_corporation = main_character.corporation_name
+        main_alliance = (
+            main_character.alliance_name if main_character.alliance_name else ""
+        )
+        organization_html = format_html(
+            "{}{}",
+            main_corporation,
+            f" [{main_character.alliance_ticker}]"
+            if main_character.alliance_name
+            else "",
+        )
+        character_html = create_icon_plus_name_html(
+            auth_character.portrait_url(), auth_character.character_name
+        )
+        doctrine_pk = doctrine.pk if doctrine else 0
+        can_fly = [
+            create_icon_plus_name_html(
+                obj.ship.ship_type.icon_url(DEFAULT_ICON_SIZE)
+                if obj.ship.ship_type
+                else "",
+                obj.ship.name,
+            )
+            for obj in doctrine_ship_qs
+        ]
+        can_fly_html = (
+            "<br>".join(can_fly)
+            if can_fly
+            else '<i class="fas fa-times" style="color: red;"></i>'
+        )
+        return {
+            "id": f"{doctrine_pk}_{character.pk}",
+            "doctrine": doctrine.name if doctrine else NO_DOCTRINE_NAME,
+            "main": main_character.character_name,
+            "main_html": main_html,
+            "organization_html": organization_html,
+            "corporation": main_corporation,
+            "alliance": main_alliance,
+            "character": character.character_ownership.character.character_name,
+            "character_html": character_html,
+            "can_fly": can_fly_html,
+            "can_fly_str": yesno_str(bool(can_fly)),
+        }
+
+    users_qs = _report_user_qs(request)
+    data = list()
+
+    character_qs = (
+        Character.objects.select_related("character_ownership__user")
+        .select_related(
+            "character_ownership__user",
+            "character_ownership__user__profile__main_character",
+            "character_ownership__character",
+        )
+        .prefetch_related("doctrine_ships")
+        .filter(character_ownership__user__in=users_qs)
+    )
+
+    my_select_related = "ship", "ship__ship_type"
+    for doctrine in Doctrine.objects.all():
+        for character in character_qs:
+            doctrine_ship_qs = (
+                character.doctrine_ships.select_related(*my_select_related)
+                .filter(ship__doctrines=doctrine, insufficient_skills__isnull=True)
+                .order_by("ship__name")
+            )
+            data.append(create_data_row(doctrine))
+
+    for character in character_qs:
+        if (
+            character.doctrine_ships.select_related(*my_select_related)
+            .filter(ship__doctrines__isnull=True)
+            .exists()
+        ):
+            doctrine_ship_qs = character.doctrine_ships.filter(
+                ship__doctrines__isnull=True, insufficient_skills__isnull=True
+            ).order_by("ship__name")
+            data.append(create_data_row(None))
+
+    return JsonResponse(data, safe=False)

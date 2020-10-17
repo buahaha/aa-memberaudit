@@ -23,3 +23,11 @@ def create_user_from_evecharacter(character_id: int) -> Tuple[User, CharacterOwn
 def create_memberaudit_character(character_id: int) -> Character:
     _, character_ownership = create_user_from_evecharacter(character_id)
     return Character.objects.create(character_ownership=character_ownership)
+
+
+def add_memberaudit_character_to_user(user: User, character_id: int) -> Character:
+    auth_character = EveCharacter.objects.get(character_id=character_id)
+    character_ownership = add_character_to_user(
+        user, auth_character, is_main=False, scopes=Character.get_esi_scopes()
+    )
+    return Character.objects.create(character_ownership=character_ownership)

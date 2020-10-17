@@ -110,4 +110,9 @@ urlpatterns = [
         views.character_finder_data,
         name="character_finder_data",
     ),
+    path(
+        "doctrines_report_data",
+        views.doctrines_report_data,
+        name="doctrines_report_data",
+    ),
 ]
