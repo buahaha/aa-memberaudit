@@ -8,8 +8,9 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 
 from . import create_memberaudit_character
-
+from ..models import Character
 from ..tasks import (
+    update_all_characters,
     update_character,
     update_structure_esi,
     LOCATION_ESI_ERRORS_CACHE_KEY,
@@ -44,6 +45,40 @@ class TestUpdateCharacter(TestCase):
 
         update_character(self.character.pk)
         self.assertTrue(self.character.is_update_status_ok())
+
+    def test_report_error(self, mock_esi):
+        mock_esi.client.Assets.get_characters_character_id_assets.side_effect = (
+            RuntimeError("Dummy")
+        )
+
+        update_character(self.character.pk)
+        self.assertFalse(self.character.is_update_status_ok())
+
+        status = self.character.update_status_set.get(
+            character=self.character, section=Character.UPDATE_SECTION_ASSETS
+        )
+        self.assertFalse(status.is_success)
+        self.assertEqual(status.error_message, "RuntimeError: Dummy")
+
+
+@patch(MODELS_PATH + ".esi")
+@override_settings(CELERY_ALWAYS_EAGER=True)
+class TestUpdateAllCharacters(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_eveuniverse()
+        load_entities()
+        load_locations()
+
+    def setUp(self) -> None:
+        self.character_1001 = create_memberaudit_character(1001)
+
+    def test_normal(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        update_all_characters()
+        self.assertTrue(self.character_1001.is_update_status_ok())
 
 
 @patch(TASKS_PATH + ".Location.objects.structure_update_or_create_esi")

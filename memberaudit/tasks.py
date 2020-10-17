@@ -9,6 +9,7 @@ from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
 
 from . import __title__
+from .app_settings import MEMBERAUDIT_TASKS_TIME_LIMIT
 from .models import (
     Character,
     CharacterContract,
@@ -29,29 +30,16 @@ ESI_TIMEOUT_ONCE_ERROR_LIMIT_REACHED = 60
 LOCATION_ESI_ERRORS_CACHE_KEY = "MEMBERAUDIT_LOCATION_ESI_ERRORS"
 
 
-def _load_character(character_pk: int) -> Character:
-    try:
-        return Character.objects.get(pk=character_pk)
-    except Character.DoesNotExist:
-        raise Character.DoesNotExist(
-            "Requested character with pk {} not registered".format(character_pk)
-        )
-
-
-@shared_task
+@shared_task(base=QueueOnce, time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
 def update_character_section(character_pk: int, section: str) -> None:
-    character = _load_character(character_pk)
+    """Task that updates the section of a character"""
+    character = Character.objects.get(pk=character_pk)
     character.update_status_set.filter(section=section).delete()
+    logger.info("%s: Updating %s", character, Character.section_display_name(section))
     try:
-        logger.info(
-            "%s: Updating %s", character, Character.section_display_name(section)
-        )
         getattr(character, Character.section_method_name(section))()
-        CharacterUpdateStatus.objects.create(
-            character=character, section=section, is_success=True
-        )
     except Exception as ex:
-        error_message = f"{repr(ex)}"
+        error_message = f"{type(ex).__name__}: {str(ex)}"
         logger.error(
             "%s: %s: Error ocurred: %s",
             character,
@@ -59,19 +47,31 @@ def update_character_section(character_pk: int, section: str) -> None:
             error_message,
             exc_info=True,
         )
-        CharacterUpdateStatus.objects.create(
+        CharacterUpdateStatus.objects.update_or_create(
             character=character,
             section=section,
-            is_success=False,
-            error_message=error_message,
+            defaults={
+                "is_success": False,
+                "error_message": error_message,
+            },
         )
         raise ex
 
+    else:
+        logger.info(
+            "%s: %s update completed",
+            character,
+            Character.section_display_name(section),
+        )
+        CharacterUpdateStatus.objects.update_or_create(
+            character=character, section=section, defaults={"is_success": True}
+        )
 
-@shared_task
+
+@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
 def update_character(character_pk: int) -> None:
-    """update all data for a character from ESI"""
-    character = _load_character(character_pk)
+    """Start respective update tasks for all sections of a character"""
+    character = Character.objects.get(pk=character_pk)
     logger.info("%s: Starting character update", character)
     for section, _ in Character.UPDATE_SECTION_CHOICES:
         update_character_section.apply_async(
@@ -83,8 +83,9 @@ def update_character(character_pk: int) -> None:
         )
 
 
-@shared_task
+@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
 def update_all_characters() -> None:
+    """Start the update of all registered characters"""
     if not is_esi_online():
         logger.info(
             "ESI is currently offline. Can not start character update. Aborting"
@@ -97,10 +98,16 @@ def update_all_characters() -> None:
         )
 
 
-@shared_task(bind=True, base=QueueOnce, once={"keys": ["id"]}, max_retries=None)
+@shared_task(
+    bind=True,
+    base=QueueOnce,
+    once={"keys": ["id"]},
+    max_retries=None,
+    time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT,
+)
 def update_structure_esi(self, id: int, token_pk: int):
     """Updates a structure object from ESI
-    and defers itself if the ESI error limit for structures has been exceeded
+    and retries later if the ESI error limit for structures has been reached
     """
     try:
         token = Token.objects.get(pk=token_pk)
@@ -123,22 +130,25 @@ def update_structure_esi(self, id: int, token_pk: int):
         raise self.retry(countdown=ESI_TIMEOUT_ONCE_ERROR_LIMIT_REACHED)
 
 
-@shared_task
+@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
 def update_mail_body_esi(character_pk: int, mail_pk: int):
-    character = _load_character(character_pk)
+    """Task for updating the body of a mail from ESI"""
+    character = Character.objects.get(pk=character_pk)
     mail = CharacterMail.objects.get(pk=mail_pk)
     character.update_mail_body(mail)
 
 
-@shared_task
+@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
 def update_contract_items_esi(character_pk: int, contract_pk: int):
-    character = _load_character(character_pk)
+    """Task for updating the items of a contract from ESI"""
+    character = Character.objects.get(pk=character_pk)
     contract = CharacterContract.objects.get(pk=contract_pk)
     character.update_contract_items(contract)
 
 
-@shared_task
+@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
 def update_contract_bids_esi(character_pk: int, contract_pk: int):
-    character = _load_character(character_pk)
+    """Task for updating the bids of a contract from ESI"""
+    character = Character.objects.get(pk=character_pk)
     contract = CharacterContract.objects.get(pk=contract_pk)
     character.update_contract_bids(contract)

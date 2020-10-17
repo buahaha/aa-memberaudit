@@ -532,7 +532,7 @@ class Character(models.Model):
                 CharacterCorporationHistory.objects.bulk_create(entries)
                 EveEntity.objects.bulk_update_new_esi()
             else:
-                logger.info("%s: Corporation history is empty", self, len(entries))
+                logger.info("%s: Corporation history is empty", self)
 
     @fetch_token("esi-characters.read_contacts.v1")
     def update_contacts(self, token: Token):
