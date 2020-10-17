@@ -73,7 +73,8 @@
                 : '<i class="fas fa-times" style="color: red;"></i>';
         }
 
-        $(document).ready(function () {
+        $(document).ready(function () {            
+            /* Summary panel */
             $("#div_solar_system").load(
                 "{% url 'memberaudit:character_solar_system_data' character.pk %}"
             );
@@ -81,6 +82,7 @@
                 "{% url 'memberaudit:character_location_data' character.pk %}"
             );
 
+            /* Assets */
             $('#tab_assets').DataTable({
                 ajax: {
                     url: "{% url 'memberaudit:character_assets_data' character.pk %}",
@@ -145,6 +147,76 @@
                 $("#modalCharacterAssetContainerContent").load(ajax_children_url)
             });
 
+            /* Contacts */
+            $('#tab_contacts').DataTable({
+                ajax: {
+                    url: "{% url 'memberaudit:character_contacts_data' character.pk %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    { data: 'level' },
+                    { 
+                        data: 'name',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        } 
+                    },
+                    { data: 'type' },
+                    { data: 'standing' },
+                    { data: 'is_watched' },
+                    { data: 'is_blocked' },
+                    
+                    /* hidden */                    
+                    { data: 'is_watched_str' },
+                    { data: 'is_blocked_str' },
+                ],
+                order: [[3, "desc"], [0, "asc"], [1, "asc"]],
+                rowGroup: {
+                    dataSrc: 'level',
+                    className: 'table-group'
+                },
+                columnDefs: [
+                    {
+                        "visible": false, "targets": [0, 6, 7] 
+                    },                    
+                    { 
+                        /* render bools as icon */
+                        "render": function ( data, type, row, meta ) {
+                            if (type === 'display') {
+                                return bool_to_icon(data)
+                            }
+                            else {
+                                return data;                                
+                            }
+                        }, 
+                        "targets": [4, 5]
+                    }
+                ],
+                filterDropDown: {
+                    columns: [                        
+                        {
+                            idx: 0
+                        },
+                        {
+                            idx: 2
+                        },
+                        {
+                            idx: 6,
+                            title: "Watched?"
+                        },
+                        {
+                            idx: 7,
+                            title: "Blocked?"
+                        }
+                    ],
+                    autoSize: false,
+                    bootstrap: true
+                }
+            });
+
+            /* Contracts */
             $('#tab_contracts').DataTable({
                 ajax: {
                     url: "{% url 'memberaudit:character_contracts_data' character.pk %}",
@@ -165,6 +237,9 @@
                     { data: 'actions' },
                 ],
                 order: [[5, "desc"]],
+                columnDefs: [
+                    { "orderable": false, "targets": [ 8 ] }                  
+                ],
                 filterDropDown: {
                     columns: [
                         {
@@ -185,6 +260,7 @@
                 $("#modalCharacterContractContent").load(ajax_contract_detail)
             });
 
+            /* Doctrines */
             $('#tab_doctrines').DataTable({
                 ajax: {
                     url: "{% url 'memberaudit:character_doctrines_data' character.pk %}",
@@ -214,7 +290,9 @@
                     className: 'table-group'
                 },
                 columnDefs: [
-                    { "visible": false, "targets": [0, 4] }
+                    { "visible": false, "targets": [0, 4] },                
+                    { "orderable": false, "targets": [ 3 ] }                  
+                
                 ],
                 filterDropDown: {
                     columns: [
@@ -231,6 +309,7 @@
                 }
             });
 
+            /* Clones */
             $('#tab_jump_clones').DataTable({
                 ajax: {
                     url: "{% url 'memberaudit:character_jump_clones_data' character.pk %}",
@@ -243,9 +322,13 @@
                     { data: 'location' },
                     { data: 'implants' }
                 ],
-                order: [[0, "asc"], [1, "asc"]]
+                order: [[0, "asc"], [1, "asc"]],
+                columnDefs: [
+                    { "orderable": false, "targets": [ 3 ] }                  
+                ],
             });
 
+            /* Mails */
             var table = $('#tab_mails').DataTable({
                 ajax: {
                     url: "{% url 'memberaudit:character_mail_headers_by_label_data' character.pk 1 %}",
@@ -263,6 +346,9 @@
                     { data: 'action' }
                 ],
                 order: [[0, "desc"]],
+                columnDefs: [                  
+                    { "orderable": false, "targets": [ 4 ] }
+                ],
 
                 createdRow: function( row, data, dataIndex ) {
                     if ( !data['is_read'] ) {
@@ -310,6 +396,7 @@
                 });
             })
 
+            /* Skills */
             $('#tab_skills').DataTable({
                 ajax: {
                     url: "{% url 'memberaudit:character_skills_data' character.pk %}",
@@ -318,8 +405,8 @@
                 },
                 columns: [
                     { data: 'group' },
-                    { data: 'skill' },
-                    { data: 'level' },
+                    { data: 'skill_name' },
+                    { data: 'level_str' },
                 ],
                 order: [[0, "asc"], [1, "asc"]],
                 rowGroup: {
@@ -327,10 +414,21 @@
                     className: 'table-group'
                 },
                 columnDefs: [
-                    { "visible": false, "targets": [0] }
-                ]
+                    { "visible": false, "targets": [0, 2] }
+                ],
+                filterDropDown: {
+                    columns: [
+                        {
+                            idx: 2,
+                            title: "Level"
+                        }
+                    ],
+                    autoSize: false,
+                    bootstrap: true
+                }
             });
 
+            /* Wallet */
             $('#tab_wallet').DataTable({
                 ajax: {
                     url: "{% url 'memberaudit:character_wallet_journal_data' character.pk %}",

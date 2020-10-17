@@ -23,6 +23,7 @@ from . import create_memberaudit_character, add_memberaudit_character_to_user
 from ..models import (
     Character,
     CharacterAsset,
+    CharacterContact,
     CharacterContract,
     CharacterContractItem,
     CharacterJumpClone,
@@ -47,6 +48,7 @@ from ..views import (
     character_assets_data,
     character_asset_container,
     character_asset_container_data,
+    character_contacts_data,
     character_contracts_data,
     character_contract_details,
     character_doctrines_data,
@@ -73,6 +75,26 @@ def response_content_to_str(content) -> str:
 
 def json_response_to_python(response: JsonResponse) -> object:
     return json.loads(response_content_to_str(response.content))
+
+
+def json_response_to_python_dict(response: JsonResponse) -> dict:
+    return {x["id"]: x for x in json_response_to_python(response)}
+
+
+def multi_assert_in(items, container) -> bool:
+    for item in items:
+        if item not in container:
+            return False
+
+    return True
+
+
+def multi_assert_not_in(items, container) -> bool:
+    for item in items:
+        if item in container:
+            return False
+
+    return True
 
 
 class TestViews(TestCase):
@@ -466,6 +488,45 @@ class TestViews(TestCase):
             "not found for character", response_content_to_str(response.content)
         )
 
+    def test_character_contacts_data(self):
+        CharacterContact.objects.create(
+            character=self.character,
+            eve_entity=EveEntity.objects.get(id=1101),
+            standing=-10,
+            is_blocked=True,
+        )
+        CharacterContact.objects.create(
+            character=self.character,
+            eve_entity=EveEntity.objects.get(id=2001),
+            standing=10,
+        )
+
+        request = self.factory.get(
+            reverse("memberaudit:character_contacts_data", args=[self.character.pk])
+        )
+        request.user = self.user
+        response = character_contacts_data(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python_dict(response)
+
+        self.assertEqual(len(data), 2)
+
+        row = data[1101]
+        self.assertEqual(row["name"]["sort"], "Lex Luther")
+        self.assertEqual(row["standing"], -10)
+        self.assertEqual(row["type"], "Character")
+        self.assertEqual(row["is_watched"], False)
+        self.assertEqual(row["is_blocked"], True)
+        self.assertEqual(row["level"], "Terrible Standing")
+
+        row = data[2001]
+        self.assertEqual(row["name"]["sort"], "Wayne Technologies")
+        self.assertEqual(row["standing"], 10)
+        self.assertEqual(row["type"], "Corporation")
+        self.assertEqual(row["is_watched"], False)
+        self.assertEqual(row["is_blocked"], False)
+        self.assertEqual(row["level"], "Excellent Standing")
+
     def test_doctrines_data(self):
         skill_type_1 = EveType.objects.get(id=24311)
         skill_type_2 = EveType.objects.get(id=24312)
@@ -539,7 +600,7 @@ class TestViews(TestCase):
         self.assertEqual(row["insufficient_skills"], "-")
 
     def test_character_jump_clones_data(self):
-        jump_clone = CharacterJumpClone.objects.create(
+        clone_1 = jump_clone = CharacterJumpClone.objects.create(
             character=self.character, location=self.jita_44, jump_clone_id=1
         )
         CharacterJumpCloneImplant.objects.create(
@@ -550,7 +611,7 @@ class TestViews(TestCase):
         )
 
         location_2 = Location.objects.create(id=123457890)
-        jump_clone = CharacterJumpClone.objects.create(
+        clone_2 = jump_clone = CharacterJumpClone.objects.create(
             character=self.character, location=location_2, jump_clone_id=2
         )
         request = self.factory.get(
@@ -559,20 +620,22 @@ class TestViews(TestCase):
         request.user = self.user
         response = character_jump_clones_data(request, self.character.pk)
         self.assertEqual(response.status_code, 200)
-        data = json_response_to_python(response)
+        data = json_response_to_python_dict(response)
         self.assertEqual(len(data), 2)
 
-        row = data[0]
+        row = data[clone_1.pk]
         self.assertEqual(row["region"], "The Forge")
         self.assertIn("Jita", row["solar_system"])
         self.assertEqual(
             row["location"], "Jita IV - Moon 4 - Caldari Navy Assembly Plant"
         )
-        self.assertEqual(
-            row["implants"], "High-grade Snake Alpha<br>High-grade Snake Beta"
+        self.assertTrue(
+            multi_assert_in(
+                ["High-grade Snake Alpha", "High-grade Snake Beta"], row["implants"]
+            )
         )
 
-        row = data[1]
+        row = data[clone_2.pk]
         self.assertEqual(row["region"], "-")
         self.assertEqual(row["solar_system"], "-")
         self.assertEqual(row["location"], "Unknown location #123457890")
@@ -1089,20 +1152,6 @@ class TestDoctrineReportData(TestCase):
             doctrine_pk = doctrine.pk if doctrine else 0
             return f"{doctrine_pk}_{character.pk}"
 
-        def multi_assert_in(items, container) -> bool:
-            for item in items:
-                if item not in container:
-                    return False
-
-            return True
-
-        def multi_assert_not_in(items, container) -> bool:
-            for item in items:
-                if item in container:
-                    return False
-
-            return True
-
         # define doctrines
         skill_type_1 = EveType.objects.get(id=24311)
         skill_type_2 = EveType.objects.get(id=24312)
@@ -1165,7 +1214,7 @@ class TestDoctrineReportData(TestCase):
         response = doctrines_report_data(request)
 
         self.assertEqual(response.status_code, 200)
-        data = {x["id"]: x for x in json_response_to_python(response)}
+        data = json_response_to_python_dict(response)
         self.assertEqual(len(data), 9)
 
         row = data[make_data_id(doctrine_1, self.character_1001)]

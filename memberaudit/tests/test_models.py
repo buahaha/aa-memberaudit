@@ -560,15 +560,15 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.character_1001.update_contacts()
         self.assertEqual(self.character_1001.contacts.count(), 2)
 
-        obj = self.character_1001.contacts.get(contact_id=1101)
-        self.assertEqual(obj.contact.category, EveEntity.CATEGORY_CHARACTER)
+        obj = self.character_1001.contacts.get(eve_entity_id=1101)
+        self.assertEqual(obj.eve_entity.category, EveEntity.CATEGORY_CHARACTER)
         self.assertFalse(obj.is_blocked)
         self.assertTrue(obj.is_watched)
         self.assertEqual(obj.standing, -10)
         self.assertEqual({x.label_id for x in obj.labels.all()}, {2})
 
-        obj = self.character_1001.contacts.get(contact_id=2002)
-        self.assertEqual(obj.contact.category, EveEntity.CATEGORY_CORPORATION)
+        obj = self.character_1001.contacts.get(eve_entity_id=2002)
+        self.assertEqual(obj.eve_entity.category, EveEntity.CATEGORY_CORPORATION)
         self.assertFalse(obj.is_blocked)
         self.assertFalse(obj.is_watched)
         self.assertEqual(obj.standing, 5)
@@ -579,12 +579,12 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         mock_esi.client = esi_client_stub
         CharacterContact.objects.create(
             character=self.character_1001,
-            contact=EveEntity.objects.get(id=3101),
+            eve_entity=EveEntity.objects.get(id=3101),
             standing=-5,
         )
         self.character_1001.update_contacts()
         self.assertEqual(
-            {x.contact_id for x in self.character_1001.contacts.all()}, {1101, 2002}
+            {x.eve_entity_id for x in self.character_1001.contacts.all()}, {1101, 2002}
         )
 
     def test_update_contacts_3(self, mock_esi):
@@ -595,7 +595,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         )
         my_contact = CharacterContact.objects.create(
             character=self.character_1001,
-            contact=EveEntity.objects.get(id=1101),
+            eve_entity=EveEntity.objects.get(id=1101),
             is_blocked=True,
             is_watched=False,
             standing=-5,
@@ -604,8 +604,8 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
 
         self.character_1001.update_contacts()
 
-        obj = self.character_1001.contacts.get(contact_id=1101)
-        self.assertEqual(obj.contact.category, EveEntity.CATEGORY_CHARACTER)
+        obj = self.character_1001.contacts.get(eve_entity_id=1101)
+        self.assertEqual(obj.eve_entity.category, EveEntity.CATEGORY_CHARACTER)
         self.assertFalse(obj.is_blocked)
         self.assertTrue(obj.is_watched)
         self.assertEqual(obj.standing, -10)

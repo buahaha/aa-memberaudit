@@ -40,6 +40,7 @@ from .models import (
     Location,
 )
 from .utils import (
+    add_no_wrap_html,
     create_link_html,
     create_fa_button_html,
     DATETIME_FORMAT,
@@ -57,10 +58,22 @@ NO_DOCTRINE_NAME = gettext_lazy("(No Doctrine)")
 DEFAULT_ICON_SIZE = 32
 
 
-def create_img_html(src: str, classes: list = None, size=None) -> str:
+def create_img_html(src: str, classes: list = None, size: int = None) -> str:
     classes_str = format_html('class="{}"', (" ".join(classes)) if classes else "")
     size_html = format_html('width="{}" height="{}"', size, size) if size else ""
     return format_html('<img {} {} src="{}">', classes_str, size_html, src)
+
+
+def create_icon_plus_name_html(
+    icon_url, name, size: int = DEFAULT_ICON_SIZE, avatar=False
+) -> str:
+    return format_html(
+        "{}&nbsp;&nbsp;&nbsp;{}",
+        create_img_html(
+            icon_url, classes=["ra-avatar", "img-circle"] if avatar else [], size=size
+        ),
+        name,
+    )
 
 
 def add_common_context(request, context: dict) -> dict:
@@ -583,6 +596,40 @@ def character_asset_container_data(
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
+def character_contacts_data(
+    request, character_pk: int, character: Character
+) -> JsonResponse:
+    data = list()
+    try:
+        for contact in character.contacts.select_related("eve_entity").all():
+            is_watched = contact.is_watched is True
+            is_blocked = contact.is_blocked is True
+            name = contact.eve_entity.name
+            name_html = create_icon_plus_name_html(
+                contact.eve_entity.icon_url(DEFAULT_ICON_SIZE), name, avatar=True
+            )
+            data.append(
+                {
+                    "id": contact.eve_entity_id,
+                    "name": {"display": name_html, "sort": name},
+                    "standing": contact.standing,
+                    "type": contact.eve_entity.get_category_display().title(),
+                    "is_watched": is_watched,
+                    "is_blocked": is_blocked,
+                    "is_watched_str": yesno_str(is_watched),
+                    "is_blocked_str": yesno_str(is_blocked),
+                    "level": contact.standing_level.title(),
+                }
+            )
+    except ObjectDoesNotExist:
+        pass
+
+    return JsonResponse(data, safe=False)
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
 def character_contracts_data(
     request, character_pk: int, character: Character
 ) -> JsonResponse:
@@ -764,11 +811,15 @@ def character_jump_clones_data(
 ) -> HttpResponse:
     data = list()
     try:
-        for jump_clone in character.jump_clones.select_related(
-            "location",
-            "location__eve_solar_system",
-            "location__eve_solar_system__eve_constellation__eve_region",
-        ).all():
+        for jump_clone in (
+            character.jump_clones.select_related(
+                "location",
+                "location__eve_solar_system",
+                "location__eve_solar_system__eve_constellation__eve_region",
+            )
+            .prefetch_related("implants")
+            .all()
+        ):
             if not jump_clone.location.is_empty:
                 eve_solar_system = jump_clone.location.eve_solar_system
                 solar_system = eve_solar_system_to_html(
@@ -779,20 +830,26 @@ def character_jump_clones_data(
                 solar_system = "-"
                 region = "-"
 
-            implants = "<br>".join(
-                sorted(
-                    [
-                        obj.eve_type.name
-                        for obj in jump_clone.implants.select_related("eve_type")
-                    ]
+            implants_data = [
+                {
+                    "name": obj.eve_type.name,
+                    "icon_url": obj.eve_type.icon_url(DEFAULT_ICON_SIZE),
+                }
+                for obj in jump_clone.implants.select_related("eve_type")
+            ]
+            if implants_data:
+                implants = "<br>".join(
+                    create_icon_plus_name_html(
+                        x["icon_url"], add_no_wrap_html(x["name"]), size=24
+                    )
+                    for x in sorted(implants_data, key=lambda k: k["name"].lower())
                 )
-            )
-            if not implants:
+            else:
                 implants = "(none)"
 
             data.append(
                 {
-                    "jump_clone_id": jump_clone.jump_clone_id,
+                    "id": jump_clone.pk,
                     "region": region,
                     "solar_system": solar_system,
                     "location": jump_clone.location.name_plus,
@@ -923,12 +980,16 @@ def character_skills_data(
     try:
         for skill in character.skills.select_related(
             "eve_type", "eve_type__eve_group"
-        ).all():
+        ).filter(active_skill_level__gte=1):
+            level_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[skill.active_skill_level]
+            skill_name = f"{skill.eve_type.name} {level_str}"
             skills_data.append(
                 {
                     "group": skill.eve_type.eve_group.name,
                     "skill": skill.eve_type.name,
-                    "level": skill.trained_skill_level,
+                    "skill_name": skill_name,
+                    "level": skill.active_skill_level,
+                    "level_str": level_str,
                 }
             )
     except ObjectDoesNotExist:
@@ -1109,14 +1170,6 @@ def compliance_report_data(request) -> JsonResponse:
     return JsonResponse(user_data, safe=False)
 
 
-def create_icon_plus_name_html(icon_url, name) -> str:
-    return format_html(
-        "{}&nbsp;&nbsp;{}",
-        create_img_html(icon_url, ["ra-avatar", "img-circle"], size=DEFAULT_ICON_SIZE),
-        name,
-    )
-
-
 @login_required
 @permission_required("memberaudit.reports_access")
 def doctrines_report_data(request) -> JsonResponse:
@@ -1125,7 +1178,9 @@ def doctrines_report_data(request) -> JsonResponse:
         auth_character = character.character_ownership.character
         main_character = user.profile.main_character
         main_html = create_icon_plus_name_html(
-            user.profile.main_character.portrait_url(), main_character.character_name
+            user.profile.main_character.portrait_url(),
+            main_character.character_name,
+            avatar=True,
         )
         main_corporation = main_character.corporation_name
         main_alliance = (
@@ -1139,7 +1194,7 @@ def doctrines_report_data(request) -> JsonResponse:
             else "",
         )
         character_html = create_icon_plus_name_html(
-            auth_character.portrait_url(), auth_character.character_name
+            auth_character.portrait_url(), auth_character.character_name, avatar=True
         )
         doctrine_pk = doctrine.pk if doctrine else 0
         can_fly = [

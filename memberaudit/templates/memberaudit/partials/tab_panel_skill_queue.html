@@ -14,7 +14,7 @@
 
             <tbody>
                 {% for skill in skill_queue %}
-                    <tr{% if skill.is_currently_trained_skill %} class="active-skill"{% endif %}>
+                    <tr{% if skill.is_currently_trained_skill %} class="info active-skill"{% endif %}>
                         <td>
                             {{ skill.skill }} {{ skill.finished_level }}
                         </td>

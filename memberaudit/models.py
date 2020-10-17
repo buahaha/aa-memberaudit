@@ -585,13 +585,13 @@ class Character(models.Model):
 
         with transaction.atomic():
             incoming_ids = set(contacts_list.keys())
-            existing_ids = set(self.contacts.values_list("contact_id", flat=True))
+            existing_ids = set(self.contacts.values_list("eve_entity_id", flat=True))
             obsolete_ids = existing_ids.difference(incoming_ids)
             if obsolete_ids:
                 logger.info(
                     "%s: Removing %s obsolete contacts", self, len(obsolete_ids)
                 )
-                self.contacts.filter(contact_id__in=obsolete_ids).delete()
+                self.contacts.filter(eve_entity_id__in=obsolete_ids).delete()
 
             create_ids = incoming_ids.difference(existing_ids)
             if create_ids:
@@ -618,7 +618,7 @@ class Character(models.Model):
         new_contacts = [
             CharacterContact(
                 character=self,
-                contact=get_or_create_or_none("contact_id", contact_data, EveEntity),
+                eve_entity=get_or_create_or_none("contact_id", contact_data, EveEntity),
                 is_blocked=contact_data.get("is_blocked"),
                 is_watched=contact_data.get("is_watched"),
                 standing=contact_data.get("standing"),
@@ -638,7 +638,7 @@ class Character(models.Model):
     ):
         for contact_id, contact_data in contacts_list.items():
             if contact_id in contact_ids and contact_data.get("label_ids"):
-                character_contact = self.contacts.get(contact_id=contact_id)
+                character_contact = self.contacts.get(eve_entity_id=contact_id)
                 if not is_new:
                     character_contact.labels.clear()
 
@@ -662,13 +662,13 @@ class Character(models.Model):
     def _update_existing_contacts(self, contacts_list: dict, contact_ids: list):
         logger.info("%s: Updating %s contacts", self, len(contact_ids))
         update_contact_pks = list(
-            self.contacts.filter(contact_id__in=contact_ids).values_list(
+            self.contacts.filter(eve_entity_id__in=contact_ids).values_list(
                 "pk", flat=True
             )
         )
         contacts = self.contacts.in_bulk(update_contact_pks)
         for contact in contacts.values():
-            contact_data = contacts_list.get(contact.contact_id)
+            contact_data = contacts_list.get(contact.eve_entity_id)
             if contact_data:
                 contact.is_blocked = contact_data.get("is_blocked")
                 contact.is_watched = contact_data.get("is_watched")
@@ -1731,10 +1731,16 @@ class CharacterContactLabel(models.Model):
 class CharacterContact(models.Model):
     """An Eve Online contact belonging to a Character"""
 
+    STANDING_EXCELLENT = _("excellent standing")
+    STANDING_GOOD = _("good standing")
+    STANDING_NEUTRAL = _("neutral standing")
+    STANDING_BAD = _("bad standing")
+    STANDING_TERRIBLE = _("terrible standing")
+
     character = models.ForeignKey(
         Character, on_delete=models.CASCADE, related_name="contacts"
     )
-    contact = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
+    eve_entity = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
     is_blocked = models.BooleanField(default=None, null=True)
     is_watched = models.BooleanField(default=None, null=True)
     standing = models.FloatField()
@@ -1744,14 +1750,31 @@ class CharacterContact(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["character", "contact"],
+                fields=["character", "eve_entity"],
                 name="functional_pk_charactercontact",
             )
         ]
     """
 
     def __str__(self) -> str:
-        return f"{self.character}-{self.contact}"
+        return f"{self.character}-{self.eve_entity.name}"
+
+    @property
+    def standing_level(self) -> int:
+        if self.standing > 5:
+            return self.STANDING_EXCELLENT
+
+        if 5 >= self.standing > 0:
+            return self.STANDING_GOOD
+
+        if self.standing == 0:
+            return self.STANDING_NEUTRAL
+
+        if 0 > self.standing >= -5:
+            return self.STANDING_BAD
+
+        if self.standing < -5:
+            return self.STANDING_TERRIBLE
 
 
 class CharacterContract(models.Model):
