@@ -39,7 +39,6 @@ from ..models import (
     DoctrineShipSkill,
     Location,
 )
-from .utils import reload_user
 from ..utils import generate_invalid_pk
 from ..views import (
     launcher,
@@ -656,8 +655,9 @@ class TestViews(TestCase):
         self.assertEqual(data["body"], "This is the body")
 
     def test_character_finder_data(self):
-        AuthUtils.add_permission_to_user_by_name("memberaudit.finder_access", self.user)
-        self.user = reload_user(self.user)
+        self.user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.finder_access", self.user
+        )
         request = self.factory.get(reverse("memberaudit:character_finder_data"))
         request.user = self.user
         response = character_finder_data(request)
@@ -944,8 +944,9 @@ class TestComplianceReportData(TestCase):
         cls.character_1102 = create_memberaudit_character(1102)
 
         cls.user = cls.character_1001.character_ownership.user
-        AuthUtils.add_permission_to_user_by_name("memberaudit.reports_access", cls.user)
-        cls.user = reload_user(cls.user)
+        cls.user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.reports_access", cls.user
+        )
 
     @staticmethod
     def user_pks_set(data) -> set:
@@ -963,10 +964,9 @@ class TestComplianceReportData(TestCase):
         self.assertSetEqual(self.user_pks_set(result), set())
 
     def test_corporation_permission(self):
-        AuthUtils.add_permission_to_user_by_name(
+        self.user = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.view_same_corporation", self.user
         )
-        self.user = reload_user(self.user)
         result = self._execute_request()
         self.assertSetEqual(
             self.user_pks_set(result),
@@ -977,10 +977,9 @@ class TestComplianceReportData(TestCase):
         )
 
     def test_alliance_permission(self):
-        AuthUtils.add_permission_to_user_by_name(
+        self.user = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.view_same_alliance", self.user
         )
-        self.user = reload_user(self.user)
         result = self._execute_request()
         self.assertSetEqual(
             self.user_pks_set(result),

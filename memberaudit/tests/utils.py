@@ -151,13 +151,6 @@ def get_invalid_object_pk(MyModel) -> int:
     return max(MyModel.objects.values_list("pk", flat=True)) + 1
 
 
-def reload_user(user: User) -> User:
-    """shortcut for reloading the given user from database.
-    Useful for flushing the user cache for permissions.
-    """
-    return User.objects.get(pk=user.pk)
-
-
 def queryset_pks(queryset) -> set:
     """shortcut that returns the pks of the given queryset as set.
     Useful for comparing test results.

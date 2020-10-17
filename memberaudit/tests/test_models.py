@@ -40,7 +40,7 @@ from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
 from .testdata.load_locations import load_locations
-from .utils import reload_user, queryset_pks
+from .utils import queryset_pks
 from ..utils import NoSocketsTestCase
 
 MODELS_PATH = "memberaudit.models"
@@ -101,8 +101,9 @@ class TestCharacterUserHasAccess(TestCase):
         then return True
         """
         user_3 = AuthUtils.create_user("Peter Parker")
-        AuthUtils.add_permission_to_user_by_name("memberaudit.view_everything", user_3)
-        user_3 = reload_user(user_3)
+        user_3 = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_everything", user_3
+        )
         self.assertTrue(self.character.user_has_access(user_3))
 
     def test_view_same_corporation_1(self):
@@ -112,10 +113,9 @@ class TestCharacterUserHasAccess(TestCase):
         then return True
         """
         user_3, _ = create_user_from_evecharacter(1002)
-        AuthUtils.add_permission_to_user_by_name(
+        user_3 = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.view_same_corporation", user_3
         )
-        user_3 = reload_user(user_3)
         self.assertTrue(self.character.user_has_access(user_3))
 
     def test_view_same_corporation_2(self):
@@ -126,10 +126,9 @@ class TestCharacterUserHasAccess(TestCase):
         """
 
         user_3, _ = create_user_from_evecharacter(1003)
-        AuthUtils.add_permission_to_user_by_name(
+        user_3 = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.view_same_corporation", user_3
         )
-        user_3 = reload_user(user_3)
         self.assertFalse(self.character.user_has_access(user_3))
 
     def test_view_same_alliance_1(self):
@@ -140,10 +139,9 @@ class TestCharacterUserHasAccess(TestCase):
         """
 
         user_3, _ = create_user_from_evecharacter(1003)
-        AuthUtils.add_permission_to_user_by_name(
+        user_3 = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.view_same_alliance", user_3
         )
-        user_3 = reload_user(user_3)
         self.assertTrue(self.character.user_has_access(user_3))
 
     def test_view_same_alliance_2(self):
@@ -153,10 +151,9 @@ class TestCharacterUserHasAccess(TestCase):
         then return False
         """
         user_3, _ = create_user_from_evecharacter(1101)
-        AuthUtils.add_permission_to_user_by_name(
+        user_3 = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.view_same_alliance", user_3
         )
-        user_3 = reload_user(user_3)
         self.assertFalse(self.character.user_has_access(user_3))
 
     def test_recruiter_access_1(self):
@@ -168,10 +165,9 @@ class TestCharacterUserHasAccess(TestCase):
         self.character.is_shared = True
         self.character.save()
         user_3, _ = create_user_from_evecharacter(1101)
-        AuthUtils.add_permission_to_user_by_name(
+        user_3 = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.view_shared_characters", user_3
         )
-        user_3 = reload_user(user_3)
         self.assertTrue(self.character.user_has_access(user_3))
 
     def test_recruiter_access_2(self):
@@ -183,10 +179,9 @@ class TestCharacterUserHasAccess(TestCase):
         self.character.is_shared = False
         self.character.save()
         user_3, _ = create_user_from_evecharacter(1101)
-        AuthUtils.add_permission_to_user_by_name(
+        user_3 = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.view_shared_characters", user_3
         )
-        user_3 = reload_user(user_3)
         self.assertFalse(self.character.user_has_access(user_3))
 
 
@@ -219,10 +214,9 @@ class TestCharacterManagerUserHasAccess(TestCase):
         then include those characters only
         """
         user = self.character_1001.character_ownership.user
-        AuthUtils.add_permission_to_user_by_name(
+        user = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.view_same_corporation", user
         )
-        user = reload_user(user)
         result_qs = Character.objects.user_has_access(user=user)
         self.assertSetEqual(
             queryset_pks(result_qs),
@@ -235,8 +229,9 @@ class TestCharacterManagerUserHasAccess(TestCase):
         then include those characters only
         """
         user = self.character_1001.character_ownership.user
-        AuthUtils.add_permission_to_user_by_name("memberaudit.view_same_alliance", user)
-        user = reload_user(user)
+        user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_same_alliance", user
+        )
         result_qs = Character.objects.user_has_access(user=user)
         self.assertSetEqual(
             queryset_pks(result_qs),
@@ -250,8 +245,9 @@ class TestCharacterManagerUserHasAccess(TestCase):
         then do not include any alliance characters
         """
         user = self.character_1102.character_ownership.user
-        AuthUtils.add_permission_to_user_by_name("memberaudit.view_same_alliance", user)
-        user = reload_user(user)
+        user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_same_alliance", user
+        )
         result_qs = Character.objects.user_has_access(user=user)
         self.assertSetEqual(queryset_pks(result_qs), {self.character_1102.pk})
 
@@ -261,8 +257,9 @@ class TestCharacterManagerUserHasAccess(TestCase):
         then include all characters
         """
         user = self.character_1001.character_ownership.user
-        AuthUtils.add_permission_to_user_by_name("memberaudit.view_everything", user)
-        user = reload_user(user)
+        user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_everything", user
+        )
         result_qs = Character.objects.user_has_access(user=user)
         self.assertSetEqual(
             queryset_pks(result_qs),
@@ -281,10 +278,9 @@ class TestCharacterManagerUserHasAccess(TestCase):
         then include own character plus shared characters
         """
         user = self.character_1102.character_ownership.user
-        AuthUtils.add_permission_to_user_by_name(
+        user = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.view_shared_characters", user
         )
-        user = reload_user(user)
         result_qs = Character.objects.user_has_access(user=user)
         self.assertSetEqual(
             queryset_pks(result_qs), {self.character_1002.pk, self.character_1102.pk}
