@@ -22,6 +22,21 @@
         text-align: right;
     }
 
+    /* Contacts */
+    #tab_contacts tbody td:nth-child(3) {
+        text-align: right;
+    }    
+
+    /* Contracts */
+    #tab_contracts tbody td:nth-child(6) {
+        white-space: nowrap;
+    }
+
+    /* Mail */
+    #tab_mails tbody td:nth-child(1) {
+        white-space: nowrap;
+    }
+
     /* Wallet */
     #tab_wallet tbody td:nth-child(5) {
         text-align: right;

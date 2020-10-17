@@ -61,7 +61,7 @@
     <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
 
     <script type="application/javascript">
-        var DATETIME_FORMAT = 'YYYY-MMM-DD HH:mm'
+        var DATETIME_FORMAT = 'YYYY-MMM-DD<br>HH:mm'
 
         function title(text) {
             return text.replace(/(^\w|\s\w)/g, m => m.toUpperCase());
@@ -343,13 +343,12 @@
                     { data: 'from' },
                     { data: 'to' },
                     { data: 'subject' },
-                    { data: 'action' }
+                    { data: 'action' },                    
                 ],
                 order: [[0, "desc"]],
                 columnDefs: [                  
-                    { "orderable": false, "targets": [ 4 ] }
+                    { "orderable": false, "targets": [ 4 ] }                    
                 ],
-
                 createdRow: function( row, data, dataIndex ) {
                     if ( !data['is_read'] ) {
                         $(row).addClass( 'info' );

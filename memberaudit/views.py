@@ -363,13 +363,22 @@ def character_viewer(request, character_pk: int, character: Character):
         main = "-"
 
     # mail labels
-    mail_labels = list(character.mail_labels.values("label_id", "name", "unread_count"))
+    # mail_labels = list(character.mail_labels.values("label_id", "name", "unread_count"))
+    mail_labels = list(
+        character.mail_labels.annotate(
+            unread_count_2=Count(
+                "charactermailmaillabel",
+                filter=Q(charactermailmaillabel__mail__is_read=False),
+            )
+        ).values("label_id", "name", "unread_count_2")
+    )
+
     total_unread_count = character.mails.filter(is_read=False).count()
     mail_labels.append(
         {
             "label_id": MAIL_LABEL_ID_ALL_MAILS,
             "name": "All Mails",
-            "unread_count": total_unread_count,
+            "unread_count_2": total_unread_count,
         }
     )
 
@@ -902,6 +911,7 @@ def _character_mail_headers_data(request, character, mail_headers_qs) -> JsonRes
                     "sent": mail.timestamp.strftime(DATETIME_FORMAT),
                     "action": actions_html,
                     "is_read": mail.is_read,
+                    "is_unread_str": yesno_str(mail.is_read is False),
                 }
             )
     except ObjectDoesNotExist:
@@ -910,7 +920,6 @@ def _character_mail_headers_data(request, character, mail_headers_qs) -> JsonRes
     return JsonResponse(mails_data, safe=False)
 
 
-@cache_page(60)
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
@@ -925,7 +934,6 @@ def character_mail_headers_by_label_data(
     return _character_mail_headers_data(request, character, mail_headers_qs)
 
 
-@cache_page(60)
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
