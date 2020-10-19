@@ -649,7 +649,7 @@ class Character(models.Model):
                     except CharacterContactLabel.DoesNotExist:
                         # sometimes label IDs on contacts
                         # do not refer to actual labels
-                        logger.warning(
+                        logger.info(
                             "%s: Unknown contact label with id %s",
                             self,
                             label_id,
@@ -1080,13 +1080,7 @@ class Character(models.Model):
             )
 
     @fetch_token("esi-mail.read_mail.v1")
-    def update_mails(self, token: Token):
-        self._update_mailinglists(token)
-        self._update_maillabels(token)
-        self._process_mail_headers(token)
-        self._update_mail_bodies()
-
-    def _update_mailinglists(self, token: Token):
+    def update_mailing_lists(self, token: Token):
         """update the mailing lists for the given character"""
         logger.info("%s: Fetching mailing lists from ESI", self)
         mailing_lists = esi.client.Mail.get_characters_character_id_mail_lists(
@@ -1113,7 +1107,8 @@ class Character(models.Model):
                 new_lists, batch_size=BULK_METHOD_BATCH_SIZE
             )
 
-    def _update_maillabels(self, token: Token):
+    @fetch_token("esi-mail.read_mail.v1")
+    def update_mail_labels(self, token: Token):
         """update the mail lables for the given character"""
         mail_labels_list = self._fetch_mail_labels_from_esi(token)
         if not mail_labels_list:
@@ -1193,7 +1188,8 @@ class Character(models.Model):
             batch_size=BULK_METHOD_BATCH_SIZE,
         )
 
-    def _process_mail_headers(self, token: Token):
+    @fetch_token("esi-mail.read_mail.v1")
+    def update_mail_headers(self, token: Token):
         mail_headers = self._fetch_mail_headers(token)
         if MEMBERAUDIT_DEVELOPER_MODE:
             store_list_to_disk(mail_headers, f"mail_headers_{self.pk}")
@@ -1336,22 +1332,6 @@ class Character(models.Model):
             mail.is_read = bool(mail_headers[mail.mail_id].get("is_read"))
 
         CharacterMail.objects.bulk_update(mails.values(), ["is_read"])
-
-    def _update_mail_bodies(self):
-        from .tasks import (
-            update_mail_body_esi as task_update_mail_body_esi,
-            DEFAULT_TASK_PRIORITY,
-        )
-
-        mails_without_body_qs = self.mails.filter(body="")
-        mails_without_body_count = mails_without_body_qs.count()
-        if mails_without_body_count > 0:
-            logger.info("%s: Loading %s mailbodies", self, mails_without_body_count)
-            for mail in mails_without_body_qs:
-                task_update_mail_body_esi.apply_async(
-                    kwargs={"character_pk": self.pk, "mail_pk": mail.pk},
-                    priority=DEFAULT_TASK_PRIORITY,
-                )
 
     @fetch_token("esi-mail.read_mail.v1")
     def update_mail_body(self, token: Token, mail: "CharacterMail") -> None:

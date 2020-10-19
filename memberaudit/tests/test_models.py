@@ -865,7 +865,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         """can create new mailing lists from scratch"""
         mock_esi.client = esi_client_stub
 
-        self.character_1001.update_mails()
+        self.character_1001.update_mailing_lists()
 
         self.assertSetEqual(
             set(self.character_1001.mailing_lists.values_list("list_id", flat=True)),
@@ -885,18 +885,34 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
             character=self.character_1001, list_id=5, name="Obsolete"
         )
 
-        self.character_1001.update_mails()
+        self.character_1001.update_mailing_lists()
 
         self.assertSetEqual(
             set(self.character_1001.mailing_lists.values_list("list_id", flat=True)),
             {9001, 9002},
         )
 
+    def test_update_mailing_lists_3(self, mock_esi):
+        """updates existing mailing lists"""
+        mock_esi.client = esi_client_stub
+        CharacterMailingList.objects.create(
+            character=self.character_1001, list_id=9001, name="Update me"
+        )
+
+        self.character_1001.update_mailing_lists()
+
+        self.assertSetEqual(
+            set(self.character_1001.mailing_lists.values_list("list_id", flat=True)),
+            {9001, 9002},
+        )
+        obj = self.character_1001.mailing_lists.get(list_id=9001)
+        self.assertEqual(obj.name, "Dummy 1")
+
     def test_update_mail_labels_1(self, mock_esi):
         """can create from scratch"""
         mock_esi.client = esi_client_stub
 
-        self.character_1001.update_mails()
+        self.character_1001.update_mail_labels()
 
         self.assertEqual(self.character_1001.unread_mail_count.total, 5)
         self.assertSetEqual(
@@ -921,7 +937,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
             character=self.character_1001, label_id=666, name="Obsolete"
         )
 
-        self.character_1001.update_mails()
+        self.character_1001.update_mail_labels()
 
         self.assertSetEqual(
             set(self.character_1001.mail_labels.values_list("label_id", flat=True)),
@@ -939,7 +955,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
             color=0,
         )
 
-        self.character_1001.update_mails()
+        self.character_1001.update_mail_labels()
 
         self.assertSetEqual(
             set(self.character_1001.mail_labels.values_list("label_id", flat=True)),
@@ -951,11 +967,14 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertEqual(obj.unread_count, 4)
         self.assertEqual(obj.color, "#660066")
 
-    def test_update_mails_1(self, mock_esi):
+    def test_update_mail_headers_1(self, mock_esi):
         """can create new mail from scratch"""
         mock_esi.client = esi_client_stub
+        CharacterMailingList.objects.create(
+            character=self.character_1001, list_id=9001, name="Dummy 1"
+        )
 
-        self.character_1001.update_mails()
+        self.character_1001.update_mail_headers()
         self.assertSetEqual(
             set(self.character_1001.mails.values_list("mail_id", flat=True)),
             {1, 2},
@@ -967,7 +986,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertTrue(obj.is_read)
         self.assertEqual(obj.subject, "Mail 1")
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T16:07:00Z"))
-        self.assertEqual(obj.body, "blah blah blah")
+        self.assertFalse(obj.body)
         self.assertTrue(obj.recipients.filter(eve_entity_id=1001).exists())
         self.assertTrue(obj.recipients.filter(mailing_list__list_id=9001).exists())
 
@@ -977,9 +996,9 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertFalse(obj.is_read)
         self.assertEqual(obj.subject, "Mail 2")
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T18:07:00Z"))
-        self.assertEqual(obj.body, "Another mail")
+        self.assertFalse(obj.body)
 
-    def test_update_mails_2(self, mock_esi):
+    def test_update_headers_2(self, mock_esi):
         """can update existing mail"""
         mock_esi.client = esi_client_stub
         mail = CharacterMail.objects.create(
@@ -987,15 +1006,17 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
             mail_id=1,
             from_entity=EveEntity.objects.get(id=1002),
             subject="Mail 1",
-            body="blah blah blah",
             is_read=False,
             timestamp=parse_datetime("2015-09-30T16:07:00Z"),
         )
         CharacterMailRecipient.objects.create(
             mail=mail, eve_entity=EveEntity.objects.get(id=1001)
         )
+        CharacterMailingList.objects.create(
+            character=self.character_1001, list_id=9001, name="Dummy 1"
+        )
 
-        self.character_1001.update_mails()
+        self.character_1001.update_mail_headers()
         self.assertSetEqual(
             set(self.character_1001.mails.values_list("mail_id", flat=True)),
             {1, 2},
@@ -1007,8 +1028,32 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         self.assertTrue(obj.is_read)
         self.assertEqual(obj.subject, "Mail 1")
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T16:07:00Z"))
-        self.assertEqual(obj.body, "blah blah blah")
+        self.assertFalse(obj.body)
         self.assertTrue(obj.recipients.filter(eve_entity_id=1001).exists())
+
+    def test_update_mail_body(self, mock_esi):
+        """can update mail body"""
+        mock_esi.client = esi_client_stub
+        mail = CharacterMail.objects.create(
+            character=self.character_1001,
+            mail_id=1,
+            from_entity=EveEntity.objects.get(id=1002),
+            subject="Mail 1",
+            body="Update me",
+            is_read=False,
+            timestamp=parse_datetime("2015-09-30T16:07:00Z"),
+        )
+        CharacterMailRecipient.objects.create(
+            mail=mail, eve_entity=EveEntity.objects.get(id=1001)
+        )
+        CharacterMailingList.objects.create(
+            character=self.character_1001, list_id=9001, name="Dummy 1"
+        )
+
+        self.character_1001.update_mail_body(mail)
+
+        obj = self.character_1001.mails.get(mail_id=1)
+        self.assertEqual(obj.body, "blah blah blah")
 
     def test_update_skill_queue(self, mock_esi):
         mock_esi.client = esi_client_stub
