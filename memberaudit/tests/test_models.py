@@ -517,7 +517,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
         """can create new contact labels from scratch"""
         mock_esi.client = esi_client_stub
 
-        self.character_1001.update_contacts()
+        self.character_1001.update_contact_labels()
         self.assertEqual(self.character_1001.contact_labels.count(), 2)
 
         label = self.character_1001.contact_labels.get(label_id=1)
@@ -533,7 +533,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
             character=self.character_1001, label_id=99, name="Obsolete"
         )
 
-        self.character_1001.update_contacts()
+        self.character_1001.update_contact_labels()
         self.assertEqual(
             {x.label_id for x in self.character_1001.contact_labels.all()}, {1, 2}
         )
@@ -545,7 +545,7 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
             character=self.character_1001, label_id=1, name="Obsolete"
         )
 
-        self.character_1001.update_contacts()
+        self.character_1001.update_contact_labels()
         self.assertEqual(
             {x.label_id for x in self.character_1001.contact_labels.all()}, {1, 2}
         )
@@ -556,8 +556,15 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
     def test_update_contacts_1(self, mock_esi):
         """can create contacts"""
         mock_esi.client = esi_client_stub
+        CharacterContactLabel.objects.create(
+            character=self.character_1001, label_id=1, name="friend"
+        )
+        CharacterContactLabel.objects.create(
+            character=self.character_1001, label_id=2, name="pirate"
+        )
 
         self.character_1001.update_contacts()
+
         self.assertEqual(self.character_1001.contacts.count(), 2)
 
         obj = self.character_1001.contacts.get(eve_entity_id=1101)
@@ -577,12 +584,20 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
     def test_update_contacts_2(self, mock_esi):
         """can remove obsolete contacts"""
         mock_esi.client = esi_client_stub
+        CharacterContactLabel.objects.create(
+            character=self.character_1001, label_id=1, name="friend"
+        )
+        CharacterContactLabel.objects.create(
+            character=self.character_1001, label_id=2, name="pirate"
+        )
         CharacterContact.objects.create(
             character=self.character_1001,
             eve_entity=EveEntity.objects.get(id=3101),
             standing=-5,
         )
+
         self.character_1001.update_contacts()
+
         self.assertEqual(
             {x.eve_entity_id for x in self.character_1001.contacts.all()}, {1101, 2002}
         )
@@ -590,6 +605,9 @@ class TestCharacterEsiAccess(NoSocketsTestCase):
     def test_update_contacts_3(self, mock_esi):
         """can update existing contacts"""
         mock_esi.client = esi_client_stub
+        CharacterContactLabel.objects.create(
+            character=self.character_1001, label_id=2, name="pirate"
+        )
         my_label = CharacterContactLabel.objects.create(
             character=self.character_1001, label_id=1, name="Dummy"
         )

@@ -535,12 +535,7 @@ class Character(models.Model):
                 logger.info("%s: Corporation history is empty", self)
 
     @fetch_token("esi-characters.read_contacts.v1")
-    def update_contacts(self, token: Token):
-        """update the character's contacts"""
-        self._update_contact_labels(token)
-        self._update_contacts(token)
-
-    def _update_contact_labels(self, token):
+    def update_contact_labels(self, token: Token):
         logger.info("%s: Fetching contact labels from ESI", self)
         labels = esi.client.Contacts.get_characters_character_id_contacts_labels(
             character_id=self.character_ownership.character.character_id,
@@ -572,7 +567,8 @@ class Character(models.Model):
             else:
                 logger.info("%s: No contact labels", self)
 
-    def _update_contacts(self, token):
+    @fetch_token("esi-characters.read_contacts.v1")
+    def update_contacts(self, token):
         logger.info("%s: Fetching contacts from ESI", self)
         contacts_data = esi.client.Contacts.get_characters_character_id_contacts(
             character_id=self.character_ownership.character.character_id,

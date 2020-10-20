@@ -153,13 +153,50 @@ def update_character_mails(character_pk: int) -> None:
     ).apply_async(priority=DEFAULT_TASK_PRIORITY)
 
 
+# special tasks for updating contacts
+
+
+@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+def update_character_contact_labels(character_pk: int) -> None:
+    character = Character.objects.get(pk=character_pk)
+    _character_update_with_error_logging(
+        character, Character.UPDATE_SECTION_CONTACTS, character.update_contact_labels
+    )
+
+
+@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+def update_character_contacts_2(character_pk: int) -> None:
+    character = Character.objects.get(pk=character_pk)
+    _character_update_with_error_logging(
+        character, Character.UPDATE_SECTION_CONTACTS, character.update_contacts
+    )
+    # the last task in the chain logs success (if any)
+    _log_character_update_success(character, Character.UPDATE_SECTION_CONTACTS)
+
+
+@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+def update_character_contacts(character_pk: int) -> None:
+    """Main task for updating contacts of a character"""
+    character = Character.objects.get(pk=character_pk)
+    section = Character.UPDATE_SECTION_CONTACTS
+    character.update_status_set.filter(section=section).delete()
+    logger.info("%s: Updating %s", character, Character.section_display_name(section))
+    chain(
+        update_character_contact_labels.si(character.pk),
+        update_character_contacts_2.si(character.pk),
+    ).apply_async(priority=DEFAULT_TASK_PRIORITY)
+
+
+# Main character update tasks
+
+
 @shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
 def update_character(character_pk: int) -> None:
     """Start respective update tasks for all sections of a character"""
     character = Character.objects.get(pk=character_pk)
     logger.info("%s: Starting character update", character)
     sections = {x[0] for x in Character.UPDATE_SECTION_CHOICES}.difference(
-        {Character.UPDATE_SECTION_MAILS}
+        {Character.UPDATE_SECTION_MAILS, Character.UPDATE_SECTION_CONTACTS}
     )
     for section in sections:
         update_character_section.apply_async(
@@ -171,6 +208,11 @@ def update_character(character_pk: int) -> None:
         )
 
     update_character_mails.apply_async(
+        kwargs={"character_pk": character.pk},
+        priority=DEFAULT_TASK_PRIORITY,
+    )
+
+    update_character_contacts.apply_async(
         kwargs={"character_pk": character.pk},
         priority=DEFAULT_TASK_PRIORITY,
     )

@@ -14,7 +14,10 @@ from .models import (
     DoctrineShipSkill,
     Location,
 )
-from .tasks import update_character as task_update_character
+from .tasks import (
+    update_character as task_update_character,
+    update_character_section as task_update_character_section,
+)
 
 
 class UpdateStatusOkFilter(admin.SimpleListFilter):
@@ -116,7 +119,7 @@ class CharacterAdmin(admin.ModelAdmin):
 
     _last_update_ok.boolean = True
 
-    actions = ("update_character",)
+    actions = ("update_character", "update_assets")
 
     def update_character(self, request, queryset):
         for obj in queryset:
@@ -124,6 +127,19 @@ class CharacterAdmin(admin.ModelAdmin):
             self.message_user(request, f"Started updateting character: {obj}. ")
 
     update_character.short_description = "Update selected characters from EVE server"
+
+    def update_assets(self, request, queryset):
+        for obj in queryset:
+            task_update_character_section.delay(
+                character_pk=obj.pk, section=Character.UPDATE_SECTION_ASSETS
+            )
+            self.message_user(
+                request, f"Started updateting assets for character: {obj}. "
+            )
+
+    update_assets.short_description = (
+        "Update assets for selected characters from EVE server"
+    )
 
     inlines = (SyncStatusAdminInline,)
 
