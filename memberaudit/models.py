@@ -30,7 +30,11 @@ from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
-from .app_settings import MEMBERAUDIT_MAX_MAILS, MEMBERAUDIT_DEVELOPER_MODE
+from .app_settings import (
+    MEMBERAUDIT_MAX_MAILS,
+    MEMBERAUDIT_DEVELOPER_MODE,
+    MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
+)
 from .decorators import fetch_token_for_character
 from .helpers import get_or_create_esi_or_none, get_or_none, get_or_create_or_none
 from .managers import CharacterManager, DoctrineManager, LocationManager
@@ -46,9 +50,6 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 CURRENCY_MAX_DIGITS = 17
 CURRENCY_MAX_DECIMALS = 2
 NAMES_MAX_LENGTH = 100
-
-BULK_METHOD_BATCH_SIZE = 500
-MAX_ASSETS_PER_ROUND = 500
 
 
 def eve_xml_to_html(xml: str) -> str:
@@ -359,23 +360,15 @@ class Character(models.Model):
 
         return token
 
-    def update_assets(self):
-        """update the character's assets"""
-        asset_list = self.assets_build_list_from_esi()
-        logger.info("%s: Recreating asset tree for %s assets", self, len(asset_list))
-        with transaction.atomic():
-            self.assets.all().delete()
-            self.assets_create_parents(asset_list)
-
-    def assets_build_list_from_esi(self) -> dict:
+    @fetch_token_for_character(
+        ["esi-assets.read_assets.v1", "esi-universe.read_structures.v1"]
+    )
+    def assets_build_list_from_esi(self, token: Token) -> dict:
         """fetches assets from ESI and preloads related objects from ESI
 
         returns the asset_list
         """
         logger.info("%s: Fetching assets from ESI", self)
-        token = self.fetch_token(
-            ["esi-assets.read_assets.v1", "esi-universe.read_structures.v1"]
-        )
         asset_list = esi.client.Assets.get_characters_character_id_assets(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
@@ -416,106 +409,6 @@ class Character(models.Model):
             logger.info("%s: Loading %s missing types from ESI", self, len(missing_ids))
             for type_id in missing_ids:
                 EveType.objects.update_or_create_esi(id=type_id)
-
-    def assets_create_parents(self, asset_list: dict, round: int = 1) -> None:
-        """creates the parent assets from given asset_list
-
-        Parent assets are assets attached directly to a Location object (e.g. station)
-
-        This method will recursively call itself until all possible parent assets
-        from the asset list have been created
-        """
-        logger.info("%s: Creating parent assets - pass %s", self, round)
-        new_assets = list()
-        location_ids = set(Location.objects.values_list("id", flat=True))
-        parent_asset_ids = {
-            item_id
-            for item_id, asset_info in asset_list.items()
-            if asset_info.get("location_id")
-            and asset_info["location_id"] in location_ids
-        }
-        for item_id in parent_asset_ids:
-            item = asset_list[item_id]
-            new_assets.append(
-                CharacterAsset(
-                    character=self,
-                    item_id=item_id,
-                    location_id=item["location_id"],
-                    eve_type_id=item.get("type_id"),
-                    name=item.get("name"),
-                    is_blueprint_copy=item.get("is_blueprint_copy"),
-                    is_singleton=item.get("is_singleton"),
-                    location_flag=item.get("location_flag"),
-                    quantity=item.get("quantity"),
-                )
-            )
-            asset_list.pop(item_id)
-            if len(new_assets) >= MAX_ASSETS_PER_ROUND:
-                break
-
-        logger.info("%s: Writing %s parent assets", self, len(new_assets))
-        CharacterAsset.objects.bulk_create(
-            new_assets, batch_size=BULK_METHOD_BATCH_SIZE
-        )
-        if len(parent_asset_ids) > len(new_assets):
-            # there are more parent assets to create
-            self.assets_create_parents(asset_list=asset_list, round=round + 1)
-        else:
-            # all parent assets created. Now lets create the child assets.
-            self.assets_create_children(asset_list)
-
-    def assets_create_children(self, asset_list: dict, round: int = 1) -> None:
-        """Created child assets from given asset list
-
-        Child assets are assets located within other assets (aka containers)
-
-        This method will recursively call itself until all possible assets from the
-        asset list are included into the asset tree
-        """
-        logger.info("%s: Creating child assets - pass %s", self, round)
-        new_assets = list()
-        parent_asset_ids = set(self.assets.values_list("item_id", flat=True))
-        child_asset_ids = {
-            item_id
-            for item_id, item in asset_list.items()
-            if item.get("location_id") and item["location_id"] in parent_asset_ids
-        }
-        for item_id in child_asset_ids:
-            item = asset_list[item_id]
-            new_assets.append(
-                CharacterAsset(
-                    character=self,
-                    item_id=item_id,
-                    parent=self.assets.get(item_id=item["location_id"]),
-                    eve_type_id=item.get("type_id"),
-                    name=item.get("name"),
-                    is_blueprint_copy=item.get("is_blueprint_copy"),
-                    is_singleton=item.get("is_singleton"),
-                    location_flag=item.get("location_flag"),
-                    quantity=item.get("quantity"),
-                )
-            )
-            asset_list.pop(item_id)
-            if len(new_assets) >= MAX_ASSETS_PER_ROUND:
-                break
-
-        if new_assets:
-            logger.info("%s: Writing %s child assets", self, len(new_assets))
-            CharacterAsset.objects.bulk_create(
-                new_assets, batch_size=BULK_METHOD_BATCH_SIZE
-            )
-
-        if new_assets and asset_list:
-            # there are more child assets to create
-            self.assets_create_children(asset_list=asset_list, round=round + 1)
-        else:
-            if len(asset_list) > 0:
-                logger.warning(
-                    "%s: Failed to add %s assets to the tree: %s",
-                    self,
-                    len(asset_list),
-                    asset_list.keys(),
-                )
 
     def update_character_details(self):
         """syncs the character details for the given character"""
@@ -676,7 +569,7 @@ class Character(models.Model):
             for contact_data in new_contacts_list.values()
         ]
         CharacterContact.objects.bulk_create(
-            new_contacts, batch_size=BULK_METHOD_BATCH_SIZE
+            new_contacts, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
         )
         self._update_contact_contact_labels(
             contacts_list=contacts_list, contact_ids=contact_ids, is_new=True
@@ -726,7 +619,7 @@ class Character(models.Model):
         CharacterContact.objects.bulk_update(
             contacts.values(),
             fields=["is_blocked", "is_watched", "standing"],
-            batch_size=BULK_METHOD_BATCH_SIZE,
+            batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
         )
         self._update_contact_contact_labels(
             contacts_list=contacts_list, contact_ids=contact_ids
@@ -834,7 +727,7 @@ class Character(models.Model):
                 )
 
         CharacterContract.objects.bulk_create(
-            new_contracts, batch_size=BULK_METHOD_BATCH_SIZE
+            new_contracts, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
         )
 
     def _update_existing_contracts(
@@ -871,7 +764,7 @@ class Character(models.Model):
                 "date_completed",
                 "status",
             ],
-            batch_size=BULK_METHOD_BATCH_SIZE,
+            batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
         )
 
     @fetch_token_for_character("esi-contracts.read_character_contracts.v1")
@@ -919,7 +812,7 @@ class Character(models.Model):
         with transaction.atomic():
             contract.items.all().delete()
             CharacterContractItem.objects.bulk_create(
-                items, batch_size=BULK_METHOD_BATCH_SIZE
+                items, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
             )
 
     @fetch_token_for_character("esi-contracts.read_character_contracts.v1")
@@ -972,7 +865,7 @@ class Character(models.Model):
                 if bid_id in create_ids
             ]
             CharacterContractBid.objects.bulk_create(
-                bids, batch_size=BULK_METHOD_BATCH_SIZE
+                bids, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
             )
 
     def update_doctrines(self):
@@ -1001,7 +894,7 @@ class Character(models.Model):
                 for ship in doctrine_ships_qs
             ]
             CharacterDoctrineShipCheck.objects.bulk_create(
-                doctrine_ships, batch_size=BULK_METHOD_BATCH_SIZE
+                doctrine_ships, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
             )
 
             # add insufficient skills to objects if any
@@ -1062,7 +955,7 @@ class Character(models.Model):
             ]
             CharacterJumpClone.objects.bulk_create(
                 jump_clones,
-                batch_size=BULK_METHOD_BATCH_SIZE,
+                batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
             )
             implants = list()
             for jump_clone_info in jump_clones_list:
@@ -1080,7 +973,7 @@ class Character(models.Model):
 
             CharacterJumpCloneImplant.objects.bulk_create(
                 implants,
-                batch_size=BULK_METHOD_BATCH_SIZE,
+                batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
             )
 
     @fetch_token_for_character("esi-mail.read_mail.v1")
@@ -1108,7 +1001,7 @@ class Character(models.Model):
                 for mailing_list in mailing_lists
             ]
             CharacterMailingList.objects.bulk_create(
-                new_lists, batch_size=BULK_METHOD_BATCH_SIZE
+                new_lists, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
             )
 
     @fetch_token_for_character("esi-mail.read_mail.v1")
@@ -1170,7 +1063,7 @@ class Character(models.Model):
             if label_id in label_ids
         ]
         CharacterMailLabel.objects.bulk_create(
-            new_labels, batch_size=BULK_METHOD_BATCH_SIZE
+            new_labels, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
         )
 
     def _update_existing_mail_labels(self, mail_labels_list: dict, label_ids: set):
@@ -1189,7 +1082,7 @@ class Character(models.Model):
         CharacterMailLabel.objects.bulk_update(
             labels.values(),
             fields=["name", "color", "unread_count"],
-            batch_size=BULK_METHOD_BATCH_SIZE,
+            batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
         )
 
     @fetch_token_for_character("esi-mail.read_mail.v1")
@@ -1270,7 +1163,7 @@ class Character(models.Model):
             )
 
         CharacterMail.objects.bulk_create(
-            new_headers, batch_size=BULK_METHOD_BATCH_SIZE
+            new_headers, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
         )
 
         # add recipients and labels
@@ -1318,11 +1211,11 @@ class Character(models.Model):
 
         if new_recipients:
             CharacterMailRecipient.objects.bulk_create(
-                new_recipients, batch_size=BULK_METHOD_BATCH_SIZE
+                new_recipients, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
             )
         if new_labels:
             CharacterMailMailLabel.objects.bulk_create(
-                new_labels, batch_size=BULK_METHOD_BATCH_SIZE
+                new_labels, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
             )
 
     def _update_mail_headers(self, mail_headers: dict, update_ids) -> None:
@@ -1380,7 +1273,7 @@ class Character(models.Model):
             if entries:
                 logger.info("%s: Writing skill queue of size %s", self, len(entries))
                 CharacterSkillqueueEntry.objects.bulk_create(
-                    entries, batch_size=BULK_METHOD_BATCH_SIZE
+                    entries, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
                 )
             else:
                 logger.info("%s: Skill queue is empty", self)
@@ -1456,7 +1349,9 @@ class Character(models.Model):
             for skill_id, skill_info in skills_list.items()
             if skill_id in create_ids
         ]
-        CharacterSkill.objects.bulk_create(skills, batch_size=BULK_METHOD_BATCH_SIZE)
+        CharacterSkill.objects.bulk_create(
+            skills, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
+        )
 
     def _update_existing_skills(self, skills_list: dict, update_ids: list):
         logger.info("%s: Updating %s skills", self, len(update_ids))
@@ -1478,7 +1373,7 @@ class Character(models.Model):
                 "skillpoints_in_skill",
                 "trained_skill_level",
             ],
-            batch_size=BULK_METHOD_BATCH_SIZE,
+            batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
         )
 
     @fetch_token_for_character("esi-wallet.read_character_wallet.v1")
@@ -1541,7 +1436,7 @@ class Character(models.Model):
                 if entry_id in create_ids
             ]
             CharacterWalletJournalEntry.objects.bulk_create(
-                entries, batch_size=BULK_METHOD_BATCH_SIZE
+                entries, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
             )
             EveEntity.objects.bulk_update_new_esi()
 
