@@ -335,9 +335,7 @@ class TestCharacterHasTopic(TestCase):
         self.assertFalse(self.character.has_wallet_journal)
 
 
-@override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODELS_PATH + ".esi")
-class TestCharacterUpdate(NoSocketsTestCase):
+class TestCharacterUpdateBase(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
@@ -351,6 +349,14 @@ class TestCharacterUpdate(NoSocketsTestCase):
         cls.jita_44 = Location.objects.get(id=60003760)
         cls.amamake = EveSolarSystem.objects.get(id=30002537)
         cls.structure_1 = Location.objects.get(id=1000000000001)
+
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODELS_PATH + ".esi")
+class TestCharacterUpdateAssets(TestCharacterUpdateBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
 
     def test_update_assets_1(self, mock_esi):
         """can create assets from scratch"""
@@ -513,6 +519,14 @@ class TestCharacterUpdate(NoSocketsTestCase):
             },
         )
 
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODELS_PATH + ".esi")
+class TestCharacterUpdateContacts(TestCharacterUpdateBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+
     def test_update_contact_labels_1(self, mock_esi):
         """can create new contact labels from scratch"""
         mock_esi.client = esi_client_stub
@@ -628,6 +642,14 @@ class TestCharacterUpdate(NoSocketsTestCase):
         self.assertTrue(obj.is_watched)
         self.assertEqual(obj.standing, -10)
         self.assertEqual({x.label_id for x in obj.labels.all()}, {2})
+
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODELS_PATH + ".esi")
+class TestCharacterUpdateContracts(TestCharacterUpdateBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
 
     @override_settings(CELERY_ALWAYS_EAGER=True)
     def test_update_contracts_1(self, mock_esi):
@@ -833,40 +855,13 @@ class TestCharacterUpdate(NoSocketsTestCase):
         bid = obj.bids.get(bid_id=2)
         self.assertEqual(float(bid.amount), 21_000_000)
 
-    def test_update_character_details(self, mock_esi):
-        mock_esi.client = esi_client_stub
 
-        self.character_1001.update_character_details()
-        self.assertEqual(self.character_1001.details.eve_ancestry.id, 11)
-        self.assertEqual(
-            self.character_1001.details.birthday, parse_datetime("2015-03-24T11:37:00Z")
-        )
-        self.assertEqual(self.character_1001.details.eve_bloodline.id, 1)
-        self.assertEqual(self.character_1001.details.corporation.id, 2001)
-        self.assertEqual(self.character_1001.details.description, "Scio me nihil scire")
-        self.assertEqual(
-            self.character_1001.details.gender, CharacterDetails.GENDER_MALE
-        )
-        self.assertEqual(self.character_1001.details.name, "Bruce Wayne")
-        self.assertEqual(self.character_1001.details.eve_race.id, 1)
-        self.assertEqual(
-            self.character_1001.details.title, "All round pretty awesome guy"
-        )
-
-    def test_update_corporation_history(self, mock_esi):
-        mock_esi.client = esi_client_stub
-        self.character_1001.update_corporation_history()
-        self.assertEqual(self.character_1001.corporation_history.count(), 2)
-
-        obj = self.character_1001.corporation_history.get(record_id=500)
-        self.assertEqual(obj.corporation.id, 2001)
-        self.assertTrue(obj.is_deleted)
-        self.assertEqual(obj.start_date, parse_datetime("2016-06-26T20:00:00Z"))
-
-        obj = self.character_1001.corporation_history.get(record_id=501)
-        self.assertEqual(obj.corporation.id, 2002)
-        self.assertFalse(obj.is_deleted)
-        self.assertEqual(obj.start_date, parse_datetime("2016-07-26T20:00:00Z"))
+@override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODELS_PATH + ".esi")
+class TestCharacterUpdateJumpClones(TestCharacterUpdateBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
 
     def test_update_jump_clones_1(self, mock_esi):
         """can update jump clones with implants"""
@@ -892,6 +887,14 @@ class TestCharacterUpdate(NoSocketsTestCase):
         obj = self.character_1002.jump_clones.get(jump_clone_id=12345)
         self.assertEqual(obj.location, self.jita_44)
         self.assertEqual(obj.implants.count(), 0)
+
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODELS_PATH + ".esi")
+class TestCharacterUpdateMail(TestCharacterUpdateBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
 
     def test_update_mailing_lists_1(self, mock_esi):
         """can create new mailing lists from scratch"""
@@ -1087,6 +1090,14 @@ class TestCharacterUpdate(NoSocketsTestCase):
         obj = self.character_1001.mails.get(mail_id=1)
         self.assertEqual(obj.body, "blah blah blah")
 
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODELS_PATH + ".esi")
+class TestCharacterUpdateSkills(TestCharacterUpdateBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+
     def test_update_skill_queue(self, mock_esi):
         mock_esi.client = esi_client_stub
 
@@ -1169,6 +1180,14 @@ class TestCharacterUpdate(NoSocketsTestCase):
             set(self.character_1001.skills.values_list("eve_type_id", flat=True)),
             {24311, 24312},
         )
+
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODELS_PATH + ".esi")
+class TestCharacterUpdateWallet(TestCharacterUpdateBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
 
     def test_update_wallet_balance(self, mock_esi):
         mock_esi.client = esi_client_stub
@@ -1274,6 +1293,49 @@ class TestCharacterUpdate(NoSocketsTestCase):
         result = self.character_1002.fetch_location()
         self.assertEqual(result[0], self.amamake)
         self.assertEqual(result[1], self.structure_1)
+
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODELS_PATH + ".esi")
+class TestCharacterUpdateOther(TestCharacterUpdateBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+
+    def test_update_character_details(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_character_details()
+        self.assertEqual(self.character_1001.details.eve_ancestry.id, 11)
+        self.assertEqual(
+            self.character_1001.details.birthday, parse_datetime("2015-03-24T11:37:00Z")
+        )
+        self.assertEqual(self.character_1001.details.eve_bloodline.id, 1)
+        self.assertEqual(self.character_1001.details.corporation.id, 2001)
+        self.assertEqual(self.character_1001.details.description, "Scio me nihil scire")
+        self.assertEqual(
+            self.character_1001.details.gender, CharacterDetails.GENDER_MALE
+        )
+        self.assertEqual(self.character_1001.details.name, "Bruce Wayne")
+        self.assertEqual(self.character_1001.details.eve_race.id, 1)
+        self.assertEqual(
+            self.character_1001.details.title, "All round pretty awesome guy"
+        )
+
+    def test_update_corporation_history(self, mock_esi):
+        mock_esi.client = esi_client_stub
+        self.character_1001.update_corporation_history()
+        self.assertEqual(self.character_1001.corporation_history.count(), 2)
+
+        obj = self.character_1001.corporation_history.get(record_id=500)
+        self.assertEqual(obj.corporation.id, 2001)
+        self.assertTrue(obj.is_deleted)
+        self.assertEqual(obj.start_date, parse_datetime("2016-06-26T20:00:00Z"))
+
+        obj = self.character_1001.corporation_history.get(record_id=501)
+        self.assertEqual(obj.corporation.id, 2002)
+        self.assertFalse(obj.is_deleted)
+        self.assertEqual(obj.start_date, parse_datetime("2016-07-26T20:00:00Z"))
 
 
 class TestCharacterCanFlyDoctrines(NoSocketsTestCase):
