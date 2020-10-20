@@ -1,4 +1,3 @@
-from copy import copy
 from collections import namedtuple
 import json
 from typing import Optional
@@ -14,6 +13,7 @@ from django.utils.translation import gettext_lazy as _
 
 from bravado.exception import HTTPError
 from esi.models import Token
+from esi.errors import TokenError
 
 from eveuniverse.models import (
     EveAncestry,
@@ -31,7 +31,7 @@ from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
 from .app_settings import MEMBERAUDIT_MAX_MAILS, MEMBERAUDIT_DEVELOPER_MODE
-from .decorators import fetch_token
+from .decorators import fetch_token_for_character
 from .helpers import get_or_create_esi_or_none, get_or_none, get_or_create_or_none
 from .managers import CharacterManager, DoctrineManager, LocationManager
 from .providers import esi
@@ -48,6 +48,7 @@ CURRENCY_MAX_DECIMALS = 2
 NAMES_MAX_LENGTH = 100
 
 BULK_METHOD_BATCH_SIZE = 500
+MAX_ASSETS_PER_ROUND = 500
 
 
 def eve_xml_to_html(xml: str) -> str:
@@ -333,24 +334,48 @@ class Character(models.Model):
 
         return existing_ids
 
-    @fetch_token(["esi-assets.read_assets.v1", "esi-universe.read_structures.v1"])
-    def update_assets(self, token):
-        """update the character's assets"""
+    def fetch_token(self, scopes=None) -> Token:
+        """returns valid token for character
 
-        asset_list = self._fetch_assets_from_esi(token)
-        self._preload_all_eve_types(asset_list)
-        incoming_location_ids = {
-            x["location_id"]
-            for x in asset_list.values()
-            if "location_id" in x and x["location_id"] not in asset_list
-        }
-        location_ids = self._preload_all_locations(
-            token=token, incoming_ids=incoming_location_ids
+        Args:
+        - scopes: Optionally provide the required scopes.
+        Otherwise will use all scopes defined for this character.
+
+        Exceptions:
+        - TokenError: If no valid token can be found
+        """
+        token = (
+            Token.objects.prefetch_related("scopes")
+            .filter(
+                user=self.character_ownership.user,
+                character_id=self.character_ownership.character.character_id,
+            )
+            .require_scopes(scopes if scopes else self.get_esi_scopes())
+            .require_valid()
+            .first()
         )
-        self._recreate_assets(asset_list=asset_list, location_ids=location_ids)
+        if not token:
+            raise TokenError("Could not find a matching token")
 
-    def _fetch_assets_from_esi(self, token) -> dict:
+        return token
+
+    def update_assets(self):
+        """update the character's assets"""
+        asset_list = self.assets_build_list_from_esi()
+        logger.info("%s: Recreating asset tree for %s assets", self, len(asset_list))
+        with transaction.atomic():
+            self.assets.all().delete()
+            self.assets_create_parents(asset_list)
+
+    def assets_build_list_from_esi(self) -> dict:
+        """fetches assets from ESI and preloads related objects from ESI
+
+        returns the asset_list
+        """
         logger.info("%s: Fetching assets from ESI", self)
+        token = self.fetch_token(
+            ["esi-assets.read_assets.v1", "esi-universe.read_structures.v1"]
+        )
         asset_list = esi.client.Assets.get_characters_character_id_assets(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
@@ -373,6 +398,14 @@ class Character(models.Model):
         if MEMBERAUDIT_DEVELOPER_MODE:
             store_list_to_disk(asset_list_2, f"asset_list_{self.pk}")
 
+        self._preload_all_eve_types(asset_list_2)
+        incoming_location_ids = {
+            x["location_id"]
+            for x in asset_list_2.values()
+            if "location_id" in x and x["location_id"] not in asset_list_2
+        }
+        self._preload_all_locations(token=token, incoming_ids=incoming_location_ids)
+
         return asset_list_2
 
     def _preload_all_eve_types(self, asset_list: dict) -> None:
@@ -384,84 +417,105 @@ class Character(models.Model):
             for type_id in missing_ids:
                 EveType.objects.update_or_create_esi(id=type_id)
 
-    @transaction.atomic()
-    def _recreate_assets(self, asset_list: dict, location_ids: list):
-        logger.info("%s: Recreating asset tree for %s assets", self, len(asset_list))
+    def assets_create_parents(self, asset_list: dict, round: int = 1) -> None:
+        """creates the parent assets from given asset_list
 
-        # remove old asset tree
-        self.assets.all().delete()
+        Parent assets are assets attached directly to a Location object (e.g. station)
 
-        # create parent assets
-        logger.info("%s: Creating parent assets", self)
-        parent_asset_ids = set()
+        This method will recursively call itself until all possible parent assets
+        from the asset list have been created
+        """
+        logger.info("%s: Creating parent assets - pass %s", self, round)
         new_assets = list()
-        for item_id, asset_info in copy(asset_list).items():
-            location_id = asset_info.get("location_id")
-            if location_id and location_id in location_ids:
-                new_assets.append(
-                    CharacterAsset(
-                        character=self,
-                        item_id=item_id,
-                        location_id=location_id,
-                        eve_type_id=asset_info.get("type_id"),
-                        name=asset_info.get("name"),
-                        is_blueprint_copy=asset_info.get("is_blueprint_copy"),
-                        is_singleton=asset_info.get("is_singleton"),
-                        location_flag=asset_info.get("location_flag"),
-                        quantity=asset_info.get("quantity"),
-                    )
+        location_ids = set(Location.objects.values_list("id", flat=True))
+        parent_asset_ids = {
+            item_id
+            for item_id, asset_info in asset_list.items()
+            if asset_info.get("location_id")
+            and asset_info["location_id"] in location_ids
+        }
+        for item_id in parent_asset_ids:
+            item = asset_list[item_id]
+            new_assets.append(
+                CharacterAsset(
+                    character=self,
+                    item_id=item_id,
+                    location_id=item["location_id"],
+                    eve_type_id=item.get("type_id"),
+                    name=item.get("name"),
+                    is_blueprint_copy=item.get("is_blueprint_copy"),
+                    is_singleton=item.get("is_singleton"),
+                    location_flag=item.get("location_flag"),
+                    quantity=item.get("quantity"),
                 )
-                asset_list.pop(item_id)
-                parent_asset_ids.add(item_id)
+            )
+            asset_list.pop(item_id)
+            if len(new_assets) >= MAX_ASSETS_PER_ROUND:
+                break
 
         logger.info("%s: Writing %s parent assets", self, len(new_assets))
         CharacterAsset.objects.bulk_create(
             new_assets, batch_size=BULK_METHOD_BATCH_SIZE
         )
+        if len(parent_asset_ids) > len(new_assets):
+            # there are more parent assets to create
+            self.assets_create_parents(asset_list=asset_list, round=round + 1)
+        else:
+            # all parent assets created. Now lets create the child assets.
+            self.assets_create_children(asset_list)
 
-        # create child assets
-        round = 0
-        while True:
-            round += 1
-            logger.info("%s: Creating child assets - pass %s", self, round)
-            new_assets = list()
-            for item_id, asset_info in copy(asset_list).items():
-                location_id = asset_info.get("location_id")
-                if location_id and location_id in parent_asset_ids:
-                    new_assets.append(
-                        CharacterAsset(
-                            character=self,
-                            item_id=item_id,
-                            parent=self.assets.get(item_id=location_id),
-                            eve_type_id=asset_info.get("type_id"),
-                            name=asset_info.get("name"),
-                            is_blueprint_copy=asset_info.get("is_blueprint_copy"),
-                            is_singleton=asset_info.get("is_singleton"),
-                            location_flag=asset_info.get("location_flag"),
-                            quantity=asset_info.get("quantity"),
-                        )
-                    )
-                    asset_list.pop(item_id)
+    def assets_create_children(self, asset_list: dict, round: int = 1) -> None:
+        """Created child assets from given asset list
 
-            if new_assets:
-                logger.info("%s: Writing %s child assets", self, len(new_assets))
-                CharacterAsset.objects.bulk_create(
-                    new_assets, batch_size=BULK_METHOD_BATCH_SIZE
+        Child assets are assets located within other assets (aka containers)
+
+        This method will recursively call itself until all possible assets from the
+        asset list are included into the asset tree
+        """
+        logger.info("%s: Creating child assets - pass %s", self, round)
+        new_assets = list()
+        parent_asset_ids = set(self.assets.values_list("item_id", flat=True))
+        child_asset_ids = {
+            item_id
+            for item_id, item in asset_list.items()
+            if item.get("location_id") and item["location_id"] in parent_asset_ids
+        }
+        for item_id in child_asset_ids:
+            item = asset_list[item_id]
+            new_assets.append(
+                CharacterAsset(
+                    character=self,
+                    item_id=item_id,
+                    parent=self.assets.get(item_id=item["location_id"]),
+                    eve_type_id=item.get("type_id"),
+                    name=item.get("name"),
+                    is_blueprint_copy=item.get("is_blueprint_copy"),
+                    is_singleton=item.get("is_singleton"),
+                    location_flag=item.get("location_flag"),
+                    quantity=item.get("quantity"),
                 )
-                parent_asset_ids = parent_asset_ids.union(
-                    {obj.item_id for obj in new_assets}
-                )
-
-            if not new_assets or not asset_list:
+            )
+            asset_list.pop(item_id)
+            if len(new_assets) >= MAX_ASSETS_PER_ROUND:
                 break
 
-        if len(asset_list) > 0:
-            logger.warning(
-                "%s: Failed to add %s assets to the tree: %s",
-                self,
-                len(asset_list),
-                asset_list.keys(),
+        if new_assets:
+            logger.info("%s: Writing %s child assets", self, len(new_assets))
+            CharacterAsset.objects.bulk_create(
+                new_assets, batch_size=BULK_METHOD_BATCH_SIZE
             )
+
+        if new_assets and asset_list:
+            # there are more child assets to create
+            self.assets_create_children(asset_list=asset_list, round=round + 1)
+        else:
+            if len(asset_list) > 0:
+                logger.warning(
+                    "%s: Failed to add %s assets to the tree: %s",
+                    self,
+                    len(asset_list),
+                    asset_list.keys(),
+                )
 
     def update_character_details(self):
         """syncs the character details for the given character"""
@@ -534,7 +588,7 @@ class Character(models.Model):
             else:
                 logger.info("%s: Corporation history is empty", self)
 
-    @fetch_token("esi-characters.read_contacts.v1")
+    @fetch_token_for_character("esi-characters.read_contacts.v1")
     def update_contact_labels(self, token: Token):
         logger.info("%s: Fetching contact labels from ESI", self)
         labels = esi.client.Contacts.get_characters_character_id_contacts_labels(
@@ -567,7 +621,7 @@ class Character(models.Model):
             else:
                 logger.info("%s: No contact labels", self)
 
-    @fetch_token("esi-characters.read_contacts.v1")
+    @fetch_token_for_character("esi-characters.read_contacts.v1")
     def update_contacts(self, token):
         logger.info("%s: Fetching contacts from ESI", self)
         contacts_data = esi.client.Contacts.get_characters_character_id_contacts(
@@ -678,7 +732,7 @@ class Character(models.Model):
             contacts_list=contacts_list, contact_ids=contact_ids
         )
 
-    @fetch_token("esi-contracts.read_character_contracts.v1")
+    @fetch_token_for_character("esi-contracts.read_character_contracts.v1")
     def update_contract_headers(self, token: Token):
         """update the character's contract headers"""
 
@@ -820,7 +874,7 @@ class Character(models.Model):
             batch_size=BULK_METHOD_BATCH_SIZE,
         )
 
-    @fetch_token("esi-contracts.read_character_contracts.v1")
+    @fetch_token_for_character("esi-contracts.read_character_contracts.v1")
     def update_contract_items(self, token: Token, contract: "CharacterContract"):
         """update the character's contract details"""
         if contract.contract_type not in [
@@ -868,7 +922,7 @@ class Character(models.Model):
                 items, batch_size=BULK_METHOD_BATCH_SIZE
             )
 
-    @fetch_token("esi-contracts.read_character_contracts.v1")
+    @fetch_token_for_character("esi-contracts.read_character_contracts.v1")
     def update_contract_bids(self, token: Token, contract: "CharacterContract"):
         """update the character's contract details"""
         if contract.contract_type != CharacterContract.TYPE_AUCTION:
@@ -969,7 +1023,9 @@ class Character(models.Model):
                 if skills:
                     doctrine_ships_by_ship_id[ship.id].insufficient_skills.add(*skills)
 
-    @fetch_token(["esi-clones.read_clones.v1", "esi-universe.read_structures.v1"])
+    @fetch_token_for_character(
+        ["esi-clones.read_clones.v1", "esi-universe.read_structures.v1"]
+    )
     def update_jump_clones(self, token: Token):
         """updates the character's jump clones"""
         logger.info("%s: Fetching jump clones from ESI", self)
@@ -1027,7 +1083,7 @@ class Character(models.Model):
                 batch_size=BULK_METHOD_BATCH_SIZE,
             )
 
-    @fetch_token("esi-mail.read_mail.v1")
+    @fetch_token_for_character("esi-mail.read_mail.v1")
     def update_mailing_lists(self, token: Token):
         """update the mailing lists for the given character"""
         logger.info("%s: Fetching mailing lists from ESI", self)
@@ -1055,7 +1111,7 @@ class Character(models.Model):
                 new_lists, batch_size=BULK_METHOD_BATCH_SIZE
             )
 
-    @fetch_token("esi-mail.read_mail.v1")
+    @fetch_token_for_character("esi-mail.read_mail.v1")
     def update_mail_labels(self, token: Token):
         """update the mail lables for the given character"""
         mail_labels_list = self._fetch_mail_labels_from_esi(token)
@@ -1136,7 +1192,7 @@ class Character(models.Model):
             batch_size=BULK_METHOD_BATCH_SIZE,
         )
 
-    @fetch_token("esi-mail.read_mail.v1")
+    @fetch_token_for_character("esi-mail.read_mail.v1")
     def update_mail_headers(self, token: Token):
         mail_headers = self._fetch_mail_headers(token)
         if MEMBERAUDIT_DEVELOPER_MODE:
@@ -1280,7 +1336,7 @@ class Character(models.Model):
 
         CharacterMail.objects.bulk_update(mails.values(), ["is_read"])
 
-    @fetch_token("esi-mail.read_mail.v1")
+    @fetch_token_for_character("esi-mail.read_mail.v1")
     def update_mail_body(self, token: Token, mail: "CharacterMail") -> None:
         logger.debug("%s: Fetching body from ESI for mail ID %s", self, mail.mail_id)
         mail_body = esi.client.Mail.get_characters_character_id_mail_mail_id(
@@ -1291,7 +1347,7 @@ class Character(models.Model):
         mail.body = mail_body.get("body", "")
         mail.save()
 
-    @fetch_token("esi-skills.read_skillqueue.v1")
+    @fetch_token_for_character("esi-skills.read_skillqueue.v1")
     def update_skill_queue(self, token):
         """update the character's skill queue"""
         logger.info("%s: Fetching skill queue from ESI", self)
@@ -1329,7 +1385,7 @@ class Character(models.Model):
             else:
                 logger.info("%s: Skill queue is empty", self)
 
-    @fetch_token("esi-skills.read_skills.v1")
+    @fetch_token_for_character("esi-skills.read_skills.v1")
     def update_skills(self, token):
         self._update_skills(token)
         self.update_doctrines()
@@ -1425,7 +1481,7 @@ class Character(models.Model):
             batch_size=BULK_METHOD_BATCH_SIZE,
         )
 
-    @fetch_token("esi-wallet.read_character_wallet.v1")
+    @fetch_token_for_character("esi-wallet.read_character_wallet.v1")
     def update_wallet_balance(self, token):
         """syncs the character's wallet balance"""
         logger.info("%s: Fetching wallet balance from ESI", self)
@@ -1437,7 +1493,7 @@ class Character(models.Model):
             character=self, defaults={"total": balance}
         )
 
-    @fetch_token("esi-wallet.read_character_wallet.v1")
+    @fetch_token_for_character("esi-wallet.read_character_wallet.v1")
     def update_wallet_journal(self, token):
         """syncs the character's wallet journal"""
         logger.info("%s: Fetching wallet journal from ESI", self)
@@ -1489,7 +1545,9 @@ class Character(models.Model):
             )
             EveEntity.objects.bulk_update_new_esi()
 
-    @fetch_token(["esi-location.read_location.v1", "esi-universe.read_structures.v1"])
+    @fetch_token_for_character(
+        ["esi-location.read_location.v1", "esi-universe.read_structures.v1"]
+    )
     def fetch_location(self, token) -> Optional[dict]:
         logger.info("%s: Fetching character location ESI", self)
         if not is_esi_online():

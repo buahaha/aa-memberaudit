@@ -6,8 +6,8 @@ from esi.errors import TokenError
 
 from allianceauth.tests.auth_utils import AuthUtils
 
-from . import create_memberaudit_character
-from ..decorators import fetch_character_if_allowed, fetch_token
+from . import create_memberaudit_character, scope_names_set
+from ..decorators import fetch_character_if_allowed, fetch_token_for_character
 from ..models import Character
 from .testdata.load_entities import load_entities
 from ..utils import generate_invalid_pk
@@ -76,10 +76,6 @@ class TestFetchOwnerIfAllowed(TestCase):
     """
 
 
-def scope_names_set(token: Token) -> set:
-    return set(token.scopes.values_list("name", flat=True))
-
-
 class TestFetchToken(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -90,7 +86,7 @@ class TestFetchToken(TestCase):
         self.character = create_memberaudit_character(1001)
 
     def test_defaults(self):
-        @fetch_token()
+        @fetch_token_for_character()
         def dummy(character, token):
             self.assertIsInstance(token, Token)
             self.assertSetEqual(scope_names_set(token), set(Character.get_esi_scopes()))
@@ -98,7 +94,7 @@ class TestFetchToken(TestCase):
         dummy(self.character)
 
     def test_specified_scope(self):
-        @fetch_token("esi-mail.read_mail.v1")
+        @fetch_token_for_character("esi-mail.read_mail.v1")
         def dummy(character, token):
             self.assertIsInstance(token, Token)
             self.assertIn("esi-mail.read_mail.v1", scope_names_set(token))
@@ -106,7 +102,7 @@ class TestFetchToken(TestCase):
         dummy(self.character)
 
     def test_exceptions_if_not_found(self):
-        @fetch_token("invalid_scope")
+        @fetch_token_for_character("invalid_scope")
         def dummy(character, token):
             pass
 

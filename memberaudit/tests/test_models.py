@@ -7,12 +7,17 @@ from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
 
 from bravado.exception import HTTPNotFound, HTTPForbidden, HTTPUnauthorized
-
 from eveuniverse.models import EveEntity, EveSolarSystem, EveType
+from esi.models import Token
+from esi.errors import TokenError
 
 from allianceauth.tests.auth_utils import AuthUtils
 
-from . import create_memberaudit_character, create_user_from_evecharacter
+from . import (
+    create_memberaudit_character,
+    create_user_from_evecharacter,
+    scope_names_set,
+)
 from ..models import (
     Character,
     CharacterAsset,
@@ -183,6 +188,30 @@ class TestCharacterUserHasAccess(TestCase):
             "memberaudit.view_shared_characters", user_3
         )
         self.assertFalse(self.character.user_has_access(user_3))
+
+
+class TestCharacterFetchToken(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_entities()
+
+    def setUp(self) -> None:
+        self.character = create_memberaudit_character(1001)
+
+    def test_defaults(self):
+        token = self.character.fetch_token()
+        self.assertIsInstance(token, Token)
+        self.assertSetEqual(scope_names_set(token), set(Character.get_esi_scopes()))
+
+    def test_specified_scope(self):
+        token = self.character.fetch_token("esi-mail.read_mail.v1")
+        self.assertIsInstance(token, Token)
+        self.assertIn("esi-mail.read_mail.v1", scope_names_set(token))
+
+    def test_exceptions_if_not_found(self):
+        with self.assertRaises(TokenError):
+            self.character.fetch_token("invalid_scope")
 
 
 class TestCharacterManagerUserHasAccess(TestCase):
@@ -358,6 +387,7 @@ class TestCharacterUpdateAssets(TestCharacterUpdateBase):
     def setUpClass(cls) -> None:
         super().setUpClass()
 
+    @patch(MODELS_PATH + ".MAX_ASSETS_PER_ROUND", 1)
     def test_update_assets_1(self, mock_esi):
         """can create assets from scratch"""
         mock_esi.client = esi_client_stub

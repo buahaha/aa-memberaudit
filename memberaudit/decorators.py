@@ -1,7 +1,5 @@
 from functools import wraps
 
-from esi.models import Token
-from esi.errors import TokenError
 
 from django.http import HttpResponseForbidden, HttpResponseNotFound
 
@@ -44,23 +42,19 @@ def fetch_character_if_allowed(*args_select_related):
     return decorator
 
 
-def fetch_token(scopes=None):
+def fetch_token_for_character(scopes=None):
+    """returns valid token for character.
+    Needs to be attached on a Character method !!
+
+    Args:
+    -scopes: Optionally provide the required scopes.
+    Otherwise will use all scopes defined for this character.
+    """
+
     def decorator(view_func):
         @wraps(view_func)
         def _wrapped_view(character, *args, **kwargs):
-            token = (
-                Token.objects.prefetch_related("scopes")
-                .filter(
-                    user=character.character_ownership.user,
-                    character_id=character.character_ownership.character.character_id,
-                )
-                .require_scopes(scopes if scopes else character.get_esi_scopes())
-                .require_valid()
-                .first()
-            )
-            if not token:
-                raise TokenError("Could not find a matching token")
-
+            token = character.fetch_token(scopes)
             return view_func(character, token, *args, **kwargs)
 
         return _wrapped_view

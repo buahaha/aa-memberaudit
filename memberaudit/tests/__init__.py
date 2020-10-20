@@ -2,6 +2,8 @@ from typing import Tuple
 
 from django.contrib.auth.models import User
 
+from esi.models import Token
+
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
@@ -31,3 +33,7 @@ def add_memberaudit_character_to_user(user: User, character_id: int) -> Characte
         user, auth_character, is_main=False, scopes=Character.get_esi_scopes()
     )
     return Character.objects.create(character_ownership=character_ownership)
+
+
+def scope_names_set(token: Token) -> set:
+    return set(token.scopes.values_list("name", flat=True))
