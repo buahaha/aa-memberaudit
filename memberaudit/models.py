@@ -624,7 +624,6 @@ class Character(models.Model):
         CharacterContact.objects.bulk_create(
             new_contacts, batch_size=BULK_METHOD_BATCH_SIZE
         )
-        EveEntity.objects.bulk_update_new_esi()
         self._update_contact_contact_labels(
             contacts_list=contacts_list, contact_ids=contact_ids, is_new=True
         )
@@ -680,8 +679,8 @@ class Character(models.Model):
         )
 
     @fetch_token("esi-contracts.read_character_contracts.v1")
-    def update_contracts(self, token: Token):
-        """update the character's contracts"""
+    def update_contract_headers(self, token: Token):
+        """update the character's contract headers"""
 
         contracts_list = self._fetch_contracts_from_esi(token)
         if not contracts_list:
@@ -710,10 +709,6 @@ class Character(models.Model):
                 self._update_existing_contracts(
                     contracts_list=contracts_list, contract_ids=update_ids
                 )
-
-        self._start_contracts_items_updates(create_ids)
-        self._start_contracts_bids_updates(create_ids | update_ids)
-        EveEntity.objects.bulk_update_new_esi()
 
     def _fetch_contracts_from_esi(self, token) -> dict:
         logger.info("%s: Fetching contracts from ESI", self)
@@ -824,49 +819,6 @@ class Character(models.Model):
             ],
             batch_size=BULK_METHOD_BATCH_SIZE,
         )
-
-    def _start_contracts_items_updates(self, incoming_ids: set):
-        from .tasks import (
-            update_contract_items_esi as task_update_contract_items_esi,
-        )
-
-        contract_pks = set(
-            self.contracts.filter(
-                contract_type__in=[
-                    CharacterContract.TYPE_ITEM_EXCHANGE,
-                    CharacterContract.TYPE_AUCTION,
-                ],
-                contract_id__in=incoming_ids,
-            ).values_list("pk", flat=True)
-        )
-        if len(contract_pks) > 0:
-            logger.info(
-                "%s: Starting updating items for %s contracts", self, len(contract_pks)
-            )
-            for contract_pk in contract_pks:
-                task_update_contract_items_esi(
-                    character_pk=self.pk, contract_pk=contract_pk
-                )
-
-    def _start_contracts_bids_updates(self, incoming_ids: set):
-        from .tasks import (
-            update_contract_bids_esi as task_update_contract_bids_esi,
-        )
-
-        contract_pks = set(
-            self.contracts.filter(
-                contract_type__in=[CharacterContract.TYPE_AUCTION],
-                contract_id__in=incoming_ids,
-            ).values_list("pk", flat=True)
-        )
-        if len(contract_pks) > 0:
-            logger.info(
-                "%s: Starting updating bids for %s contracts", self, len(contract_pks)
-            )
-            for contract_pk in contract_pks:
-                task_update_contract_bids_esi(
-                    character_pk=self.pk, contract_pk=contract_pk
-                )
 
     @fetch_token("esi-contracts.read_character_contracts.v1")
     def update_contract_items(self, token: Token, contract: "CharacterContract"):
@@ -1316,7 +1268,6 @@ class Character(models.Model):
             CharacterMailMailLabel.objects.bulk_create(
                 new_labels, batch_size=BULK_METHOD_BATCH_SIZE
             )
-        EveEntity.objects.bulk_update_new_esi()
 
     def _update_mail_headers(self, mail_headers: dict, update_ids) -> None:
         logger.info("%s: Updating %s mail headers", self, len(update_ids))
