@@ -19,14 +19,29 @@
     }
 
     /* Assets */
-    #tab_assets tbody td:nth-child(3) {
+    #tab_assets tbody td:nth-child(1) {
+        white-space: nowrap;
+    }
+    #tab_assets tbody td:nth-child(2) {
+        text-align: right;    
+    }
+    #tab_assets tbody td:nth-child(4) {
         text-align: right;
     }
-    #tab_assets tbody td:nth-child(5) {
+    #tab_asset_children tbody td:nth-child(1) {
+        white-space: nowrap;
+    }
+    #tab_asset_children tbody td:nth-child(2) {
+        text-align: right;    
+    }
+    #tab_asset_children tbody td:nth-child(4) {
         text-align: right;
     }
 
     /* Contacts */
+    #tab_contacts tbody td:nth-child(1) {
+        white-space: nowrap;
+    }    
     #tab_contacts tbody td:nth-child(3) {
         text-align: right;
     }    
@@ -35,6 +50,10 @@
     #tab_contracts tbody td:nth-child(6) {
         white-space: nowrap;
     }
+
+    #tab_doctrines tbody td:nth-child(1) {
+        white-space: nowrap;
+    }    
 
     /* Mail */
     #tab_mails tbody td:nth-child(1) {

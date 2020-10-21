@@ -57,19 +57,19 @@ def get_or_none(prop_name: str, dct: dict, Model: type) -> Optional[models.Model
 
 def eve_solar_system_to_html(solar_system: EveSolarSystem, show_region=True) -> str:
     if solar_system.is_high_sec:
-        color = "green"
+        css_class = "text-high-sec"
     elif solar_system.is_low_sec:
-        color = "orange"
+        css_class = "text-low-sec"
     else:
-        color = "red"
+        css_class = "text-null-sec"
 
     region_html = (
         f" / {solar_system.eve_constellation.eve_region.name}" if show_region else ""
     )
     return format_html(
-        '{} <span style="color: {}">{}</span>{}',
+        '{} <span class="{}">{}</span>{}',
         create_link_html(dotlan.solar_system_url(solar_system.name), solar_system.name),
-        color,
+        css_class,
         round(solar_system.security_status, 1),
         region_html,
     )

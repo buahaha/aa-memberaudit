@@ -3,9 +3,9 @@
 <a href="{{ character.location.eve_solar_system.name|dotlan_solar_system_url }}" target="_blank">
     {{ character.location.eve_solar_system.name }}
 </a> 
-{% with security=character.location.eve_solar_system.security_status %}
-    <span style="color:{% if security >= 0.5 %}green{% elif security > 0 %}orange{% else %}red{% endif%};">
-        {{ security|floatformat:1 }}
+{% with system=character.location.eve_solar_system %}
+    <span class="{% if system.is_high_sec %}text-high-sec{% elif system.is_low_sec %}text-low-sec{% else %}text-null-sec{% endif%}">
+        {{ system.security_status|floatformat:1 }}
     </span>
 {% endwith %}
  / 

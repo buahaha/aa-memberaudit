@@ -1320,7 +1320,7 @@ def doctrines_report_data(request) -> JsonResponse:
         can_fly_html = (
             "<br>".join(can_fly)
             if can_fly
-            else '<i class="fas fa-times" style="color: red;"></i>'
+            else '<i class="fas fa-times boolean-icon-false"></i>'
         )
         return {
             "id": f"{doctrine_pk}_{character.pk}",

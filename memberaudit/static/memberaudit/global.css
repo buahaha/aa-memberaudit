@@ -13,4 +13,24 @@
         color: rgb(255, 255, 255);
         font-weight: bold;
     }
+
+    .text-high-sec {
+        color: green;
+    }
+    
+    .text-low-sec {
+        color: orange;
+    }
+
+    .text-null-sec {
+        color: red;
+    }
+
+    .boolean-icon-false{
+        color: red;
+    }
+
+    .boolean-icon-true{
+        color: green;
+    }
 }

@@ -40,7 +40,7 @@
                     <div role="tabpanel" class="tab-pane active" id="compliance">
                         <h3>User Compliance</h3>
                         <div class="table-responsive">
-                            <table class="table table-striped" id="tab_contracts">
+                            <table class="table table-striped" id="tab_compliance">
                                 <thead>
                                     <tr>                                        
                                         <th>Main</th>                        
@@ -97,7 +97,7 @@
     <script>
         $(document).ready(function() {
             
-            $('#tab_contracts').DataTable({            
+            $('#tab_compliance').DataTable({            
                 ajax: {
                     url: '{% url 'memberaudit:compliance_report_data' %}',
                     dataSrc: '',
