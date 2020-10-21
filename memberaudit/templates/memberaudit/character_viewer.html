@@ -116,15 +116,7 @@
                 var selectedTabId = $(e.target).attr("href").substr(1)
                 setCookie(COOKIE_LAST_TAB_ID, selectedTabId, COOKIE_LAST_TAB_HOURS)
             });
-
-            /* Summary panel */
-            $("#div_solar_system").load(
-                "{% url 'memberaudit:character_solar_system_data' character.pk %}"
-            );
-            $("#div_location").load(
-                "{% url 'memberaudit:character_location_data' character.pk %}"
-            );
-
+            
             /* Assets */
             $('#tab_assets').DataTable({
                 ajax: {

@@ -58,9 +58,7 @@
                                         </p>
 
                                         <div class="text-center">
-                                            <div id="solar_system_{{ auth_character.character.pk }}">
-                                                Loading...
-                                            </div>
+                                            {% include 'memberaudit/partials/solar_system.html' with character=auth_character.character only %}<br>
                                             {{ auth_character.character.wallet_balance.total|intword|default_if_none:"-" }} ISK<br>
                                         </div>
                                     </div>
@@ -110,18 +108,7 @@
 
 {% endblock details %}
 
-{% block extra_javascript %}
-    <script>
-        $(document).ready(function () {
-            {% for auth_character in auth_characters %}
-                {% if auth_character.character %}
-                $("#solar_system_" + {{ auth_character.character.pk }}).load(
-                    "{% url 'memberaudit:character_solar_system_data' auth_character.character.pk %}"
-                );
-                {% endif %}
-            {% endfor %}
-        });
-    </script>
+{% block extra_javascript %}    
 {% endblock %}
 
 {% block extra_css %}

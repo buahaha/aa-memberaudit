@@ -331,6 +331,10 @@ def character_location_data(
     "wallet_balance",
     "skillpoints",
     "character_ownership__user__profile__main_character",
+    "location__location",
+    "location__eve_solar_system",
+    "location__eve_solar_system__eve_constellation__eve_region",
+    "online_status",
 )
 def character_viewer(request, character_pk: int, character: Character) -> HttpResponse:
     """main view for showing a character with all details

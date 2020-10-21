@@ -42,7 +42,7 @@
             <div class="col-md-6 col-lg-4">
                 <dl class="dl-horizontal">
                     <dt>Born:</dt>
-                    <dd>{{ character_details.birthday|naturalday|default_if_none:"(no data)" }}</dd>
+                    <dd>{{ character_details.birthday|naturaltime|default_if_none:"(no data)" }}</dd>
                     
                     <dt>Skillpoints:</dt>
                     <dd>{{ character.skillpoints.total|intword|default_if_none:"(no data)" }}</dd>
@@ -58,14 +58,10 @@
             <div class="col-md-6 col-lg-4">
                 <dl class="dl-horizontal">                    
                     <dt>Location:</dt>
-                    <dd>
-                        <div id="div_location">Loading...</div>
-                    </dd>                    
+                    <dd>{{ character.location.location.name_plus }}</dd>
                     
                     <dt>System:</dt>
-                    <dd>
-                        <div id="div_solar_system">Loading...</div>
-                    </dd>                    
+                    <dd>{% include 'memberaudit/partials/solar_system.html' with character=character only %}</dd>
                     
                     <dt>Last Login:</dt>
                     <dd>{{ character.online_status.last_login|naturaltime }}</dd>

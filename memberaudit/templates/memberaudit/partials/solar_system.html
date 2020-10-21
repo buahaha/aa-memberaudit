@@ -1,0 +1,12 @@
+{% load evelinks %}
+
+<a href="{{ character.location.eve_solar_system.name|dotlan_solar_system_url }}" target="_blank">
+    {{ character.location.eve_solar_system.name }}
+</a> 
+{% with security=character.location.eve_solar_system.security_status %}
+    <span style="color:{% if security >= 0.5 %}green{% elif security > 0 %}orange{% else %}red{% endif%};">
+        {{ security|floatformat:1 }}
+    </span>
+{% endwith %}
+ / 
+{{ character.location.eve_solar_system.eve_constellation.eve_region.name }}
