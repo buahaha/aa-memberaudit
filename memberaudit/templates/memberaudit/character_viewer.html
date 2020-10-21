@@ -61,7 +61,9 @@
     <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
 
     <script type="application/javascript">
-        var DATETIME_FORMAT = 'YYYY-MMM-DD<br>HH:mm'
+        const DATETIME_FORMAT = 'YYYY-MMM-DD<br>HH:mm'
+        const COOKIE_LAST_TAB_ID = "memberaudit_last_tab_id"
+        const COOKIE_LAST_TAB_HOURS = 2
 
         function title(text) {
             return text.replace(/(^\w|\s\w)/g, m => m.toUpperCase());
@@ -73,7 +75,48 @@
                 : '<i class="fas fa-times" style="color: red;"></i>';
         }
 
+        function setCookie(cname, cvalue, exhours) {
+            var d = new Date();
+            d.setTime(d.getTime() + (exhours*60*60*1000));
+            var expires = "expires="+ d.toUTCString();
+            document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+        }
+
+        function getCookie(cname) {
+            var name = cname + "=";
+            var decodedCookie = decodeURIComponent(document.cookie);
+            var ca = decodedCookie.split(';');
+            for(var i = 0; i <ca.length; i++) {
+                var c = ca[i];
+                while (c.charAt(0) == ' ') {
+                    c = c.substring(1);
+                }
+                
+                if (c.indexOf(name) == 0) {
+                    return c.substring(name.length, c.length);
+                }
+            }
+            return "";
+        }
+
         $(document).ready(function () {            
+            /* show last selected tab or default */            
+            var tabId = "{{show_tab}}"            
+            if (tabId != "") {
+                setCookie(COOKIE_LAST_TAB_ID, tabId, 1)
+            }
+            else {
+                tabId = getCookie(COOKIE_LAST_TAB_ID)
+                if (tabId == "") tabId = "mail"
+            }
+            $('a[href="#' + tabId + '"]').tab("show")
+            
+            /* remember last selected tab */
+            $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+                var selectedTabId = $(e.target).attr("href").substr(1)
+                setCookie(COOKIE_LAST_TAB_ID, selectedTabId, COOKIE_LAST_TAB_HOURS)
+            });
+
             /* Summary panel */
             $("#div_solar_system").load(
                 "{% url 'memberaudit:character_solar_system_data' character.pk %}"

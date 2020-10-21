@@ -14,11 +14,10 @@
             <div class="table-responsive">
                 <table class="table table-striped" id="tab_characters">
                     <thead>
-                        <tr>
-                            <th></th>
+                        <tr>                            
                             <th>Character</th>                        
-                            <th>Corporation</th>
-                            <th>Alliance</th>
+                            <th>Organization</th>                            
+                            <th>Location</th>
                             <th>Main</th>
                             <th>State</th>
                             <th></th>                            
@@ -49,26 +48,42 @@
                     cache: false
                 },
 
-                columns: [
-                    { data: 'portrait' },
-                    { data: 'character_name' },
-                    { data: 'corporation_name' },                
-                    { data: 'alliance_name' },
-                    { data: 'main_name' },
+                columns: [                    
+                    { 
+                        data: 'character',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        } 
+                    },
+                    { data: 'character_organization' },
+                    { data: 'location' },
+                    { data: 'main' },
                     { data: 'state_name' },
                     { data: 'actions' },
+                    /* hidden columns */                    
+                    { data: 'alliance_name' },
+                    { data: 'corporation_name' },
+                    { data: 'region_name' },
+                    { data: 'solar_system_name' },
                 ],
 
                 columnDefs: [														
-                    { "orderable": false, "targets": [ 0 ] },                
+                    { "orderable": false, "targets": [ 5 ] },
+                    { "visible": false, "targets": [ 6, 7, 8, 9 ] },
                 ],
 
-                order: [ [ 1, "asc" ] ],
+                order: [ [ 0, "asc" ] ],
 
                 filterDropDown: {										
                     columns: [
                         {
-                            idx: 2
+                            idx: 6,
+                            title: "Alliance"
+                        },
+                        {
+                            idx: 7,
+                            title: "Corporation"
                         },
                         {
                             idx: 3
@@ -77,8 +92,14 @@
                             idx: 4
                         },
                         {
-                            idx: 5
+                            idx: 8,
+                            title: "Region"
                         },
+                        {
+                            idx: 9,
+                            title: "Solar System"
+                        },
+                        
                     ],
                     bootstrap: true
                 }

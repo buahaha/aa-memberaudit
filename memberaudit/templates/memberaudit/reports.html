@@ -42,12 +42,9 @@
                         <div class="table-responsive">
                             <table class="table table-striped" id="tab_contracts">
                                 <thead>
-                                    <tr>
-                                        <th></th>
-                                        <th>User</th>
+                                    <tr>                                        
                                         <th>Main</th>                        
-                                        <th>Corporation</th>
-                                        <th>Alliance</th>
+                                        <th>Organization</th>
                                         <th>Total Chars</th>
                                         <th>Unregistered Chars</th>
                                         <th>Compliant?</th>                            
@@ -106,24 +103,41 @@
                     dataSrc: '',
                     cache: false
                 },
-                columns: [
-                    { data: 'portrait' },
-                    { data: 'name' },
-                    { data: 'main' },                
-                    { data: 'corporation' },
-                    { data: 'alliance' },
+                columns: [                    
+                    { 
+                        data: 'main',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
+                    { 
+                        data: 'organization',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
                     { data: 'total_chars' },
                     { data: 'unregistered_chars' },
-                    { data: 'compliance_str' }
+                    { data: 'compliance_str' },
+                    /* hidden columns */
+                    { data: 'alliance_name' },
+                    { data: 'corporation_name' },                    
                 ],
-                columnDefs: [														
-                    { "orderable": false, "targets": [ 0 ] },                
+                columnDefs: [          
+                    { "visible": false, "targets": [ 5, 6 ] },
                 ],
-                order: [ [ 1, "asc" ] ],
+                order: [ [ 0, "asc" ] ],
                 filterDropDown: {										
-                    columns: [	                                                          
+                    columns: [                        
                         {
-                            idx: 1
+                            idx: 5,
+                            title: "Alliance"
+                        },
+                        {
+                            idx: 6,
+                            title: "Corporation"
                         },
                         {
                             idx: 2
@@ -133,9 +147,6 @@
                         },
                         {
                             idx: 4
-                        },
-                        {
-                            idx: 7
                         }
                     ],
                     bootstrap: true

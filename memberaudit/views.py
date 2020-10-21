@@ -49,13 +49,15 @@ from .utils import (
     yesno_str,
 )
 
-
-logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+# module constants
 MY_DATETIME_FORMAT = "Y-M-d H:i"
 MAIL_LABEL_ID_ALL_MAILS = 0
 MAP_SKILL_LEVEL_ARABIC_TO_ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V"}
 NO_DOCTRINE_NAME = gettext_lazy("(No Doctrine)")
 DEFAULT_ICON_SIZE = 32
+CHARACTER_VIEWER_DEFAULT_TAB = "mail"
+
+logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 def create_img_html(src: str, classes: list = None, size: int = None) -> str:
@@ -65,14 +67,23 @@ def create_img_html(src: str, classes: list = None, size: int = None) -> str:
 
 
 def create_icon_plus_name_html(
-    icon_url, name, size: int = DEFAULT_ICON_SIZE, avatar=False
+    icon_url, name, size: int = DEFAULT_ICON_SIZE, avatar=False, url=None
 ) -> str:
+    """create HTML to display an icon next to a name. Can also be a link."""
     return format_html(
         "{}&nbsp;&nbsp;&nbsp;{}",
         create_img_html(
             icon_url, classes=["ra-avatar", "img-circle"] if avatar else [], size=size
         ),
-        name,
+        create_link_html(url, name, new_window=False) if url else name,
+    )
+
+
+def create_main_organization_html(main_character) -> str:
+    return format_html(
+        "{}{}",
+        main_character.corporation_name,
+        f" [{main_character.alliance_ticker}]" if main_character.alliance_name else "",
     )
 
 
@@ -322,8 +333,15 @@ def character_location_data(
     "skillpoints",
     "character_ownership__user__profile__main_character",
 )
-def character_viewer(request, character_pk: int, character: Character):
-    """main view showing a character with all details"""
+def character_viewer(request, character_pk: int, character: Character) -> HttpResponse:
+    """main view for showing a character with all details
+
+    Args:
+    - character_pk: PK for character to be shown
+
+    GET Params:
+    - tab: ID of tab to be shown  (optional)
+    """
 
     # corporation history
     corporation_history = list()
@@ -436,6 +454,7 @@ def character_viewer(request, character_pk: int, character: Character):
         )
     )
 
+    show_tab = request.GET.get("tab", "")
     context = {
         "page_title": "Character Sheet",
         "character": character,
@@ -447,6 +466,7 @@ def character_viewer(request, character_pk: int, character: Character):
         "mailing_lists": mailing_lists,
         "main": main,
         "registered_characters": registered_characters,
+        "show_tab": show_tab,
     }
     return render(
         request,
@@ -1057,19 +1077,21 @@ def character_finder(request) -> HttpResponse:
 @permission_required("memberaudit.finder_access")
 def character_finder_data(request) -> JsonResponse:
     character_list = list()
-    for character in Character.objects.user_has_access(
-        user=request.user
-    ).select_related(
-        "character_ownership__character",
-        "character_ownership__user",
-        "character_ownership__user__profile__main_character",
-        "character_ownership__user__profile__state",
+    for character in (
+        Character.objects.user_has_access(user=request.user)
+        .select_related(
+            "character_ownership__character",
+            "character_ownership__user",
+            "character_ownership__user__profile__main_character",
+            "character_ownership__user__profile__state",
+        )
+        .prefetch_related(
+            "location",
+            "location__eve_solar_system",
+            "location__eve_solar_system__eve_constellation__eve_region",
+        )
     ):
         auth_character = character.character_ownership.character
-        user_profile = character.character_ownership.user.profile
-        portrait_html = create_img_html(
-            auth_character.portrait_url(), ["ra-avatar", "img-circle"]
-        )
         character_viewer_url = reverse(
             "memberaudit:character_viewer", args=[character.pk]
         )
@@ -1079,21 +1101,61 @@ def character_finder_data(request) -> JsonResponse:
             button_type="primary",
         )
         alliance_name = (
-            auth_character.alliance_name if auth_character.alliance_name else "-"
+            auth_character.alliance_name if auth_character.alliance_name else ""
         )
-        character_link = create_link_html(
-            character_viewer_url, auth_character.character_name, new_window=False
+        character_organization = format_html(
+            "{}<br><em>{}</em>", auth_character.corporation_name, alliance_name
         )
+        character_html = create_icon_plus_name_html(
+            auth_character.portrait_url(),
+            auth_character.character_name,
+            avatar=True,
+            url=character_viewer_url,
+        )
+        user_profile = character.character_ownership.user.profile
+        try:
+            main_html = create_icon_plus_name_html(
+                user_profile.main_character.portrait_url(),
+                user_profile.main_character.character_name,
+                avatar=True,
+            )
+
+        except AttributeError:
+            main_html = ""
+
+        try:
+            location_name = (
+                character.location.location.name if character.location.location else ""
+            )
+            solar_system_html = eve_solar_system_to_html(
+                character.location.eve_solar_system
+            )
+            location_html = format_html("{}<br>{}", location_name, solar_system_html)
+            solar_system_name = character.location.eve_solar_system.name
+            region_name = (
+                character.location.eve_solar_system.eve_constellation.eve_region.name
+            )
+        except ObjectDoesNotExist:
+            location_html = ""
+            solar_system_name = ""
+            region_name = ""
+
         character_list.append(
             {
                 "character_pk": character.pk,
-                "portrait": portrait_html,
-                "character_name": character_link,
+                "character": {
+                    "display": character_html,
+                    "sort": auth_character.character_name,
+                },
+                "character_organization": character_organization,
+                "main": main_html,
+                "state_name": user_profile.state.name,
+                "location": location_html,
+                "actions": actions_html,
                 "corporation_name": auth_character.corporation_name,
                 "alliance_name": alliance_name,
-                "main_name": user_profile.main_character.character_name,
-                "state_name": user_profile.state.name,
-                "actions": actions_html,
+                "solar_system_name": solar_system_name,
+                "region_name": region_name,
             }
         )
     return JsonResponse(character_list, safe=False)
@@ -1156,18 +1218,26 @@ def compliance_report_data(request) -> JsonResponse:
     user_data = list()
     for user in member_users:
         if user.profile.main_character:
-            portrait_html = create_img_html(
-                user.profile.main_character.portrait_url(), ["ra-avatar", "img-circle"]
-            )
             main_character = user.profile.main_character
+            main_html = create_icon_plus_name_html(
+                main_character.portrait_url(),
+                main_character.character_name,
+                avatar=True,
+            )
+            organization_html = create_main_organization_html(main_character)
             user_data.append(
                 {
                     "user_pk": user.pk,
-                    "portrait": portrait_html,
-                    "name": user.username,
-                    "main": main_character.character_name,
-                    "corporation": main_character.corporation_name,
-                    "alliance": main_character.alliance_name,
+                    "main": {
+                        "display": main_html,
+                        "sort": main_character.character_name,
+                    },
+                    "organization": {
+                        "display": organization_html,
+                        "sort": main_character.corporation_name,
+                    },
+                    "corporation_name": main_character.corporation_name,
+                    "alliance_name": main_character.alliance_name,
                     "total_chars": user.total_chars,
                     "unregistered_chars": user.unregistered_chars,
                     "is_compliant": user.unregistered_chars == 0,
@@ -1201,8 +1271,14 @@ def doctrines_report_data(request) -> JsonResponse:
             if main_character.alliance_name
             else "",
         )
+        character_viewer_url = "{}?tab=doctrines".format(
+            reverse("memberaudit:character_viewer", args=[character.pk])
+        )
         character_html = create_icon_plus_name_html(
-            auth_character.portrait_url(), auth_character.character_name, avatar=True
+            auth_character.portrait_url(),
+            auth_character.character_name,
+            avatar=True,
+            url=character_viewer_url,
         )
         doctrine_pk = doctrine.pk if doctrine else 0
         can_fly = [

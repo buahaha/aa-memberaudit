@@ -116,12 +116,12 @@ class CharacterAdmin(admin.ModelAdmin):
 
     _last_update_ok.boolean = True
 
-    actions = ("update_character", "update_assets")
+    actions = ["update_character", "update_assets", "update_location"]
 
     def update_character(self, request, queryset):
         for obj in queryset:
             tasks.update_character.delay(character_pk=obj.pk)
-            self.message_user(request, f"Started updateting character: {obj}. ")
+            self.message_user(request, f"Started updating character: {obj}. ")
 
     update_character.short_description = "Update selected characters from EVE server"
 
@@ -129,11 +129,25 @@ class CharacterAdmin(admin.ModelAdmin):
         for obj in queryset:
             tasks.update_character_assets.delay(character_pk=obj.pk)
             self.message_user(
-                request, f"Started updateting assets for character: {obj}. "
+                request, f"Started updating assets for character: {obj}. "
             )
 
     update_assets.short_description = (
         "Update assets for selected characters from EVE server"
+    )
+
+    def update_location(self, request, queryset):
+        section = Character.UPDATE_SECTION_LOCATION
+        for obj in queryset:
+            tasks.update_character_section.delay(character_pk=obj.pk, section=section)
+            self.message_user(
+                request,
+                f"Started updating {Character.section_display_name(section)} for character: {obj}. ",
+            )
+
+    update_location.short_description = (
+        f"Update {Character.section_display_name(Character.UPDATE_SECTION_LOCATION)} "
+        "for selected characters from EVE server"
     )
 
     inlines = (SyncStatusAdminInline,)

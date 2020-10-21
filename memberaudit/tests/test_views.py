@@ -97,7 +97,7 @@ def multi_assert_not_in(items, container) -> bool:
     return True
 
 
-class TestViews(TestCase):
+class TestViewsBase(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
@@ -113,19 +113,11 @@ class TestViews(TestCase):
         cls.jita_44 = Location.objects.get(id=60003760)
         cls.structure_1 = Location.objects.get(id=1000000000001)
 
-    def test_can_open_launcher_view(self):
-        request = self.factory.get(reverse("memberaudit:launcher"))
-        request.user = self.user
-        response = launcher(request)
-        self.assertEqual(response.status_code, 200)
 
-    def test_can_open_character_main_view(self):
-        request = self.factory.get(
-            reverse("memberaudit:character_viewer", args=[self.character.pk])
-        )
-        request.user = self.user
-        response = character_viewer(request, self.character.pk)
-        self.assertEqual(response.status_code, 200)
+class TestCharacterAssets(TestViewsBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
 
     def test_character_assets_data_1(self):
         CharacterAsset.objects.create(
@@ -291,6 +283,12 @@ class TestViews(TestCase):
         self.assertEqual(row["quantity"], 3)
         self.assertEqual(row["group"], "Cyberimplant")
         self.assertEqual(row["volume"], 1.0)
+
+
+class TestCharacterContracts(TestViewsBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
 
     @patch(MODULE_PATH + ".now")
     def test_character_contracts_data_1(self, mock_now):
@@ -526,6 +524,26 @@ class TestViews(TestCase):
         self.assertEqual(row["is_watched"], False)
         self.assertEqual(row["is_blocked"], False)
         self.assertEqual(row["level"], "Excellent Standing")
+
+
+class TestViews(TestViewsBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+
+    def test_can_open_launcher_view(self):
+        request = self.factory.get(reverse("memberaudit:launcher"))
+        request.user = self.user
+        response = launcher(request)
+        self.assertEqual(response.status_code, 200)
+
+    def test_can_open_character_main_view(self):
+        request = self.factory.get(
+            reverse("memberaudit:character_viewer", args=[self.character.pk])
+        )
+        request.user = self.user
+        response = character_viewer(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
 
     def test_doctrines_data(self):
         skill_type_1 = EveType.objects.get(id=24311)
