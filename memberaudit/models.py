@@ -209,6 +209,7 @@ class Character(models.Model):
     UPDATE_SECTION_CONTACTS = "CA"
     UPDATE_SECTION_CONTRACTS = "CR"
     UPDATE_SECTION_CORPORATION_HISTORY = "CH"
+    UPDATE_SECTION_LOCATION = "LO"
     UPDATE_SECTION_JUMP_CLONES = "JC"
     UPDATE_SECTION_MAILS = "MA"
     UPDATE_SECTION_SKILLS = "SK"
@@ -221,6 +222,7 @@ class Character(models.Model):
         (UPDATE_SECTION_CONTACTS, _("contacts")),
         (UPDATE_SECTION_CONTRACTS, _("contracts")),
         (UPDATE_SECTION_CORPORATION_HISTORY, _("corporation history")),
+        (UPDATE_SECTION_LOCATION, _("location")),
         (UPDATE_SECTION_JUMP_CLONES, _("jump clones")),
         (UPDATE_SECTION_MAILS, _("mails")),
         (UPDATE_SECTION_SKILLS, _("skills")),
@@ -916,6 +918,14 @@ class Character(models.Model):
                 if skills:
                     doctrine_ships_by_ship_id[ship.id].insufficient_skills.add(*skills)
 
+    def update_location(self):
+        """update the location for the given character"""
+        eve_solar_system, location = self.fetch_location()
+        if eve_solar_system:
+            CharacterLocation.objects.update_or_create(
+                character=self, eve_solar_system=eve_solar_system, location=location
+            )
+
     @fetch_token_for_character(
         ["esi-clones.read_clones.v1", "esi-universe.read_structures.v1"]
     )
@@ -1447,7 +1457,7 @@ class Character(models.Model):
         ["esi-location.read_location.v1", "esi-universe.read_structures.v1"]
     )
     def fetch_location(self, token) -> Optional[dict]:
-        logger.info("%s: Fetching character location ESI", self)
+        logger.info("%s: Fetching location from ESI", self)
         if not is_esi_online():
             return None, None
 
@@ -2022,6 +2032,22 @@ class CharacterDoctrineShipCheck(models.Model):
     @property
     def can_fly(self) -> bool:
         return self.insufficient_skills.count() == 0
+
+
+class CharacterLocation(models.Model):
+    """Location of a character"""
+
+    character = models.OneToOneField(
+        Character, on_delete=models.CASCADE, related_name="location"
+    )
+
+    eve_solar_system = models.ForeignKey(EveSolarSystem, on_delete=models.CASCADE)
+    location = models.ForeignKey(
+        Location, on_delete=models.SET_DEFAULT, default=None, null=True
+    )
+
+    def __str__(self) -> str:
+        return str(f"{self.character}-{self.eve_solar_system}")
 
 
 class CharacterJumpClone(models.Model):

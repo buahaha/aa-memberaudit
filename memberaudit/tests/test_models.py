@@ -1196,6 +1196,20 @@ class TestCharacterUpdateOther(TestCharacterUpdateBase):
         self.assertFalse(obj.is_deleted)
         self.assertEqual(obj.start_date, parse_datetime("2016-07-26T20:00:00Z"))
 
+    def test_update_location_1(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_location()
+        self.assertEqual(self.character_1001.location.eve_solar_system, self.jita)
+        self.assertEqual(self.character_1001.location.location, self.jita_44)
+
+    def test_update_location_2(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        self.character_1002.update_location()
+        self.assertEqual(self.character_1002.location.eve_solar_system, self.amamake)
+        self.assertEqual(self.character_1002.location.location, self.structure_1)
+
 
 class TestCharacterCanFlyDoctrines(NoSocketsTestCase):
     @classmethod
