@@ -1,19 +1,5 @@
-{% load i18n %}
 {% load static %}
-{% load humanize %}
-{% load evelinks %}
 
-<!-- Corporation History -->
-<div role="tabpanel" class="tab-pane" id="history">    
-    {% for entry in corporation_history %}
-        <small class="text-muted">Corporation</small><br>
-        {{ entry.corporation_html }}&nbsp;
-        {{ entry.start_date|date:MY_DATETIME_FORMAT }} to 
-        {% if not entry.is_last %}
-            {{ entry.end_date|date:MY_DATETIME_FORMAT }}
-        {% else %}
-            TODAY
-        {% endif %}
-        <hr id="history_divider">
-    {% endfor %}    
+<div role="tabpanel" class="tab-pane" id="history">
+    <img src="{% static 'memberaudit/images/Spinner-1s-64px.gif' %}"/> 
 </div>

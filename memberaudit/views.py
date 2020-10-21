@@ -24,7 +24,6 @@ from esi.decorators import token_required
 
 from allianceauth.authentication.models import CharacterOwnership, User
 from allianceauth.eveonline.models import EveCharacter
-from allianceauth.eveonline.evelinks import dotlan
 from allianceauth.services.hooks import get_extension_logger
 
 from . import tasks, __title__
@@ -342,31 +341,7 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
     GET Params:
     - tab: ID of tab to be shown  (optional)
     """
-
-    # corporation history
-    corporation_history = list()
-    for entry in (
-        character.corporation_history.exclude(is_deleted=True)
-        .select_related("corporation")
-        .order_by("start_date")
-    ):
-        if len(corporation_history) > 0:
-            corporation_history[-1]["end_date"] = entry.start_date
-            corporation_history[-1]["is_last"] = False
-
-        corporation_history.append(
-            {
-                "corporation_html": create_link_html(
-                    dotlan.corporation_url(entry.corporation.name),
-                    entry.corporation.name,
-                ),
-                "start_date": entry.start_date,
-                "end_date": now(),
-                "is_last": True,
-            }
-        )
-
-    # corporation details
+    # character details
     try:
         character_details = character.details
     except ObjectDoesNotExist:
@@ -460,7 +435,6 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         "character": character,
         "auth_character": auth_character,
         "character_details": character_details,
-        "corporation_history": reversed(corporation_history),
         "skill_queue": skill_queue,
         "mail_labels": mail_labels,
         "mailing_lists": mailing_lists,
@@ -538,13 +512,18 @@ def character_assets_data(
         location_name = (
             f"{asset.location.name_plus} ({location_counts.get(asset.location_id, 0)})"
         )
+        name_html = create_icon_plus_name_html(
+            asset.eve_type.icon_url(DEFAULT_ICON_SIZE), asset.name_display
+        )
 
         data.append(
             {
                 "item_id": asset.item_id,
                 "location": location_name,
-                "icon": create_img_html(asset.eve_type.icon_url(DEFAULT_ICON_SIZE), []),
-                "name": asset.name_display,
+                "name": {
+                    "display": name_html,
+                    "sort": asset.name_display,
+                },
                 "quantity": asset.quantity if not asset.is_singleton else "",
                 "group": asset.group_display,
                 "volume": asset.eve_type.volume,
@@ -608,11 +587,16 @@ def character_asset_container_data(
         return HttpResponseNotFound()
 
     for asset in assets_qs:
+        name_html = create_icon_plus_name_html(
+            asset.eve_type.icon_url(DEFAULT_ICON_SIZE), asset.name_display
+        )
         data.append(
             {
                 "item_id": asset.item_id,
-                "icon": create_img_html(asset.eve_type.icon_url(DEFAULT_ICON_SIZE), []),
-                "name": asset.name_display,
+                "name": {
+                    "display": name_html,
+                    "sort": asset.name_display,
+                },
                 "quantity": asset.quantity if not asset.is_singleton else "",
                 "group": asset.group_display,
                 "volume": asset.eve_type.volume,
@@ -830,6 +814,45 @@ def character_doctrines_data(
 
     data = sorted(data, key=lambda k: (k["doctrine"].lower(), k["ship_name"].lower()))
     return JsonResponse(data, safe=False)
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_corporation_history(
+    request, character_pk: int, character: Character
+) -> HttpResponse:
+    corporation_history = list()
+    try:
+        corporation_history_qs = (
+            character.corporation_history.exclude(is_deleted=True)
+            .select_related("corporation")
+            .order_by("start_date")
+        )
+    except ObjectDoesNotExist:
+        pass
+
+    else:
+        for entry in corporation_history_qs:
+            if len(corporation_history) > 0:
+                corporation_history[-1]["end_date"] = entry.start_date
+                corporation_history[-1]["is_last"] = False
+
+            corporation_history.append(
+                {
+                    "corporation_name": entry.corporation.name,
+                    "start_date": entry.start_date,
+                    "end_date": now(),
+                    "is_last": True,
+                }
+            )
+
+    context = {"corporation_history": reversed(corporation_history)}
+    return render(
+        request,
+        "memberaudit/partials/tab_panel_corporation_history_2.html",
+        add_common_context(request, context),
+    )
 
 
 @login_required

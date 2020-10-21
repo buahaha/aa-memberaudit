@@ -51,6 +51,7 @@ from ..views import (
     character_contacts_data,
     character_contracts_data,
     character_contract_details,
+    character_corporation_history,
     character_doctrines_data,
     character_jump_clones_data,
     character_mail_headers_by_label_data,
@@ -142,8 +143,7 @@ class TestCharacterAssets(TestViewsBase):
         self.assertEqual(
             row["location"], "Jita IV - Moon 4 - Caldari Navy Assembly Plant (1)"
         )
-        self.assertTrue(row["icon"])
-        self.assertEqual(row["name"], "Trucker")
+        self.assertEqual(row["name"]["sort"], "Trucker")
         self.assertEqual(row["quantity"], 1)
         self.assertEqual(row["group"], "Charon")
         self.assertEqual(row["volume"], 16250000.0)
@@ -173,8 +173,7 @@ class TestCharacterAssets(TestViewsBase):
         self.assertEqual(
             row["location"], "Jita IV - Moon 4 - Caldari Navy Assembly Plant (1)"
         )
-        self.assertTrue(row["icon"])
-        self.assertEqual(row["name"], "Charon")
+        self.assertEqual(row["name"]["sort"], "Charon")
         self.assertEqual(row["quantity"], 1)
         self.assertEqual(row["group"], "Freighter")
         self.assertEqual(row["volume"], 16250000.0)
@@ -270,16 +269,14 @@ class TestCharacterAssets(TestViewsBase):
 
         row = data[0]
         self.assertEqual(row["item_id"], 2)
-        self.assertTrue(row["icon"])
-        self.assertEqual(row["name"], "My Precious")
+        self.assertEqual(row["name"]["sort"], "My Precious")
         self.assertEqual(row["quantity"], "")
         self.assertEqual(row["group"], "Merlin")
         self.assertEqual(row["volume"], 16500.0)
 
         row = data[1]
         self.assertEqual(row["item_id"], 3)
-        self.assertTrue(row["icon"])
-        self.assertEqual(row["name"], "High-grade Snake Alpha")
+        self.assertEqual(row["name"]["sort"], "High-grade Snake Alpha")
         self.assertEqual(row["quantity"], 3)
         self.assertEqual(row["group"], "Cyberimplant")
         self.assertEqual(row["volume"], 1.0)
@@ -746,6 +743,16 @@ class TestViews(TestViewsBase):
         self.assertEqual(response.status_code, 200)
         data = json_response_to_python(response)
         self.assertSetEqual({x["character_pk"] for x in data}, {self.character.pk})
+
+    def test_character_corporation_history(self):
+        request = self.factory.get(
+            reverse(
+                "memberaudit:character_corporation_history", args=[self.character.pk]
+            )
+        )
+        request.user = self.user
+        response = character_corporation_history(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
 
 
 class TestMailHeaderData(TestCase):

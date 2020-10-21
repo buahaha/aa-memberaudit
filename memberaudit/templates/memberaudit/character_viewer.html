@@ -134,8 +134,12 @@
                 },
                 columns: [
                     { data: 'location' },
-                    { data: 'icon' },
-                    { data: 'name' },
+                    { data: 'name',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }  
+                    },
                     { 
                         data: 'quantity',                         
                         render: $.fn.dataTable.render.number( ',', '.', 0 )
@@ -152,30 +156,30 @@
                     { data: 'solar_system' },
                     { data: 'is_ship' },
                 ],
-                order: [[0, "asc"], [2, "asc"], [3, "asc"]],
+                order: [[0, "asc"], [1, "asc"], [2, "asc"]],
                 rowGroup: {
                     dataSrc: 'location',
                     className: 'table-group'
                 },
                 columnDefs: [
-                    { "orderable": false, "targets": [ 1, 6 ] },
-                    { "visible": false, "targets": [ 0, 7, 8, 9 ] }                    
+                    { "orderable": false, "targets": [ 1, 5 ] },
+                    { "visible": false, "targets": [ 0, 6, 7, 8 ] }                    
                 ],
                 filterDropDown: {
                     columns: [                        
                         {
-                            idx: 7,
+                            idx: 6,
                             title: "Region"
                         },
                         {
-                            idx: 8,
+                            idx: 7,
                             title: "Solar System"
                         },
                         {
                             idx: 0
                         },
                         {
-                            idx: 9,
+                            idx: 8,
                             title: "Ship?"
                         },
                     ],
@@ -302,6 +306,9 @@
                 var ajax_contract_detail = button.data('ajax_contract_detail');
                 $("#modalCharacterContractContent").load(ajax_contract_detail)
             });
+
+            /* Corporation History */
+            $('#history').load("{% url 'memberaudit:character_corporation_history' character.pk %}")
 
             /* Doctrines */
             $('#tab_doctrines').DataTable({

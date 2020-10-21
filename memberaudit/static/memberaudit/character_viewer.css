@@ -2,6 +2,10 @@
     /* dl styling */
     .dl-horizontal dt {
         text-align: left;
+        width: 8em;
+    }
+    .dl-horizontal dd {
+        margin-left: 8em;        
     }
     
     /* Breadcrumbs */

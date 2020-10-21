@@ -21,7 +21,6 @@
                 <table class="table table-striped" id="tab_asset_children" style="width:100%;">
                     <thead>
                         <tr>
-                            <th></th>
                             <th>Name</th>
                             <th>Qty</th>
                             <th>Group</th>
@@ -50,9 +49,13 @@
                     dataSrc: '',
                     cache: false
                 },
-                columns: [                
-                    { data: 'icon' },
-                    { data: 'name' },
+                columns: [                    
+                    { data: 'name',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }  
+                    },
                     { 
                         data: 'quantity',                         
                         render: $.fn.dataTable.render.number( ',', '.', 0 )
@@ -63,10 +66,7 @@
                         render: $.fn.dataTable.render.number( ',', '.', 2 )
                     }                
                 ],
-                order: [[1, "asc"], [2, "asc"]],
-                columnDefs: [
-                    { "orderable": false, "targets": [ 0 ] },
-                ]
+                order: [[0, "asc"], [1, "asc"]]
             });        
         });
     {% endif %}
