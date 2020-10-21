@@ -12,12 +12,14 @@
                 <dl class="dl-horizontal">
                     <dt>Character:</dt>
                     <dd>{{ auth_character.character_name}}</dd>
+                    
                     <dt>Corporation:</dt>
                     <dd>
                         <a href="{{ auth_character.corporation_name|dotlan_corporation_url }}" target="_blank">
                             {{ auth_character.corporation_name }}
                         </a>
                     </dd>
+                    
                     <dt>Alliance:</dt>
                     <dd>
                         {% if auth_character.alliance_name %}
@@ -28,8 +30,12 @@
                             -
                         {% endif %}
                     </dd>
+                    
                     <dt>Faction:</dt>
                     <dd>{{ character_details.faction|default:"-" }}</dd>
+                    
+                    <dt>Race:</dt>
+                    <dd>{{ character_details.eve_bloodline.eve_race }} / {{ character_details.eve_bloodline }}</dd>      
                 </dl>
             </div>
 
@@ -37,29 +43,35 @@
                 <dl class="dl-horizontal">
                     <dt>Born:</dt>
                     <dd>{{ character_details.birthday|naturalday|default_if_none:"(no data)" }}</dd>
+                    
                     <dt>Skillpoints:</dt>
                     <dd>{{ character.skillpoints.total|intword|default_if_none:"(no data)" }}</dd>
+                    
                     <dt>Wallet:</dt>
                     <dd>{{ character.wallet_balance.total|intword|default_if_none:"(no data)" }}</dd>
+                    
                     <dt>Sec. Status:</dt>
-                    <dd>{{ character_details.security_status|floatformat|default_if_none:"(no data)" }}</dd>
+                    <dd class="{% if character_details.security_status < 0 %}text-danger{% elif character_details.security_status > 0 %}text-success{% endif %}">{{ character_details.security_status|floatformat:1|default_if_none:"(no data)" }}</dd>                    
                 </dl>
             </div>
 
             <div class="col-md-6 col-lg-4">
-                <dl class="dl-horizontal">
-                    <dt>System:</dt>
-                    <dd>
-                        <div id="div_solar_system">Loading...</div>
-                    </dd>
+                <dl class="dl-horizontal">                    
                     <dt>Location:</dt>
                     <dd>
                         <div id="div_location">Loading...</div>
-                    </dd>
-                    <dt>Race / Achestry:</dt>
-                    <dd>{{ character_details.eve_bloodline.eve_race }} / {{ character_details.eve_bloodline }}</dd>
+                    </dd>                    
+                    
+                    <dt>System:</dt>
+                    <dd>
+                        <div id="div_solar_system">Loading...</div>
+                    </dd>                    
+                    
+                    <dt>Last Login:</dt>
+                    <dd>{{ character.online_status.last_login|naturaltime }}</dd>
+
                     <dt>Main:</dt>
-                    <dd>{{ main }}</dd>
+                    <dd>{{ main }}</dd>                    
                 </dl>
             </div>
 

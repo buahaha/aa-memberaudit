@@ -355,6 +355,14 @@
                 "solar_system_id": 30002537,
                 "structure_id": 1000000000001
             }
+        },
+        "get_characters_character_id_online": {
+            "1001": {
+                "last_login": "2017-01-02T03:04:05Z",
+                "last_logout": "2017-01-02T04:05:06Z",
+                "logins": 9001,
+                "online": true
+            }
         }
     },
     "Mail": {

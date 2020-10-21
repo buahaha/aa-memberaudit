@@ -26,7 +26,9 @@ class UpdateStatusOkFilter(admin.SimpleListFilter):
 
     def queryset(self, request, queryset):
         if self.value() == "Errors":
-            return Character.objects.filter(sync_status_set__sync_ok=False).distinct()
+            return Character.objects.filter(
+                update_status_set__is_success=False
+            ).distinct()
         else:
             return Character.objects.all()
 
@@ -59,6 +61,7 @@ class CharacterAdmin(admin.ModelAdmin):
         "created_at",
         "_last_update_at",
         "_last_update_ok",
+        "_missing_updates",
     )
     list_display_links = (
         "_character_pic",
@@ -95,7 +98,10 @@ class CharacterAdmin(admin.ModelAdmin):
     _character.admin_order_field = "character_ownership__character"
 
     def _main(self, obj):
-        return obj.character_ownership.user.profile.main_character
+        try:
+            return obj.character_ownership.user.profile.main_character
+        except AttributeError:
+            return None
 
     _main.admin_order_field = "character_ownership__user__profile__main_character"
 
@@ -105,7 +111,14 @@ class CharacterAdmin(admin.ModelAdmin):
     _main.admin_order_field = "character_ownership__user__profile__state__name"
 
     def _organization(self, obj):
-        return user_main_organization(obj.character_ownership.user)
+        try:
+            main = obj.character_ownership.user.profile.main_character
+            return "{}{}".format(
+                main.corporation_name,
+                f" [{main.alliance_ticker}]" if main.alliance_ticker else "",
+            )
+        except AttributeError:
+            return None
 
     def _last_update_ok(self, obj):
         return obj.is_update_status_ok()
@@ -116,7 +129,21 @@ class CharacterAdmin(admin.ModelAdmin):
 
     _last_update_ok.boolean = True
 
-    actions = ["update_character", "update_assets", "update_location"]
+    def _missing_updates(self, obj):
+        existing = set(obj.update_status_set.values_list("section", flat=True))
+        all_sections = {x[0] for x in Character.UPDATE_SECTION_CHOICES}
+        missing = all_sections.difference(existing)
+        if missing:
+            return sorted([Character.section_display_name(x) for x in missing])
+
+        return None
+
+    actions = [
+        "update_character",
+        "update_assets",
+        "update_location",
+        "update_online_status",
+    ]
 
     def update_character(self, request, queryset):
         for obj in queryset:
@@ -147,6 +174,21 @@ class CharacterAdmin(admin.ModelAdmin):
 
     update_location.short_description = (
         f"Update {Character.section_display_name(Character.UPDATE_SECTION_LOCATION)} "
+        "for selected characters from EVE server"
+    )
+
+    def update_online_status(self, request, queryset):
+        section = Character.UPDATE_SECTION_ONLINE_STATUS
+        for obj in queryset:
+            tasks.update_character_section.delay(character_pk=obj.pk, section=section)
+            self.message_user(
+                request,
+                f"Started updating {Character.section_display_name(section)} for character: {obj}. ",
+            )
+
+    update_online_status.short_description = (
+        "Update "
+        f"{Character.section_display_name(Character.UPDATE_SECTION_ONLINE_STATUS)} "
         "for selected characters from EVE server"
     )
 

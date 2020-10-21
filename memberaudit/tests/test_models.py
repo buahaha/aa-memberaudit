@@ -1210,6 +1210,20 @@ class TestCharacterUpdateOther(TestCharacterUpdateBase):
         self.assertEqual(self.character_1002.location.eve_solar_system, self.amamake)
         self.assertEqual(self.character_1002.location.location, self.structure_1)
 
+    def test_update_online_status(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_online_status()
+        self.assertEqual(
+            self.character_1001.online_status.last_login,
+            parse_datetime("2017-01-02T03:04:05Z"),
+        )
+        self.assertEqual(
+            self.character_1001.online_status.last_logout,
+            parse_datetime("2017-01-02T04:05:06Z"),
+        )
+        self.assertEqual(self.character_1001.online_status.logins, 9001)
+
 
 class TestCharacterCanFlyDoctrines(NoSocketsTestCase):
     @classmethod

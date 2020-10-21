@@ -212,6 +212,7 @@ class Character(models.Model):
     UPDATE_SECTION_LOCATION = "LO"
     UPDATE_SECTION_JUMP_CLONES = "JC"
     UPDATE_SECTION_MAILS = "MA"
+    UPDATE_SECTION_ONLINE_STATUS = "OS"
     UPDATE_SECTION_SKILLS = "SK"
     UPDATE_SECTION_SKILL_QUEUE = "SQ"
     UPDATE_SECTION_WALLET_BALLANCE = "WB"
@@ -225,6 +226,7 @@ class Character(models.Model):
         (UPDATE_SECTION_LOCATION, _("location")),
         (UPDATE_SECTION_JUMP_CLONES, _("jump clones")),
         (UPDATE_SECTION_MAILS, _("mails")),
+        (UPDATE_SECTION_ONLINE_STATUS, _("online status")),
         (UPDATE_SECTION_SKILLS, _("skills")),
         (UPDATE_SECTION_SKILL_QUEUE, _("skill queue")),
         (UPDATE_SECTION_WALLET_BALLANCE, _("wallet balance")),
@@ -1250,6 +1252,23 @@ class Character(models.Model):
         mail.body = mail_body.get("body", "")
         mail.save()
 
+    @fetch_token_for_character("esi-location.read_online.v1")
+    def update_online_status(self, token):
+        """Update the character's online status"""
+        logger.info("%s: Fetching online status from ESI", self)
+        online_info = esi.client.Location.get_characters_character_id_online(
+            character_id=self.character_ownership.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+        CharacterOnlineStatus.objects.update_or_create(
+            character=self,
+            defaults={
+                "last_login": online_info.get("last_login"),
+                "last_logout": online_info.get("last_logout"),
+                "logins": online_info.get("logins"),
+            },
+        )
+
     @fetch_token_for_character("esi-skills.read_skillqueue.v1")
     def update_skill_queue(self, token):
         """update the character's skill queue"""
@@ -2038,7 +2057,7 @@ class CharacterLocation(models.Model):
     """Location of a character"""
 
     character = models.OneToOneField(
-        Character, on_delete=models.CASCADE, related_name="location"
+        Character, on_delete=models.CASCADE, primary_key=True, related_name="location"
     )
 
     eve_solar_system = models.ForeignKey(EveSolarSystem, on_delete=models.CASCADE)
@@ -2227,6 +2246,24 @@ class CharacterMailUnreadCount(models.Model):
         related_name="unread_mail_count",
     )
     total = models.PositiveIntegerField()
+
+
+class CharacterOnlineStatus(models.Model):
+    """Online Status of a character"""
+
+    character = models.OneToOneField(
+        Character,
+        on_delete=models.CASCADE,
+        primary_key=True,
+        related_name="online_status",
+    )
+
+    last_login = models.DateTimeField(default=None, null=True)
+    last_logout = models.DateTimeField(default=None, null=True)
+    logins = models.PositiveIntegerField(default=None, null=True)
+
+    def __str__(self) -> str:
+        return str(self.character)
 
 
 class CharacterSkill(models.Model):
