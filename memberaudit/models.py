@@ -1390,7 +1390,10 @@ class Character(models.Model):
 
     @fetch_token_for_character("esi-wallet.read_character_wallet.v1")
     def update_wallet_journal(self, token):
-        """syncs the character's wallet journal"""
+        """syncs the character's wallet journal
+
+        Note: Does not update unknown EvEntities.
+        """
         logger.info("%s: Fetching wallet journal from ESI", self)
 
         journal = esi.client.Wallet.get_characters_character_id_wallet_journal(

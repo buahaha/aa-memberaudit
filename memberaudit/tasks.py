@@ -67,6 +67,7 @@ def update_character(character_pk: int) -> None:
             Character.UPDATE_SECTION_MAILS,
             Character.UPDATE_SECTION_CONTACTS,
             Character.UPDATE_SECTION_CONTRACTS,
+            Character.UPDATE_SECTION_WALLET_JOURNAL,
         }
     )
     for section in sections:
@@ -91,6 +92,10 @@ def update_character(character_pk: int) -> None:
         priority=DEFAULT_TASK_PRIORITY,
     )
     update_character_assets.apply_async(
+        kwargs={"character_pk": character.pk},
+        priority=DEFAULT_TASK_PRIORITY,
+    )
+    update_character_wallet_journal.apply_async(
         kwargs={"character_pk": character.pk},
         priority=DEFAULT_TASK_PRIORITY,
     )
@@ -506,6 +511,32 @@ def update_contract_bids_esi(character_pk: int, contract_pk: int):
     character = Character.objects.get(pk=character_pk)
     contract = CharacterContract.objects.get(pk=contract_pk)
     character.update_contract_bids(contract)
+
+
+# special tasks for updating wallet
+
+
+@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+def update_character_wallet_journal(character_pk: int) -> None:
+    """Main task for updating wallet journal of a character"""
+    character = Character.objects.get(pk=character_pk)
+    section = Character.UPDATE_SECTION_WALLET_JOURNAL
+    character.update_status_set.filter(section=section).delete()
+    logger.info("%s: Updating %s", character, Character.section_display_name(section))
+    chain(
+        update_character_wallet_journal_entries.si(character.pk),
+        update_unresolved_eve_entities.si(character.pk, section, last_in_chain=True),
+    ).apply_async(priority=DEFAULT_TASK_PRIORITY)
+
+
+@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+def update_character_wallet_journal_entries(character_pk: int) -> None:
+    character = Character.objects.get(pk=character_pk)
+    _character_update_with_error_logging(
+        character,
+        Character.UPDATE_SECTION_WALLET_JOURNAL,
+        character.update_wallet_journal,
+    )
 
 
 # Tasks for Location objects
