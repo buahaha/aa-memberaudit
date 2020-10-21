@@ -72,6 +72,45 @@ class TestCharacterOtherMethods(NoSocketsTestCase):
         self.assertEqual(result, "update_mails")
 
 
+@patch(MODELS_PATH + ".MEMBERAUDIT_UPDATE_STALE_RING_3", 640)
+class TestCharacterIsUpdateSectionStale(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_entities()
+        cls.section = Character.UPDATE_SECTION_ASSETS
+
+    def setUp(self) -> None:
+        self.character = create_memberaudit_character(1001)
+
+    def test_recently_updated_successfully(self):
+        """When section has been recently updated successfully then return False"""
+        CharacterUpdateStatus.objects.create(
+            character=self.character, section=self.section, is_success=True
+        )
+        self.assertFalse(self.character.is_update_section_stale(self.section))
+
+    def test_recently_updated_unsuccessfully(self):
+        """When section has been recently updated, but with errors then return True"""
+        CharacterUpdateStatus.objects.create(
+            character=self.character, section=self.section, is_success=False
+        )
+        self.assertTrue(self.character.is_update_section_stale(self.section))
+
+    def test_update_long_ago(self):
+        """When section has not been recently updated, then return True"""
+        mocked_update_at = now() - dt.timedelta(hours=12)
+        with patch("django.utils.timezone.now", Mock(return_value=mocked_update_at)):
+            CharacterUpdateStatus.objects.create(
+                character=self.character, section=self.section, is_success=True
+            )
+        self.assertTrue(self.character.is_update_section_stale(self.section))
+
+    def test_does_not_exist(self):
+        """When section does not exist, then return True"""
+        self.assertTrue(self.character.is_update_section_stale(self.section))
+
+
 class TestCharacterUserHasAccess(TestCase):
     @classmethod
     def setUpClass(cls) -> None:

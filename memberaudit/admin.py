@@ -3,8 +3,6 @@ from django.utils.html import format_html
 
 from eveuniverse.models import EveType
 
-from allianceauth.authentication.admin import user_main_organization
-
 from .constants import EVE_CATEGORY_ID_SKILL
 from .models import (
     Character,
@@ -147,7 +145,7 @@ class CharacterAdmin(admin.ModelAdmin):
 
     def update_character(self, request, queryset):
         for obj in queryset:
-            tasks.update_character.delay(character_pk=obj.pk)
+            tasks.update_character.delay(character_pk=obj.pk, force_update=True)
             self.message_user(request, f"Started updating character: {obj}. ")
 
     update_character.short_description = "Update selected characters from EVE server"

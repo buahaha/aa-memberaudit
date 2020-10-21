@@ -1,3 +1,4 @@
+import datetime as dt
 from collections import namedtuple
 import json
 from typing import Optional
@@ -34,10 +35,13 @@ from .app_settings import (
     MEMBERAUDIT_MAX_MAILS,
     MEMBERAUDIT_DEVELOPER_MODE,
     MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
+    MEMBERAUDIT_UPDATE_STALE_RING_1,
+    MEMBERAUDIT_UPDATE_STALE_RING_2,
+    MEMBERAUDIT_UPDATE_STALE_RING_3,
 )
 from .decorators import fetch_token_for_character
 from .helpers import get_or_create_esi_or_none, get_or_none, get_or_create_or_none
-from .managers import CharacterManager, DoctrineManager, LocationManager
+from .managers import CharacterManager, LocationManager
 from .providers import esi
 from .utils import LoggerAddTag, chunks
 
@@ -233,6 +237,22 @@ class Character(models.Model):
         (UPDATE_SECTION_WALLET_JOURNAL, _("wallet journal")),
     )
 
+    UPDATE_SECTION_RINGS_MAP = {
+        UPDATE_SECTION_ASSETS: 3,
+        UPDATE_SECTION_CHARACTER_DETAILS: 2,
+        UPDATE_SECTION_CONTACTS: 2,
+        UPDATE_SECTION_CONTRACTS: 2,
+        UPDATE_SECTION_CORPORATION_HISTORY: 2,
+        UPDATE_SECTION_LOCATION: 1,
+        UPDATE_SECTION_JUMP_CLONES: 2,
+        UPDATE_SECTION_MAILS: 2,
+        UPDATE_SECTION_ONLINE_STATUS: 1,
+        UPDATE_SECTION_SKILLS: 2,
+        UPDATE_SECTION_SKILL_QUEUE: 1,
+        UPDATE_SECTION_WALLET_BALLANCE: 2,
+        UPDATE_SECTION_WALLET_JOURNAL: 2,
+    }
+
     character_ownership = models.OneToOneField(
         CharacterOwnership,
         related_name="memberaudit_character",
@@ -240,6 +260,7 @@ class Character(models.Model):
         primary_key=True,
         help_text="ownership of this character on Auth",
     )
+
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     is_shared = models.BooleanField(
         default=False,
@@ -315,6 +336,29 @@ class Character(models.Model):
             return True
         else:
             return None
+
+    @classmethod
+    def update_section_time_until_stale(cls, section: str) -> dt.timedelta:
+        """time until given update section is considered stale"""
+        ring = cls.UPDATE_SECTION_RINGS_MAP[section]
+        if ring == 1:
+            minutes = MEMBERAUDIT_UPDATE_STALE_RING_1
+        elif ring == 2:
+            minutes = MEMBERAUDIT_UPDATE_STALE_RING_2
+        else:
+            minutes = MEMBERAUDIT_UPDATE_STALE_RING_3
+
+        return dt.timedelta(minutes=minutes)
+
+    def is_update_section_stale(self, section: str) -> bool:
+        """returns True if the give update section is stale, else False"""
+        try:
+            update_status = self.update_status_set.get(section=section, is_success=True)
+        except CharacterUpdateStatus.DoesNotExist:
+            return True
+
+        deadline = now() - self.update_section_time_until_stale(section)
+        return update_status.updated_at < deadline
 
     def _preload_all_locations(self, token: Token, incoming_ids: set) -> list:
         """loads location objects specified by given set
@@ -2349,6 +2393,7 @@ class CharacterUpdateStatus(models.Model):
     character = models.ForeignKey(
         Character, on_delete=models.CASCADE, related_name="update_status_set"
     )
+
     section = models.CharField(max_length=2, choices=Character.UPDATE_SECTION_CHOICES)
     is_success = models.BooleanField(db_index=True)
     error_message = models.TextField()
@@ -2508,7 +2553,6 @@ class Doctrine(models.Model):
     is_active = models.BooleanField(
         default=True, db_index=True, help_text="Whether this doctrine is in active use"
     )
-    objects = DoctrineManager()
 
     def __str__(self) -> str:
         return str(self.name)

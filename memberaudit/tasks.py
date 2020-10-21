@@ -57,8 +57,13 @@ def update_all_characters() -> None:
 
 
 @shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
-def update_character(character_pk: int) -> None:
-    """Start respective update tasks for all sections of a character"""
+def update_character(character_pk: int, force_update=False) -> None:
+    """Start respective update tasks for all stale sections of a character
+
+    Args:
+    - character_pk: PL of character to update
+    - force_update: When set to True will always update regardless of stale status
+    """
     character = Character.objects.get(pk=character_pk)
     logger.info("%s: Starting character update", character)
     sections = {x[0] for x in Character.UPDATE_SECTION_CHOICES}.difference(
@@ -71,34 +76,50 @@ def update_character(character_pk: int) -> None:
         }
     )
     for section in sections:
-        update_character_section.apply_async(
-            kwargs={
-                "character_pk": character.pk,
-                "section": section,
-            },
+        if force_update or character.is_update_section_stale(section):
+            update_character_section.apply_async(
+                kwargs={
+                    "character_pk": character.pk,
+                    "section": section,
+                },
+                priority=DEFAULT_TASK_PRIORITY,
+            )
+
+    if force_update or character.is_update_section_stale(
+        Character.UPDATE_SECTION_MAILS
+    ):
+        update_character_mails.apply_async(
+            kwargs={"character_pk": character.pk},
             priority=DEFAULT_TASK_PRIORITY,
         )
-
-    update_character_mails.apply_async(
-        kwargs={"character_pk": character.pk},
-        priority=DEFAULT_TASK_PRIORITY,
-    )
-    update_character_contacts.apply_async(
-        kwargs={"character_pk": character.pk},
-        priority=DEFAULT_TASK_PRIORITY,
-    )
-    update_character_contracts.apply_async(
-        kwargs={"character_pk": character.pk},
-        priority=DEFAULT_TASK_PRIORITY,
-    )
-    update_character_assets.apply_async(
-        kwargs={"character_pk": character.pk},
-        priority=DEFAULT_TASK_PRIORITY,
-    )
-    update_character_wallet_journal.apply_async(
-        kwargs={"character_pk": character.pk},
-        priority=DEFAULT_TASK_PRIORITY,
-    )
+    if force_update or character.is_update_section_stale(
+        Character.UPDATE_SECTION_CONTACTS
+    ):
+        update_character_contacts.apply_async(
+            kwargs={"character_pk": character.pk},
+            priority=DEFAULT_TASK_PRIORITY,
+        )
+    if force_update or character.is_update_section_stale(
+        Character.UPDATE_SECTION_CONTRACTS
+    ):
+        update_character_contracts.apply_async(
+            kwargs={"character_pk": character.pk},
+            priority=DEFAULT_TASK_PRIORITY,
+        )
+    if force_update or character.is_update_section_stale(
+        Character.UPDATE_SECTION_ASSETS
+    ):
+        update_character_assets.apply_async(
+            kwargs={"character_pk": character.pk},
+            priority=DEFAULT_TASK_PRIORITY,
+        )
+    if force_update or character.is_update_section_stale(
+        Character.UPDATE_SECTION_WALLET_JOURNAL
+    ):
+        update_character_wallet_journal.apply_async(
+            kwargs={"character_pk": character.pk},
+            priority=DEFAULT_TASK_PRIORITY,
+        )
 
 
 # Update sections

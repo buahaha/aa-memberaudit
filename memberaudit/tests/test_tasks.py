@@ -10,7 +10,7 @@ from eveuniverse.models import EveSolarSystem, EveType
 from esi.models import Token
 
 from . import create_memberaudit_character
-from ..models import Character, CharacterAsset, Location
+from ..models import Character, CharacterAsset, CharacterUpdateStatus, Location
 from ..tasks import (
     LOCATION_ESI_ERRORS_CACHE_KEY,
     ESI_ERROR_LIMIT,
@@ -242,6 +242,52 @@ class TestUpdateCharacter(TestCase):
         )
         self.assertFalse(status.is_success)
         self.assertEqual(status.error_message, "RuntimeError: Dummy")
+
+    @patch(TASKS_PATH + ".Character.update_skills")
+    def test_do_not_update_current_section_1(self, mock_update_skills, mock_esi):
+        """When generic section has recently been updated, then do not update again"""
+        mock_esi.client = esi_client_stub
+        CharacterUpdateStatus.objects.create(
+            character=self.character,
+            section=Character.UPDATE_SECTION_SKILLS,
+            is_success=True,
+        )
+
+        update_character(self.character.pk)
+
+        self.assertFalse(mock_update_skills.called)
+
+    @patch(TASKS_PATH + ".update_character_assets")
+    def test_do_not_update_current_section_2(
+        self, mock_update_character_assets, mock_esi
+    ):
+        """When special section has recently been updated, then do not update again"""
+        mock_esi.client = esi_client_stub
+        CharacterUpdateStatus.objects.create(
+            character=self.character,
+            section=Character.UPDATE_SECTION_ASSETS,
+            is_success=True,
+        )
+
+        update_character(self.character.pk)
+
+        self.assertFalse(mock_update_character_assets.apply_async.called)
+
+    @patch(TASKS_PATH + ".Character.update_skills")
+    def test_do_not_update_current_section_3(self, mock_update_skills, mock_esi):
+        """When generic section has recently been updated and force_update is called
+        then update again
+        """
+        mock_esi.client = esi_client_stub
+        CharacterUpdateStatus.objects.create(
+            character=self.character,
+            section=Character.UPDATE_SECTION_SKILLS,
+            is_success=True,
+        )
+
+        update_character(self.character.pk, force_update=True)
+
+        self.assertTrue(mock_update_skills.called)
 
 
 @patch(MODELS_PATH + ".esi")

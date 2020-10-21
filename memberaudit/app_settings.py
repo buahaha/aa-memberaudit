@@ -25,3 +25,10 @@ MEMBERAUDIT_TASKS_MAX_ASSETS_PER_PASS = clean_setting(
 MEMBERAUDIT_BULK_METHODS_BATCH_SIZE = clean_setting(
     "MEMBERAUDIT_BULK_METHODS_BATCH_SIZE", 500
 )
+
+# Character sections are updated on different schedules, called rings.
+# Ring 1 is the quickest, Ring 3 is the slowest
+# Settings define after how many minutes a section is considered stale
+MEMBERAUDIT_UPDATE_STALE_RING_1 = clean_setting("MEMBERAUDIT_UPDATE_STALE_RING_1", 60)
+MEMBERAUDIT_UPDATE_STALE_RING_2 = clean_setting("MEMBERAUDIT_UPDATE_STALE_RING_2", 240)
+MEMBERAUDIT_UPDATE_STALE_RING_3 = clean_setting("MEMBERAUDIT_UPDATE_STALE_RING_3", 480)
