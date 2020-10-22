@@ -304,7 +304,7 @@
             });
 
             /* Corporation History */
-            $('#history').load("{% url 'memberaudit:character_corporation_history' character.pk %}")
+            $('#div_corporation_history').load("{% url 'memberaudit:character_corporation_history' character.pk %}")
 
             /* Doctrines */
             $('#tab_doctrines').DataTable({

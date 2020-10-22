@@ -5,7 +5,6 @@ from esi.models import Token
 from eveuniverse.models import EveEntity
 
 from django.core.cache import cache
-from django.db import transaction
 
 from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
@@ -206,12 +205,11 @@ def update_character_assets(character_pk: int) -> None:
     )
     logger.info("%s: Recreating asset tree for %s assets", character, len(asset_list))
     # TODO: Add update section logging for assets_create_parents
-    with transaction.atomic():
-        character.assets.all().delete()
-        assets_create_parents.apply_async(
-            kwargs={"character_pk": character.pk, "asset_list": asset_list},
-            priority=DEFAULT_TASK_PRIORITY,
-        )
+    character.assets.all().delete()
+    assets_create_parents.apply_async(
+        kwargs={"character_pk": character.pk, "asset_list": asset_list},
+        priority=DEFAULT_TASK_PRIORITY,
+    )
 
 
 @shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)

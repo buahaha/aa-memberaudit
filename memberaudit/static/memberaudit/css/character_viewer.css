@@ -94,6 +94,9 @@
     }
 
     /* Wallet */
+    #tab_wallet tbody td:nth-child(1) {
+        white-space: nowrap;
+    }
     #tab_wallet tbody td:nth-child(5) {
         text-align: right;
     }

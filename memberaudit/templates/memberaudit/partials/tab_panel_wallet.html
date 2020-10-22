@@ -1,5 +1,4 @@
 {% load i18n %}
-{% load static %}
 {% load humanize %}
 
 <!-- Wallet -->
@@ -24,5 +23,6 @@
                 </tbody>
             </table>
         </div>
+        <p class="text-muted">Last updated: {{ last_updates.wallet_journal|naturaltime }}</p>
     {% endif %}
 </div>

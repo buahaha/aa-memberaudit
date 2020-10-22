@@ -4,6 +4,7 @@ import json
 from typing import Optional
 
 from django.contrib.auth.models import User
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models, transaction
@@ -208,29 +209,31 @@ class Character(models.Model):
     This is the head model for all characters
     """
 
-    UPDATE_SECTION_ASSETS = "AS"
-    UPDATE_SECTION_CHARACTER_DETAILS = "CD"
-    UPDATE_SECTION_CONTACTS = "CA"
-    UPDATE_SECTION_CONTRACTS = "CR"
-    UPDATE_SECTION_CORPORATION_HISTORY = "CH"
-    UPDATE_SECTION_LOCATION = "LO"
-    UPDATE_SECTION_LOYALTY = "LY"
-    UPDATE_SECTION_JUMP_CLONES = "JC"
-    UPDATE_SECTION_MAILS = "MA"
-    UPDATE_SECTION_ONLINE_STATUS = "OS"
-    UPDATE_SECTION_SKILLS = "SK"
-    UPDATE_SECTION_SKILL_QUEUE = "SQ"
-    UPDATE_SECTION_WALLET_BALLANCE = "WB"
-    UPDATE_SECTION_WALLET_JOURNAL = "WJ"
+    UPDATE_SECTION_ASSETS = "assets"
+    UPDATE_SECTION_CHARACTER_DETAILS = "character_details"
+    UPDATE_SECTION_CONTACTS = "contacts"
+    UPDATE_SECTION_CONTRACTS = "contracts"
+    UPDATE_SECTION_CORPORATION_HISTORY = "corporation_history"
+    UPDATE_SECTION_DOCTRINES = "doctrines"
+    UPDATE_SECTION_JUMP_CLONES = "jump_clones"
+    UPDATE_SECTION_LOCATION = "location"
+    UPDATE_SECTION_LOYALTY = "loyalty"
+    UPDATE_SECTION_MAILS = "mails"
+    UPDATE_SECTION_ONLINE_STATUS = "online_status"
+    UPDATE_SECTION_SKILLS = "skills"
+    UPDATE_SECTION_SKILL_QUEUE = "skill_queue"
+    UPDATE_SECTION_WALLET_BALLANCE = "wallet_balance"
+    UPDATE_SECTION_WALLET_JOURNAL = "wallet_journal"
     UPDATE_SECTION_CHOICES = (
         (UPDATE_SECTION_ASSETS, _("assets")),
         (UPDATE_SECTION_CHARACTER_DETAILS, _("character details")),
         (UPDATE_SECTION_CONTACTS, _("contacts")),
         (UPDATE_SECTION_CONTRACTS, _("contracts")),
         (UPDATE_SECTION_CORPORATION_HISTORY, _("corporation history")),
+        (UPDATE_SECTION_DOCTRINES, _("doctrines")),
+        (UPDATE_SECTION_JUMP_CLONES, _("jump clones")),
         (UPDATE_SECTION_LOCATION, _("location")),
         (UPDATE_SECTION_LOYALTY, _("loyalty")),
-        (UPDATE_SECTION_JUMP_CLONES, _("jump clones")),
         (UPDATE_SECTION_MAILS, _("mails")),
         (UPDATE_SECTION_ONLINE_STATUS, _("online status")),
         (UPDATE_SECTION_SKILLS, _("skills")),
@@ -245,7 +248,9 @@ class Character(models.Model):
         UPDATE_SECTION_CONTACTS: 2,
         UPDATE_SECTION_CONTRACTS: 2,
         UPDATE_SECTION_CORPORATION_HISTORY: 2,
+        UPDATE_SECTION_DOCTRINES: 2,
         UPDATE_SECTION_LOCATION: 1,
+        UPDATE_SECTION_LOYALTY: 2,
         UPDATE_SECTION_JUMP_CLONES: 2,
         UPDATE_SECTION_MAILS: 2,
         UPDATE_SECTION_ONLINE_STATUS: 1,
@@ -352,15 +357,23 @@ class Character(models.Model):
 
         return dt.timedelta(minutes=minutes)
 
+    def update_section_last_update(self, section: str) -> dt.datetime:
+        """Datetime of last successful update or None"""
+        try:
+            return self.update_status_set.get(
+                section=section, is_success=True
+            ).updated_at
+        except (CharacterUpdateStatus.DoesNotExist, ObjectDoesNotExist, AttributeError):
+            return None
+
     def is_update_section_stale(self, section: str) -> bool:
         """returns True if the give update section is stale, else False"""
-        try:
-            update_status = self.update_status_set.get(section=section, is_success=True)
-        except CharacterUpdateStatus.DoesNotExist:
+        last_updated = self.update_section_last_update(section)
+        if not last_updated:
             return True
 
         deadline = now() - self.update_section_time_until_stale(section)
-        return update_status.updated_at < deadline
+        return last_updated < deadline
 
     def _preload_all_locations(self, token: Token, incoming_ids: set) -> list:
         """loads location objects specified by given set
@@ -1607,12 +1620,10 @@ class Character(models.Model):
 
     @classmethod
     def section_method_name(cls, section: str) -> str:
-        for short_name, long_name in cls.UPDATE_SECTION_CHOICES:
-            if short_name == section:
-                method_partial = long_name.replace(" ", "_")
-                return f"update_{method_partial}"
+        if section not in {obj[0] for obj in cls.UPDATE_SECTION_CHOICES}:
+            raise ValueError(f"Unknown section: {section}")
 
-        raise ValueError(f"Unknown section: {section}")
+        return f"update_{section}"
 
     @classmethod
     def section_display_name(cls, section: str) -> str:
@@ -2448,7 +2459,9 @@ class CharacterUpdateStatus(models.Model):
         Character, on_delete=models.CASCADE, related_name="update_status_set"
     )
 
-    section = models.CharField(max_length=2, choices=Character.UPDATE_SECTION_CHOICES)
+    section = models.CharField(
+        max_length=64, choices=Character.UPDATE_SECTION_CHOICES, db_index=True
+    )
     is_success = models.BooleanField(db_index=True)
     error_message = models.TextField()
     updated_at = models.DateTimeField(auto_now=True)
@@ -2462,7 +2475,7 @@ class CharacterUpdateStatus(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.character}-{self.get_section_display()}"
+        return f"{self.character}-{self.section}"
 
 
 class CharacterWalletBalance(models.Model):

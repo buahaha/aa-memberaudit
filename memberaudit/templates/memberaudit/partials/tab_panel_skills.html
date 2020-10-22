@@ -1,6 +1,6 @@
 {% load i18n %}
+{% load humanize %}
 
-<!-- Skills -->
 <div role="tabpanel" class="tab-pane" id="skills">
     <div class="table-responsive">
         <table class="table table-striped" id="tab_skills" style="width:100%;">
@@ -14,4 +14,5 @@
             </tbody>
         </table>
     </div>
+    <p class="text-muted">Last updated: {{ last_updates.skills|naturaltime }}</p>
 </div>

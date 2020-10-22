@@ -1,5 +1,11 @@
 {% load static %}
+{% load humanize %}
 
 <div role="tabpanel" class="tab-pane" id="history">
-    <img src="{% static 'memberaudit/images/Spinner-1s-64px.gif' %}"/> 
+    <div id="div_corporation_history">
+        <img src="{% static 'memberaudit/images/Spinner-1s-64px.gif' %}"/> 
+    </div>
+    <br>
+    <p class="text-muted">Last updated: {{ last_updates.corporation_history|naturaltime }}</p>
 </div>
+

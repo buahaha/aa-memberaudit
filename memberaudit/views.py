@@ -434,6 +434,16 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         )
     )
 
+    try:
+        last_updates = {
+            obj["section"]: obj["updated_at"]
+            for obj in character.update_status_set.filter(is_success=True).values(
+                "section", "updated_at"
+            )
+        }
+    except ObjectDoesNotExist:
+        last_updates = None
+
     show_tab = request.GET.get("tab", "")
     context = {
         "page_title": "Character Sheet",
@@ -447,6 +457,7 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         "main_character_id": main_character.character_id if main_character else None,
         "registered_characters": registered_characters,
         "show_tab": show_tab,
+        "last_updates": last_updates,
     }
     return render(
         request,

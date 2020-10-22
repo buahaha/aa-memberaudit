@@ -1,6 +1,6 @@
 {% load i18n %}
+{% load humanize %}
 
-<!-- Contacts -->
 <div role="tabpanel" class="tab-pane" id="contacts">
     <div class="table-responsive">
         <table class="table table-striped" id="tab_contacts" style="width:100%;">
@@ -18,4 +18,5 @@
             </tbody>
         </table>
     </div>
+    <p class="text-muted">Last updated: {{ last_updates.contacts|naturaltime }}</p>
 </div>

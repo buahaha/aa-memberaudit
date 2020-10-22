@@ -1,9 +1,6 @@
 {% load i18n %}
-{% load static %}
 {% load humanize %}
-{% load evelinks %}
 
-<!-- Contracts -->
 <div role="tabpanel" class="tab-pane" id="contracts">
     <div class="table-responsive">
         <table class="table table-striped" id="tab_contracts" style="width:100%;">
@@ -24,4 +21,5 @@
             </tbody>
         </table>
     </div>
+    <p class="text-muted">Last updated: {{ last_updates.contracts|naturaltime }}</p>
 </div>

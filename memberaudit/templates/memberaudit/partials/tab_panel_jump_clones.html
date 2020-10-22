@@ -1,6 +1,6 @@
 {% load i18n %}
+{% load humanize %}
 
-<!-- Jump Clones -->
 <div role="tabpanel" class="tab-pane" id="clones">
     <div class="table-responsive">
         <table class="table table-striped" id="tab_jump_clones" style="width:100%;">
@@ -16,4 +16,5 @@
             </tbody>
         </table>
     </div>
+    <p class="text-muted">Last updated: {{ last_updates.jump_clones|naturaltime }}</p>
 </div>

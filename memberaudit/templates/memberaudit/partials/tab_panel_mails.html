@@ -1,6 +1,6 @@
 {% load i18n %}
+{% load humanize %}
 
-<!-- Mails -->
 <div role="tabpanel" class="tab-pane" id="mail">
     {% if not character.has_mails %}
         <p>No data yet...</p>
@@ -51,7 +51,8 @@
                         </tbody>
                     </table>
                 </div>
+                <p class="text-muted">Last updated: {{ last_updates.mails|naturaltime }}</p>
             </div>
-        </div>
+        </div>        
     {% endif %}
 </div>
