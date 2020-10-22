@@ -55,6 +55,14 @@
         white-space: nowrap;
     }    
 
+    /* Loyalty */
+    #tab_loyalty tbody td:nth-child(1) {
+        white-space: nowrap;
+    }
+    #tab_loyalty tbody td:nth-child(2) {
+        text-align: right;    
+    }
+
     /* Mail */
     #tab_mails tbody td:nth-child(1) {
         white-space: nowrap;

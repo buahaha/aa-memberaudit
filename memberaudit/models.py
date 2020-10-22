@@ -214,6 +214,7 @@ class Character(models.Model):
     UPDATE_SECTION_CONTRACTS = "CR"
     UPDATE_SECTION_CORPORATION_HISTORY = "CH"
     UPDATE_SECTION_LOCATION = "LO"
+    UPDATE_SECTION_LOYALTY = "LY"
     UPDATE_SECTION_JUMP_CLONES = "JC"
     UPDATE_SECTION_MAILS = "MA"
     UPDATE_SECTION_ONLINE_STATUS = "OS"
@@ -228,6 +229,7 @@ class Character(models.Model):
         (UPDATE_SECTION_CONTRACTS, _("contracts")),
         (UPDATE_SECTION_CORPORATION_HISTORY, _("corporation history")),
         (UPDATE_SECTION_LOCATION, _("location")),
+        (UPDATE_SECTION_LOYALTY, _("loyalty")),
         (UPDATE_SECTION_JUMP_CLONES, _("jump clones")),
         (UPDATE_SECTION_MAILS, _("mails")),
         (UPDATE_SECTION_ONLINE_STATUS, _("online status")),
@@ -971,6 +973,32 @@ class Character(models.Model):
             CharacterLocation.objects.update_or_create(
                 character=self, eve_solar_system=eve_solar_system, location=location
             )
+
+    @fetch_token_for_character("esi-characters.read_loyalty.v1")
+    def update_loyalty(self, token):
+        """syncs the character's loyalty entries"""
+        logger.info("%s: Fetching loyalty entries from ESI", self)
+        loyalty_entries = esi.client.Loyalty.get_characters_character_id_loyalty_points(
+            character_id=self.character_ownership.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+        with transaction.atomic():
+            self.loyalty_entries.all().delete()
+            new_entries = [
+                CharacterLoyaltyEntry(
+                    character=self,
+                    corporation=get_or_create_or_none(
+                        "corporation_id", entry, EveEntity
+                    ),
+                    loyalty_points=entry.get("loyalty_points"),
+                )
+                for entry in loyalty_entries
+                if "corporation_id" in entry and "loyalty_points" in entry
+            ]
+            CharacterLoyaltyEntry.objects.bulk_create(
+                new_entries, MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
+            )
+            EveEntity.objects.bulk_update_new_esi()
 
     @fetch_token_for_character(
         ["esi-clones.read_clones.v1", "esi-universe.read_structures.v1"]
@@ -2111,6 +2139,32 @@ class CharacterLocation(models.Model):
 
     def __str__(self) -> str:
         return str(f"{self.character}-{self.eve_solar_system}")
+
+
+class CharacterLoyaltyEntry(models.Model):
+    """Loyalty entry for a character"""
+
+    character = models.ForeignKey(
+        Character,
+        on_delete=models.CASCADE,
+        related_name="loyalty_entries",
+    )
+    corporation = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
+
+    loyalty_points = models.PositiveIntegerField()
+
+    """ TODO: Enable when design is stable
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "corporation"],
+                name="functional_pk_characterloyaltyentry",
+            )
+        ]
+    """
+
+    def __str__(self) -> str:
+        return f"{self.character}-{self.corporation}"
 
 
 class CharacterJumpClone(models.Model):

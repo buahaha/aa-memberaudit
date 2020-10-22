@@ -31,6 +31,7 @@
                             {% include 'memberaudit/partials/tab_panel_corporation_history.html' %}
                             {% include 'memberaudit/partials/tab_panel_doctrines.html' %}
                             {% include 'memberaudit/partials/tab_panel_jump_clones.html' %}
+                            {% include 'memberaudit/partials/tab_panel_loyalty.html' %}
                             {% include 'memberaudit/partials/tab_panel_mails.html' %}
                             {% include 'memberaudit/partials/tab_panel_skills.html' %}
                             {% include 'memberaudit/partials/tab_panel_skill_queue.html' %}
@@ -368,6 +369,29 @@
                 columnDefs: [
                     { "orderable": false, "targets": [ 3 ] }                  
                 ],
+            });
+
+            /* Loyalty */
+            $('#tab_loyalty').DataTable({
+                ajax: {
+                    url: "{% url 'memberaudit:character_loyalty_data' character.pk %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    { 
+                        data: 'corporation',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        } 
+                    },
+                    { 
+                        data: 'loyalty_points',                         
+                        render: $.fn.dataTable.render.number( ',', '.', 0 )
+                    },                    
+                ],
+                order: [[0, "asc"]],                
             });
 
             /* Mails */

@@ -79,6 +79,12 @@ esi_client_stub = EsiClientStub(
             needs_token=True,
         ),
         EsiEndpoint(
+            "Loyalty",
+            "get_characters_character_id_loyalty_points",
+            "character_id",
+            needs_token=True,
+        ),
+        EsiEndpoint(
             "Mail", "get_characters_character_id_mail", "character_id", needs_token=True
         ),
         EsiEndpoint(

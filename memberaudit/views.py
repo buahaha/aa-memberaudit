@@ -862,6 +862,33 @@ def character_corporation_history(
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
+def character_loyalty_data(
+    request, character_pk: int, character: Character
+) -> JsonResponse:
+    data = list()
+    try:
+        for entry in character.loyalty_entries.select_related("corporation"):
+            corporation_html = create_icon_plus_name_html(
+                entry.corporation.icon_url(DEFAULT_ICON_SIZE), entry.corporation.name
+            )
+            data.append(
+                {
+                    "corporation": {
+                        "display": corporation_html,
+                        "sort": entry.corporation.name,
+                    },
+                    "loyalty_points": entry.loyalty_points,
+                }
+            )
+    except ObjectDoesNotExist:
+        pass
+
+    return JsonResponse(data, safe=False)
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
 def character_jump_clones_data(
     request, character_pk: int, character: Character
 ) -> HttpResponse:

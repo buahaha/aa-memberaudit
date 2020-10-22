@@ -365,6 +365,16 @@
             }
         }
     },
+    "Loyalty": {
+        "get_characters_character_id_loyalty_points": {
+            "1001": [
+                {
+                    "corporation_id": 2002,
+                    "loyalty_points": 100
+                }
+            ]
+        }
+    },
     "Mail": {
         "get_characters_character_id_mail_lists": {
             "1001": [

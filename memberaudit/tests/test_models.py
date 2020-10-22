@@ -1263,6 +1263,15 @@ class TestCharacterUpdateOther(TestCharacterUpdateBase):
         )
         self.assertEqual(self.character_1001.online_status.logins, 9001)
 
+    def test_update_loyalty(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_loyalty()
+        self.assertEqual(self.character_1001.loyalty_entries.count(), 1)
+
+        obj = self.character_1001.loyalty_entries.get(corporation_id=2002)
+        self.assertEqual(obj.loyalty_points, 100)
+
 
 class TestCharacterCanFlyDoctrines(NoSocketsTestCase):
     @classmethod
