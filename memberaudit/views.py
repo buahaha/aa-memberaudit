@@ -42,7 +42,6 @@ from .utils import (
     add_no_wrap_html,
     create_link_html,
     create_fa_button_html,
-    DATETIME_FORMAT,
     LoggerAddTag,
     messages_plus,
     yesno_str,
@@ -50,6 +49,7 @@ from .utils import (
 
 # module constants
 MY_DATETIME_FORMAT = "Y-M-d H:i"
+DATETIME_FORMAT = "%Y-%b-%d %H:%M"
 MAIL_LABEL_ID_ALL_MAILS = 0
 MAP_SKILL_LEVEL_ARABIC_TO_ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V"}
 NO_DOCTRINE_NAME = gettext_lazy("(No Doctrine)")

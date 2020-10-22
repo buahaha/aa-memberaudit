@@ -66,6 +66,7 @@
 
     <script type="application/javascript">
         const DATETIME_FORMAT = 'YYYY-MMM-DD<br>HH:mm'
+        const DATETIME_FORMAT_2 = 'YYYY-MMM-DD HH:mm'
         const COOKIE_LAST_TAB_ID = "memberaudit_last_tab_id"
         const COOKIE_LAST_TAB_HOURS = 2
 
@@ -459,7 +460,7 @@
                         modal.find('.modal-title').html(data.subject);
                         modal.find('#mail_from').html(data.from);
                         modal.find('#mail_to').html(data.to);
-                        modal.find('#mail_sent').html(data.sent);
+                        modal.find('#mail_sent').html(moment(data.sent).format(DATETIME_FORMAT_2));
                         modal.find('#mail_body').html(data.body);
                 });
             })
