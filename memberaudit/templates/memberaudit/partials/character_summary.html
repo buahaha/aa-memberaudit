@@ -4,71 +4,88 @@
 {% load evelinks %}
 
 <!-- Character summary panel -->
+<!-- TODO: Make responsive -->
 <div class="panel panel-default">
     <div class="panel-body">
-        <div class="rows">
+        <div class="character-summary-flex">
 
-            <div class="col-md-6 col-lg-4">
-                <dl class="dl-horizontal">
-                    <dt>Character:</dt>
-                    <dd>{{ auth_character.character_name}}</dd>
-                    
-                    <dt>Corporation:</dt>
-                    <dd>
-                        <a href="{{ auth_character.corporation_name|dotlan_corporation_url }}" target="_blank">
-                            {{ auth_character.corporation_name }}
-                        </a>
-                    </dd>
-                    
-                    <dt>Alliance:</dt>
-                    <dd>
-                        {% if auth_character.alliance_name %}
-                            <a href="{{ auth_character.alliance_name|dotlan_alliance_url }}" target="_blank">
-                                {{ auth_character.alliance_name }}
-                            </a>
-                        {% else %}
-                            -
-                        {% endif %}
-                    </dd>
-                    
-                    <dt>Faction:</dt>
-                    <dd>{{ character_details.faction|default:"-" }}</dd>
-                    
-                    <dt>Race:</dt>
-                    <dd>{{ character_details.eve_bloodline.eve_race }} / {{ character_details.eve_bloodline }}</dd>      
-                </dl>
+            <div class="character-summary-image hidden-xs">
+                <p class="text-center">
+                    <img width="128" height="128" class="img-rounded" src="{{ auth_character|character_portrait_url:128 }}"/>
+                </p>                             
             </div>
+            
+            <div class="character-summary-info">
 
-            <div class="col-md-6 col-lg-4">
-                <dl class="dl-horizontal">
-                    <dt>Born:</dt>
-                    <dd>{{ character_details.birthday|naturaltime|default_if_none:"(no data)" }}</dd>
-                    
-                    <dt>Skillpoints:</dt>
-                    <dd>{{ character.skillpoints.total|intword|default_if_none:"(no data)" }}</dd>
-                    
-                    <dt>Wallet:</dt>
-                    <dd>{{ character.wallet_balance.total|intword|default_if_none:"(no data)" }}</dd>
-                    
-                    <dt>Sec. Status:</dt>
-                    <dd class="{% if character_details.security_status < 0 %}text-danger{% elif character_details.security_status > 0 %}text-success{% endif %}">{{ character_details.security_status|floatformat:1|default_if_none:"(no data)" }}</dd>                    
-                </dl>
-            </div>
+                <div class="rows">
 
-            <div class="col-md-6 col-lg-4">
-                <dl class="dl-horizontal">                    
-                    <dt>Location:</dt>
-                    <dd>{{ character.location.location.name_plus }}</dd>
-                    
-                    <dt>System:</dt>
-                    <dd>{% include 'memberaudit/partials/solar_system.html' with character=character only %}</dd>
-                    
-                    <dt>Last Login:</dt>
-                    <dd>{{ character.online_status.last_login|naturaltime }}</dd>
+                    <div class="col-md-4">
+                        <dl class="dl-horizontal">
+                            <dt>Character:</dt>
+                            <dd class="nowrap">
+                                {{ auth_character.character_name}}
+                                &nbsp;{% if auth_character.character_id == main_character_id %}<i class="fas fa-crown" title="Main character"></i>{% endif %}
+                            </dd>
+                            
+                            <dt>Corporation:</dt>
+                            <dd>
+                                <a href="{{ auth_character.corporation_name|dotlan_corporation_url }}" target="_blank">
+                                    {{ auth_character.corporation_name }}
+                                </a>
+                            </dd>
+                            
+                            <dt>Alliance:</dt>
+                            <dd>
+                                {% if auth_character.alliance_name %}
+                                    <a href="{{ auth_character.alliance_name|dotlan_alliance_url }}" target="_blank">
+                                        {{ auth_character.alliance_name }}
+                                    </a>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </dd>
+                            
+                            <dt>Faction:</dt>
+                            <dd>{{ character_details.faction|default:"-" }}</dd>
+                            
+                            <dt>Race:</dt>
+                            <dd>{{ character_details.eve_bloodline.eve_race }} / {{ character_details.eve_bloodline }}</dd>      
+                        </dl>
+                    </div>
+            
 
-                    <dt>Main:</dt>
-                    <dd>{{ main }}</dd>                    
-                </dl>
+                    <div class="col-md-4">
+                        <dl class="dl-horizontal">
+                            <dt>Born:</dt>
+                            <dd class="nowrap">{{ character_details.birthday|naturaltime|default_if_none:"(no data)" }}</dd>
+                            
+                            <dt>Skillpoints:</dt>
+                            <dd>{{ character.skillpoints.total|intword|default_if_none:"(no data)" }}</dd>
+                            
+                            <dt>Wallet:</dt>
+                            <dd>{{ character.wallet_balance.total|intword|default_if_none:"(no data)" }}</dd>
+                            
+                            <dt>Sec. Status:</dt>
+                            <dd class="{% if character_details.security_status < 0 %}text-danger{% elif character_details.security_status > 0 %}text-success{% endif %}">{{ character_details.security_status|floatformat:1|default_if_none:"(no data)" }}</dd>                    
+                        </dl>
+                    </div>
+
+                    <div class="col-md-4">
+                        <dl class="dl-horizontal">                    
+                            <dt>Location:</dt>
+                            <dd>{{ character.location.location.name_plus }}</dd>
+                            
+                            <dt>System:</dt>
+                            <dd>{% include 'memberaudit/partials/solar_system.html' with character=character only %}</dd>
+                            
+                            <dt>Last Login:</dt>
+                            <dd class="nowrap">{{ character.online_status.last_login|naturaltime }}</dd>
+
+                            <dt>Main:</dt>
+                            <dd>{{ main }}</dd>                    
+                        </dl>
+                    </div>
+                </div>
             </div>
 
         </div>

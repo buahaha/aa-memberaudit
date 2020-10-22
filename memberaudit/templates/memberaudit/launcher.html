@@ -45,9 +45,9 @@
                                                     <img src="{{ auth_character.character_id|character_portrait_url:256 }}" alt="{{ auth_character.character_name }}">
 
                                                     {% if auth_character.alliance_id %}
-                                                    <span class="aa-memberaudit-alliance-logo">
-                                                        <img class="" src="{{ auth_character.alliance_id|alliance_logo_url:64 }}" title="{{ auth_character.alliance_name }}">
-                                                    </span>
+                                                        <span class="aa-memberaudit-alliance-logo">
+                                                            <img class="" src="{{ auth_character.alliance_id|alliance_logo_url:64 }}" title="{{ auth_character.alliance_name }}">
+                                                        </span>
                                                     {% endif %}
 
                                                     <span class="aa-memberaudit-corporation-logo">
@@ -112,8 +112,8 @@
 {% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'memberaudit/global.css' %}" type="text/css">
-    <link rel="stylesheet" href="{% static 'memberaudit/launcher.css' %}" type="text/css">
+    <link rel="stylesheet" href="{% static 'memberaudit/css/global.css' %}" type="text/css">
+    <link rel="stylesheet" href="{% static 'memberaudit/css/launcher.css' %}" type="text/css">
 {% endblock %}
 
 {% block extra_script %}

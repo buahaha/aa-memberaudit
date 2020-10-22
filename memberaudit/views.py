@@ -357,6 +357,7 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         main_character = character.character_ownership.user.profile.main_character
         main = f"[{main_character.corporation_ticker}] {main_character.character_name}"
     else:
+        main_character = None
         main = "-"
 
     # mail labels
@@ -443,6 +444,7 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         "mail_labels": mail_labels,
         "mailing_lists": mailing_lists,
         "main": main,
+        "main_character_id": main_character.character_id if main_character else None,
         "registered_characters": registered_characters,
         "show_tab": show_tab,
     }

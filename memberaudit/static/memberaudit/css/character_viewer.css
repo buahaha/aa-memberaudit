@@ -1,21 +1,38 @@
 @media all {
+    
+    /* main panels */
+    #centerColumn {        
+        padding-left: 0;
+        padding-right: 8px;
+    }
+    
+    #sideColumn {
+        padding-right: 0;
+    }    
+    
+    /* character summary */
+    .character-summary-flex {
+        display: flex;
+        flex-wrap: nowrap;        
+    }
+
+    .character-summary-image {
+        margin-right: 1em;
+        margin-left: 1em;
+    }
+
+    .character-summary-info {
+        margin-right: 1em;
+        margin-left: 1em;
+    }
+
     /* dl styling */
     .dl-horizontal dt {
         text-align: left;
-        width: 8em;
+        width: 7em;
     }
     .dl-horizontal dd {
-        margin-left: 8em;        
-    }
-    
-    /* Breadcrumbs */
-    .template-light-mode .breadcrumb >.active {
-        color: rgb(0, 0, 0);
-        font-weight: bold;
-    }
-    .template-dark-mode .breadcrumb >.active {
-        color: rgb(255, 255, 255);
-        font-weight: bold;
+        margin-left: 7em;        
     }
 
     /* Assets */
@@ -36,6 +53,14 @@
     }
     #tab_asset_children tbody td:nth-child(4) {
         text-align: right;
+    }
+    .template-light-mode .breadcrumb >.active {
+        color: rgb(0, 0, 0);
+        font-weight: bold;
+    }
+    .template-dark-mode .breadcrumb >.active {
+        color: rgb(255, 255, 255);
+        font-weight: bold;
     }
 
     /* Contacts */
@@ -85,20 +110,11 @@
         text-align: right;
     }
 
-    /* paddings */
-    #mainColumnLeft {
-        padding-left: 0;
-        padding-right: 8px;
-    }
-
-    #mainColumnRight {
-        padding-right: 0;
-    }
-
     .table-memberaudit-skillqueue .active-skill {
         font-weight: bold;
     }
 
+    /* sidebar */
     .sidebar_characters {
         list-style-type: none;
         margin: 0;
