@@ -6,6 +6,7 @@
 <!-- Character summary panel -->
 <!-- TODO: Make responsive -->
 <div class="panel panel-default">
+    <div class="panel-heading">Overview</div>
     <div class="panel-body">
         <div class="character-summary-flex">
 
@@ -62,11 +63,14 @@
                             <dt>Skillpoints:</dt>
                             <dd>{{ character.skillpoints.total|intword|default_if_none:"(no data)" }}</dd>
                             
-                            <dt>Wallet:</dt>
-                            <dd>{{ character.wallet_balance.total|intword|default_if_none:"(no data)" }}</dd>
-                            
                             <dt>Sec. Status:</dt>
-                            <dd class="{% if character_details.security_status < 0 %}text-danger{% elif character_details.security_status > 0 %}text-success{% endif %}">{{ character_details.security_status|floatformat:1|default_if_none:"(no data)" }}</dd>                    
+                            <dd class="{% if character_details.security_status < 0 %}text-danger{% elif character_details.security_status > 0 %}text-success{% endif %}">{{ character_details.security_status|floatformat:1|default_if_none:"(no data)" }}</dd>
+                            
+                            <dt>Assets:</dt>
+                            <dd>{{ character_assets_total|intword|default_if_none:"(no data)" }} ISK (est.)</dd>
+
+                            <dt>Wallet:</dt>
+                            <dd>{{ character.wallet_balance.total|intword|default_if_none:"(no data)" }} ISK</dd>                            
                         </dl>
                     </div>
 

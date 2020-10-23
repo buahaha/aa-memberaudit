@@ -105,6 +105,7 @@ esi_client_stub = EsiClientStub(
             "mail_id",
             needs_token=True,
         ),
+        EsiEndpoint("Market", "get_markets_prices"),
         EsiEndpoint(
             "Skills",
             "get_characters_character_id_skills",

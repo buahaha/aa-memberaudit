@@ -42,7 +42,7 @@ from .app_settings import (
 )
 from .decorators import fetch_token_for_character
 from .helpers import get_or_create_esi_or_none, get_or_none, get_or_create_or_none
-from .managers import CharacterManager, LocationManager
+from .managers import CharacterManager, LocationManager, CharacterAssetManager
 from .providers import esi
 from .utils import LoggerAddTag, chunks
 
@@ -1654,11 +1654,13 @@ class CharacterAsset(models.Model):
     )
 
     eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
-    is_blueprint_copy = models.BooleanField(default=None, null=True)
+    is_blueprint_copy = models.BooleanField(default=None, null=True, db_index=True)
     is_singleton = models.BooleanField()
     location_flag = models.CharField(max_length=NAMES_MAX_LENGTH)
     name = models.CharField(max_length=NAMES_MAX_LENGTH, default="")
     quantity = models.PositiveIntegerField()
+
+    objects = CharacterAssetManager()
 
     """ TODO: Enable when design is stable
     class Meta:
@@ -1676,7 +1678,10 @@ class CharacterAsset(models.Model):
     @property
     def name_display(self) -> str:
         """name of this asset to be displayed to user"""
-        return self.name if self.name else self.eve_type.name
+        name = self.name if self.name else self.eve_type.name
+        if self.is_blueprint_copy:
+            name += " [copy]"
+        return name
 
     @property
     def group_display(self) -> str:

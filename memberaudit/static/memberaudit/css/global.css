@@ -18,6 +18,11 @@
         white-space: nowrap;
     }
 
+    .icon-plus-name {    
+        padding-left: 2em;
+        text-indent: -2em;        
+    }
+
     .text-high-sec {
         color: green;
     }
@@ -36,5 +41,12 @@
 
     .boolean-icon-true{
         color: green;
+    }
+}
+
+@media (min-width: 768px) {
+    .modal-xl {
+        width: 90%;
+        max-width:1200px;
     }
 }

@@ -3,8 +3,8 @@ import humanize
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required, permission_required
-from django.db import transaction
-from django.db.models import Count, Q, F, Max
+from django.db import transaction, models
+from django.db.models import Count, F, Max, Q, Sum
 from django.http import (
     JsonResponse,
     HttpResponse,
@@ -434,6 +434,18 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         )
     )
 
+    # assets total value
+    character_assets_total = (
+        character.assets.exclude(is_blueprint_copy=True)
+        .aggregate(
+            total=Sum(
+                F("quantity") * F("eve_type__market_price__average_price"),
+                output_field=models.FloatField(),
+            )
+        )
+        .get("total")
+    )
+
     try:
         last_updates = {
             obj["section"]: obj["updated_at"]
@@ -458,6 +470,7 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         "registered_characters": registered_characters,
         "show_tab": show_tab,
         "last_updates": last_updates,
+        "character_assets_total": character_assets_total,
     }
     return render(
         request,
@@ -474,13 +487,17 @@ def character_assets_data(
 ) -> JsonResponse:
     data = list()
     try:
-        asset_qs = character.assets.select_related(
-            "eve_type",
-            "eve_type__eve_group",
-            "eve_type__eve_group__eve_category",
-            "location",
-            "location__eve_solar_system__eve_constellation__eve_region",
-        ).filter(location__isnull=False)
+        asset_qs = (
+            character.assets.annotate_pricing()
+            .select_related(
+                "eve_type",
+                "eve_type__eve_group",
+                "eve_type__eve_group__eve_category",
+                "location",
+                "location__eve_solar_system__eve_constellation__eve_region",
+            )
+            .filter(location__isnull=False)
+        )
 
     except ObjectDoesNotExist:
         return HttpResponseNotFound()
@@ -544,6 +561,8 @@ def character_assets_data(
                 "quantity": asset.quantity if not asset.is_singleton else "",
                 "group": asset.group_display,
                 "volume": asset.eve_type.volume,
+                "price": asset.price,
+                "total": asset.total,
                 "actions": actions_html,
                 "region": region,
                 "solar_system": solar_system,
@@ -597,8 +616,10 @@ def character_asset_container_data(
         return HttpResponseNotFound(error_msg)
 
     try:
-        assets_qs = parent_asset.children.select_related(
-            "eve_type", "eve_type__eve_group", "eve_type__eve_group__eve_category"
+        assets_qs = parent_asset.children.annotate_pricing().select_related(
+            "eve_type",
+            "eve_type__eve_group",
+            "eve_type__eve_group__eve_category",
         )
     except ObjectDoesNotExist:
         return HttpResponseNotFound()
@@ -617,6 +638,8 @@ def character_asset_container_data(
                 "quantity": asset.quantity if not asset.is_singleton else "",
                 "group": asset.group_display,
                 "volume": asset.eve_type.volume,
+                "price": asset.price,
+                "total": asset.total,
             }
         )
 
@@ -995,7 +1018,7 @@ def _character_mail_headers_data(request, character, mail_headers_qs) -> JsonRes
                         )
                     ),
                     "subject": mail.subject,
-                    "sent": mail.timestamp.strftime(DATETIME_FORMAT),
+                    "sent": mail.timestamp.isoformat(),
                     "action": actions_html,
                     "is_read": mail.is_read,
                     "is_unread_str": yesno_str(mail.is_read is False),

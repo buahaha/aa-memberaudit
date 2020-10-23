@@ -2,7 +2,7 @@ from celery import shared_task, chain
 
 from bravado.exception import HTTPUnauthorized, HTTPForbidden
 from esi.models import Token
-from eveuniverse.models import EveEntity
+from eveuniverse.models import EveEntity, EveMarketPrice
 
 from django.core.cache import cache
 
@@ -14,6 +14,7 @@ from .app_settings import (
     MEMBERAUDIT_TASKS_TIME_LIMIT,
     MEMBERAUDIT_TASKS_MAX_ASSETS_PER_PASS,
     MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
+    MEMBERAUDIT_UPDATE_STALE_RING_2,
 )
 
 from .models import (
@@ -50,6 +51,8 @@ def update_all_characters() -> None:
         update_character.apply_async(
             kwargs={"character_pk": character.pk}, priority=DEFAULT_TASK_PRIORITY
         )
+
+    update_market_prices.apply_async(priority=DEFAULT_TASK_PRIORITY)
 
 
 # Main character update tasks
@@ -558,7 +561,7 @@ def update_character_wallet_journal_entries(character_pk: int) -> None:
     )
 
 
-# Tasks for Location objects
+# Tasks for other objects
 
 
 @shared_task(
@@ -591,3 +594,11 @@ def update_structure_esi(self, id: int, token_pk: int):
     else:
         logger.info("Location #%s: Error limit reached. Defering task", id)
         raise self.retry(countdown=ESI_TIMEOUT_ONCE_ERROR_LIMIT_REACHED)
+
+
+@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+def update_market_prices():
+    """Update market prices from ESI"""
+    EveMarketPrice.objects.update_from_esi(
+        minutes_until_stale=MEMBERAUDIT_UPDATE_STALE_RING_2
+    )

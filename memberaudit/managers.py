@@ -3,6 +3,7 @@ from typing import Tuple
 
 from django.contrib.auth.models import User
 from django.db import models
+from django.db.models import F, ExpressionWrapper, When, Case, Value
 from django.utils.timezone import now
 
 from bravado.exception import HTTPUnauthorized, HTTPForbidden
@@ -16,6 +17,7 @@ from allianceauth.services.hooks import get_extension_logger
 from . import __title__
 from .constants import EVE_TYPE_ID_SOLAR_SYSTEM
 from .app_settings import MEMBERAUDIT_LOCATION_STALE_HOURS
+
 from .providers import esi
 from .utils import LoggerAddTag
 
@@ -260,3 +262,32 @@ class CharacterManager(models.Manager):
                 qs = qs | self.filter(is_shared=True)
 
         return qs
+
+
+class CharacterAssetManager(models.Manager):
+    def annotate_pricing(self) -> models.QuerySet:
+        """Returns qs with annotated price and total columns"""
+        return (
+            self.select_related("eve_type__market_price")
+            .annotate(
+                price=Case(
+                    When(
+                        is_blueprint_copy=True,
+                        then=Value(None),
+                    ),
+                    default=F("eve_type__market_price__average_price"),
+                )
+            )
+            .annotate(
+                total=Case(
+                    When(
+                        is_blueprint_copy=True,
+                        then=Value(None),
+                    ),
+                    default=ExpressionWrapper(
+                        F("eve_type__market_price__average_price") * F("quantity"),
+                        output_field=models.FloatField(),
+                    ),
+                )
+            )
+        )

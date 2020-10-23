@@ -7,7 +7,7 @@ from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
 
 from bravado.exception import HTTPNotFound, HTTPForbidden, HTTPUnauthorized
-from eveuniverse.models import EveEntity, EveSolarSystem, EveType
+from eveuniverse.models import EveEntity, EveSolarSystem, EveType, EveMarketPrice
 from esi.models import Token
 from esi.errors import TokenError
 
@@ -19,7 +19,9 @@ from . import (
     scope_names_set,
 )
 from ..models import (
+    is_esi_online,
     Character,
+    CharacterAsset,
     CharacterContact,
     CharacterContactLabel,
     CharacterContract,
@@ -38,7 +40,6 @@ from ..models import (
     DoctrineShip,
     DoctrineShipSkill,
     Location,
-    is_esi_online,
 )
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
@@ -1845,3 +1846,44 @@ class TestCharacterWalletJournalEntry(NoSocketsTestCase):
             CharacterWalletJournalEntry.match_context_type_id(None),
             CharacterWalletJournalEntry.CONTEXT_ID_TYPE_UNDEFINED,
         )
+
+
+class TestCharacterAssetManager(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_eveuniverse()
+        load_entities()
+        load_locations()
+        cls.character = create_memberaudit_character(1001)
+        cls.jita_44 = Location.objects.get(id=60003760)
+        cls.merlin = EveType.objects.get(id=603)
+
+    def test_can_calculate_pricing(self):
+        CharacterAsset.objects.create(
+            character=self.character,
+            item_id=1100000000666,
+            location=self.jita_44,
+            eve_type=self.merlin,
+            is_singleton=False,
+            quantity=5,
+        )
+        EveMarketPrice.objects.create(eve_type=self.merlin, average_price=500000)
+        asset = CharacterAsset.objects.annotate_pricing().first()
+        self.assertEqual(asset.price, 500000)
+        self.assertEqual(asset.total, 2500000)
+
+    def test_does_not_price_blueprint_copies(self):
+        CharacterAsset.objects.create(
+            character=self.character,
+            item_id=1100000000666,
+            location=self.jita_44,
+            eve_type=self.merlin,
+            is_blueprint_copy=True,
+            is_singleton=False,
+            quantity=1,
+        )
+        EveMarketPrice.objects.create(eve_type=self.merlin, average_price=500000)
+        asset = CharacterAsset.objects.annotate_pricing().first()
+        self.assertIsNone(asset.price)
+        self.assertIsNone(asset.total)
