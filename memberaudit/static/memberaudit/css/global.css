@@ -1,7 +1,22 @@
 /* Global styles shared by all pages */
 
 @media all {
-    /* Style group headers */
+    /* Tabs */
+    
+    .template-light-mode .nav-tabs > li.active > a{
+        background-color: rgb(236, 240, 241) !important;
+        color: black !important;
+    }
+    .template-dark-mode .nav-tabs > li.active > a{
+        background-color: rgb(70, 69, 69) !important;
+        color: white !important;
+    }
+    .panel-tabs {
+        border-top: none;
+        border-top-left-radius: 0%;
+        border-top-right-radius: 0%;
+    }    
+    /* Datatables row groups headers */
     .template-light-mode .table > tbody > .table-group > td {
         background-color: rgb(105, 105, 105);
         color: rgb(255, 255, 255);

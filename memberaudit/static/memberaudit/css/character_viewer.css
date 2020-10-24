@@ -159,7 +159,15 @@
     .sidebar_character > a {
         display: block;
         padding: 0.2rem 0.4rem;
-        text-decoration: none;
+        text-decoration: none;        
+    }
+
+    .template-light-mode .sidebar_character > a {
+        color: rgb(44, 62, 80);
+    }
+
+    .template-dark-mode .sidebar_character > a {
+        color: white;
     }
 
     .template-light-mode .sidebar_character:hover > a {

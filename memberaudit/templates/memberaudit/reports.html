@@ -6,39 +6,41 @@
 
 {% block details %}
     
-    <div class="panel panel-default">   
-        <div class="panel-body">        
-            <div>
-                <!-- Nav tabs -->
-                <ul class="nav nav-tabs" role="tablist">
-                    <li role="presentation" class="active">
-                        <a href="#compliance" aria-controls="compliance" role="tab" data-toggle="tab">
-                            User Compliance
-                        </a>
-                    </li>
-                    <li role="presentation">
-                        <a href="#doctrines" aria-controls="doctrines" role="tab" data-toggle="tab">
-                            Doctrines
-                        </a>
-                    </li>
-                    <li role="presentation" class="disabled">
-                        <a href="#messages" aria-controls="messages" role="tab" data-toggle="tab">
-                            Dummy 2
-                        </a>
-                    </li>
-                    <li role="presentation" class="disabled">
-                        <a href="#settings" aria-controls="settings" role="tab" data-toggle="tab">
-                            Dummy 3
-                        </a>
-                    </li>
-                </ul>
+         
+    <div>
+        <!-- Nav tabs -->
+        <ul class="nav nav-tabs" role="tablist">
+            <li role="presentation" class="active">
+                <a href="#compliance" aria-controls="compliance" role="tab" data-toggle="tab">
+                    User Compliance
+                </a>
+            </li>
+            <li role="presentation">
+                <a href="#doctrines" aria-controls="doctrines" role="tab" data-toggle="tab">
+                    Doctrines
+                </a>
+            </li>
+            <li role="presentation" class="disabled">
+                <a href="#messages" aria-controls="messages" role="tab" data-toggle="tab">
+                    Dummy 2
+                </a>
+            </li>
+            <li role="presentation" class="disabled">
+                <a href="#settings" aria-controls="settings" role="tab" data-toggle="tab">
+                    Dummy 3
+                </a>
+            </li>
+        </ul>
+        
+        <div class="panel panel-default panel-tabs">
+            <div class="panel-body">
 
                 <!-- Tab panes -->
                 <div class="tab-content">
+
                     
                     <!-- user compliance -->
-                    <div role="tabpanel" class="tab-pane active" id="compliance">
-                        <h3>User Compliance</h3>
+                    <div role="tabpanel" class="tab-pane active" id="compliance">                        
                         <div class="table-responsive">
                             <table class="table table-striped" id="tab_compliance">
                                 <thead>
@@ -57,8 +59,7 @@
                     </div>
                     
                     <!-- user compliance -->
-                    <div role="tabpanel" class="tab-pane" id="doctrines">
-                        <h3>Doctrines</h3>
+                    <div role="tabpanel" class="tab-pane" id="doctrines">                        
                         <div class="table-responsive">
                             <table class="table table-striped" id="tab_doctrines" style="width:100%;">
                                 <thead>
