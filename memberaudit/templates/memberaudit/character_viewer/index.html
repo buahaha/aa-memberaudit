@@ -10,30 +10,30 @@
         
         <!-- Main panel-->
         <div class="col-md-10" id="centerColumn">
-            {% include 'memberaudit/partials/character_summary.html' %}
+            {% include 'memberaudit/character_viewer/partials/overview.html' %}
 
             <!-- Details sub panel -->
             
             <div>
-                {% include 'memberaudit/partials/tabs_navigation.html' %}
+                {% include 'memberaudit/character_viewer/partials/tabs_navigation.html' %}
                 
                 <div class="panel panel-default panel-tabs">                
                     <div class="panel-body">
 
                         <!-- Tab panes -->
                         <div class="tab-content">
-                            {% include 'memberaudit/partials/tab_panel_assets.html' %}
-                            {% include 'memberaudit/partials/tab_panel_contacts.html' %}
-                            {% include 'memberaudit/partials/tab_panel_character_bio.html' %}
-                            {% include 'memberaudit/partials/tab_panel_contracts.html' %}
-                            {% include 'memberaudit/partials/tab_panel_corporation_history.html' %}
-                            {% include 'memberaudit/partials/tab_panel_doctrines.html' %}
-                            {% include 'memberaudit/partials/tab_panel_jump_clones.html' %}
-                            {% include 'memberaudit/partials/tab_panel_loyalty.html' %}
-                            {% include 'memberaudit/partials/tab_panel_mails.html' %}
-                            {% include 'memberaudit/partials/tab_panel_skills.html' %}
-                            {% include 'memberaudit/partials/tab_panel_skill_queue.html' %}
-                            {% include 'memberaudit/partials/tab_panel_wallet.html' %}
+                            {% include 'memberaudit/character_viewer/partials/tab_panel_assets.html' %}
+                            {% include 'memberaudit/character_viewer/partials/tab_panel_contacts.html' %}
+                            {% include 'memberaudit/character_viewer/partials/tab_panel_character_bio.html' %}
+                            {% include 'memberaudit/character_viewer/partials/tab_panel_contracts.html' %}
+                            {% include 'memberaudit/character_viewer/partials/tab_panel_corporation_history.html' %}
+                            {% include 'memberaudit/character_viewer/partials/tab_panel_doctrines.html' %}
+                            {% include 'memberaudit/character_viewer/partials/tab_panel_jump_clones.html' %}
+                            {% include 'memberaudit/character_viewer/partials/tab_panel_loyalty.html' %}
+                            {% include 'memberaudit/character_viewer/partials/tab_panel_mails.html' %}
+                            {% include 'memberaudit/character_viewer/partials/tab_panel_skills.html' %}
+                            {% include 'memberaudit/character_viewer/partials/tab_panel_skill_queue.html' %}
+                            {% include 'memberaudit/character_viewer/partials/tab_panel_wallet.html' %}
                         </div>
                     </div>
                 </div>
@@ -42,14 +42,14 @@
         
         <!-- Side bar -->
         <div class="col-md-2" id="sideColumn">
-            {% include 'memberaudit/partials/sidebar.html' %}
+            {% include 'memberaudit/character_viewer/partials/sidebar.html' %}
         </div>
 
     </div>
 
-    {% include 'memberaudit/modals/asset_container.html' %}
-    {% include 'memberaudit/modals/contracts.html' %}
-    {% include 'memberaudit/modals/mails.html' %}    
+    {% include 'memberaudit/character_viewer/modals/asset_container.html' %}
+    {% include 'memberaudit/character_viewer/modals/contract.html' %}
+    {% include 'memberaudit/character_viewer/modals/mail.html' %}    
 {% endblock details %}
 
 {% block extra_javascript %}
