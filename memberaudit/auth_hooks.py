@@ -17,7 +17,7 @@ class MemberauditMenuItem(MenuItemHook):
             _(f"{__title__} [DEV]"),
             "far fa-address-card fa-fw fa-fw",
             "memberaudit:index",
-            navactive=["memberaudit:index"],
+            navactive=["memberaudit:"],
         )
 
     def render(self, request):
