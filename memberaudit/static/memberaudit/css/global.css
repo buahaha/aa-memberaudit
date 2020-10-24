@@ -1,8 +1,8 @@
-/* Global styles shared by all pages */
+/* Global styles shared by all apps */
 
 @media all {
-    /* Tabs */
     
+    /* Bootstrap Tabs */    
     .template-light-mode .nav-tabs > li.active > a{
         background-color: rgb(236, 240, 241) !important;
         color: black !important;
@@ -15,8 +15,9 @@
         border-top: none;
         border-top-left-radius: 0%;
         border-top-right-radius: 0%;
-    }    
-    /* Datatables row groups headers */
+    }
+
+    /* Datatables row group headers */
     .template-light-mode .table > tbody > .table-group > td {
         background-color: rgb(105, 105, 105);
         color: rgb(255, 255, 255);
@@ -29,37 +30,14 @@
         font-weight: bold;
     }
 
+    /* other */
     .nowrap {
         white-space: nowrap;
-    }
-
-    .icon-plus-name {    
-        padding-left: 2em;
-        text-indent: -2em;        
-    }
-
-    .text-high-sec {
-        color: green;
-    }
-    
-    .text-low-sec {
-        color: orange;
-    }
-
-    .text-null-sec {
-        color: red;
-    }
-
-    .boolean-icon-false{
-        color: red;
-    }
-
-    .boolean-icon-true{
-        color: green;
     }
 }
 
 @media (min-width: 768px) {
+    /* Bootstrap modals */
     .modal-xl {
         width: 90%;
         max-width:1200px;

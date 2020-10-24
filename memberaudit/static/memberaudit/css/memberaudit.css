@@ -1,0 +1,28 @@
+/* Common styles for all pages of this app */
+
+@media all {  
+    .icon-plus-name {    
+        padding-left: 2em;
+        text-indent: -2em;        
+    }
+
+    .text-high-sec {
+        color: green;
+    }
+    
+    .text-low-sec {
+        color: orange;
+    }
+
+    .text-null-sec {
+        color: red;
+    }
+
+    .boolean-icon-false{
+        color: red;
+    }
+
+    .boolean-icon-true{
+        color: green;
+    }
+}
