@@ -3,7 +3,11 @@
 
 <div role="tabpanel" class="tab-pane" id="history">
     <div id="div_corporation_history">
-        <img src="{% static 'memberaudit/images/Spinner-1s-64px.gif' %}"/> 
+        {% if NIGHT_MODE %}
+            <img src="{% static 'memberaudit/images/Spinner-1s-64px-dark.gif' %}"/>
+        {% else %}
+            <img src="{% static 'memberaudit/images/Spinner-1s-64px-light.gif' %}"/>
+        {% endif %}
     </div>
     <br>
     <p class="text-muted">Last updated: {{ last_updates.corporation_history|naturaltime }}</p>

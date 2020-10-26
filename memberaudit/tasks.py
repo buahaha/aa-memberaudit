@@ -567,7 +567,7 @@ def update_character_wallet_journal_entries(character_pk: int) -> None:
 @shared_task(
     bind=True,
     base=QueueOnce,
-    once={"keys": ["id"]},
+    once={"keys": ["id"], "graceful": True},
     max_retries=None,
     time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT,
 )

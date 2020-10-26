@@ -15,7 +15,11 @@
             </div>
 
             <div class="modal-body">
-                <img src="{% static 'memberaudit/images/Spinner-1s-64px.gif' %}"/>
+                {% if NIGHT_MODE %}
+                    <img src="{% static 'memberaudit/images/Spinner-1s-64px-dark.gif' %}"/>
+                {% else %}
+                    <img src="{% static 'memberaudit/images/Spinner-1s-64px-light.gif' %}"/>
+                {% endif %}
             </div>
 
             <div class="modal-footer">
