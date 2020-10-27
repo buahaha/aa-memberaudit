@@ -894,7 +894,7 @@ def character_corporation_history(
     context = {"corporation_history": reversed(corporation_history)}
     return render(
         request,
-        "memberaudit/character_viewer/partials/tab_panel_corporation_history_2.html",
+        "memberaudit/partials/character_viewer/tabs/corporation_history_2.html",
         add_common_context(request, context),
     )
 
