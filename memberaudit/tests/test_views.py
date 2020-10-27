@@ -26,6 +26,7 @@ from ..models import (
     CharacterContact,
     CharacterContract,
     CharacterContractItem,
+    CharacterImplant,
     CharacterJumpClone,
     CharacterJumpCloneImplant,
     CharacterMail,
@@ -53,6 +54,7 @@ from ..views import (
     character_contract_details,
     character_corporation_history,
     character_doctrines_data,
+    character_implants_data,
     character_jump_clones_data,
     character_mail_headers_by_label_data,
     character_mail_headers_by_list_data,
@@ -753,6 +755,33 @@ class TestViews(TestViewsBase):
         request.user = self.user
         response = character_corporation_history(request, self.character.pk)
         self.assertEqual(response.status_code, 200)
+
+    def test_character_character_implants_data(self):
+        implant_1 = CharacterImplant.objects.create(
+            character=self.character, eve_type=EveType.objects.get(id=19553)
+        )
+        implant_2 = CharacterImplant.objects.create(
+            character=self.character, eve_type=EveType.objects.get(id=19540)
+        )
+        implant_3 = CharacterImplant.objects.create(
+            character=self.character, eve_type=EveType.objects.get(id=19551)
+        )
+        request = self.factory.get(
+            reverse("memberaudit:character_implants_data", args=[self.character.pk])
+        )
+        request.user = self.user
+        response = character_implants_data(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
+
+        data = json_response_to_python_dict(response)
+        self.assertSetEqual(
+            set(data.keys()), {implant_1.pk, implant_2.pk, implant_3.pk}
+        )
+        self.assertIn(
+            "High-grade Snake Gamma",
+            data[implant_1.pk]["implant"]["display"],
+        )
+        self.assertEqual(data[implant_1.pk]["implant"]["sort"], 3)
 
 
 class TestMailHeaderData(TestCase):

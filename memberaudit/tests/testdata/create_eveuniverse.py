@@ -7,22 +7,18 @@ from . import eveuniverse_test_data_filename
 
 class CreateEveUniverseTestData(TestCase):
     def test_create_testdata(self):
-        testdata_spec = {
-            "EveAncestry": ModelSpec(ids=[11], include_children=False),
-            "EveBloodline": ModelSpec(ids=[1], include_children=False),
-            "EveFaction": ModelSpec(ids=[500001], include_children=False),
-            "EveRace": ModelSpec(ids=[1], include_children=False),
-            "EveSolarSystem": ModelSpec(
-                ids=[30000142, 30004984, 30001161, 30002537], include_children=False
-            ),
-            "EveType": ModelSpec(
+        testdata_spec = [
+            ModelSpec("EveAncestry", ids=[11]),
+            ModelSpec("EveBloodline", ids=[1]),
+            ModelSpec("EveFaction", ids=[500001]),
+            ModelSpec("EveRace", ids=[1]),
+            ModelSpec("EveSolarSystem", ids=[30000142, 30004984, 30001161, 30002537]),
+            ModelSpec(
+                "EveType",
                 ids=[
                     5,
                     23,
                     603,
-                    19540,
-                    19551,
-                    19553,
                     20185,
                     24311,
                     24312,
@@ -30,7 +26,15 @@ class CreateEveUniverseTestData(TestCase):
                     35835,
                     52678,
                 ],
-                include_children=False,
             ),
-        }
+            ModelSpec(
+                "EveType",
+                ids=[
+                    19540,
+                    19551,
+                    19553,
+                ],
+                include_children=True,
+            ),
+        ]
         create_testdata(testdata_spec, eveuniverse_test_data_filename())

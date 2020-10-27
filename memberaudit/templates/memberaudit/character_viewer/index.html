@@ -28,6 +28,7 @@
                             {% include 'memberaudit/character_viewer/partials/tab_panel_contracts.html' %}
                             {% include 'memberaudit/character_viewer/partials/tab_panel_corporation_history.html' %}
                             {% include 'memberaudit/character_viewer/partials/tab_panel_doctrines.html' %}
+                            {% include 'memberaudit/character_viewer/partials/tab_panel_implants.html' %}
                             {% include 'memberaudit/character_viewer/partials/tab_panel_jump_clones.html' %}
                             {% include 'memberaudit/character_viewer/partials/tab_panel_loyalty.html' %}
                             {% include 'memberaudit/character_viewer/partials/tab_panel_mails.html' %}
@@ -406,6 +407,28 @@
                 columnDefs: [
                     { "orderable": false, "targets": [ 3 ] }                  
                 ],
+            });
+
+            /* Clones */
+            $('#tab_implants').DataTable({
+                ajax: {
+                    url: "{% url 'memberaudit:character_implants_data' character.pk %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [                    
+                    { 
+                        data: 'implant',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        } 
+                    },                   
+                ],
+                order: [[0, "asc"]],
+                paging: false,
+                searching: false,
+                info: false
             });
 
             /* Loyalty */

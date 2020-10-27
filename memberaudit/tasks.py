@@ -2,6 +2,7 @@ from celery import shared_task, chain
 
 from bravado.exception import HTTPUnauthorized, HTTPForbidden
 from esi.models import Token
+from eveuniverse.core.esitools import is_esi_online
 from eveuniverse.models import EveEntity, EveMarketPrice
 
 from django.core.cache import cache
@@ -24,7 +25,6 @@ from .models import (
     CharacterMail,
     CharacterUpdateStatus,
     Location,
-    is_esi_online,
 )
 
 from .utils import LoggerAddTag

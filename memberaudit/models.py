@@ -13,10 +13,10 @@ from django.utils.safestring import mark_safe
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 
-from bravado.exception import HTTPError
 from esi.models import Token
 from esi.errors import TokenError
 
+from eveuniverse.core.esitools import is_esi_online
 from eveuniverse.models import (
     EveAncestry,
     EveBloodline,
@@ -62,19 +62,6 @@ def eve_xml_to_html(xml: str) -> str:
     x = strip_tags(x)
     x = x.replace("\n", "<br>")
     return mark_safe(x)
-
-
-def is_esi_online() -> bool:
-    """Returns True if Eve Online server are online, else False"""
-    try:
-        status = esi.client.Status.get_status().results()
-        if status.get("vip"):
-            return False
-
-    except HTTPError:
-        return False
-
-    return True
 
 
 def store_list_to_disk(lst: list, name: str):
@@ -215,6 +202,7 @@ class Character(models.Model):
     UPDATE_SECTION_CONTRACTS = "contracts"
     UPDATE_SECTION_CORPORATION_HISTORY = "corporation_history"
     UPDATE_SECTION_DOCTRINES = "doctrines"
+    UPDATE_SECTION_IMPLANTS = "implants"
     UPDATE_SECTION_JUMP_CLONES = "jump_clones"
     UPDATE_SECTION_LOCATION = "location"
     UPDATE_SECTION_LOYALTY = "loyalty"
@@ -231,6 +219,7 @@ class Character(models.Model):
         (UPDATE_SECTION_CONTRACTS, _("contracts")),
         (UPDATE_SECTION_CORPORATION_HISTORY, _("corporation history")),
         (UPDATE_SECTION_DOCTRINES, _("doctrines")),
+        (UPDATE_SECTION_IMPLANTS, _("implants")),
         (UPDATE_SECTION_JUMP_CLONES, _("jump clones")),
         (UPDATE_SECTION_LOCATION, _("location")),
         (UPDATE_SECTION_LOYALTY, _("loyalty")),
@@ -249,9 +238,10 @@ class Character(models.Model):
         UPDATE_SECTION_CONTRACTS: 2,
         UPDATE_SECTION_CORPORATION_HISTORY: 2,
         UPDATE_SECTION_DOCTRINES: 2,
+        UPDATE_SECTION_IMPLANTS: 2,
+        UPDATE_SECTION_JUMP_CLONES: 2,
         UPDATE_SECTION_LOCATION: 1,
         UPDATE_SECTION_LOYALTY: 2,
-        UPDATE_SECTION_JUMP_CLONES: 2,
         UPDATE_SECTION_MAILS: 2,
         UPDATE_SECTION_ONLINE_STATUS: 1,
         UPDATE_SECTION_SKILLS: 2,
@@ -978,6 +968,31 @@ class Character(models.Model):
 
                 if skills:
                     doctrine_ships_by_ship_id[ship.id].insufficient_skills.add(*skills)
+
+    @fetch_token_for_character("esi-clones.read_implants.v1")
+    def update_implants(self, token):
+        """update the character's implants"""
+        logger.info("%s: Fetching implants from ESI", self)
+        implants_data = esi.client.Clones.get_characters_character_id_implants(
+            character_id=self.character_ownership.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+
+        with transaction.atomic():
+            self.implants.all().delete()
+            if implants_data:
+                implants = list()
+                for eve_type_id in implants_data:
+                    eve_type, _ = EveType.objects.get_or_create_esi(id=eve_type_id)
+                    implants.append(CharacterImplant(character=self, eve_type=eve_type))
+
+                logger.info("%s: Storing %s implants", self, len(implants))
+                CharacterImplant.objects.bulk_create(
+                    implants, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
+                )
+
+            else:
+                logger.info("%s: No implants", self)
 
     def update_location(self):
         """update the location for the given character"""
@@ -2139,6 +2154,28 @@ class CharacterDoctrineShipCheck(models.Model):
     @property
     def can_fly(self) -> bool:
         return self.insufficient_skills.count() == 0
+
+
+class CharacterImplant(models.Model):
+    """Implant of a character"""
+
+    character = models.ForeignKey(
+        Character, on_delete=models.CASCADE, related_name="implants"
+    )
+    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
+
+    """ TODO: Enable when design is stable
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "eve_type"],
+                name="functional_pk_characterimplant",
+            )
+        ]
+    """
+
+    def __str__(self) -> str:
+        return str(f"{self.character}-{self.eve_type}")
 
 
 class CharacterLocation(models.Model):
