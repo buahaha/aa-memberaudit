@@ -13,13 +13,11 @@
             {% include 'memberaudit/partials/character_viewer/overview.html' %}
 
             <!-- Details sub panel -->
-
             <div>
                 {% include 'memberaudit/partials/character_viewer/tabs_navigation.html' %}
 
                 <div class="panel panel-default panel-tabs">
                     <div class="panel-body">
-
                         <!-- Tab panes -->
                         <div class="tab-content">
                             {% include 'memberaudit/partials/character_viewer/tabs/assets.html' %}
@@ -55,14 +53,11 @@
 {% block extra_javascript %}
     {% include 'bundles/datatables-js.html' %}
 
-    <script type="application/javascript"
-        src="{% static 'memberaudit/vendor/datatables/plugins/dataTables.rowGroup.min.js' %}"></script>
+    <script type="application/javascript" src="{% static 'memberaudit/vendor/datatables/plugins/dataTables.rowGroup.min.js' %}"></script>
 
     {% include 'bundles/moment-js.html' with locale=True %}
 
-    <script type="application/javascript"
-        src="{% static 'memberaudit/vendor/datatables/plugins/datetime.js' %}"></script>
-
+    <script type="application/javascript" src="{% static 'memberaudit/vendor/datatables/plugins/datetime.js' %}"></script>
     <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
 
     <script type="application/javascript">

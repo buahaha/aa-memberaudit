@@ -1,118 +1,50 @@
 {% extends 'memberaudit/base.html' %}
+
 {% load i18n %}
 {% load humanize %}
 {% load static %}
 
-
 {% block details %}
-    
-         
     <div>
-        <!-- Nav tabs -->
-        <ul class="nav nav-tabs" role="tablist">
-            <li role="presentation" class="active">
-                <a href="#compliance" aria-controls="compliance" role="tab" data-toggle="tab">
-                    User Compliance
-                </a>
-            </li>
-            <li role="presentation">
-                <a href="#doctrines" aria-controls="doctrines" role="tab" data-toggle="tab">
-                    Doctrines
-                </a>
-            </li>
-            <li role="presentation" class="disabled">
-                <a href="#messages" aria-controls="messages" role="tab" data-toggle="tab">
-                    Dummy 2
-                </a>
-            </li>
-            <li role="presentation" class="disabled">
-                <a href="#settings" aria-controls="settings" role="tab" data-toggle="tab">
-                    Dummy 3
-                </a>
-            </li>
-        </ul>
-        
+        {% include 'memberaudit/partials/reports/tabs_navigation.html' %}
+
         <div class="panel panel-default panel-tabs">
             <div class="panel-body">
-
                 <!-- Tab panes -->
                 <div class="tab-content">
-
-                    
-                    <!-- user compliance -->
-                    <div role="tabpanel" class="tab-pane active" id="compliance">                        
-                        <div class="table-responsive">
-                            <table class="table table-striped" id="tab_compliance">
-                                <thead>
-                                    <tr>                                        
-                                        <th>Main</th>                        
-                                        <th>Organization</th>
-                                        <th>Total Chars</th>
-                                        <th>Unregistered Chars</th>
-                                        <th>Compliant?</th>                            
-                                    </tr>
-                                </thead>
-                                <tbody>                   
-                                </tbody>                
-                            </table>
-                        </div>
-                    </div>
-                    
-                    <!-- user compliance -->
-                    <div role="tabpanel" class="tab-pane" id="doctrines">                        
-                        <div class="table-responsive">
-                            <table class="table table-striped" id="tab_doctrines" style="width:100%;">
-                                <thead>
-                                    <tr>
-                                        <th>Doctrine</th>
-                                        <th>Main</th>
-                                        <th>Organization</th>
-                                        <th>Character</th>
-                                        <th>Can Fly</th>
-                                    </tr>
-                                </thead>
-                                <tbody>                   
-                                </tbody>                
-                            </table>
-                        </div>
-                    </div>
-
-                    <div role="tabpanel" class="tab-pane" id="messages">...</div>
-                    <div role="tabpanel" class="tab-pane" id="settings">...</div>
+                    {% include 'memberaudit/partials/reports/tabs/compliance.html' %}
+                    {% include 'memberaudit/partials/reports/tabs/doctrines.html' %}
                 </div>
             </div>
-            
+
         </div>
-    </div>        
-    
+    </div>
 {% endblock details %}
 
 {% block extra_javascript %}
-    {% include 'bundles/datatables-js.html' %}    
-    
-    <script type="application/javascript"
-        src="{% static 'memberaudit/vendor/datatables/plugins/dataTables.rowGroup.min.js' %}"></script>
+    {% include 'bundles/datatables-js.html' %}
 
+    <script type="application/javascript" src="{% static 'memberaudit/vendor/datatables/plugins/dataTables.rowGroup.min.js' %}"></script>
     <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
-    
+
     <script>
         $(document).ready(function() {
-            
-            $('#tab_compliance').DataTable({            
+
+            $('#tab_compliance').DataTable({
                 ajax: {
                     url: '{% url 'memberaudit:compliance_report_data' %}',
                     dataSrc: '',
                     cache: false
                 },
-                columns: [                    
-                    { 
+                columns: [
+                    {
                         data: 'main',
                         render: {
                             _: 'display',
                             sort: 'sort'
                         }
                     },
-                    { 
+                    {
                         data: 'organization',
                         render: {
                             _: 'display',
@@ -124,14 +56,14 @@
                     { data: 'compliance_str' },
                     /* hidden columns */
                     { data: 'alliance_name' },
-                    { data: 'corporation_name' },                    
+                    { data: 'corporation_name' },
                 ],
-                columnDefs: [          
+                columnDefs: [
                     { "visible": false, "targets": [ 5, 6 ] },
                 ],
                 order: [ [ 0, "asc" ] ],
-                filterDropDown: {										
-                    columns: [                        
+                filterDropDown: {
+                    columns: [
                         {
                             idx: 5,
                             title: "Alliance"
@@ -152,13 +84,13 @@
                     ],
                     bootstrap: true
                 },
-                createdRow: function( row, data, dataIndex ) 
+                createdRow: function( row, data, dataIndex )
                 {
                     if (!data['is_compliant'])
                     {
                         $(row).addClass('danger');
-                    }                
-                }            
+                    }
+                }
             });
 
             $('#tab_doctrines').DataTable({
@@ -168,16 +100,16 @@
                     cache: false
                 },
                 columns: [
-                    { data: 'doctrine' },                    
+                    { data: 'doctrine' },
                     { data: 'main_html' },
                     { data: 'organization_html' },
-                    { data: 'character_html' },                    
+                    { data: 'character_html' },
                     { data: 'can_fly' },
-                    
-                    /* hidden columns */                    
+
+                    /* hidden columns */
                     { data: 'alliance' },
                     { data: 'corporation' },
-                    { data: 'can_fly_str' },                    
+                    { data: 'can_fly_str' },
                 ],
                 order: [[0, "asc"], [1, "asc"], [3, "asc"]],
                 rowGroup: {
@@ -209,7 +141,7 @@
                     bootstrap: true
                 }
             });
-            
+
         });
     </script>
 {% endblock %}
@@ -221,5 +153,5 @@
 {% endblock %}
 
 {% block extra_script %}
-    
+
 {% endblock %}
