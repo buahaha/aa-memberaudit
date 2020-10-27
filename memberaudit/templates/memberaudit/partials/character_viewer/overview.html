@@ -6,7 +6,7 @@
 <!-- Character summary panel -->
 <!-- TODO: Make responsive -->
 <div class="panel panel-default">
-    <div class="panel-heading">Overview</div>
+    <div class="panel-heading">{% translate 'Overview' %}</div>
     <div class="panel-body">
         <div class="character-summary-flex">
 
@@ -22,20 +22,20 @@
 
                     <div class="col-md-4">
                         <dl class="dl-horizontal">
-                            <dt>Character:</dt>
+                            <dt>{% translate 'Character:' %}</dt>
                             <dd class="nowrap">
                                 {{ auth_character.character_name}}
                                 &nbsp;{% if auth_character.character_id == main_character_id %}<i class="fas fa-crown" title="Main character"></i>{% endif %}
                             </dd>
                             
-                            <dt>Corporation:</dt>
+                            <dt>{% translate 'Corporation:' %}</dt>
                             <dd>
                                 <a href="{{ auth_character.corporation_name|dotlan_corporation_url }}" target="_blank">
                                     {{ auth_character.corporation_name }}
                                 </a>
                             </dd>
                             
-                            <dt>Alliance:</dt>
+                            <dt>{% translate 'Alliance:' %}</dt>
                             <dd>
                                 {% if auth_character.alliance_name %}
                                     <a href="{{ auth_character.alliance_name|dotlan_alliance_url }}" target="_blank">
@@ -54,38 +54,38 @@
                         </dl>
                     </div>
             
-
+                    {% translate "(no data)" as no_data %}
                     <div class="col-md-4">
                         <dl class="dl-horizontal">
-                            <dt>Born:</dt>
-                            <dd class="nowrap">{{ character_details.birthday|naturaltime|default_if_none:"(no data)" }}</dd>
+                            <dt>{% translate 'Born:' %}</dt>
+                            <dd class="nowrap">{{ character_details.birthday|naturaltime|default_if_none:no_data }}</dd>
                             
                             <dt>Skillpoints:</dt>
-                            <dd>{{ character.skillpoints.total|intword|default_if_none:"(no data)" }}</dd>
+                            <dd>{{ character.skillpoints.total|intword|default_if_none:no_data }}</dd>
                             
                             <dt>Sec. Status:</dt>
-                            <dd class="{% if character_details.security_status < 0 %}text-danger{% elif character_details.security_status > 0 %}text-success{% endif %}">{{ character_details.security_status|floatformat:1|default_if_none:"(no data)" }}</dd>
+                            <dd class="{% if character_details.security_status < 0 %}text-danger{% elif character_details.security_status > 0 %}text-success{% endif %}">{{ character_details.security_status|floatformat:1|default_if_none:no_data }}</dd>
                             
                             <dt>Assets:</dt>
-                            <dd>{{ character_assets_total|intword|default_if_none:"(no data)" }} ISK (est.)</dd>
+                            <dd>{{ character_assets_total|intword|default_if_none:no_data }} ISK (est.)</dd>
 
                             <dt>Wallet:</dt>
-                            <dd>{{ character.wallet_balance.total|intword|default_if_none:"(no data)" }} ISK</dd>                            
+                            <dd>{{ character.wallet_balance.total|intword|default_if_none:no_data }} ISK</dd>                            
                         </dl>
                     </div>
 
                     <div class="col-md-4">
                         <dl class="dl-horizontal">                    
-                            <dt>Location:</dt>
+                            <dt>{% translate 'Location:' %}</dt>
                             <dd>{{ character.location.location.name_plus }}</dd>
                             
-                            <dt>System:</dt>
+                            <dt>{% translate 'System:' %}</dt>
                             <dd>{% include 'memberaudit/partials/solar_system.html' with character=character only %}</dd>
                             
-                            <dt>Last Login:</dt>
+                            <dt>{% translate 'Last Login:' %}</dt>
                             <dd class="nowrap">{{ character.online_status.last_login|naturaltime }}</dd>
 
-                            <dt>Main:</dt>
+                            <dt>{% translate 'Main:' %}</dt>
                             <dd>{{ main }}</dd>                    
                         </dl>
                     </div>
