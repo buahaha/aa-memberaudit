@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-27 18:52-0400\n"
+"POT-Creation-Date: 2020-10-27 19:54-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -364,143 +364,143 @@ msgid "Loading..."
 msgstr ""
 
 #: templates/memberaudit/modals/character_viewer/asset_container.html:26
-#: templates/memberaudit/modals/character_viewer/asset_container_content.html:48
+#: templates/memberaudit/modals/character_viewer/asset_container_content.html:49
 #: templates/memberaudit/modals/character_viewer/contract.html:27
-#: templates/memberaudit/modals/character_viewer/contract_content.html:88
+#: templates/memberaudit/modals/character_viewer/contract_content.html:89
 #: templates/memberaudit/modals/character_viewer/mail.html:30
 msgid "Close"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/asset_container_content.html:9
+#: templates/memberaudit/modals/character_viewer/asset_container_content.html:10
 msgid "Asset Container"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/asset_container_content.html:24
-#: templates/memberaudit/modals/character_viewer/contract_items.html:8
+#: templates/memberaudit/modals/character_viewer/asset_container_content.html:25
+#: templates/memberaudit/modals/character_viewer/contract_items.html:9
 #: templates/memberaudit/partials/character_viewer/tabs/assets.html:10
 #: templates/memberaudit/partials/character_viewer/tabs/contacts.html:10
 msgid "Name"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/asset_container_content.html:25
-#: templates/memberaudit/modals/character_viewer/contract_items.html:9
+#: templates/memberaudit/modals/character_viewer/asset_container_content.html:26
+#: templates/memberaudit/modals/character_viewer/contract_items.html:10
 #: templates/memberaudit/partials/character_viewer/tabs/assets.html:11
 msgid "Qty"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/asset_container_content.html:26
+#: templates/memberaudit/modals/character_viewer/asset_container_content.html:27
 #: templates/memberaudit/partials/character_viewer/tabs/assets.html:12
 #: templates/memberaudit/partials/character_viewer/tabs/skills.html:9
 msgid "Group"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/asset_container_content.html:27
+#: templates/memberaudit/modals/character_viewer/asset_container_content.html:28
 msgid "Volume"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/asset_container_content.html:28
+#: templates/memberaudit/modals/character_viewer/asset_container_content.html:29
 #: templates/memberaudit/partials/character_viewer/tabs/assets.html:14
 msgid "Price"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/asset_container_content.html:29
+#: templates/memberaudit/modals/character_viewer/asset_container_content.html:30
 #: templates/memberaudit/partials/character_viewer/tabs/assets.html:15
 msgid "Total"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/asset_container_content.html:39
+#: templates/memberaudit/modals/character_viewer/asset_container_content.html:40
 #: templates/memberaudit/partials/character_viewer/tabs/assets.html:28
 msgid "Grand Total:"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:15
+#: templates/memberaudit/modals/character_viewer/contract_content.html:16
 msgid "Info by Issuer:"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:16
+#: templates/memberaudit/modals/character_viewer/contract_content.html:17
 msgid "Type:"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:17
+#: templates/memberaudit/modals/character_viewer/contract_content.html:18
 msgid "Issued By:"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:18
+#: templates/memberaudit/modals/character_viewer/contract_content.html:19
 msgid "Availability:"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:22
+#: templates/memberaudit/modals/character_viewer/contract_content.html:23
 msgid "Region:"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:27
+#: templates/memberaudit/modals/character_viewer/contract_content.html:28
 msgid "Status:"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:28
+#: templates/memberaudit/modals/character_viewer/contract_content.html:29
 #: templates/memberaudit/partials/character_viewer/overview.html:79
 msgid "Location:"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:34
+#: templates/memberaudit/modals/character_viewer/contract_content.html:35
 msgid "Date Issued:"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:35
+#: templates/memberaudit/modals/character_viewer/contract_content.html:36
 msgid "Expiration Date:"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:38
+#: templates/memberaudit/modals/character_viewer/contract_content.html:39
 msgid "Complete In:"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:39
+#: templates/memberaudit/modals/character_viewer/contract_content.html:40
 msgid "Volume:"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:39
+#: templates/memberaudit/modals/character_viewer/contract_content.html:40
 msgid "m3"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:40
+#: templates/memberaudit/modals/character_viewer/contract_content.html:41
 msgid "Reward:"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:40
-#: templates/memberaudit/modals/character_viewer/contract_content.html:52
-#: templates/memberaudit/modals/character_viewer/contract_content.html:64
+#: templates/memberaudit/modals/character_viewer/contract_content.html:41
+#: templates/memberaudit/modals/character_viewer/contract_content.html:53
+#: templates/memberaudit/modals/character_viewer/contract_content.html:65
 msgid "ISK"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:41
+#: templates/memberaudit/modals/character_viewer/contract_content.html:42
 msgid "Collateral:"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:42
+#: templates/memberaudit/modals/character_viewer/contract_content.html:43
 msgid "Destination:"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:50
+#: templates/memberaudit/modals/character_viewer/contract_content.html:51
 msgid "Buyer will pay"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:62
-#: templates/memberaudit/modals/character_viewer/contract_content.html:78
+#: templates/memberaudit/modals/character_viewer/contract_content.html:63
+#: templates/memberaudit/modals/character_viewer/contract_content.html:79
 msgid "Buyer will get"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_content.html:73
+#: templates/memberaudit/modals/character_viewer/contract_content.html:74
 msgid "so far"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_items.html:10
+#: templates/memberaudit/modals/character_viewer/contract_items.html:11
 #: templates/memberaudit/partials/character_viewer/tabs/contacts.html:11
 #: templates/memberaudit/partials/character_viewer/tabs/contracts.html:10
 #: templates/memberaudit/partials/character_viewer/tabs/wallet.html:14
 msgid "Type"
 msgstr ""
 
-#: templates/memberaudit/modals/character_viewer/contract_items.html:11
+#: templates/memberaudit/modals/character_viewer/contract_items.html:12
 msgid "Category"
 msgstr ""
 
@@ -588,7 +588,7 @@ msgstr ""
 #: templates/memberaudit/partials/character_viewer/tabs/character_bio.html:8
 #: templates/memberaudit/partials/character_viewer/tabs/contacts.html:21
 #: templates/memberaudit/partials/character_viewer/tabs/contracts.html:24
-#: templates/memberaudit/partials/character_viewer/tabs/corporation_history.html:13
+#: templates/memberaudit/partials/character_viewer/tabs/corporation_history.html:14
 #: templates/memberaudit/partials/character_viewer/tabs/doctrines.html:19
 #: templates/memberaudit/partials/character_viewer/tabs/jump_clones.html:19
 #: templates/memberaudit/partials/character_viewer/tabs/loyalty.html:17
@@ -615,10 +615,12 @@ msgid "Contract"
 msgstr ""
 
 #: templates/memberaudit/partials/character_viewer/tabs/contracts.html:11
+#: templates/memberaudit/partials/character_viewer/tabs/mails.html:44
 msgid "From"
 msgstr ""
 
 #: templates/memberaudit/partials/character_viewer/tabs/contracts.html:12
+#: templates/memberaudit/partials/character_viewer/tabs/mails.html:45
 msgid "To"
 msgstr ""
 
@@ -672,19 +674,11 @@ msgid "No data yet..."
 msgstr ""
 
 #: templates/memberaudit/partials/character_viewer/tabs/mails.html:43
-msgid "sent"
-msgstr ""
-
-#: templates/memberaudit/partials/character_viewer/tabs/mails.html:44
-msgid "from"
-msgstr ""
-
-#: templates/memberaudit/partials/character_viewer/tabs/mails.html:45
-msgid "to"
+msgid "Sent"
 msgstr ""
 
 #: templates/memberaudit/partials/character_viewer/tabs/mails.html:46
-msgid "subject"
+msgid "Subject"
 msgstr ""
 
 #: templates/memberaudit/partials/character_viewer/tabs/skill_queue.html:10
