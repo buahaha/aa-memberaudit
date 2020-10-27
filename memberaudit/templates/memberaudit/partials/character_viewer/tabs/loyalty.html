@@ -6,13 +6,13 @@
         <table class="table table-striped" id="tab_loyalty" style="width:100%;">
             <thead>
                 <tr>
-                    <th>Corporation</th>
-                    <th>Loyalty Points</th>                    
+                    <th>{% translate 'Corporation' %}</th>
+                    <th>{% translate 'Loyalty Points' %}</th>                    
                 </tr>
             </thead>
             <tbody>
             </tbody>
         </table>
     </div>
-    <p class="text-muted">Last updated: {{ last_updates.loyalty|naturaltime }}</p>
+    <p class="text-muted">{% translate 'Last updated:' %} {{ last_updates.loyalty|naturaltime }}</p>
 </div>

@@ -6,14 +6,14 @@
         <table class="table table-striped" id="tab_contracts" style="width:100%;">
             <thead>
                 <tr>
-                    <th>Contract</th>
-                    <th>Type</th>
-                    <th>From</th>
-                    <th>To</th>
-                    <th>Status</th>
-                    <th>Date Issued</th>
-                    <th>Time Left</th>
-                    <th>Info</th>
+                    <th>{% translate 'Contract' %}</th>
+                    <th>{% translate 'Type' %}</th>
+                    <th>{% translate 'From' %}</th>
+                    <th>{% translate 'To' %}</th>
+                    <th>{% translate 'Status' %}</th>
+                    <th>{% translate 'Date Issued' %}</th>
+                    <th>{% translate 'Time Left' %}</th>
+                    <th>{% translate 'Info' %}</th>
                     <th></th>
                 </tr>
             </thead>
@@ -21,5 +21,5 @@
             </tbody>
         </table>
     </div>
-    <p class="text-muted">Last updated: {{ last_updates.contracts|naturaltime }}</p>
+    <p class="text-muted">{% translate 'Last updated:' %} {{ last_updates.contracts|naturaltime }}</p>
 </div>

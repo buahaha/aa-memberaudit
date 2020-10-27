@@ -6,13 +6,13 @@
         <table class="table table-striped" id="tab_assets" style="width:100%;">
             <thead>
                 <tr>
-                    <th>Location</th>
-                    <th>Name</th>
-                    <th>Qty</th>
-                    <th>Group</th>
-                    <th>Volume (m3)</th>
-                    <th>Price</th>
-                    <th>Total</th>
+                    <th>{% translate 'Location' %}</th>
+                    <th>{% translate 'Name' %}</th>
+                    <th>{% translate 'Qty' %}</th>
+                    <th>{% translate 'Group' %}</th>
+                    <th>{% translate 'Volume (m3)' %}</th>
+                    <th>{% translate 'Price' %}</th>
+                    <th>{% translate 'Total' %}</th>
                     <th></th>
                 </tr>
             </thead>
@@ -25,13 +25,13 @@
                 <th></th>
                 <th></th>
                 <th></th>
-                <th>Grand Total:</th>
+                <th>{% translate 'Grand Total:' %}</th>
                 <th></th>
                 <th></th>
             </tfoot>
         </table>
     </div>
 
-    <p class="text-muted">Last updated: {{ last_updates.assets|naturaltime }}</p>
-    <p class="text-muted">Prices are average market prices.</p>
+    <p class="text-muted">{% translate 'Last updated:' %} {{ last_updates.assets|naturaltime }}</p>
+    <p class="text-muted">{% translate 'Prices are average market prices.' %}</p>
 </div>

@@ -5,6 +5,6 @@
     {{ character_details.description_plain|default:"-" }}
     <br>
     <br>
-    <p class="text-muted">Last updated: {{ last_updates.character_details|naturaltime }}</p>
+    <p class="text-muted">{% translate 'Last updated:' %} {{ last_updates.character_details|naturaltime }}</p>
 </div>
 

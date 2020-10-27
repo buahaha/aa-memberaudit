@@ -46,10 +46,10 @@
                                 {% endif %}
                             </dd>
                             
-                            <dt>Faction:</dt>
+                            <dt>{% translate 'Faction:' %}</dt>
                             <dd>{{ character_details.faction|default:"-" }}</dd>
                             
-                            <dt>Race:</dt>
+                            <dt>{% translate 'Race:' %}</dt>
                             <dd>{{ character_details.eve_bloodline.eve_race }} / {{ character_details.eve_bloodline }}</dd>      
                         </dl>
                     </div>
@@ -60,16 +60,16 @@
                             <dt>{% translate 'Born:' %}</dt>
                             <dd class="nowrap">{{ character_details.birthday|naturaltime|default_if_none:no_data }}</dd>
                             
-                            <dt>Skillpoints:</dt>
+                            <dt>{% translate 'Skillpoints:' %}</dt>
                             <dd>{{ character.skillpoints.total|intword|default_if_none:no_data }}</dd>
                             
-                            <dt>Sec. Status:</dt>
+                            <dt>{% translate 'Sec. Status:' %}</dt>
                             <dd class="{% if character_details.security_status < 0 %}text-danger{% elif character_details.security_status > 0 %}text-success{% endif %}">{{ character_details.security_status|floatformat:1|default_if_none:no_data }}</dd>
                             
-                            <dt>Assets:</dt>
+                            <dt>{% translate 'Assets:' %}</dt>
                             <dd>{{ character_assets_total|intword|default_if_none:no_data }} ISK (est.)</dd>
 
-                            <dt>Wallet:</dt>
+                            <dt>{% translate 'Wallet:' %}</dt>
                             <dd>{{ character.wallet_balance.total|intword|default_if_none:no_data }} ISK</dd>                            
                         </dl>
                     </div>

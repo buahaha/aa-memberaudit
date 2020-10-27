@@ -12,34 +12,34 @@
             <p class="text-danger">{{ error }}</p>
         {% else %}
             <dl class="dl-horizontal">
-                <dt>Info by Issuer:</dt> <dd>{{ contract.title|default:"(None)" }}</dd>
-                <dt>Type:</dt> <dd>{{ contract.get_contract_type_display|title }}</dd>
-                <dt>Issued By:</dt> <dd>{{ contract.issuer.name }}</dd>
-                <dt>Availability:</dt>
+                <dt>{% translate 'Info by Issuer:' %}</dt> <dd>{{ contract.title|default:"(None)" }}</dd>
+                <dt>{% translate 'Type:' %}</dt> <dd>{{ contract.get_contract_type_display|title }}</dd>
+                <dt>{% translate 'Issued By:' %}</dt> <dd>{{ contract.issuer.name }}</dd>
+                <dt>{% translate 'Availability:' %}</dt>
                 <dd>
                     {{ contract.get_availability_display|title }}
                     {% if contract.availability == contract.AVAILABILITY_PUBLIC  %}
-                        - Region: {{ contract.start_location.eve_solar_system.eve_constellation.eve_region }}
+                        - {% translate 'Region:' %} {{ contract.start_location.eve_solar_system.eve_constellation.eve_region }}
                     {% else %}
                         - {{ contract.assignee.name }}
                     {% endif %}
                 </dd>
-                <dt>Status:</dt> <dd>{{ contract.get_status_display|title }}</dd>
-                <dt>Location:</dt>
+                <dt>{% translate 'Status:' %}</dt> <dd>{{ contract.get_status_display|title }}</dd>
+                <dt>{% translate 'Location:' %}</dt>
                 <dd>
                     <a href="{{ contract.start_location.solar_system_url }}" target="_blank">
                         {{ contract.start_location.name }}
                     </a>
                 </dd>
-                <dt>Date Issued:</dt> <dd>{{ contract.date_issued|date:MY_DATETIME_FORMAT }}</dd>
-                <dt>Expiration Date:</dt> <dd>{{ contract.date_expired|date:MY_DATETIME_FORMAT }}</dd>
+                <dt>{% translate 'Date Issued:' %}</dt> <dd>{{ contract.date_issued|date:MY_DATETIME_FORMAT }}</dd>
+                <dt>{% translate 'Expiration Date:' %}</dt> <dd>{{ contract.date_expired|date:MY_DATETIME_FORMAT }}</dd>
                 <hr>
                 {% if contract.contract_type == contract.TYPE_COURIER %}
-                    <dt>Complete In:</dt> <dd>{{ contract.days_to_complete }}</dd>
-                    <dt>Volume:</dt> <dd>{{ contract.volume|floatformat:2|intcomma }} m3</dd>
-                    <dt>Reward:</dt> <dd>{{ contract.reward|floatformat:2|intcomma }} ISK</dd>
-                    <dt>Collateral:</dt> <dd>{{ contract.collateral|floatformat:2|intcomma }}</dd>
-                    <dt>Destination:</dt>
+                    <dt>{% translate 'Complete In:' %}</dt> <dd>{{ contract.days_to_complete }}</dd>
+                    <dt>{% translate 'Volume:' %}</dt> <dd>{{ contract.volume|floatformat:2|intcomma }} {% translate 'm3' %}</dd>
+                    <dt>{% translate 'Reward:' %}</dt> <dd>{{ contract.reward|floatformat:2|intcomma }} {% translate 'ISK' %}</dd>
+                    <dt>{% translate 'Collateral:' %}</dt> <dd>{{ contract.collateral|floatformat:2|intcomma }}</dd>
+                    <dt>{% translate 'Destination:' %}</dt>
                     <dd>
                         <a href="{{ contract.end_location.solar_system_url }}" target="_blank">
                             {{ contract.end_location.name }}
@@ -47,9 +47,9 @@
                     </dd>
                 {% elif contract.contract_type == contract.TYPE_ITEM_EXCHANGE %}
                     {% if contract.price or items_requested %}
-                        <h4 class="text-danger">Buyer will pay</h4>
+                        <h4 class="text-danger">{% translate 'Buyer will pay' %}</h4>
                         {% if contract.price %}
-                            <p>{{ contract.price|floatformat:2|intcomma }} ISK</p>
+                            <p>{{ contract.price|floatformat:2|intcomma }} {% translate 'ISK' %}</p>
                         {% endif %}
                         {% if items_requested %}
                             {% include "memberaudit/modals/character_viewer/contract_items.html" with table_name="tab_contract_iitems_requested" items=items_requested %}
@@ -59,9 +59,9 @@
                     <hr>
 
                     {% if contract.reward or items_included %}
-                        <h4 class="text-success">Buyer will get</h4>
+                        <h4 class="text-success">{% translate 'Buyer will get' %}</h4>
                         {% if contract.reward %}
-                            <p>{{ contract.reward|floatformat:2|intcomma }} ISK</p>
+                            <p>{{ contract.reward|floatformat:2|intcomma }} {% translate 'ISK' %}</p>
                         {% endif %}
                         {% if items_included %}
                             {% include "memberaudit/modals/character_viewer/contract_items.html" with table_name="tab_contract_items_included" items=items_included %}
@@ -70,12 +70,12 @@
                 {% elif contract.contract_type == contract.TYPE_AUCTION %}
                     <dt>Starting Bid:</dt> <dd>{{ contract.price|floatformat:2|intcomma }}</dd>
                     <dt>Buyout Price:</dt> <dd>{{ contract.buyout|floatformat:2|intcomma }}</dd>
-                    <dt>Current Bid:</dt> <dd>{{ current_bid|floatformat:2|intcomma }} ({{ bids_count }} so far)</dd>
+                    <dt>Current Bid:</dt> <dd>{{ current_bid|floatformat:2|intcomma }} ({{ bids_count }} {% translate 'so far' %})</dd>
                     <dt>Time Left:</dt> <dd>{{ contract.date_expired|timeuntil }}</dd>
 
                     <hr>
 
-                    <h4 class="text-success">Buyer will get</h4>
+                    <h4 class="text-success">{% translate 'Buyer will get' %}</h4>
                     {% if items_included %}
                         {% include "memberaudit/modals/character_viewer/contract_items.html" with table_name="tab_contract_items_included" items=items_included %}
                     {% endif %}
@@ -85,7 +85,7 @@
     </div>
     <div class="modal-footer">
         <button type="button" class="btn btn-default" data-dismiss="modal">
-            Close
+            {% translate 'Close' %}
         </button>
     </div>
 </div>

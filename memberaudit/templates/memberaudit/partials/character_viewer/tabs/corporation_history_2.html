@@ -2,13 +2,13 @@
 {% load evelinks %}
 
 {% for entry in corporation_history %}
-    <small class="text-muted">Corporation</small><br>
+    <small class="text-muted">{% translate 'Corporation' %}</small><br>
     <a href="{{ entry.corporation_name|dotlan_corporation_url }}" target="_blank">{{ entry.corporation_name }}</a>&nbsp;
     {{ entry.start_date|date:MY_DATETIME_FORMAT }} to 
     {% if not entry.is_last %}
         {{ entry.end_date|date:MY_DATETIME_FORMAT }}
     {% else %}
-        TODAY
+    {% translate 'TODAY' %}
     {% endif %}
     <hr id="history_divider">
 {% endfor %}

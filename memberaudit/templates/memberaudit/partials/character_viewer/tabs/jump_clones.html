@@ -6,15 +6,15 @@
         <table class="table table-striped" id="tab_jump_clones" style="width:100%;">
             <thead>
                 <tr>
-                    <th>Region</th>
-                    <th>System</th>
-                    <th>Location</th>
-                    <th>Implants</th>
+                    <th>{% translate 'Region' %}</th>
+                    <th>{% translate 'System' %}</th>
+                    <th>{% translate 'Location' %}</th>
+                    <th>{% translate 'Implants' %}</th>
                 </tr>
             </thead>
             <tbody>
             </tbody>
         </table>
     </div>
-    <p class="text-muted">Last updated: {{ last_updates.jump_clones|naturaltime }}</p>
+    <p class="text-muted">{% translate 'Last updated:' %} {{ last_updates.jump_clones|naturaltime }}</p>
 </div>

@@ -3,7 +3,7 @@
 
 <div role="tabpanel" class="tab-pane" id="mail">
     {% if not character.has_mails %}
-        <p>No data yet...</p>
+        <p>{% translate 'No data yet...' %}</p>
     {% else %}
         <div class="row">
 
@@ -40,10 +40,10 @@
                     <table class="table table-striped" id="tab_mails" style="width:100%;">
                         <thead>
                             <tr>
-                                <th>sent</th>
-                                <th>from</th>
-                                <th>to</th>
-                                <th>subject</th>
+                                <th>{% translate 'sent' %}</th>
+                                <th>{% translate 'from' %}</th>
+                                <th>{% translate 'to' %}</th>
+                                <th>{% translate 'subject' %}</th>
                                 <th></th>
                             </tr>
                         </thead>
@@ -51,7 +51,7 @@
                         </tbody>
                     </table>
                 </div>
-                <p class="text-muted">Last updated: {{ last_updates.mails|naturaltime }}</p>
+                <p class="text-muted">{% translate 'Last updated:' %} {{ last_updates.mails|naturaltime }}</p>
             </div>
         </div>
     {% endif %}
