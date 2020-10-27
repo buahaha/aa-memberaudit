@@ -474,7 +474,7 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
     }
     return render(
         request,
-        "memberaudit/character_viewer/index.html",
+        "memberaudit/character_viewer.html",
         add_common_context(request, context),
     )
 
@@ -598,7 +598,7 @@ def character_asset_container(
         }
     return render(
         request,
-        "memberaudit/character_viewer/modals/asset_container_content.html",
+        "memberaudit/modals/character_viewer/asset_container_content.html",
         context,
     )
 
@@ -798,7 +798,7 @@ def character_contract_details(
         }
     return render(
         request,
-        "memberaudit/character_viewer/modals/contract_content.html",
+        "memberaudit/modals/character_viewer/contract_content.html",
         add_common_context(request, context),
     )
 

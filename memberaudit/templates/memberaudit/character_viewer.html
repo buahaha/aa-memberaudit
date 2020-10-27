@@ -7,49 +7,49 @@
 
 {% block details %}
     <div class="rows">
-        
+
         <!-- Main panel-->
         <div class="col-md-10" id="centerColumn">
-            {% include 'memberaudit/character_viewer/partials/overview.html' %}
+            {% include 'memberaudit/partials/character_viewer/overview.html' %}
 
             <!-- Details sub panel -->
-            
+
             <div>
-                {% include 'memberaudit/character_viewer/partials/tabs_navigation.html' %}
-                
-                <div class="panel panel-default panel-tabs">                
+                {% include 'memberaudit/partials/character_viewer/tabs_navigation.html' %}
+
+                <div class="panel panel-default panel-tabs">
                     <div class="panel-body">
 
                         <!-- Tab panes -->
                         <div class="tab-content">
-                            {% include 'memberaudit/character_viewer/partials/tab_panel_assets.html' %}
-                            {% include 'memberaudit/character_viewer/partials/tab_panel_contacts.html' %}
-                            {% include 'memberaudit/character_viewer/partials/tab_panel_character_bio.html' %}
-                            {% include 'memberaudit/character_viewer/partials/tab_panel_contracts.html' %}
-                            {% include 'memberaudit/character_viewer/partials/tab_panel_corporation_history.html' %}
-                            {% include 'memberaudit/character_viewer/partials/tab_panel_doctrines.html' %}
-                            {% include 'memberaudit/character_viewer/partials/tab_panel_jump_clones.html' %}
-                            {% include 'memberaudit/character_viewer/partials/tab_panel_loyalty.html' %}
-                            {% include 'memberaudit/character_viewer/partials/tab_panel_mails.html' %}
-                            {% include 'memberaudit/character_viewer/partials/tab_panel_skills.html' %}
-                            {% include 'memberaudit/character_viewer/partials/tab_panel_skill_queue.html' %}
-                            {% include 'memberaudit/character_viewer/partials/tab_panel_wallet.html' %}
+                            {% include 'memberaudit/partials/character_viewer/tabs/assets.html' %}
+                            {% include 'memberaudit/partials/character_viewer/tabs/contacts.html' %}
+                            {% include 'memberaudit/partials/character_viewer/tabs/character_bio.html' %}
+                            {% include 'memberaudit/partials/character_viewer/tabs/contracts.html' %}
+                            {% include 'memberaudit/partials/character_viewer/tabs/corporation_history.html' %}
+                            {% include 'memberaudit/partials/character_viewer/tabs/doctrines.html' %}
+                            {% include 'memberaudit/partials/character_viewer/tabs/jump_clones.html' %}
+                            {% include 'memberaudit/partials/character_viewer/tabs/loyalty.html' %}
+                            {% include 'memberaudit/partials/character_viewer/tabs/mails.html' %}
+                            {% include 'memberaudit/partials/character_viewer/tabs/skills.html' %}
+                            {% include 'memberaudit/partials/character_viewer/tabs/skill_queue.html' %}
+                            {% include 'memberaudit/partials/character_viewer/tabs/wallet.html' %}
                         </div>
                     </div>
                 </div>
-            </div>            
+            </div>
         </div>
-        
+
         <!-- Side bar -->
         <div class="col-md-2" id="sideColumn">
-            {% include 'memberaudit/character_viewer/partials/sidebar.html' %}
+            {% include 'memberaudit/partials/character_viewer/sidebar.html' %}
         </div>
 
     </div>
 
-    {% include 'memberaudit/character_viewer/modals/asset_container.html' %}
-    {% include 'memberaudit/character_viewer/modals/contract.html' %}
-    {% include 'memberaudit/character_viewer/modals/mail.html' %}    
+    {% include 'memberaudit/modals/character_viewer/asset_container.html' %}
+    {% include 'memberaudit/modals/character_viewer/contract.html' %}
+    {% include 'memberaudit/modals/character_viewer/mail.html' %}
 {% endblock details %}
 
 {% block extra_javascript %}
@@ -97,7 +97,7 @@
                 while (c.charAt(0) == ' ') {
                     c = c.substring(1);
                 }
-                
+
                 if (c.indexOf(name) == 0) {
                     return c.substring(name.length, c.length);
                 }
@@ -105,9 +105,9 @@
             return "";
         }
 
-        $(document).ready(function () {            
-            /* show last selected tab or default */            
-            var tabId = "{{show_tab}}"            
+        $(document).ready(function () {
+            /* show last selected tab or default */
+            var tabId = "{{show_tab}}"
             if (tabId != "") {
                 setCookie(COOKIE_LAST_TAB_ID, tabId, 1)
             }
@@ -116,13 +116,13 @@
                 if (tabId == "") tabId = "mail"
             }
             $('a[href="#' + tabId + '"]').tab("show")
-            
+
             /* remember last selected tab */
             $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
                 var selectedTabId = $(e.target).attr("href").substr(1)
                 setCookie(COOKIE_LAST_TAB_ID, selectedTabId, COOKIE_LAST_TAB_HOURS)
             });
-            
+
             /* Assets */
             $('#tab_assets').DataTable({
                 ajax: {
@@ -136,10 +136,10 @@
                         render: {
                             _: 'display',
                             sort: 'sort'
-                        }  
+                        }
                     },
-                    { 
-                        data: 'quantity',                         
+                    {
+                        data: 'quantity',
                         render: $.fn.dataTable.render.number( ',', '.', 0 )
                     },
                     { data: 'group' },
@@ -169,10 +169,10 @@
                 },
                 columnDefs: [
                     { "orderable": false, "targets": [ 1, 7 ] },
-                    { "visible": false, "targets": [ 0, 8, 9, 10 ] }                    
+                    { "visible": false, "targets": [ 0, 8, 9, 10 ] }
                 ],
                 filterDropDown: {
-                    columns: [                        
+                    columns: [
                         {
                             idx: 8,
                             title: "Region"
@@ -194,7 +194,7 @@
                 },
                 footerCallback: function ( row, data, start, end, display ) {
                     var api = this.api(), data;
-            
+
                     // Remove the formatting to get integer data for summation
                     var intVal = function ( i ) {
                         return typeof i === 'string' ?
@@ -202,19 +202,19 @@
                             typeof i === 'number' ?
                                 i : 0;
                     };
-            
-                    // Total over all pages							
+
+                    // Total over all pages
                     var total = api
                         .column( 6 )
                         .data()
                         .reduce( function (a, b) {
                             return intVal(a) + intVal(b);
                         }, 0 );
-                           
+
                     // Update footer
                     $( api.column( 6 ).footer() ).html(
                         total.toLocaleString()
-                    );                    
+                    );
                 }
             });
 
@@ -233,19 +233,19 @@
                 },
                 columns: [
                     { data: 'level' },
-                    { 
+                    {
                         data: 'name',
                         render: {
                             _: 'display',
                             sort: 'sort'
-                        } 
+                        }
                     },
                     { data: 'type' },
                     { data: 'standing' },
                     { data: 'is_watched' },
                     { data: 'is_blocked' },
-                    
-                    /* hidden */                    
+
+                    /* hidden */
                     { data: 'is_watched_str' },
                     { data: 'is_blocked_str' },
                 ],
@@ -256,23 +256,23 @@
                 },
                 columnDefs: [
                     {
-                        "visible": false, "targets": [0, 6, 7] 
-                    },                    
-                    { 
+                        "visible": false, "targets": [0, 6, 7]
+                    },
+                    {
                         /* render bools as icon */
                         "render": function ( data, type, row, meta ) {
                             if (type === 'display') {
                                 return bool_to_icon(data)
                             }
                             else {
-                                return data;                                
+                                return data;
                             }
-                        }, 
+                        },
                         "targets": [4, 5]
                     }
                 ],
                 filterDropDown: {
-                    columns: [                        
+                    columns: [
                         {
                             idx: 0
                         },
@@ -315,7 +315,7 @@
                 ],
                 order: [[5, "desc"]],
                 columnDefs: [
-                    { "orderable": false, "targets": [ 8 ] }                  
+                    { "orderable": false, "targets": [ 8 ] }
                 ],
                 filterDropDown: {
                     columns: [
@@ -348,16 +348,16 @@
                     cache: false
                 },
                 columns: [
-                    { data: 'doctrine' },                    
+                    { data: 'doctrine' },
                     { data: 'ship' },
-                    { 
+                    {
                         data: 'can_fly',
                         render: function ( data, type, row, meta ) {
                             if (type === 'display') {
                                 return bool_to_icon(data)
                             }
                             else {
-                                return data;                                
+                                return data;
                             }
                         }
                     },
@@ -370,9 +370,9 @@
                     className: 'table-group'
                 },
                 columnDefs: [
-                    { "visible": false, "targets": [0, 4] },                
-                    { "orderable": false, "targets": [ 3 ] }                  
-                
+                    { "visible": false, "targets": [0, 4] },
+                    { "orderable": false, "targets": [ 3 ] }
+
                 ],
                 filterDropDown: {
                     columns: [
@@ -404,7 +404,7 @@
                 ],
                 order: [[0, "asc"], [1, "asc"]],
                 columnDefs: [
-                    { "orderable": false, "targets": [ 3 ] }                  
+                    { "orderable": false, "targets": [ 3 ] }
                 ],
             });
 
@@ -416,19 +416,19 @@
                     cache: false
                 },
                 columns: [
-                    { 
+                    {
                         data: 'corporation',
                         render: {
                             _: 'display',
                             sort: 'sort'
-                        } 
+                        }
                     },
-                    { 
-                        data: 'loyalty_points',                         
+                    {
+                        data: 'loyalty_points',
                         render: $.fn.dataTable.render.number( ',', '.', 0 )
-                    },                    
+                    },
                 ],
-                order: [[0, "asc"]],                
+                order: [[0, "asc"]],
             });
 
             /* Mails */
@@ -446,41 +446,41 @@
                     { data: 'from' },
                     { data: 'to' },
                     { data: 'subject' },
-                    { data: 'action' },                    
+                    { data: 'action' },
                 ],
                 order: [[0, "desc"]],
-                columnDefs: [                  
-                    { "orderable": false, "targets": [ 4 ] }                    
+                columnDefs: [
+                    { "orderable": false, "targets": [ 4 ] }
                 ],
                 createdRow: function( row, data, dataIndex ) {
                     if ( !data['is_read'] ) {
                         $(row).addClass( 'info' );
-                    }							
+                    }
                 }
             });
 
             /* reload mails when a label is selected*/
-            $(".pillMailLabel").on("click", function (event) {						
+            $(".pillMailLabel").on("click", function (event) {
                 var element = $(event.currentTarget);
                 var labelId = element.data('label-id');
                 var listId = element.data('list-id');
-                
+
                 // remove active class from all pills
                 // and make current pill active
                 $(".pillMailLabel").removeClass("active");
                 element.addClass("active");
-                                                
+
                 // reload data table for selected label
                 if (listId!=undefined) {
                     var url2 = "{% url 'memberaudit:character_mail_headers_by_list_data' character.pk 0 %}".replace("0", listId);
-                    table.ajax.url( url2 ).load();	
+                    table.ajax.url( url2 ).load();
                 }
                 else {
                     var url2 = "{% url 'memberaudit:character_mail_headers_by_label_data' character.pk 0 %}".replace("0", labelId);
-                    table.ajax.url( url2 ).load();	
+                    table.ajax.url( url2 ).load();
                 }
-                
-            }); 
+
+            });
 
             $('#modalCharacterMail').on('show.bs.modal', function(event) {
                 var button = $(event.relatedTarget)

@@ -52,7 +52,7 @@
                             <p>{{ contract.price|floatformat:2|intcomma }} ISK</p>
                         {% endif %}
                         {% if items_requested %}
-                            {% include "memberaudit/character_viewer/modals/contract_items.html" with table_name="tab_contract_iitems_requested" items=items_requested %}
+                            {% include "memberaudit/modals/character_viewer/contract_items.html" with table_name="tab_contract_iitems_requested" items=items_requested %}
                         {% endif %}
                     {% endif %}
 
@@ -64,7 +64,7 @@
                             <p>{{ contract.reward|floatformat:2|intcomma }} ISK</p>
                         {% endif %}
                         {% if items_included %}
-                            {% include "memberaudit/character_viewer/modals/contract_items.html" with table_name="tab_contract_items_included" items=items_included %}
+                            {% include "memberaudit/modals/character_viewer/contract_items.html" with table_name="tab_contract_items_included" items=items_included %}
                         {% endif %}
                     {% endif %}
                 {% elif contract.contract_type == contract.TYPE_AUCTION %}
@@ -77,7 +77,7 @@
 
                     <h4 class="text-success">Buyer will get</h4>
                     {% if items_included %}
-                        {% include "memberaudit/character_viewer/modals/contract_items.html" with table_name="tab_contract_items_included" items=items_included %}
+                        {% include "memberaudit/modals/character_viewer/contract_items.html" with table_name="tab_contract_items_included" items=items_included %}
                     {% endif %}
                 {% endif %}
             </dl>
