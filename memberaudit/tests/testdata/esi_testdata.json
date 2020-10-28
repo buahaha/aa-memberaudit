@@ -343,6 +343,14 @@
                     }
                 ]
             }
+        },
+        "get_characters_character_id_implants": {
+            "1001": [
+                19540,
+                19551,
+                19553
+            ],
+            "1002": []
         }
     },
     "Location": {

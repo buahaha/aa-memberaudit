@@ -210,6 +210,7 @@ class TestUpdateCharacterAssets(TestCase):
         )
 
 
+@patch(MODELS_PATH + ".is_esi_online", lambda: True)
 @patch(MODELS_PATH + ".esi")
 @override_settings(CELERY_ALWAYS_EAGER=True)
 class TestUpdateCharacter(TestCase):
@@ -290,6 +291,7 @@ class TestUpdateCharacter(TestCase):
         self.assertTrue(mock_update_skills.called)
 
 
+@patch(TASKS_PATH + ".is_esi_online", lambda: True)
 @patch(MODELS_PATH + ".esi")
 @override_settings(CELERY_ALWAYS_EAGER=True)
 class TestUpdateAllCharacters(TestCase):

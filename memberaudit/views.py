@@ -902,6 +902,41 @@ def character_corporation_history(
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
+def character_implants_data(
+    request, character_pk: int, character: Character
+) -> JsonResponse:
+    data = list()
+    try:
+        for implant in character.implants.select_related("eve_type").prefetch_related(
+            "eve_type__dogma_attributes"
+        ):
+            implant_html = create_icon_plus_name_html(
+                implant.eve_type.icon_url(DEFAULT_ICON_SIZE), implant.eve_type.name
+            )
+            try:
+                slot_num = int(
+                    implant.eve_type.dogma_attributes.get(
+                        eve_dogma_attribute_id=331
+                    ).value
+                )
+            except (ObjectDoesNotExist, AttributeError):
+                slot_num = 0
+
+            data.append(
+                {
+                    "id": implant.pk,
+                    "implant": {"display": implant_html, "sort": slot_num},
+                }
+            )
+    except ObjectDoesNotExist:
+        pass
+
+    return JsonResponse(data, safe=False)
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
 def character_loyalty_data(
     request, character_pk: int, character: Character
 ) -> JsonResponse:
@@ -953,19 +988,32 @@ def character_jump_clones_data(
                 solar_system = "-"
                 region = "-"
 
-            implants_data = [
-                {
-                    "name": obj.eve_type.name,
-                    "icon_url": obj.eve_type.icon_url(DEFAULT_ICON_SIZE),
-                }
-                for obj in jump_clone.implants.select_related("eve_type")
-            ]
+            implants_data = list()
+            for obj in jump_clone.implants.select_related("eve_type").prefetch_related(
+                "eve_type__dogma_attributes"
+            ):
+                try:
+                    slot_num = int(
+                        obj.eve_type.dogma_attributes.get(
+                            eve_dogma_attribute_id=331
+                        ).value
+                    )
+                except (ObjectDoesNotExist, AttributeError):
+                    slot_num = 0
+
+                implants_data.append(
+                    {
+                        "name": obj.eve_type.name,
+                        "icon_url": obj.eve_type.icon_url(DEFAULT_ICON_SIZE),
+                        "slot_num": slot_num,
+                    }
+                )
             if implants_data:
                 implants = "<br>".join(
                     create_icon_plus_name_html(
                         x["icon_url"], add_no_wrap_html(x["name"]), size=24
                     )
-                    for x in sorted(implants_data, key=lambda k: k["name"].lower())
+                    for x in sorted(implants_data, key=lambda k: k["slot_num"])
                 )
             else:
                 implants = "(none)"

@@ -19,7 +19,6 @@ from . import (
     scope_names_set,
 )
 from ..models import (
-    is_esi_online,
     Character,
     CharacterAsset,
     CharacterContact,
@@ -51,15 +50,6 @@ from ..utils import NoSocketsTestCase
 MODELS_PATH = "memberaudit.models"
 MANAGERS_PATH = "memberaudit.managers"
 TASKS_PATH = "memberaudit.tasks"
-
-
-@patch(MODELS_PATH + ".esi")
-class TestIsEsiOnline(NoSocketsTestCase):
-    def test_normal(self, mock_esi):
-        mock_esi.client = esi_client_stub
-
-        result = is_esi_online()
-        self.assertTrue(result)
 
 
 class TestCharacterOtherMethods(NoSocketsTestCase):
@@ -1179,22 +1169,9 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
         self.assertEqual(obj.first_party.id, 1001)
         self.assertEqual(obj.second_party.id, 1002)
 
-    def test_fetch_location_station(self, mock_esi):
-        mock_esi.client = esi_client_stub
-
-        result = self.character_1001.fetch_location()
-        self.assertEqual(result[0], self.jita)
-        self.assertEqual(result[1], self.jita_44)
-
-    def test_fetch_location_structure(self, mock_esi):
-        mock_esi.client = esi_client_stub
-
-        result = self.character_1002.fetch_location()
-        self.assertEqual(result[0], self.amamake)
-        self.assertEqual(result[1], self.structure_1)
-
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODELS_PATH + ".is_esi_online", lambda: True)
 @patch(MODELS_PATH + ".esi")
 class TestCharacterUpdateOther(TestCharacterUpdateBase):
     @classmethod
@@ -1272,6 +1249,36 @@ class TestCharacterUpdateOther(TestCharacterUpdateBase):
 
         obj = self.character_1001.loyalty_entries.get(corporation_id=2002)
         self.assertEqual(obj.loyalty_points, 100)
+
+    def test_update_implants_1(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_implants()
+        self.assertEqual(self.character_1001.implants.count(), 3)
+        self.assertSetEqual(
+            set(self.character_1001.implants.values_list("eve_type_id", flat=True)),
+            {19540, 19551, 19553},
+        )
+
+    def test_update_implants_2(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        self.character_1002.update_implants()
+        self.assertEqual(self.character_1002.implants.count(), 0)
+
+    def test_fetch_location_station(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        result = self.character_1001.fetch_location()
+        self.assertEqual(result[0], self.jita)
+        self.assertEqual(result[1], self.jita_44)
+
+    def test_fetch_location_structure(self, mock_esi):
+        mock_esi.client = esi_client_stub
+
+        result = self.character_1002.fetch_location()
+        self.assertEqual(result[0], self.amamake)
+        self.assertEqual(result[1], self.structure_1)
 
 
 class TestCharacterCanFlyDoctrines(NoSocketsTestCase):

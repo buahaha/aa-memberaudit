@@ -79,6 +79,11 @@ urlpatterns = [
         name="character_doctrines_data",
     ),
     path(
+        "character_implants_data/<int:character_pk>/",
+        views.character_implants_data,
+        name="character_implants_data",
+    ),
+    path(
         "character_loyalty_data/<int:character_pk>/",
         views.character_loyalty_data,
         name="character_loyalty_data",
