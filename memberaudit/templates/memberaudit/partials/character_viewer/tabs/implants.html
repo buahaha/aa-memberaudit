@@ -4,11 +4,11 @@
 <div role="tabpanel" class="tab-pane" id="implants">
     <div class="table-responsive">
         <table class="table table-striped" id="tab_implants" style="width:100%;">
-            <thead>                
+            <thead>
             </thead>
             <tbody>
             </tbody>
         </table>
     </div>
-    <p class="text-muted">Last updated: {{ last_updates.implants|naturaltime }}</p>
+    <p class="text-muted">{% translate 'Last updated:' %} {{ last_updates.implants|naturaltime }}</p>
 </div>
