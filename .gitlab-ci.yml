@@ -13,7 +13,7 @@ before_script:
 
 pre-commit-check:
   stage: pre-commit
-  image: python:3.8-buster
+  image: python:3.6-buster
   script:
     - pip install pre-commit
     - pre-commit run --all-files
