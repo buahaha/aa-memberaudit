@@ -14,7 +14,7 @@
         <p class="text-center">
             <strong>{{ auth_character.character_name }}</strong>
         </p>
-        
+
 
 {#        <p class="text-center">#}
 {#            <a href="{{ auth_character.corporation_name|dotlan_corporation_url }}" target="_blank">#}
@@ -34,8 +34,8 @@
         </p>
 
         <hr/>
-        
-        -->        
+
+        -->
         <ul class="sidebar_characters">
             {% for character in registered_characters %}
                 <li class="sidebar_character character-{{ character.pk }}">
@@ -44,7 +44,7 @@
                         {{ character.name }}
                         &nbsp;{% if character.character_id == main_character_id %}<i class="fas fa-crown" title="{% translate 'Main character' %}"></i>{% endif %}
                     </a>
-                    
+
                 </li>
             {% endfor %}
         </ul>

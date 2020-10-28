@@ -1,15 +1,15 @@
 /* Common styles for all pages of this app */
 
-@media all {  
-    .icon-plus-name {    
+@media all {
+    .icon-plus-name {
         padding-left: 2em;
-        text-indent: -2em;        
+        text-indent: -2em;
     }
 
     .text-high-sec {
         color: green;
     }
-    
+
     .text-low-sec {
         color: orange;
     }

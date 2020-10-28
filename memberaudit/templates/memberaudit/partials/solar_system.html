@@ -2,11 +2,11 @@
 
 <a href="{{ character.location.eve_solar_system.name|dotlan_solar_system_url }}" target="_blank">
     {{ character.location.eve_solar_system.name }}
-</a> 
+</a>
 {% with system=character.location.eve_solar_system %}
     <span class="{% if system.is_high_sec %}text-high-sec{% elif system.is_low_sec %}text-low-sec{% else %}text-null-sec{% endif%}">
         {{ system.security_status|floatformat:1 }}
     </span>
 {% endwith %}
- / 
+ /
 {{ character.location.eve_solar_system.eve_constellation.eve_region.name }}

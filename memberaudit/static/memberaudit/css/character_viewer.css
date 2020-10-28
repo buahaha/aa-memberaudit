@@ -1,19 +1,19 @@
 @media all {
-    
+
     /* main panels */
-    #centerColumn {        
+    #centerColumn {
         padding-left: 0;
         padding-right: 8px;
     }
-    
+
     #sideColumn {
         padding-right: 0;
-    }    
-    
+    }
+
     /* character summary */
     .character-summary-flex {
         display: flex;
-        flex-wrap: nowrap;        
+        flex-wrap: nowrap;
     }
 
     .character-summary-image {
@@ -32,16 +32,16 @@
         width: 7em;
     }
     .dl-horizontal dd {
-        margin-left: 7em;        
+        margin-left: 7em;
     }
 
     /* Assets Tab */
     #tab_assets tbody td:nth-child(1) {
         white-space: nowrap;
     }
-    
+
     #tab_assets tbody td:nth-child(2) {
-        text-align: right;    
+        text-align: right;
     }
     #tab_assets tbody td:nth-child(4) {
         text-align: right;
@@ -64,7 +64,7 @@
         white-space: nowrap;
     }
     #tab_asset_children tbody td:nth-child(2) {
-        text-align: right;    
+        text-align: right;
     }
     #tab_asset_children tbody td:nth-child(4) {
         text-align: right;
@@ -94,10 +94,10 @@
     /* Contacts */
     #tab_contacts tbody td:nth-child(1) {
         white-space: nowrap;
-    }    
+    }
     #tab_contacts tbody td:nth-child(3) {
         text-align: right;
-    }    
+    }
 
     /* Contracts */
     #tab_contracts tbody td:nth-child(6) {
@@ -106,14 +106,14 @@
 
     #tab_doctrines tbody td:nth-child(1) {
         white-space: nowrap;
-    }    
+    }
 
     /* Loyalty */
     #tab_loyalty tbody td:nth-child(1) {
         white-space: nowrap;
     }
     #tab_loyalty tbody td:nth-child(2) {
-        text-align: right;    
+        text-align: right;
     }
 
     /* Mail */
@@ -159,7 +159,7 @@
     .sidebar_character > a {
         display: block;
         padding: 0.2rem 0.4rem;
-        text-decoration: none;        
+        text-decoration: none;
     }
 
     .template-light-mode .sidebar_character > a {

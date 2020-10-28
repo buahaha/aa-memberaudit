@@ -12,12 +12,12 @@
     <div class="modal-body">
         {% if error %}
             <p class="text-danger">{{ error }}</p>
-        {% else %}            
+        {% else %}
             <ol class="breadcrumb">
                 <li>{{ parent_asset.location.name }}</li>
                 <li class="active"><img src="{{ parent_asset.eve_type|evetype_icon_url:32 }}"/>&nbsp;&nbsp;{{ parent_asset.name_display }} ({{ parent_asset.group_display }})</li>
             </ol>
-            
+
             <div class="table-responsive">
                 <table class="table table-striped" id="tab_asset_children" style="width:100%;">
                     <thead>
@@ -32,13 +32,13 @@
                     </thead>
                     <tbody>
                     </tbody>
-                    <tfoot>                        
+                    <tfoot>
                         <th></th>
                         <th></th>
-                        <th></th>                
+                        <th></th>
                         <th></th>
                         <th>{% translate 'Grand Total:' %}</th>
-                        <th></th>                              
+                        <th></th>
                     </tfoot>
                 </table>
             </div>
@@ -53,26 +53,26 @@
 
 <script>
     {% if parent_asset %}
-        $(document).ready(function () {            
+        $(document).ready(function () {
             $('#tab_asset_children').DataTable({
                 ajax: {
                     url: "{% url 'memberaudit:character_asset_container_data' character.pk parent_asset.pk %}",
                     dataSrc: '',
                     cache: false
                 },
-                columns: [                    
+                columns: [
                     { data: 'name',
                         render: {
                             _: 'display',
                             sort: 'sort'
-                        }  
+                        }
                     },
-                    { 
-                        data: 'quantity',                         
+                    {
+                        data: 'quantity',
                         render: $.fn.dataTable.render.number( ',', '.', 0 )
                     },
                     { data: 'group' },
-                    { 
+                    {
                         data: 'volume',
                         render: $.fn.dataTable.render.number( ',', '.', 2 )
                     },
@@ -83,12 +83,12 @@
                     {
                         data: 'total',
                         render: $.fn.dataTable.render.number( ',', '.', 2 )
-                    },                
+                    },
                 ],
                 order: [[0, "asc"], [1, "asc"]],
                 footerCallback: function ( row, data, start, end, display ) {
                     var api = this.api(), data;
-            
+
                     // Remove the formatting to get integer data for summation
                     var intVal = function ( i ) {
                         return typeof i === 'string' ?
@@ -96,21 +96,21 @@
                             typeof i === 'number' ?
                                 i : 0;
                     };
-            
-                    // Total over all pages							
+
+                    // Total over all pages
                     var total = api
                         .column( 5 )
                         .data()
                         .reduce( function (a, b) {
                             return intVal(a) + intVal(b);
                         }, 0 );
-                           
+
                     // Update footer
                     $( api.column( 5 ).footer() ).html(
                         total.toLocaleString()
-                    );                    
+                    );
                 }
-            });        
+            });
         });
     {% endif %}
 </script>

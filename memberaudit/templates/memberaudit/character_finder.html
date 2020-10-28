@@ -5,77 +5,77 @@
 
 
 {% block details %}
-    
-    <div class="panel panel-default">   
+
+    <div class="panel panel-default">
         <div class="panel-heading">
             <h3 class="panel-title">{% translate 'Characters' %}</h3>
         </div>
-        <div class="panel-body">        
+        <div class="panel-body">
             <div class="table-responsive">
                 <table class="table table-striped" id="tab_characters">
                     <thead>
-                        <tr>                            
-                            <th>{% translate 'Character' %}</th>                        
-                            <th>{% translate 'Organization' %}</th>                            
+                        <tr>
+                            <th>{% translate 'Character' %}</th>
+                            <th>{% translate 'Organization' %}</th>
                             <th>{% translate 'Location' %}</th>
                             <th>{% translate 'Main' %}</th>
                             <th>{% translate 'State' %}</th>
-                            <th></th>                            
+                            <th></th>
                         </tr>
                     </thead>
-                    <tbody>                   
-                    </tbody>                
+                    <tbody>
+                    </tbody>
                 </table>
             </div>
         </div>
-    </div>        
-    
+    </div>
+
 {% endblock details %}
 
 {% block extra_javascript %}
-    {% include 'bundles/datatables-js.html' %}    
-    
+    {% include 'bundles/datatables-js.html' %}
+
     <!--load JS for filterDropDown plugin -->
     <script type="text/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}">
     </script>
-    
+
     <script>
         $(document).ready(function() {
-            $('#tab_characters').DataTable({            
+            $('#tab_characters').DataTable({
                 ajax: {
                     url: '{% url 'memberaudit:character_finder_data' %}',
                     dataSrc: '',
                     cache: false
                 },
 
-                columns: [                    
-                    { 
+                columns: [
+                    {
                         data: 'character',
                         render: {
                             _: 'display',
                             sort: 'sort'
-                        } 
+                        }
                     },
                     { data: 'character_organization' },
                     { data: 'location' },
                     { data: 'main' },
                     { data: 'state_name' },
                     { data: 'actions' },
-                    /* hidden columns */                    
+                    /* hidden columns */
                     { data: 'alliance_name' },
                     { data: 'corporation_name' },
                     { data: 'region_name' },
                     { data: 'solar_system_name' },
                 ],
 
-                columnDefs: [														
+                columnDefs: [
                     { "orderable": false, "targets": [ 5 ] },
                     { "visible": false, "targets": [ 6, 7, 8, 9 ] },
                 ],
 
                 order: [ [ 0, "asc" ] ],
 
-                filterDropDown: {										
+                filterDropDown: {
                     columns: [
                         {
                             idx: 6,
@@ -99,21 +99,21 @@
                             idx: 9,
                             title: "{% translate 'Solar System' %}"
                         },
-                        
+
                     ],
                     bootstrap: true
                 }
-            });       
+            });
         });
     </script>
 {% endblock %}
 
 {% block extra_css %}
-    {% include 'bundles/datatables-css.html' %}    
+    {% include 'bundles/datatables-css.html' %}
     <link rel="stylesheet" href="{% static 'memberaudit/css/global.css' %}" type="text/css">
     <link rel="stylesheet" href="{% static 'memberaudit/css/memberaudit.css' %}" type="text/css">
 {% endblock %}
 
 {% block extra_script %}
-    
+
 {% endblock %}

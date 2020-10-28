@@ -1,8 +1,8 @@
 /* Global styles shared by all apps */
 
 @media all {
-    
-    /* Bootstrap Tabs */    
+
+    /* Bootstrap Tabs */
     .template-light-mode .nav-tabs > li.active > a{
         background-color: rgb(236, 240, 241) !important;
         color: black !important;
