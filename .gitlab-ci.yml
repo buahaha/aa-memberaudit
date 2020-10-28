@@ -4,12 +4,6 @@ stages:
 - test
 - deploy
 
-variables:
-  PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
-cache:
-  paths:
-    - ${PRE_COMMIT_HOME}
-
 before_script:
 - apt-get update
 - apt-get install redis-server -y
