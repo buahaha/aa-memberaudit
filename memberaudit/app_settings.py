@@ -1,4 +1,10 @@
+from django.utils.translation import ugettext_lazy as _
 from .utils import clean_setting
+
+# Name of this app as shown in the Auth sidebar and page titles
+MEMBERAUDIT_APP_NAME = clean_setting(
+    "MEMBERAUDIT_APP_NAME", _("Member Audit"), required_type=str
+)
 
 # Activate developer mode for additional debug output. Undocumented feature
 MEMBERAUDIT_DEVELOPER_MODE = clean_setting("MEMBERAUDIT_DEVELOPER_MODE", False)

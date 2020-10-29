@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-28 22:37+0100\n"
+"POT-Creation-Date: 2020-10-29 10:00-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -20,9 +20,8 @@ msgstr ""
 "%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || (n"
 "%100>=11 && n%100<=14)? 2 : 3);\n"
 
-#: auth_hooks.py:17
-#, python-brace-format
-msgid "{__title__} [DEV]"
+#: app_settings.py:6
+msgid "Member Audit"
 msgstr ""
 
 #: models.py:216
@@ -855,6 +854,6 @@ msgstr ""
 msgid "no"
 msgstr ""
 
-#: views.py:55
+#: views.py:56
 msgid "(No Doctrine)"
 msgstr ""

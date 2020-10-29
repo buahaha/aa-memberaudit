@@ -5,6 +5,7 @@ from allianceauth import hooks
 
 from . import urls, __title__
 from .models import Character
+from .app_settings import MEMBERAUDIT_APP_NAME
 
 
 class MemberauditMenuItem(MenuItemHook):
@@ -14,7 +15,7 @@ class MemberauditMenuItem(MenuItemHook):
         # setup menu entry for sidebar
         MenuItemHook.__init__(
             self,
-            _(f"{__title__} [DEV]"),
+            MEMBERAUDIT_APP_NAME,
             "far fa-address-card fa-fw fa-fw",
             "memberaudit:index",
             navactive=["memberaudit:"],

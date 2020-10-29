@@ -47,6 +47,8 @@ from .utils import (
     yesno_str,
 )
 
+from .app_settings import MEMBERAUDIT_APP_NAME
+
 # module constants
 MY_DATETIME_FORMAT = "Y-M-d H:i"
 DATETIME_FORMAT = "%Y-%b-%d %H:%M"
@@ -93,7 +95,7 @@ def add_common_context(request, context: dict) -> dict:
     )
     new_context = {
         **{
-            "app_title": __title__,
+            "app_title": MEMBERAUDIT_APP_NAME,
             "unregistered_count": unregistered_count,
             "MY_DATETIME_FORMAT": MY_DATETIME_FORMAT,
         },
