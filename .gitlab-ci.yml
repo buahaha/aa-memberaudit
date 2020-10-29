@@ -1,6 +1,5 @@
 stages:
 - pre-commit
-- lint
 - test
 - deploy
 
@@ -14,15 +13,14 @@ before_script:
 pre-commit-check:
   stage: pre-commit
   image: python:3.6-buster
+  variables:
+    PRE_COMMIT_HOME: ${CI_PROJECT_DIR}/.cache/pre-commit
+  cache:
+    paths:
+      - ${PRE_COMMIT_HOME}
   script:
     - pip install pre-commit
     - pre-commit run --all-files
-
-linter:
-  stage: lint
-  image: python:3.8-buster
-  script:
-  - tox -e linter
 
 .test-py36:
   stage: test
