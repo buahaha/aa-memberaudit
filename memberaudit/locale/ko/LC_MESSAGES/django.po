@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-29 10:00-0400\n"
+"POT-Creation-Date: 2020-10-29 14:55-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -331,19 +331,19 @@ msgid "Register"
 msgstr ""
 
 #: templates/memberaudit/launcher.html:68
-msgid "Use this character."
+msgid "View this character."
 msgstr ""
 
 #: templates/memberaudit/launcher.html:74
-msgid "Recruiters have access to this character. Click to disable."
+msgid "Disable access to this character for recruiters."
 msgstr ""
 
 #: templates/memberaudit/launcher.html:79
-msgid "Click to enable access to this character for recruiters."
+msgid "Enable access to this character for recruiters."
 msgstr ""
 
 #: templates/memberaudit/launcher.html:85
-msgid "Click to remove this character."
+msgid "Remove this character."
 msgstr ""
 
 #: templates/memberaudit/launcher.html:97
@@ -852,6 +852,6 @@ msgstr ""
 msgid "no"
 msgstr ""
 
-#: views.py:56
+#: views.py:57
 msgid "(No Doctrine)"
 msgstr ""
