@@ -1,9 +1,7 @@
-from django.utils.translation import ugettext_lazy as _
-
 from allianceauth.services.hooks import MenuItemHook, UrlHook
 from allianceauth import hooks
 
-from . import urls, __title__
+from . import urls
 from .models import Character
 from .app_settings import MEMBERAUDIT_APP_NAME
 
