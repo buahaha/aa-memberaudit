@@ -45,4 +45,9 @@ setup(
         "django-eveuniverse>=0.6",
         "humanize",
     ],
+    extras_require={
+        "testing": [
+            "django-webtest",
+        ]
+    },
 )
