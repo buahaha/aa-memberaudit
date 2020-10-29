@@ -18,6 +18,10 @@ An app for auditing members on Alliance Auth
 
 ## Overview
 
+Memberaudit provides a way for recruiters and alliance leadership to inspect characters' ESI data. It supports generating reports showing whether a given user has registered all their characters with Memberaudit and whether they can fly doctrine ships. It also allows users to view all their characters ESI data, and allows for selectively sharing character data with recruiters.
+
+## Key Features
+
 Memberaudit adds the following key features to Auth:
 
 - Users can see an overview of all their characters with key information like current location and wallet balance
@@ -27,9 +31,6 @@ Memberaudit adds the following key features to Auth:
 - Leadership can see reports and analytics about their members (e.g. which members can fly certain doctrines)
 - More features will be added soon
 
-## Key Features
-
-tbd.
 
 ## Screenshots
 
