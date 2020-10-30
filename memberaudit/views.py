@@ -151,12 +151,18 @@ def launcher(request) -> HttpResponse:
                 }
             )
 
+    try:
+        main_character_id = request.user.profile.main_character.character_id
+    except AttributeError:
+        main_character_id = None
+
     context = {
         "page_title": "My Characters",
         "auth_characters": auth_characters,
         "has_auth_characters": has_auth_characters,
         "unregistered_chars": unregistered_chars,
         "has_registered_characters": len(auth_characters) > 0,
+        "main_character_id": main_character_id,
     }
 
     """
@@ -355,10 +361,10 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
 
     # main character
     auth_character = character.character_ownership.character
-    if character.character_ownership.user.profile.main_character:
+    try:
         main_character = character.character_ownership.user.profile.main_character
         main = f"[{main_character.corporation_ticker}] {main_character.character_name}"
-    else:
+    except AttributeError:
         main_character = None
         main = "-"
 
@@ -431,6 +437,7 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         .order_by("character_ownership__character__character_name")
         .values(
             "pk",
+            "is_shared",
             name=F("character_ownership__character__character_name"),
             character_id=F("character_ownership__character__character_id"),
         )

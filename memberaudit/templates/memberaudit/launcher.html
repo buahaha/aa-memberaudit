@@ -36,7 +36,15 @@
                         {% for auth_character in auth_characters|dictsort:"character_name" %}
                             <li class="cards_item">
                                 <div class="card">
-                                    <div class="card-header">{{ auth_character.character_name }}</div>
+                                    <div class="card-header">
+                                        {{ auth_character.character_name }}
+                                        {% if auth_character.character_id == main_character_id %}
+                                            &nbsp;<i class="fas fa-crown" title="Main character"></i>
+                                        {% endif %}
+                                        {% if auth_character.character.is_shared %}
+                                            &nbsp;<i class="far fa-eye" title="Currently shared with recruiters"></i>
+                                        {% endif %}
+                                    </div>
 
                                     <div class="card-body card__content">
                                         <p>
@@ -70,7 +78,7 @@
                                         </a>
 
                                         {% if auth_character.character.is_shared %}
-                                            <a class="btn btn-default btn-sm" href="{% url 'memberaudit:unshare_character' auth_character.character.pk %}"
+                                            <a class="btn btn-primary btn-sm" href="{% url 'memberaudit:unshare_character' auth_character.character.pk %}"
                                                 role="button" title="{% translate 'Disable access to this character for recruiters.' %}">
                                                 <i class="fas fa-lock"></i>
                                             </a>
@@ -103,6 +111,11 @@
                     {{ unregistered_chars|join:", " }}
                 </p>
             {% endif %}
+
+            <p class="text-muted">
+                <i class="fas fa-crown"></i> Main character&nbsp;•&nbsp;
+                <i class="far fa-eye"></i> Currently shared with recruiters
+            </p>
         </div>
     </div>
 
