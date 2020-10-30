@@ -8,8 +8,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models, transaction
-from django.utils.html import strip_tags
-from django.utils.safestring import mark_safe
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 
@@ -41,7 +39,12 @@ from .app_settings import (
     MEMBERAUDIT_UPDATE_STALE_RING_3,
 )
 from .decorators import fetch_token_for_character
-from .helpers import get_or_create_esi_or_none, get_or_none, get_or_create_or_none
+from .helpers import (
+    get_or_create_esi_or_none,
+    get_or_none,
+    get_or_create_or_none,
+    eve_xml_to_html,
+)
 from .managers import CharacterManager, LocationManager, CharacterAssetManager
 from .providers import esi
 from .utils import LoggerAddTag, chunks
@@ -55,13 +58,6 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 CURRENCY_MAX_DIGITS = 17
 CURRENCY_MAX_DECIMALS = 2
 NAMES_MAX_LENGTH = 100
-
-
-def eve_xml_to_html(xml: str) -> str:
-    x = xml.replace("<br>", "\n")
-    x = strip_tags(x)
-    x = x.replace("\n", "<br>")
-    return mark_safe(x)
 
 
 def store_list_to_disk(lst: list, name: str):

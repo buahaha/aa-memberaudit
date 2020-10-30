@@ -2,12 +2,18 @@ from typing import Optional
 
 from django.db import models
 from django.utils.html import format_html
-
-from eveuniverse.models import EveSolarSystem
-
+from django.utils.safestring import mark_safe
+from eveuniverse.models import EveSolarSystem, EveEntity
+from urllib.parse import quote
 from allianceauth.eveonline.evelinks import dotlan
 
 from .utils import create_link_html
+
+import re
+
+_CHARACTER_URL = "https://evewho.com/character/"
+_CORPORATION_URL = "https://evemaps.dotlan.net/corp/"
+_ALLIANCE_URL = "https://evemaps.dotlan.net/alliance/"
 
 
 def get_or_create_esi_or_none(
@@ -73,3 +79,58 @@ def eve_solar_system_to_html(solar_system: EveSolarSystem, show_region=True) -> 
         round(solar_system.security_status, 1),
         region_html,
     )
+
+
+_font_regex = re.compile(
+    r'<font (?P<pre>.*?)(size="(?P<size>[0-9]{1,2})")? ?(color="#[0-9a-f]{2}(?P<color>[0-9a-f]{6})")?(?P<post>.*?)>'
+)
+_link_regex = re.compile(
+    r'<a href="showinfo:(?P<first_id>\d+)(//(?P<second_id>\d+))?">'
+)
+
+
+def _font_replace(font_match) -> str:
+    pre = font_match.group("pre")  # before the color attr
+    size = font_match.group("size")
+    color = font_match.group("color")  # the raw color (eg. 'ffffff')
+    post = font_match.group("post")  # after the color attr
+
+    if color is None or color == "ffffff":
+        color_attr = ""
+    else:
+        color_attr = f"color: #{color};"
+    if size is None:
+        size_attr = ""
+    else:
+        size_attr = f"font-size: {size}pt;"
+    return f'<font {pre}style="{color_attr} {size_attr}"{post}>'
+
+
+def _link_replace(link_match) -> str:
+    first_id = int(link_match.group("first_id"))
+    second_id = link_match.group("second_id")
+    if second_id is not None:
+        second_id = int(second_id)
+
+    if first_id == 1376:  # Character
+        return f'<a href="{_CHARACTER_URL}{second_id}">'
+    elif first_id == 2:  # Corporation
+        corp_name = EveEntity.objects.resolve_name(second_id)
+        corp_name = quote(corp_name.replace(" ", "_"))
+        return f'<a href="{_CORPORATION_URL}{corp_name}">'
+    elif first_id == 16159:  # Alliance
+        alliance_name = EveEntity.objects.resolve_name(second_id)
+        alliance_name = quote(alliance_name.replace(" ", "_"))
+        return f'<a href="{_ALLIANCE_URL}{alliance_name}">'
+
+    else:
+        return "<a>"
+
+
+def eve_xml_to_html(xml: str) -> str:
+    x = xml.replace("<br>", "\n")
+    x = _font_regex.sub(_font_replace, x)
+    x = _link_regex.sub(_link_replace, x)
+    # x = strip_tags(x)
+    x = x.replace("\n", "<br>")
+    return mark_safe(x)
