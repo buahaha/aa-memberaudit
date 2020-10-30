@@ -26,9 +26,11 @@ from ..models import (
     CharacterContact,
     CharacterContract,
     CharacterContractItem,
+    CharacterCorporationHistory,
     CharacterImplant,
     CharacterJumpClone,
     CharacterJumpCloneImplant,
+    CharacterLoyaltyEntry,
     CharacterMail,
     CharacterMailRecipient,
     CharacterMailingList,
@@ -43,6 +45,7 @@ from ..models import (
 )
 from ..utils import generate_invalid_pk
 from ..views import (
+    index,
     launcher,
     character_viewer,
     character_location_data,
@@ -56,6 +59,7 @@ from ..views import (
     character_doctrines_data,
     character_implants_data,
     character_jump_clones_data,
+    character_loyalty_data,
     character_mail_headers_by_label_data,
     character_mail_headers_by_list_data,
     character_mail_data,
@@ -525,14 +529,34 @@ class TestCharacterContracts(TestViewsBase):
         self.assertEqual(row["level"], "Excellent Standing")
 
 
-class TestViews(TestViewsBase):
+class TestViewsOther(TestViewsBase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
 
-    def test_can_open_launcher_view(self):
+    def test_can_open_index_view(self):
+        request = self.factory.get(reverse("memberaudit:index"))
+        request.user = self.user
+        response = index(request)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("memberaudit:launcher"))
+
+    def test_can_open_launcher_view_1(self):
+        """user with main"""
         request = self.factory.get(reverse("memberaudit:launcher"))
         request.user = self.user
+        response = launcher(request)
+        self.assertEqual(response.status_code, 200)
+
+    def test_can_open_launcher_view_2(self):
+        """user without main"""
+        user = AuthUtils.create_user("John Doe")
+        user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.basic_access", user
+        )
+
+        request = self.factory.get(reverse("memberaudit:launcher"))
+        request.user = user
         response = launcher(request)
         self.assertEqual(response.status_code, 200)
 
@@ -658,6 +682,24 @@ class TestViews(TestViewsBase):
         self.assertEqual(row["location"], "Unknown location #123457890")
         self.assertEqual(row["implants"], "(none)")
 
+    def test_character_loyalty_data(self):
+        CharacterLoyaltyEntry.objects.create(
+            character=self.character,
+            corporation=EveEntity.objects.get(id=2101),
+            loyalty_points=99,
+        )
+        request = self.factory.get(
+            reverse("memberaudit:character_loyalty_data", args=[self.character.pk])
+        )
+        request.user = self.user
+        response = character_loyalty_data(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertEqual(len(data), 1)
+        row = data[0]
+        self.assertEqual(row["corporation"]["sort"], "Lexcorp")
+        self.assertEqual(row["loyalty_points"], 99)
+
     def test_character_skills_data(self):
         CharacterSkill.objects.create(
             character=self.character,
@@ -747,6 +789,20 @@ class TestViews(TestViewsBase):
         self.assertSetEqual({x["character_pk"] for x in data}, {self.character.pk})
 
     def test_character_corporation_history(self):
+        date_1 = now() - dt.timedelta(days=60)
+        CharacterCorporationHistory.objects.create(
+            character=self.character,
+            record_id=1,
+            corporation=EveEntity.objects.get(id=2101),
+            start_date=date_1,
+        )
+        date_2 = now() - dt.timedelta(days=20)
+        CharacterCorporationHistory.objects.create(
+            character=self.character,
+            record_id=2,
+            corporation=EveEntity.objects.get(id=2001),
+            start_date=date_2,
+        )
         request = self.factory.get(
             reverse(
                 "memberaudit:character_corporation_history", args=[self.character.pk]

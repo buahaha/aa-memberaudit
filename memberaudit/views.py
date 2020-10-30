@@ -893,6 +893,7 @@ def character_corporation_history(
 
             corporation_history.append(
                 {
+                    "id": entry.pk,
                     "corporation_name": entry.corporation.name,
                     "start_date": entry.start_date,
                     "end_date": now(),
@@ -957,6 +958,7 @@ def character_loyalty_data(
             )
             data.append(
                 {
+                    "id": entry.pk,
                     "corporation": {
                         "display": corporation_html,
                         "sort": entry.corporation.name,
@@ -1368,33 +1370,36 @@ def compliance_report_data(request) -> JsonResponse:
 
     user_data = list()
     for user in member_users:
-        if user.profile.main_character:
+        try:
             main_character = user.profile.main_character
-            main_html = create_icon_plus_name_html(
-                main_character.portrait_url(),
-                main_character.character_name,
-                avatar=True,
-            )
-            organization_html = create_main_organization_html(main_character)
-            user_data.append(
-                {
-                    "user_pk": user.pk,
-                    "main": {
-                        "display": main_html,
-                        "sort": main_character.character_name,
-                    },
-                    "organization": {
-                        "display": organization_html,
-                        "sort": main_character.corporation_name,
-                    },
-                    "corporation_name": main_character.corporation_name,
-                    "alliance_name": main_character.alliance_name,
-                    "total_chars": user.total_chars,
-                    "unregistered_chars": user.unregistered_chars,
-                    "is_compliant": user.unregistered_chars == 0,
-                    "compliance_str": "yes" if user.unregistered_chars == 0 else "no",
-                }
-            )
+        except AttributeError:
+            continue
+
+        main_html = create_icon_plus_name_html(
+            main_character.portrait_url(),
+            main_character.character_name,
+            avatar=True,
+        )
+        organization_html = create_main_organization_html(main_character)
+        user_data.append(
+            {
+                "user_pk": user.pk,
+                "main": {
+                    "display": main_html,
+                    "sort": main_character.character_name,
+                },
+                "organization": {
+                    "display": organization_html,
+                    "sort": main_character.corporation_name,
+                },
+                "corporation_name": main_character.corporation_name,
+                "alliance_name": main_character.alliance_name,
+                "total_chars": user.total_chars,
+                "unregistered_chars": user.unregistered_chars,
+                "is_compliant": user.unregistered_chars == 0,
+                "compliance_str": "yes" if user.unregistered_chars == 0 else "no",
+            }
+        )
 
     return JsonResponse(user_data, safe=False)
 
