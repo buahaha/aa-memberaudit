@@ -15,7 +15,7 @@ from .utils import add_character_to_user
 def create_user_from_evecharacter(character_id: int) -> Tuple[User, CharacterOwnership]:
     auth_character = EveCharacter.objects.get(character_id=character_id)
     user = AuthUtils.create_user(auth_character.character_name)
-    AuthUtils.add_permission_to_user_by_name("memberaudit.basic_access", user)
+    user = AuthUtils.add_permission_to_user_by_name("memberaudit.basic_access", user)
     character_ownership = add_character_to_user(
         user, auth_character, is_main=True, scopes=Character.get_esi_scopes()
     )
@@ -27,11 +27,15 @@ def create_memberaudit_character(character_id: int) -> Character:
     return Character.objects.create(character_ownership=character_ownership)
 
 
-def add_memberaudit_character_to_user(user: User, character_id: int) -> Character:
+def add_auth_character_to_user(user: User, character_id: int) -> CharacterOwnership:
     auth_character = EveCharacter.objects.get(character_id=character_id)
-    character_ownership = add_character_to_user(
+    return add_character_to_user(
         user, auth_character, is_main=False, scopes=Character.get_esi_scopes()
     )
+
+
+def add_memberaudit_character_to_user(user: User, character_id: int) -> Character:
+    character_ownership = add_auth_character_to_user(user, character_id)
     return Character.objects.create(character_ownership=character_ownership)
 
 
