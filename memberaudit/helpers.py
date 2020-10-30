@@ -103,7 +103,7 @@ def _font_replace(font_match) -> str:
         size_attr = ""
     else:
         size_attr = f"font-size: {size}pt;"
-    return f'<font {pre}style="{color_attr} {size_attr}"{post}>'
+    return f'<span {pre}style="{color_attr} {size_attr}"{post}>'
 
 
 def _link_replace(link_match) -> str:
@@ -112,7 +112,7 @@ def _link_replace(link_match) -> str:
     if second_id is not None:
         second_id = int(second_id)
 
-    if first_id == 1376:  # Character
+    if 1373 <= first_id <= 1386:  # Character
         return f'<a href="{_CHARACTER_URL}{second_id}">'
     elif first_id == 2:  # Corporation
         corp_name = EveEntity.objects.resolve_name(second_id)
@@ -130,6 +130,7 @@ def _link_replace(link_match) -> str:
 def eve_xml_to_html(xml: str) -> str:
     x = xml.replace("<br>", "\n")
     x = _font_regex.sub(_font_replace, x)
+    x = x.replace("</font>", "</span>")
     x = _link_regex.sub(_link_replace, x)
     # x = strip_tags(x)
     x = x.replace("\n", "<br>")
