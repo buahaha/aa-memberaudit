@@ -1,12 +1,23 @@
+import datetime as dt
 from unittest.mock import patch
 
 from django.test import override_settings
 from django.urls import reverse
+from django.utils.timezone import now
 
 from django_webtest import WebTest
-from eveuniverse.models import EveType
+from eveuniverse.models import EveEntity, EveType
 
-from ..models import CharacterAsset, Location
+from ..models import (
+    CharacterAsset,
+    CharacterContract,
+    CharacterContractItem,
+    CharacterMail,
+    CharacterMailLabel,
+    CharacterMailMailLabel,
+    CharacterMailRecipient,
+    Location,
+)
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
@@ -116,7 +127,7 @@ class TestUICharacterViewer(WebTest):
         cls.user = cls.character.character_ownership.user
         cls.jita_44 = Location.objects.get(id=60003760)
 
-    def test_character_viewer_asset_container(self):
+    def test_asset_container(self):
         """
         given user has a registered character with assets which contain other assets
         when user clicks on an asset container
@@ -157,3 +168,100 @@ class TestUICharacterViewer(WebTest):
             )
         )
         self.assertEqual(asset_container.status_code, 200)
+        self.assertIn("Asset Container", asset_container.text)
+
+    def test_contract_items(self):
+        """
+        given user has a registered character with contracts that contain items
+        when user clicks to open the contract
+        then the items of that contact are shown
+        """
+        # setup data
+        date_now = now()
+        date_issued = date_now - dt.timedelta(days=1)
+        date_expired = date_now + dt.timedelta(days=2, hours=3)
+        contract = CharacterContract.objects.create(
+            character=self.character,
+            contract_id=42,
+            availability=CharacterContract.AVAILABILITY_PERSONAL,
+            contract_type=CharacterContract.TYPE_ITEM_EXCHANGE,
+            assignee=EveEntity.objects.get(id=1002),
+            date_issued=date_issued,
+            date_expired=date_expired,
+            for_corporation=False,
+            issuer=EveEntity.objects.get(id=1001),
+            issuer_corporation=EveEntity.objects.get(id=2001),
+            status=CharacterContract.STATUS_IN_PROGRESS,
+            start_location=self.jita_44,
+            end_location=self.jita_44,
+            title="Dummy info",
+        )
+        CharacterContractItem.objects.create(
+            contract=contract,
+            record_id=1,
+            is_included=True,
+            is_singleton=False,
+            quantity=1,
+            eve_type=EveType.objects.get(id=19540),
+        )
+
+        # open character viewer
+        self.app.set_user(self.user)
+        character_viewer = self.app.get(
+            reverse("memberaudit:character_viewer", args=[self.character.pk])
+        )
+        self.assertEqual(character_viewer.status_code, 200)
+
+        # open asset container
+        contract_details = self.app.get(
+            reverse(
+                "memberaudit:character_contract_details",
+                args=[self.character.pk, contract.pk],
+            )
+        )
+        self.assertEqual(contract_details.status_code, 200)
+        self.assertIn("High-grade Snake Alpha", contract_details.text)
+
+    def test_mail(self):
+        """
+        given user has a registered character with mails
+        when user clicks to open a mail
+        then the mail body is shown
+        """
+        # setup data
+        body_text = "Mail with normal entity and mailing list as recipient"
+        mail = CharacterMail.objects.create(
+            character=self.character,
+            mail_id=7001,
+            from_entity=EveEntity.objects.get(id=1002),
+            subject="Dummy 1",
+            body=body_text,
+            timestamp=now(),
+        )
+        CharacterMailRecipient.objects.create(
+            mail=mail, eve_entity=EveEntity.objects.get(id=1001)
+        )
+        CharacterMailRecipient.objects.create(
+            mail=mail, eve_entity=EveEntity.objects.get(id=1003)
+        )
+        label = CharacterMailLabel.objects.create(
+            character=self.character, label_id=42, name="Dummy"
+        )
+        CharacterMailMailLabel.objects.create(mail=mail, label=label)
+
+        # open character viewer
+        self.app.set_user(self.user)
+        character_viewer = self.app.get(
+            reverse("memberaudit:character_viewer", args=[self.character.pk])
+        )
+        self.assertEqual(character_viewer.status_code, 200)
+
+        # open asset container
+        mail_details = self.app.get(
+            reverse(
+                "memberaudit:character_mail_data",
+                args=[self.character.pk, mail.pk],
+            )
+        )
+        self.assertEqual(mail_details.status_code, 200)
+        self.assertIn(body_text, mail_details.text)
