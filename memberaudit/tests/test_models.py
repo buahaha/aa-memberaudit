@@ -18,6 +18,7 @@ from . import (
     create_user_from_evecharacter,
     scope_names_set,
 )
+from ..helpers import eve_xml_to_html
 from ..models import (
     Character,
     CharacterAsset,
@@ -894,6 +895,7 @@ class TestCharacterUpdateMail(TestCharacterUpdateBase):
     def test_update_mail_headers_1(self, mock_esi):
         """can create new mail from scratch"""
         mock_esi.client = esi_client_stub
+
         CharacterMailingList.objects.create(
             character=self.character_1001, list_id=9001, name="Dummy 1"
         )
@@ -955,7 +957,7 @@ class TestCharacterUpdateMail(TestCharacterUpdateBase):
         self.assertFalse(obj.body)
         self.assertTrue(obj.recipients.filter(eve_entity_id=1001).exists())
 
-    def test_update_mail_body(self, mock_esi):
+    def test_update_mail_body_1(self, mock_esi):
         """can update mail body"""
         mock_esi.client = esi_client_stub
         mail = CharacterMail.objects.create(
@@ -978,6 +980,33 @@ class TestCharacterUpdateMail(TestCharacterUpdateBase):
 
         obj = self.character_1001.mails.get(mail_id=1)
         self.assertEqual(obj.body, "blah blah blah")
+
+    @patch(MODELS_PATH + ".eve_xml_to_html")
+    def test_update_mail_body_2(self, mock_eve_xml_to_html, mock_esi):
+        """can update mail body"""
+        mock_esi.client = esi_client_stub
+        mock_eve_xml_to_html.side_effect = lambda x: eve_xml_to_html(x)
+
+        mail = CharacterMail.objects.create(
+            character=self.character_1001,
+            mail_id=2,
+            from_entity=EveEntity.objects.get(id=1002),
+            subject="Mail 1",
+            is_read=False,
+            timestamp=parse_datetime("2015-09-30T16:07:00Z"),
+        )
+        CharacterMailRecipient.objects.create(
+            mail=mail, eve_entity=EveEntity.objects.get(id=1001)
+        )
+        CharacterMailingList.objects.create(
+            character=self.character_1001, list_id=9001, name="Dummy 1"
+        )
+
+        self.character_1001.update_mail_body(mail)
+
+        obj = self.character_1001.mails.get(mail_id=2)
+        self.assertTrue(obj.body)
+        self.assertTrue(mock_eve_xml_to_html.called)
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
@@ -1178,8 +1207,10 @@ class TestCharacterUpdateOther(TestCharacterUpdateBase):
     def setUpClass(cls) -> None:
         super().setUpClass()
 
-    def test_update_character_details(self, mock_esi):
+    @patch(MODELS_PATH + ".eve_xml_to_html")
+    def test_update_character_details(self, mock_eve_xml_to_html, mock_esi):
         mock_esi.client = esi_client_stub
+        mock_eve_xml_to_html.side_effect = lambda x: eve_xml_to_html(x)
 
         self.character_1001.update_character_details()
         self.assertEqual(self.character_1001.details.eve_ancestry.id, 11)
@@ -1197,6 +1228,7 @@ class TestCharacterUpdateOther(TestCharacterUpdateBase):
         self.assertEqual(
             self.character_1001.details.title, "All round pretty awesome guy"
         )
+        self.assertTrue(mock_eve_xml_to_html.called)
 
     def test_update_corporation_history(self, mock_esi):
         mock_esi.client = esi_client_stub

@@ -468,6 +468,9 @@ class Character(models.Model):
         description = (
             details.get("description", "") if details.get("description") else ""
         )
+        if description:
+            eve_xml_to_html(description)  # resolve names early
+
         gender = (
             CharacterDetails.GENDER_MALE
             if details.get("gender") == "male"
@@ -1347,6 +1350,7 @@ class Character(models.Model):
         ).result()
         mail.body = mail_body.get("body", "")
         mail.save()
+        eve_xml_to_html(mail.body)  # resolve names early
 
     @fetch_token_for_character("esi-location.read_online.v1")
     def update_online_status(self, token):
