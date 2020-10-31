@@ -781,7 +781,7 @@ class TestCharacterUpdateJumpClones(TestCharacterUpdateBase):
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(MODELS_PATH + ".esi")
-class TestCharacterUpdateMail(TestCharacterUpdateBase):
+class TestCharacterUpdateMails(TestCharacterUpdateBase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
@@ -900,6 +900,7 @@ class TestCharacterUpdateMail(TestCharacterUpdateBase):
             character=self.character_1001, list_id=9001, name="Dummy 1"
         )
 
+        self.character_1001.update_mail_labels()
         self.character_1001.update_mail_headers()
         self.assertSetEqual(
             set(self.character_1001.mails.values_list("mail_id", flat=True)),
@@ -915,6 +916,7 @@ class TestCharacterUpdateMail(TestCharacterUpdateBase):
         self.assertFalse(obj.body)
         self.assertTrue(obj.recipients.filter(eve_entity_id=1001).exists())
         self.assertTrue(obj.recipients.filter(mailing_list__list_id=9001).exists())
+        self.assertSetEqual(set(obj.labels.values_list("label_id", flat=True)), {3})
 
         obj = self.character_1001.mails.get(mail_id=2)
         self.assertIsNone(obj.from_entity)
@@ -923,8 +925,9 @@ class TestCharacterUpdateMail(TestCharacterUpdateBase):
         self.assertEqual(obj.subject, "Mail 2")
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T18:07:00Z"))
         self.assertFalse(obj.body)
+        self.assertSetEqual(set(obj.labels.values_list("label_id", flat=True)), {3})
 
-    def test_update_headers_2(self, mock_esi):
+    def test_update_mail_headers_2(self, mock_esi):
         """can update existing mail"""
         mock_esi.client = esi_client_stub
         mail = CharacterMail.objects.create(
@@ -941,6 +944,9 @@ class TestCharacterUpdateMail(TestCharacterUpdateBase):
         CharacterMailingList.objects.create(
             character=self.character_1001, list_id=9001, name="Dummy 1"
         )
+        self.character_1001.update_mail_labels()
+        label = self.character_1001.mail_labels.get(label_id=17)
+        mail.labels.add(label)
 
         self.character_1001.update_mail_headers()
         self.assertSetEqual(
@@ -956,6 +962,7 @@ class TestCharacterUpdateMail(TestCharacterUpdateBase):
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T16:07:00Z"))
         self.assertFalse(obj.body)
         self.assertTrue(obj.recipients.filter(eve_entity_id=1001).exists())
+        self.assertSetEqual(set(obj.labels.values_list("label_id", flat=True)), {3})
 
     def test_update_mail_body_1(self, mock_esi):
         """can update mail body"""
@@ -1926,3 +1933,21 @@ class TestCharacterAssetManager(NoSocketsTestCase):
         asset = CharacterAsset.objects.annotate_pricing().first()
         self.assertIsNone(asset.price)
         self.assertIsNone(asset.total)
+
+
+class TestCharacterMailLabelManager(TestCharacterUpdateBase):
+    def test_normal(self):
+        label_1 = CharacterMailLabel.objects.create(
+            character=self.character_1001, label_id=1, name="Alpha"
+        )
+        label_2 = CharacterMailLabel.objects.create(
+            character=self.character_1001, label_id=2, name="Bravo"
+        )
+        labels = CharacterMailLabel.objects.get_all_labels()
+        self.assertDictEqual(
+            labels, {label_1.label_id: label_1, label_2.label_id: label_2}
+        )
+
+    def test_empty(self):
+        labels = CharacterMailLabel.objects.get_all_labels()
+        self.assertDictEqual(labels, dict())

@@ -35,7 +35,6 @@ from ..models import (
     CharacterMailRecipient,
     CharacterMailingList,
     CharacterMailLabel,
-    CharacterMailMailLabel,
     CharacterSkill,
     CharacterWalletJournalEntry,
     Doctrine,
@@ -854,6 +853,12 @@ class TestMailHeaderData(TestCase):
         mailing_list = CharacterMailingList.objects.create(
             character=cls.character, list_id=5, name="Mailing List"
         )
+        label_1 = CharacterMailLabel.objects.create(
+            character=cls.character, label_id=42, name="Dummy"
+        )
+        labels2 = CharacterMailLabel.objects.create(
+            character=cls.character, label_id=8, name="Another label"
+        )
         mail_1 = CharacterMail.objects.create(
             character=cls.character,
             mail_id=7001,
@@ -868,10 +873,7 @@ class TestMailHeaderData(TestCase):
         CharacterMailRecipient.objects.create(
             mail=mail_1, eve_entity=EveEntity.objects.get(id=1003)
         )
-        label = CharacterMailLabel.objects.create(
-            character=cls.character, label_id=42, name="Dummy"
-        )
-        CharacterMailMailLabel.objects.create(mail=mail_1, label=label)
+        mail_1.labels.add(label_1)
 
         mail_2 = CharacterMail.objects.create(
             character=cls.character,
@@ -881,10 +883,7 @@ class TestMailHeaderData(TestCase):
             body="Mail with another label",
             timestamp=now(),
         )
-        label = CharacterMailLabel.objects.create(
-            character=cls.character, label_id=8, name="Another label"
-        )
-        CharacterMailMailLabel.objects.create(mail=mail_2, label=label)
+        mail_2.labels.add(labels2)
 
         CharacterMail.objects.create(
             character=cls.character,

@@ -369,16 +369,21 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         main = "-"
 
     # mail labels
-    # mail_labels = list(character.mail_labels.values("label_id", "name", "unread_count"))
+    mail_labels = list(
+        character.mail_labels.values(
+            "label_id", "name", unread_count_2=F("unread_count")
+        )
+    )
+    """TODO: Correct or remove
     mail_labels = list(
         character.mail_labels.annotate(
             unread_count_2=Count(
-                "charactermailmaillabel",
-                filter=Q(charactermailmaillabel__mail__is_read=False),
+                "mails__mail_id",
+                filter=Q(mails__is_read=False),
             )
         ).values("label_id", "name", "unread_count_2")
     )
-
+    """
     total_unread_count = character.mails.filter(is_read=False).count()
     mail_labels.append(
         {
@@ -1102,7 +1107,7 @@ def character_mail_headers_by_label_data(
     if label_id == MAIL_LABEL_ID_ALL_MAILS:
         mail_headers_qs = character.mails.all()
     else:
-        mail_headers_qs = character.mails.filter(labels__label__label_id=label_id)
+        mail_headers_qs = character.mails.filter(labels__label_id=label_id)
 
     return _character_mail_headers_data(request, character, mail_headers_qs)
 

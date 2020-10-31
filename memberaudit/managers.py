@@ -1,5 +1,5 @@
 import datetime as dt
-from typing import Tuple
+from typing import Dict, Tuple
 
 from django.contrib.auth.models import User
 from django.db import models
@@ -291,3 +291,10 @@ class CharacterAssetManager(models.Manager):
                 )
             )
         )
+
+
+class CharacterMailLabelManager(models.Manager):
+    def get_all_labels(self) -> Dict[int, models.Model]:
+        """Returns all label objects as dict by label_id"""
+        label_pks = self.values_list("pk", flat=True)
+        return {label.label_id: label for label in self.in_bulk(label_pks).values()}

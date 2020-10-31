@@ -2,7 +2,7 @@ import datetime as dt
 from collections import namedtuple
 import json
 import os
-from typing import Optional
+from typing import List, Optional
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
@@ -46,7 +46,12 @@ from .helpers import (
     get_or_create_or_none,
     eve_xml_to_html,
 )
-from .managers import CharacterManager, LocationManager, CharacterAssetManager
+from .managers import (
+    CharacterMailLabelManager,
+    CharacterManager,
+    LocationManager,
+    CharacterAssetManager,
+)
 from .providers import esi
 from .utils import LoggerAddTag, chunks
 
@@ -1303,9 +1308,8 @@ class Character(models.Model):
         )
 
         # add recipients and labels
-        label_ids = set(self.mail_labels.values_list("label_id", flat=True))
         new_recipients = list()
-        new_labels = list()
+        labels = self.mail_labels.get_all_labels()
         for mail_id, header in new_mail_headers_list.items():
             mail_obj = self.mails.get(mail_id=mail_id)
             for recipient in header.get("recipients"):
@@ -1335,33 +1339,48 @@ class Character(models.Model):
                             f"id {recipient_id} for mail id {mail_obj.mail_id}",
                         )
 
-            if header.get("labels"):
-                new_labels += [
-                    CharacterMailMailLabel(
-                        mail=mail_obj,
-                        label=self.mail_labels.get(label_id=label_id),
-                    )
-                    for label_id in header.get("labels")
-                    if label_id in label_ids
-                ]
+            self._update_labels_of_mail(mail_obj, header.get("labels"), labels)
 
         if new_recipients:
             CharacterMailRecipient.objects.bulk_create(
                 new_recipients, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
             )
-        if new_labels:
-            CharacterMailMailLabel.objects.bulk_create(
-                new_labels, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-            )
+
+    def _update_labels_of_mail(
+        self,
+        mail: "CharacterMail",
+        label_ids: List[int],
+        labels: List["CharacterMailLabel"],
+    ) -> None:
+        """Updates the labels of a mail object from a dict"""
+        mail.labels.clear()
+        if label_ids:
+            labels_to_add = list()
+            for label_id in label_ids:
+                try:
+                    labels_to_add.append(labels[label_id])
+                except KeyError:
+                    logger.info(
+                        "%s: Unknown mail label with ID %s for mail %s",
+                        self,
+                        label_id,
+                        mail,
+                    )
+
+            mail.labels.add(*labels_to_add)
 
     def _update_mail_headers(self, mail_headers: dict, update_ids) -> None:
         logger.info("%s: Updating %s mail headers", self, len(update_ids))
         mail_pks = CharacterMail.objects.filter(mail_id__in=update_ids).values_list(
             "pk", flat=True
         )
+        labels = self.mail_labels.get_all_labels()
         mails = CharacterMail.objects.in_bulk(mail_pks)
         for mail in mails.values():
-            mail.is_read = bool(mail_headers[mail.mail_id].get("is_read"))
+            mail_header = mail_headers.get(mail.mail_id)
+            if mail_header:
+                mail.is_read = bool(mail_header.get("is_read"))
+                self._update_labels_of_mail(mail, mail_header.get("labels"), labels)
 
         CharacterMail.objects.bulk_update(mails.values(), ["is_read"])
 
@@ -2337,6 +2356,7 @@ class CharacterMail(models.Model):
     subject = models.CharField(max_length=255, default="")
     body = models.TextField()
     timestamp = models.DateTimeField(null=True, default=None)
+    labels = models.ManyToManyField("CharacterMailLabel", related_name="mails")
 
     class Meta:
         constraints = [
@@ -2390,6 +2410,8 @@ class CharacterMailLabel(models.Model):
     color = models.CharField(max_length=16, default="")
     unread_count = models.PositiveIntegerField(default=None, null=True)
 
+    objects = CharacterMailLabelManager()
+
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -2400,27 +2422,6 @@ class CharacterMailLabel(models.Model):
 
     def __str__(self) -> str:
         return self.name
-
-
-# TODO: Change to M2M
-class CharacterMailMailLabel(models.Model):
-    """Mail label used in a mail"""
-
-    mail = models.ForeignKey(
-        CharacterMail, on_delete=models.CASCADE, related_name="labels"
-    )
-    label = models.ForeignKey(CharacterMailLabel, on_delete=models.CASCADE)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["mail", "label"],
-                name="functional_pk_charactermailmaillabel",
-            )
-        ]
-
-    def __str__(self) -> str:
-        return "{}-{}".format(self.mail, self.label)
 
 
 class CharacterMailRecipient(models.Model):

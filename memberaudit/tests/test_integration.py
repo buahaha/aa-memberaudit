@@ -14,7 +14,6 @@ from ..models import (
     CharacterContractItem,
     CharacterMail,
     CharacterMailLabel,
-    CharacterMailMailLabel,
     CharacterMailRecipient,
     Location,
 )
@@ -230,6 +229,9 @@ class TestUICharacterViewer(WebTest):
         """
         # setup data
         body_text = "Mail with normal entity and mailing list as recipient"
+        label = CharacterMailLabel.objects.create(
+            character=self.character, label_id=42, name="Dummy"
+        )
         mail = CharacterMail.objects.create(
             character=self.character,
             mail_id=7001,
@@ -244,10 +246,7 @@ class TestUICharacterViewer(WebTest):
         CharacterMailRecipient.objects.create(
             mail=mail, eve_entity=EveEntity.objects.get(id=1003)
         )
-        label = CharacterMailLabel.objects.create(
-            character=self.character, label_id=42, name="Dummy"
-        )
-        CharacterMailMailLabel.objects.create(mail=mail, label=label)
+        mail.labels.add(label)
 
         # open character viewer
         self.app.set_user(self.user)
