@@ -1,6 +1,7 @@
 import datetime as dt
 from collections import namedtuple
 import json
+import os
 from typing import Optional
 
 from django.contrib.auth.models import User
@@ -58,12 +59,6 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 CURRENCY_MAX_DIGITS = 17
 CURRENCY_MAX_DECIMALS = 2
 NAMES_MAX_LENGTH = 100
-
-
-def store_list_to_disk(lst: list, name: str):
-    """stores the given list as JSON file to disk. For debugging"""
-    with open(f"{name}.json", "w", encoding="utf-8") as f:
-        json.dump(lst, f, cls=DjangoJSONEncoder, sort_keys=True, indent=4)
 
 
 class General(models.Model):
@@ -438,7 +433,7 @@ class Character(models.Model):
             asset_list_2[item_id]["name"] = asset_names.get(item_id, "")
 
         if MEMBERAUDIT_DEVELOPER_MODE:
-            store_list_to_disk(asset_list_2, f"asset_list_{self.pk}")
+            self._store_list_to_disk(asset_list_2, "asset_list")
 
         self._preload_all_eve_types(asset_list_2)
         incoming_location_ids = {
@@ -465,6 +460,9 @@ class Character(models.Model):
         details = esi.client.Character.get_characters_character_id(
             character_id=self.character_ownership.character.character_id,
         ).results()
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(details, "character_details")
+
         description = (
             details.get("description", "") if details.get("description") else ""
         )
@@ -509,6 +507,8 @@ class Character(models.Model):
         history = esi.client.Character.get_characters_character_id_corporationhistory(
             character_id=self.character_ownership.character.character_id,
         ).results()
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(history, "corporation_history")
 
         entries = [
             CharacterCorporationHistory(
@@ -540,6 +540,9 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(labels, "contact_labels")
+
         # TODO: replace with bulk methods to optimize
         with transaction.atomic():
             if labels:
@@ -573,6 +576,9 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(contacts_data, "contacts")
+
         if contacts_data:
             contacts_list = {int(x["contact_id"]): x for x in contacts_data}
         else:
@@ -715,6 +721,9 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(contracts_data, "contracts")
+
         contracts_list = {
             obj["contract_id"]: obj for obj in contracts_data if "contract_id" in obj
         }
@@ -976,6 +985,8 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(implants_data, "implants")
 
         with transaction.atomic():
             self.implants.all().delete()
@@ -1009,6 +1020,9 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(loyalty_entries, "loyalty")
+
         with transaction.atomic():
             self.loyalty_entries.all().delete()
             new_entries = [
@@ -1037,6 +1051,8 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(jump_clones_info, "jump_clones")
 
         # fetch locations ahead of transaction
         if jump_clones_info.get("jump_clones"):
@@ -1095,6 +1111,9 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(mailing_lists, "mailing_lists")
+
         # TODO: Replace delete + create with create + update
         if not mailing_lists:
             logger.info("%s: No mailing lists", self)
@@ -1149,6 +1168,9 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(mail_labels_info, "mail_labels")
+
         if mail_labels_info.get("total_unread_count"):
             CharacterMailUnreadCount.objects.update_or_create(
                 character=self,
@@ -1200,7 +1222,7 @@ class Character(models.Model):
     def update_mail_headers(self, token: Token):
         mail_headers = self._fetch_mail_headers(token)
         if MEMBERAUDIT_DEVELOPER_MODE:
-            store_list_to_disk(mail_headers, f"mail_headers_{self.pk}")
+            self._store_list_to_disk(mail_headers, "mail_headers")
 
         with transaction.atomic():
             incoming_ids = set(mail_headers.keys())
@@ -1228,6 +1250,9 @@ class Character(models.Model):
                 last_mail_id=last_mail_id,
                 token=token.valid_access_token(),
             ).results()
+            if MEMBERAUDIT_DEVELOPER_MODE:
+                self._store_list_to_disk(mail_headers, "mail_headers")
+
             mail_headers_all += mail_headers
             if len(mail_headers) < 50 or len(mail_headers_all) >= MEMBERAUDIT_MAX_MAILS:
                 break
@@ -1351,6 +1376,8 @@ class Character(models.Model):
         mail.body = mail_body.get("body", "")
         mail.save()
         eve_xml_to_html(mail.body)  # resolve names early
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(mail_body, "mail_body")
 
     @fetch_token_for_character("esi-location.read_online.v1")
     def update_online_status(self, token):
@@ -1377,6 +1404,8 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(skillqueue, "skill_queue")
 
         # TODO: Replace delete + create with create + update
         with transaction.atomic():
@@ -1447,6 +1476,9 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(skills_info, "skills")
+
         CharacterSkillpoints.objects.update_or_create(
             character=self,
             defaults={
@@ -1513,6 +1545,9 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(balance, "balance")
+
         CharacterWalletBalance.objects.update_or_create(
             character=self, defaults={"total": balance}
         )
@@ -1529,6 +1564,9 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(journal, "wallet_journal")
+
         entries_list = {x["id"]: x for x in journal if "id" in x}
 
         with transaction.atomic():
@@ -1600,6 +1638,25 @@ class Character(models.Model):
             location = None
 
         return solar_system, location
+
+    def _store_list_to_disk(self, lst: list, name: str):
+        """stores the given list as JSON file to disk. For debugging
+
+        Will store under memberaudit_logs/{DATE}/{CHARACTER_PK}_{NAME}.json
+        """
+        today_str = now().strftime("%Y%m%d")
+        now_str = now().strftime("%Y%m%d%H%M")
+        path = f"memberaudit_log/{today_str}"
+        if not os.path.isdir(path):
+            os.makedirs(path)
+
+        fullpath = os.path.join(path, f"character_{self.pk}_{name}_{now_str}.json")
+        try:
+            with open(fullpath, "w", encoding="utf-8") as f:
+                json.dump(lst, f, cls=DjangoJSONEncoder, sort_keys=True, indent=4)
+
+        except OSError:
+            pass
 
     @classmethod
     def get_esi_scopes(cls) -> list:
