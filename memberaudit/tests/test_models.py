@@ -1476,6 +1476,8 @@ class TestCharacterContract(NoSocketsTestCase):
         cls.jita_44 = Location.objects.get(id=60003760)
         cls.amamake = EveSolarSystem.objects.get(id=30002537)
         cls.structure_1 = Location.objects.get(id=1000000000001)
+        cls.item_type_1 = EveType.objects.get(id=19540)
+        cls.item_type_2 = EveType.objects.get(id=19551)
 
     def setUp(self) -> None:
         self.contract = CharacterContract.objects.create(
@@ -1500,7 +1502,7 @@ class TestCharacterContract(NoSocketsTestCase):
             is_included=True,
             is_singleton=False,
             quantity=1,
-            eve_type=EveType.objects.get(id=19540),
+            eve_type=self.item_type_1,
         )
         self.assertEqual(self.contract.summary(), "High-grade Snake Alpha")
 
@@ -1511,7 +1513,7 @@ class TestCharacterContract(NoSocketsTestCase):
             is_included=True,
             is_singleton=False,
             quantity=1,
-            eve_type=EveType.objects.get(id=19540),
+            eve_type=self.item_type_1,
         )
         CharacterContractItem.objects.create(
             contract=self.contract,
@@ -1519,7 +1521,7 @@ class TestCharacterContract(NoSocketsTestCase):
             is_included=False,
             is_singleton=False,
             quantity=1,
-            eve_type=EveType.objects.get(id=19551),
+            eve_type=self.item_type_2,
         )
         self.assertEqual(self.contract.summary(), "High-grade Snake Alpha")
 
@@ -1530,7 +1532,7 @@ class TestCharacterContract(NoSocketsTestCase):
             is_included=True,
             is_singleton=False,
             quantity=1,
-            eve_type=EveType.objects.get(id=19540),
+            eve_type=self.item_type_1,
         ),
         CharacterContractItem.objects.create(
             contract=self.contract,
@@ -1538,12 +1540,45 @@ class TestCharacterContract(NoSocketsTestCase):
             is_included=True,
             is_singleton=False,
             quantity=1,
-            eve_type=EveType.objects.get(id=19551),
+            eve_type=self.item_type_2,
         )
         self.assertEqual(self.contract.summary(), "[Multiple Items]")
 
     def test_summary_no_items(self):
         self.assertEqual(self.contract.summary(), "(no items)")
+
+    def test_can_calculate_pricing_1(self):
+        """calculate price and total for normal item"""
+        CharacterContractItem.objects.create(
+            contract=self.contract,
+            record_id=1,
+            is_included=True,
+            is_singleton=False,
+            quantity=2,
+            eve_type=self.item_type_1,
+        ),
+        EveMarketPrice.objects.create(eve_type=self.item_type_1, average_price=5000000)
+        qs = self.contract.items.annotate_pricing()
+        item_1 = qs.get(record_id=1)
+        self.assertEqual(item_1.price, 5000000)
+        self.assertEqual(item_1.total, 10000000)
+
+    def test_can_calculate_pricing_2(self):
+        """calculate price and total for BPO"""
+        CharacterContractItem.objects.create(
+            contract=self.contract,
+            record_id=1,
+            is_included=True,
+            is_singleton=False,
+            quantity=1,
+            raw_quantity=-2,
+            eve_type=self.item_type_1,
+        ),
+        EveMarketPrice.objects.create(eve_type=self.item_type_1, average_price=5000000)
+        qs = self.contract.items.annotate_pricing()
+        item_1 = qs.get(record_id=1)
+        self.assertIsNone(item_1.price)
+        self.assertIsNone(item_1.total)
 
 
 class TestCharacterSkillQueue(NoSocketsTestCase):

@@ -53,7 +53,7 @@
                             <p>{{ contract.price|floatformat:2|intcomma }} {% translate 'ISK' %}</p>
                         {% endif %}
                         {% if items_requested %}
-                            {% include "memberaudit/modals/character_viewer/contract_items.html" with table_name="tab_contract_iitems_requested" items=items_requested %}
+                            {% include "memberaudit/modals/character_viewer/contract_items.html" with table_name="tab_contract_items_requested" items=items_requested %}
                         {% endif %}
                     {% endif %}
 
@@ -93,15 +93,51 @@
 
 <script>
     $(document).ready(function () {
+        var order = [[0, "asc"]]
+        var columnDefs = [
+            {
+                "render": $.fn.dataTable.render.number( ',', '.', 2 ),
+                "targets": [ 4, 5 ]
+            },
+        ]
+        var footerCallback = function ( row, data, start, end, display ) {
+            var api = this.api(), data;
+
+            // Remove the formatting to get integer data for summation
+            var intVal = function ( i ) {
+                return typeof i === 'string' ?
+                    i.replace(/[\$,]/g, '')*1 :
+                    typeof i === 'number' ?
+                        i : 0;
+            };
+
+            // Total over all pages
+            var total = api
+                .column( 5 )
+                .data()
+                .reduce( function (a, b) {
+                    return intVal(a) + intVal(b);
+                }, 0 );
+
+            // Update footer
+            $( api.column( 5 ).footer() ).html(
+                total.toLocaleString(
+                    {minimumFractionDigits: 2, maximumFractionDigits: 2}
+                )
+            );
+        }
         if ( $('#tab_contract_items_requested').length > 0 ) {
             $('#tab_contract_items_requested').DataTable({
-                order: [[0, "asc"]]
+                order: order,
+                columnDefs: columnDefs
             });
         }
 
         if ( $('#tab_contract_items_included').length > 0 ) {
             $('#tab_contract_items_included').DataTable({
-                order: [[0, "asc"]]
+                order: order,
+                columnDefs: columnDefs,
+                footerCallback: footerCallback
             });
         }
     });

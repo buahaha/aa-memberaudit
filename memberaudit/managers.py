@@ -293,6 +293,35 @@ class CharacterAssetManager(models.Manager):
         )
 
 
+class CharacterContractItemManager(models.Manager):
+    def annotate_pricing(self) -> models.QuerySet:
+        """Returns qs with annotated price and total columns"""
+        return (
+            self.select_related("eve_type__market_price")
+            .annotate(
+                price=Case(
+                    When(
+                        raw_quantity=-2,
+                        then=Value(None),
+                    ),
+                    default=F("eve_type__market_price__average_price"),
+                )
+            )
+            .annotate(
+                total=Case(
+                    When(
+                        raw_quantity=-2,
+                        then=Value(None),
+                    ),
+                    default=ExpressionWrapper(
+                        F("eve_type__market_price__average_price") * F("quantity"),
+                        output_field=models.FloatField(),
+                    ),
+                )
+            )
+        )
+
+
 class CharacterMailLabelManager(models.Manager):
     def get_all_labels(self) -> Dict[int, models.Model]:
         """Returns all label objects as dict by label_id"""

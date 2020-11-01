@@ -774,16 +774,22 @@ def character_contract_details(
             CharacterContract.TYPE_AUCTION,
         ]:
             try:
-                items_qs = contract.items.select_related(
-                    "eve_type",
-                    "eve_type__eve_group",
-                    "eve_type__eve_group__eve_category",
-                ).values(
-                    "quantity",
-                    "eve_type_id",
-                    name=F("eve_type__name"),
-                    group=F("eve_type__eve_group__name"),
-                    category=F("eve_type__eve_group__eve_category__name"),
+                items_qs = (
+                    contract.items.annotate_pricing()
+                    .select_related(
+                        "eve_type",
+                        "eve_type__eve_group",
+                        "eve_type__eve_group__eve_category",
+                    )
+                    .values(
+                        "quantity",
+                        "eve_type_id",
+                        "price",
+                        "total",
+                        name=F("eve_type__name"),
+                        group=F("eve_type__eve_group__name"),
+                        category=F("eve_type__eve_group__eve_category__name"),
+                    )
                 )
                 items_included = items_qs.filter(is_included=True)
                 items_requested = items_qs.filter(is_included=False)

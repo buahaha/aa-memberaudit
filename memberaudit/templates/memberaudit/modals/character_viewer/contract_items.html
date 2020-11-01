@@ -10,6 +10,8 @@
             <th>{% translate 'Qty' %}</th>
             <th>{% translate 'Type' %}</th>
             <th>{% translate 'Category' %}</th>
+            <th>{% translate 'Price' %}</th>
+            <th>{% translate 'Total' %}</th>
         </tr>
     </thead>
 
@@ -32,7 +34,27 @@
                 <td>
                     {{ item.category }}
                 </td>
+
+                <td>
+                    {{ item.price|default_if_none:"" }}
+                </td>
+
+                <td>
+                    {{ item.total|default_if_none:"" }}
+                </td>
             </tr>
         {% endfor%}
     </tbody>
+
+    <tfoot>
+        <tr>
+            <th></th>
+            <th></th>
+            <th></th>
+            <th></th>
+            <th>Grand Total:</th>
+            <th></th>
+        </tr>
+    </tfoot>
+
 </table>

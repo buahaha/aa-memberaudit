@@ -488,45 +488,6 @@ class TestCharacterContracts(TestViewsBase):
             "not found for character", response_content_to_str(response.content)
         )
 
-    def test_character_contacts_data(self):
-        CharacterContact.objects.create(
-            character=self.character,
-            eve_entity=EveEntity.objects.get(id=1101),
-            standing=-10,
-            is_blocked=True,
-        )
-        CharacterContact.objects.create(
-            character=self.character,
-            eve_entity=EveEntity.objects.get(id=2001),
-            standing=10,
-        )
-
-        request = self.factory.get(
-            reverse("memberaudit:character_contacts_data", args=[self.character.pk])
-        )
-        request.user = self.user
-        response = character_contacts_data(request, self.character.pk)
-        self.assertEqual(response.status_code, 200)
-        data = json_response_to_python_dict(response)
-
-        self.assertEqual(len(data), 2)
-
-        row = data[1101]
-        self.assertEqual(row["name"]["sort"], "Lex Luther")
-        self.assertEqual(row["standing"], -10)
-        self.assertEqual(row["type"], "Character")
-        self.assertEqual(row["is_watched"], False)
-        self.assertEqual(row["is_blocked"], True)
-        self.assertEqual(row["level"], "Terrible Standing")
-
-        row = data[2001]
-        self.assertEqual(row["name"]["sort"], "Wayne Technologies")
-        self.assertEqual(row["standing"], 10)
-        self.assertEqual(row["type"], "Corporation")
-        self.assertEqual(row["is_watched"], False)
-        self.assertEqual(row["is_blocked"], False)
-        self.assertEqual(row["level"], "Excellent Standing")
-
 
 class TestViewsOther(TestViewsBase):
     @classmethod
@@ -566,6 +527,45 @@ class TestViewsOther(TestViewsBase):
         request.user = self.user
         response = character_viewer(request, self.character.pk)
         self.assertEqual(response.status_code, 200)
+
+    def test_character_contacts_data(self):
+        CharacterContact.objects.create(
+            character=self.character,
+            eve_entity=EveEntity.objects.get(id=1101),
+            standing=-10,
+            is_blocked=True,
+        )
+        CharacterContact.objects.create(
+            character=self.character,
+            eve_entity=EveEntity.objects.get(id=2001),
+            standing=10,
+        )
+
+        request = self.factory.get(
+            reverse("memberaudit:character_contacts_data", args=[self.character.pk])
+        )
+        request.user = self.user
+        response = character_contacts_data(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python_dict(response)
+
+        self.assertEqual(len(data), 2)
+
+        row = data[1101]
+        self.assertEqual(row["name"]["sort"], "Lex Luther")
+        self.assertEqual(row["standing"], -10)
+        self.assertEqual(row["type"], "Character")
+        self.assertEqual(row["is_watched"], False)
+        self.assertEqual(row["is_blocked"], True)
+        self.assertEqual(row["level"], "Terrible Standing")
+
+        row = data[2001]
+        self.assertEqual(row["name"]["sort"], "Wayne Technologies")
+        self.assertEqual(row["standing"], 10)
+        self.assertEqual(row["type"], "Corporation")
+        self.assertEqual(row["is_watched"], False)
+        self.assertEqual(row["is_blocked"], False)
+        self.assertEqual(row["level"], "Excellent Standing")
 
     def test_doctrines_data(self):
         skill_type_1 = EveType.objects.get(id=24311)

@@ -108,6 +108,32 @@
         white-space: nowrap;
     }
 
+    /* Contracts Modal */
+    #tab_contract_items_requested tbody td:nth-child(5) {
+        text-align: right;
+    }
+    #tab_contract_items_requested tbody td:nth-child(6) {
+        text-align: right;
+    }
+    #tab_contract_items_requested tfoot th:nth-child(5) {
+        text-align: right;
+    }
+    #tab_contract_items_requested tfoot th:nth-child(6) {
+        text-align: right;
+    }
+    #tab_contract_items_included tbody td:nth-child(5) {
+        text-align: right;
+    }
+    #tab_contract_items_included tbody td:nth-child(6) {
+        text-align: right;
+    }
+    #tab_contract_items_included tfoot th:nth-child(5) {
+        text-align: right;
+    }
+    #tab_contract_items_included tfoot th:nth-child(6) {
+        text-align: right;
+    }
+
     /* Loyalty */
     #tab_loyalty tbody td:nth-child(1) {
         white-space: nowrap;

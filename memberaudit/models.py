@@ -47,10 +47,11 @@ from .helpers import (
     eve_xml_to_html,
 )
 from .managers import (
+    CharacterAssetManager,
+    CharacterContractItemManager,
     CharacterMailLabelManager,
     CharacterManager,
     LocationManager,
-    CharacterAssetManager,
 )
 from .providers import esi
 from .utils import LoggerAddTag, chunks
@@ -2124,7 +2125,12 @@ class CharacterContractItem(models.Model):
     is_singleton = models.BooleanField()
     quantity = models.PositiveIntegerField()
     raw_quantity = models.IntegerField(default=None, null=True)
+    """
+    -1 indicates that the item is a singleton (non-stackable). If the item happens to be a Blueprint, -1 is an Original and -2 is a Blueprint Copy
+    """
     eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
+
+    objects = CharacterContractItemManager()
 
     def __str__(self) -> str:
         return f"{self.contract}-{self.record_id}"
