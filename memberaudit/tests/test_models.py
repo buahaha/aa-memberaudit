@@ -1128,7 +1128,7 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
 
         self.assertSetEqual(
             set(self.character_1001.wallet_journal.values_list("entry_id", flat=True)),
-            {89},
+            {89, 91},
         )
         obj = self.character_1001.wallet_journal.get(entry_id=89)
         self.assertEqual(obj.amount, -100_000)
@@ -1140,6 +1140,11 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
         self.assertEqual(obj.first_party.id, 2001)
         self.assertEqual(obj.ref_type, "contract_deposit")
         self.assertEqual(obj.second_party.id, 2002)
+
+        obj = self.character_1001.wallet_journal.get(entry_id=91)
+        self.assertEqual(
+            obj.ref_type, "agent_mission_time_bonus_reward_corporation_tax"
+        )
 
     def test_update_wallet_journal_2(self, mock_esi):
         """can add entry to existing wallet journal"""
@@ -1160,7 +1165,7 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
 
         self.assertSetEqual(
             set(self.character_1001.wallet_journal.values_list("entry_id", flat=True)),
-            {1, 89},
+            {1, 89, 91},
         )
 
         obj = self.character_1001.wallet_journal.get(entry_id=89)
@@ -1193,7 +1198,7 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
 
         self.assertSetEqual(
             set(self.character_1001.wallet_journal.values_list("entry_id", flat=True)),
-            {89},
+            {89, 91},
         )
         obj = self.character_1001.wallet_journal.get(entry_id=89)
         self.assertEqual(obj.amount, 1_000_000)
