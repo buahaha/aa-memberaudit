@@ -2666,7 +2666,7 @@ class CharacterWalletJournalEntry(models.Model):
         related_name="wallet_journal_entry_first_party_set",
     )
     reason = models.TextField()
-    ref_type = models.CharField(max_length=32)
+    ref_type = models.CharField(max_length=64)
     second_party = models.ForeignKey(
         EveEntity,
         on_delete=models.SET_DEFAULT,
