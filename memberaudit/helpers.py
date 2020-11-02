@@ -120,9 +120,8 @@ def _link_replace(link_match) -> str:
         elif first_id == 16159:  # Alliance
             alliance_name = EveEntity.objects.resolve_name(second_id)
             return f'<a href="{dotlan.alliance_url(alliance_name)}" target="_blank">'
-    return (
-        f"""<a href="javascript:alert('{gettext_lazy('Unsupported link type.')}');">"""
-    )
+    message = gettext_lazy("Unsupported link type.")
+    return f"""<a href="javascript:alert('{message}');">"""
 
 
 def eve_xml_to_html(xml: str) -> str:
