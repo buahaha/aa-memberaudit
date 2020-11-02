@@ -80,7 +80,7 @@ _font_regex = re.compile(
     r'<font (?P<pre>.*?)(size="(?P<size>[0-9]{1,2})")? ?(color="#[0-9a-f]{2}(?P<color>[0-9a-f]{6})")?(?P<post>.*?)>'
 )
 _link_regex = re.compile(
-    r'<a href="(?P<schema>[a-z]+):(?P<first_id>\d+)(//(?P<second_id>\d+))?">'
+    r'<a href="(?P<schema>[a-zA-Z]+):(?P<first_id>\d+)((//|:)(?P<second_id>[0-9a-f]+))?">'
 )
 
 
@@ -105,9 +105,9 @@ def _link_replace(link_match) -> str:
     schema = link_match.group("schema")
     first_id = int(link_match.group("first_id"))
     second_id = link_match.group("second_id")
-    if second_id is not None:
-        second_id = int(second_id)
     if schema == "showinfo":
+        if second_id is not None:
+            second_id = int(second_id)
         if 1373 <= first_id <= 1386:  # Character
             return f'<a href="{evewho.character_url(second_id)}" target="_blank">'
         elif first_id == 5:  # Solar System
