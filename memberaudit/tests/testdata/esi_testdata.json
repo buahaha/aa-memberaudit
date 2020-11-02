@@ -535,6 +535,16 @@
                     "skill_id": 24312,
                     "start_date": "2016-06-29T10:47:00Z",
                     "training_start_sp": 50
+                },
+                {
+                    "finish_date": "2016-08-15T10:47:00Z",
+                    "finished_level": 5,
+                    "level_end_sp": 10000,
+                    "level_start_sp": 1000,
+                    "queue_position": 2,
+                    "skill_id": 24312,
+                    "start_date": "2016-07-15T10:47:00Z",
+                    "training_start_sp": 50
                 }
             ]
         }

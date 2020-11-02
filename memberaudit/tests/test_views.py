@@ -784,19 +784,19 @@ class TestViewsOther(TestViewsBase):
 
         # can fly ship 1
         ship_1 = DoctrineShip.objects.create(name="Ship 1")
-        DoctrineShipSkill.objects.create(ship=ship_1, skill=skill_type_1, level=3)
+        DoctrineShipSkill.objects.create(ship=ship_1, eve_type=skill_type_1, level=3)
         doctrine_1.ships.add(ship_1)
         doctrine_2.ships.add(ship_1)
 
         # can not fly ship 2
         ship_2 = DoctrineShip.objects.create(name="Ship 2")
-        DoctrineShipSkill.objects.create(ship=ship_2, skill=skill_type_1, level=5)
-        DoctrineShipSkill.objects.create(ship=ship_2, skill=skill_type_2, level=3)
+        DoctrineShipSkill.objects.create(ship=ship_2, eve_type=skill_type_1, level=5)
+        DoctrineShipSkill.objects.create(ship=ship_2, eve_type=skill_type_2, level=3)
         doctrine_1.ships.add(ship_2)
 
         # can fly ship 3 (No Doctrine)
         ship_3 = DoctrineShip.objects.create(name="Ship 3")
-        DoctrineShipSkill.objects.create(ship=ship_3, skill=skill_type_1, level=1)
+        DoctrineShipSkill.objects.create(ship=ship_3, eve_type=skill_type_1, level=1)
 
         self.character.update_doctrines()
 
@@ -1460,14 +1460,14 @@ class TestDoctrineReportData(TestCase):
         skill_type_2 = EveType.objects.get(id=24312)
 
         ship_1 = DoctrineShip.objects.create(name="Ship 1")
-        DoctrineShipSkill.objects.create(ship=ship_1, skill=skill_type_1, level=3)
+        DoctrineShipSkill.objects.create(ship=ship_1, eve_type=skill_type_1, level=3)
 
         ship_2 = DoctrineShip.objects.create(name="Ship 2")
-        DoctrineShipSkill.objects.create(ship=ship_2, skill=skill_type_1, level=5)
-        DoctrineShipSkill.objects.create(ship=ship_2, skill=skill_type_2, level=3)
+        DoctrineShipSkill.objects.create(ship=ship_2, eve_type=skill_type_1, level=5)
+        DoctrineShipSkill.objects.create(ship=ship_2, eve_type=skill_type_2, level=3)
 
         ship_3 = DoctrineShip.objects.create(name="Ship 3")
-        DoctrineShipSkill.objects.create(ship=ship_3, skill=skill_type_1, level=1)
+        DoctrineShipSkill.objects.create(ship=ship_3, eve_type=skill_type_1, level=1)
 
         doctrine_1 = Doctrine.objects.create(name="Alpha")
         doctrine_1.ships.add(ship_1)

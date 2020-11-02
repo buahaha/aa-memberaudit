@@ -2,6 +2,9 @@ import os
 import inspect
 import json
 
+from eveuniverse.models import EveEntity
+
+from ...constants import EVE_CATEGORY_ID_STATION
 from ...models import Location
 
 _currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -28,3 +31,12 @@ def load_locations():
         "get_universe_stations_station_id"
     ].items():
         Location.objects._station_update_or_create_dict(id=station_id, station=station)
+
+    for obj in Location.objects.filter(
+        eve_type__eve_group__eve_category_id=EVE_CATEGORY_ID_STATION
+    ):
+        EveEntity.objects.create(
+            id=obj.id,
+            name=obj.name,
+            category=EveEntity.CATEGORY_STATION,
+        )

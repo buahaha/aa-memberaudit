@@ -948,7 +948,7 @@ class Character(models.Model):
 
             # create empty new objects
             doctrine_ships_qs = DoctrineShip.objects.prefetch_related(
-                "skills", "skills__skill"
+                "skills", "skills__eve_type"
             ).all()
             doctrine_ships_count = doctrine_ships_qs.count()
             if doctrine_ships_count == 0:
@@ -973,10 +973,10 @@ class Character(models.Model):
             for ship in doctrine_ships_qs:
                 skills = list()
                 for skill in ship.skills.all():
-                    skill_id = skill.skill_id
+                    eve_type_id = skill.eve_type_id
                     if (
-                        skill_id not in character_skills
-                        or character_skills[skill_id] < skill.level
+                        eve_type_id not in character_skills
+                        or character_skills[eve_type_id] < skill.level
                     ):
                         skills.append(skill)
 
@@ -1434,7 +1434,7 @@ class Character(models.Model):
                 entries = [
                     CharacterSkillqueueEntry(
                         character=self,
-                        skill=get_or_create_esi_or_none("skill_id", entry, EveType),
+                        eve_type=get_or_create_esi_or_none("skill_id", entry, EveType),
                         finish_date=entry.get("finish_date"),
                         finished_level=entry.get("finished_level"),
                         level_end_sp=entry.get("level_end_sp"),
@@ -1754,7 +1754,6 @@ class CharacterAsset(models.Model):
 
     objects = CharacterAssetManager()
 
-    """ TODO: Enable when design is stable
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -1762,7 +1761,6 @@ class CharacterAsset(models.Model):
                 name="functional_pk_characterasset",
             )
         ]
-    """
 
     def __str__(self) -> str:
         return f"{self.character}-{self.item_id}-{self.name_display}"
@@ -1806,7 +1804,6 @@ class CharacterContactLabel(models.Model):
     label_id = models.BigIntegerField(validators=[MinValueValidator(0)])
     name = models.CharField(max_length=NAMES_MAX_LENGTH)
 
-    """ TODO: Enable when design is stable
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -1814,7 +1811,6 @@ class CharacterContactLabel(models.Model):
                 name="functional_pk_characterlabel",
             )
         ]
-    """
 
     def __str__(self) -> str:
         return f"{self.character}-{self.name}"
@@ -1833,12 +1829,12 @@ class CharacterContact(models.Model):
         Character, on_delete=models.CASCADE, related_name="contacts"
     )
     eve_entity = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
+
     is_blocked = models.BooleanField(default=None, null=True)
     is_watched = models.BooleanField(default=None, null=True)
     standing = models.FloatField()
     labels = models.ManyToManyField(CharacterContactLabel, related_name="contacts")
 
-    """ TODO: Enable when design is stable
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -1846,7 +1842,6 @@ class CharacterContact(models.Model):
                 name="functional_pk_charactercontact",
             )
         ]
-    """
 
     def __str__(self) -> str:
         return f"{self.character}-{self.eve_entity.name}"
@@ -2125,9 +2120,6 @@ class CharacterContractItem(models.Model):
     is_singleton = models.BooleanField()
     quantity = models.PositiveIntegerField()
     raw_quantity = models.IntegerField(default=None, null=True)
-    """
-    -1 indicates that the item is a singleton (non-stackable). If the item happens to be a Blueprint, -1 is an Original and -2 is a Blueprint Copy
-    """
     eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
 
     objects = CharacterContractItemManager()
@@ -2222,9 +2214,9 @@ class CharacterDoctrineShipCheck(models.Model):
         Character, on_delete=models.CASCADE, related_name="doctrine_ships"
     )
     ship = models.ForeignKey("DoctrineShip", on_delete=models.CASCADE)
+
     insufficient_skills = models.ManyToManyField("DoctrineShipSkill")
 
-    """ TODO: Enable when design is stable
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -2232,7 +2224,6 @@ class CharacterDoctrineShipCheck(models.Model):
                 name="functional_pk_characterdoctrineshipcheck",
             )
         ]
-    """
 
     def __str__(self) -> str:
         return f"{self.character}-{self.ship}"
@@ -2250,7 +2241,6 @@ class CharacterImplant(models.Model):
     )
     eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
 
-    """ TODO: Enable when design is stable
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -2258,7 +2248,6 @@ class CharacterImplant(models.Model):
                 name="functional_pk_characterimplant",
             )
         ]
-    """
 
     def __str__(self) -> str:
         return str(f"{self.character}-{self.eve_type}")
@@ -2292,7 +2281,6 @@ class CharacterLoyaltyEntry(models.Model):
 
     loyalty_points = models.PositiveIntegerField()
 
-    """ TODO: Enable when design is stable
     class Meta:
         constraints = [
             models.UniqueConstraint(
@@ -2300,7 +2288,6 @@ class CharacterLoyaltyEntry(models.Model):
                 name="functional_pk_characterloyaltyentry",
             )
         ]
-    """
 
     def __str__(self) -> str:
         return f"{self.character}-{self.corporation}"
@@ -2531,7 +2518,7 @@ class CharacterSkillqueueEntry(models.Model):
         on_delete=models.CASCADE,
         related_name="skillqueue",
     )
-    skill = models.ForeignKey(EveType, on_delete=models.CASCADE)
+    queue_position = models.PositiveIntegerField(db_index=True)
 
     finish_date = models.DateTimeField(default=None, null=True)
     finished_level = models.PositiveIntegerField(
@@ -2539,22 +2526,20 @@ class CharacterSkillqueueEntry(models.Model):
     )
     level_end_sp = models.PositiveIntegerField(default=None, null=True)
     level_start_sp = models.PositiveIntegerField(default=None, null=True)
-    queue_position = models.PositiveIntegerField(db_index=True)
+    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
     start_date = models.DateTimeField(default=None, null=True)
     training_start_sp = models.PositiveIntegerField(default=None, null=True)
 
-    """ TODO: Enable when design is stable
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["character", "skill"],
+                fields=["character", "queue_position"],
                 name="functional_pk_characterskillqueueentry",
             )
         ]
-    """
 
     def __str__(self) -> str:
-        return f"{self.character}-{self.skill}"
+        return f"{self.character}-{self.queue_position}"
 
     @property
     def is_active(self) -> bool:
@@ -2726,7 +2711,9 @@ class Doctrine(models.Model):
 
     name = models.CharField(max_length=NAMES_MAX_LENGTH, unique=True)
     description = models.TextField(blank=True)
-    ships = models.ManyToManyField("DoctrineShip", related_name="doctrines")
+    ships = models.ManyToManyField(
+        "DoctrineShip", related_name="doctrines", verbose_name="doctrine ships"
+    )
     is_active = models.BooleanField(
         default=True, db_index=True, help_text="Whether this doctrine is in active use"
     )
@@ -2761,22 +2748,22 @@ class DoctrineShipSkill(models.Model):
     ship = models.ForeignKey(
         DoctrineShip, on_delete=models.CASCADE, related_name="skills"
     )
-    skill = models.ForeignKey(EveType, on_delete=models.CASCADE)
+    eve_type = models.ForeignKey(
+        EveType, on_delete=models.CASCADE, verbose_name="skill"
+    )
 
     level = models.PositiveIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(5)],
         help_text="Minimum required skill level",
     )
 
-    """ TODO: Enable when design is stable
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["doctrine", "skill"],
+                fields=["ship", "eve_type"],
                 name="functional_pk_doctrineskill",
             )
         ]
-    """
 
     def __str__(self) -> str:
-        return f"{self.ship}-{self.skill}"
+        return f"{self.ship}-{self.eve_type}"

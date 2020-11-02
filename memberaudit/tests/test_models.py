@@ -1018,7 +1018,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(MODELS_PATH + ".esi")
-class TestCharacterUpdateSkills(TestCharacterUpdateBase):
+class TestCharacterUpdateSkillQueue(TestCharacterUpdateBase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
@@ -1027,15 +1027,17 @@ class TestCharacterUpdateSkills(TestCharacterUpdateBase):
         mock_esi.client = esi_client_stub
 
         self.character_1001.update_skill_queue()
-        self.assertEqual(self.character_1001.skillqueue.count(), 2)
+        self.assertEqual(self.character_1001.skillqueue.count(), 3)
 
-        entry = self.character_1001.skillqueue.get(skill_id=24311)
+        entry = self.character_1001.skillqueue.get(queue_position=0)
+        self.assertEqual(entry.eve_type, EveType.objects.get(id=24311))
         self.assertEqual(entry.finish_date, parse_datetime("2016-06-29T10:47:00Z"))
         self.assertEqual(entry.finished_level, 3)
         self.assertEqual(entry.queue_position, 0)
         self.assertEqual(entry.start_date, parse_datetime("2016-06-29T10:46:00Z"))
 
-        entry = self.character_1001.skillqueue.get(skill_id=24312)
+        entry = self.character_1001.skillqueue.get(queue_position=1)
+        self.assertEqual(entry.eve_type, EveType.objects.get(id=24312))
         self.assertEqual(entry.finish_date, parse_datetime("2016-07-15T10:47:00Z"))
         self.assertEqual(entry.finished_level, 4)
         self.assertEqual(entry.level_end_sp, 1000)
@@ -1043,6 +1045,18 @@ class TestCharacterUpdateSkills(TestCharacterUpdateBase):
         self.assertEqual(entry.queue_position, 1)
         self.assertEqual(entry.start_date, parse_datetime("2016-06-29T10:47:00Z"))
         self.assertEqual(entry.training_start_sp, 50)
+
+        entry = self.character_1001.skillqueue.get(queue_position=2)
+        self.assertEqual(entry.eve_type, EveType.objects.get(id=24312))
+        self.assertEqual(entry.finished_level, 5)
+
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODELS_PATH + ".esi")
+class TestCharacterUpdateSkills(TestCharacterUpdateBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
 
     def test_update_skills_1(self, mock_esi):
         """can create new skills"""
@@ -1333,27 +1347,27 @@ class TestCharacterCanFlyDoctrines(NoSocketsTestCase):
         load_entities()
         load_locations()
         cls.character = create_memberaudit_character(1001)
-        cls.skill_1 = EveType.objects.get(id=24311)
-        cls.skill_2 = EveType.objects.get(id=24312)
+        cls.skill_type_1 = EveType.objects.get(id=24311)
+        cls.skill_type_2 = EveType.objects.get(id=24312)
 
     def test_has_all_skills(self):
         CharacterSkill.objects.create(
             character=self.character,
-            eve_type=self.skill_1,
+            eve_type=self.skill_type_1,
             active_skill_level=5,
             skillpoints_in_skill=10,
             trained_skill_level=5,
         )
         CharacterSkill.objects.create(
             character=self.character,
-            eve_type=self.skill_2,
+            eve_type=self.skill_type_2,
             active_skill_level=5,
             skillpoints_in_skill=10,
             trained_skill_level=5,
         )
         ship = DoctrineShip.objects.create(name="Ship 1")
-        DoctrineShipSkill.objects.create(ship=ship, skill=self.skill_1, level=5)
-        DoctrineShipSkill.objects.create(ship=ship, skill=self.skill_2, level=3)
+        DoctrineShipSkill.objects.create(ship=ship, eve_type=self.skill_type_1, level=5)
+        DoctrineShipSkill.objects.create(ship=ship, eve_type=self.skill_type_2, level=3)
         doctrine = Doctrine.objects.create(name="Dummy")
         doctrine.ships.add(ship)
 
@@ -1367,22 +1381,22 @@ class TestCharacterCanFlyDoctrines(NoSocketsTestCase):
     def test_one_skill_below(self):
         CharacterSkill.objects.create(
             character=self.character,
-            eve_type=self.skill_1,
+            eve_type=self.skill_type_1,
             active_skill_level=5,
             skillpoints_in_skill=10,
             trained_skill_level=5,
         )
         CharacterSkill.objects.create(
             character=self.character,
-            eve_type=self.skill_2,
+            eve_type=self.skill_type_2,
             active_skill_level=2,
             skillpoints_in_skill=10,
             trained_skill_level=5,
         )
         ship = DoctrineShip.objects.create(name="Ship 1")
-        DoctrineShipSkill.objects.create(ship=ship, skill=self.skill_1, level=5)
+        DoctrineShipSkill.objects.create(ship=ship, eve_type=self.skill_type_1, level=5)
         skill_2 = DoctrineShipSkill.objects.create(
-            ship=ship, skill=self.skill_2, level=3
+            ship=ship, eve_type=self.skill_type_2, level=3
         )
         doctrine = Doctrine.objects.create(name="Dummy")
         doctrine.ships.add(ship)
@@ -1399,15 +1413,15 @@ class TestCharacterCanFlyDoctrines(NoSocketsTestCase):
     def test_misses_one_skill(self):
         CharacterSkill.objects.create(
             character=self.character,
-            eve_type=self.skill_1,
+            eve_type=self.skill_type_1,
             active_skill_level=5,
             skillpoints_in_skill=10,
             trained_skill_level=5,
         )
         ship = DoctrineShip.objects.create(name="Ship 1")
-        DoctrineShipSkill.objects.create(ship=ship, skill=self.skill_1, level=5)
+        DoctrineShipSkill.objects.create(ship=ship, eve_type=self.skill_type_1, level=5)
         skill_2 = DoctrineShipSkill.objects.create(
-            ship=ship, skill=self.skill_2, level=3
+            ship=ship, eve_type=self.skill_type_2, level=3
         )
         doctrine = Doctrine.objects.create(name="Dummy")
         doctrine.ships.add(ship)
@@ -1424,10 +1438,10 @@ class TestCharacterCanFlyDoctrines(NoSocketsTestCase):
     def test_misses_all_skills(self):
         ship = DoctrineShip.objects.create(name="Ship 1")
         skill_1 = DoctrineShipSkill.objects.create(
-            ship=ship, skill=self.skill_1, level=5
+            ship=ship, eve_type=self.skill_type_1, level=5
         )
         skill_2 = DoctrineShipSkill.objects.create(
-            ship=ship, skill=self.skill_2, level=3
+            ship=ship, eve_type=self.skill_type_2, level=3
         )
         doctrine = Doctrine.objects.create(name="Dummy")
         doctrine.ships.add(ship)
@@ -1445,10 +1459,10 @@ class TestCharacterCanFlyDoctrines(NoSocketsTestCase):
     def test_does_not_require_doctrine_definition(self):
         ship = DoctrineShip.objects.create(name="Ship 1")
         skill_1 = DoctrineShipSkill.objects.create(
-            ship=ship, skill=self.skill_1, level=5
+            ship=ship, eve_type=self.skill_type_1, level=5
         )
         skill_2 = DoctrineShipSkill.objects.create(
-            ship=ship, skill=self.skill_2, level=3
+            ship=ship, eve_type=self.skill_type_2, level=3
         )
 
         self.character.update_doctrines()
@@ -1589,14 +1603,14 @@ class TestCharacterSkillQueue(NoSocketsTestCase):
         load_entities()
         load_locations()
         cls.character_1001 = create_memberaudit_character(1001)
-        cls.skill_1 = EveType.objects.get(id=24311)
-        cls.skill_2 = EveType.objects.get(id=24312)
+        cls.skill_type_1 = EveType.objects.get(id=24311)
+        cls.skill_type_2 = EveType.objects.get(id=24312)
 
     def test_is_active_1(self):
         """when training is active and skill is in first position then return True"""
         entry = CharacterSkillqueueEntry.objects.create(
             character=self.character_1001,
-            skill=self.skill_1,
+            eve_type=self.skill_type_1,
             finish_date=now() + dt.timedelta(days=3),
             finished_level=5,
             queue_position=0,
@@ -1608,7 +1622,7 @@ class TestCharacterSkillQueue(NoSocketsTestCase):
         """when training is active and skill is not in first position then return False"""
         entry = CharacterSkillqueueEntry.objects.create(
             character=self.character_1001,
-            skill=self.skill_1,
+            eve_type=self.skill_type_1,
             finish_date=now() + dt.timedelta(days=3),
             finished_level=5,
             queue_position=1,
@@ -1620,7 +1634,7 @@ class TestCharacterSkillQueue(NoSocketsTestCase):
         """when training is not active and skill is in first position then return False"""
         entry = CharacterSkillqueueEntry.objects.create(
             character=self.character_1001,
-            skill=self.skill_1,
+            eve_type=self.skill_type_1,
             finished_level=5,
             queue_position=0,
         )

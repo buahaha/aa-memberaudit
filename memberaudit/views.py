@@ -405,7 +405,7 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
     # skill queue
     skill_queue = list()
     for row in (
-        character.skillqueue.select_related("skill")
+        character.skillqueue.select_related("eve_type")
         .filter(character_id=character_pk)
         .order_by("queue_position")
     ):
@@ -429,7 +429,7 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
                 "finish_date": row.finish_date,
                 "finish_date_humanized": finish_date_humanized,
                 "finished_level": MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[row.finished_level],
-                "skill": row.skill.name,
+                "skill": row.eve_type.name,
                 "is_currently_trained_skill": is_currently_trained_skill,
             }
         )
@@ -918,11 +918,11 @@ def character_doctrines_data(
     try:
         for ship_check in character.doctrine_ships.filter(ship__is_visible=True):
             insufficient_skills_1 = sorted(
-                ship_check.insufficient_skills.values("skill__name", "level"),
-                key=lambda k: k["skill__name"].lower(),
+                ship_check.insufficient_skills.values("eve_type__name", "level"),
+                key=lambda k: k["eve_type__name"].lower(),
             )
             insufficient_skills_2 = [
-                obj["skill__name"]
+                obj["eve_type__name"]
                 + "&nbsp;"
                 + MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[obj["level"]]
                 for obj in insufficient_skills_1

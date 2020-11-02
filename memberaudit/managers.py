@@ -191,8 +191,8 @@ class LocationManager(models.Manager):
             structure = esi.client.Universe.get_universe_structures_structure_id(
                 structure_id=id, token=token.valid_access_token()
             ).results()
-        except (HTTPUnauthorized, HTTPForbidden):
-            logger.warn("%s: No access to this structure", id, exc_info=True)
+        except (HTTPUnauthorized, HTTPForbidden) as ex:
+            logger.warn("%s: No access to this structure: %s", id, ex)
             location, created = self.get_or_create(id=id)
 
         else:

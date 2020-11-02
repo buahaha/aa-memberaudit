@@ -2,13 +2,21 @@ import os
 import inspect
 import json
 
-from eveuniverse.models import EveEntity
+from eveuniverse.models import (
+    EveConstellation,
+    EveEntity,
+    EveFaction,
+    EveRegion,
+    EveSolarSystem,
+    EveType,
+)
 
 from allianceauth.eveonline.models import (
     EveCharacter,
     EveCorporationInfo,
     EveAllianceInfo,
 )
+
 
 _currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 
@@ -85,4 +93,17 @@ def load_entities():
             id=entity_info.get("id"),
             name=entity_info.get("name"),
             category=entity_info.get("category"),
+        )
+
+    for EveModel in [EveConstellation, EveFaction, EveRegion, EveSolarSystem, EveType]:
+        _generate_eve_entities_from_eve_universe(EveModel)
+
+
+def _generate_eve_entities_from_eve_universe(EveModel):
+    category = EveModel.eve_entity_category()
+    for obj in EveModel.objects.all():
+        EveEntity.objects.create(
+            id=obj.id,
+            name=obj.name,
+            category=category,
         )
