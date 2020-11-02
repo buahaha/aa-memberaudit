@@ -1772,7 +1772,7 @@ class CharacterAsset(models.Model):
         """name of this asset to be displayed to user"""
         name = self.name if self.name else self.eve_type.name
         if self.is_blueprint_copy:
-            name += " [copy]"
+            name += " [BPC]"
         return name
 
     @property
@@ -2134,6 +2134,10 @@ class CharacterContractItem(models.Model):
 
     def __str__(self) -> str:
         return f"{self.contract}-{self.record_id}"
+
+    @property
+    def is_bpo(self) -> bool:
+        return self.raw_quantity == -2
 
 
 class CharacterCorporationHistory(models.Model):

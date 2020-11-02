@@ -34,6 +34,7 @@ from .models import (
     Character,
     CharacterAsset,
     CharacterContract,
+    CharacterContractItem,
     CharacterMail,
     Doctrine,
     Location,
@@ -755,7 +756,7 @@ def character_contract_details(
             character.contracts.select_related(
                 "issuer", "start_location", "end_location", "assignee"
             )
-            .prefetch_related("items", "bids")
+            .prefetch_related("bids")
             .get(pk=contract_pk)
         )
     except CharacterContract.DoesNotExist:
@@ -765,54 +766,32 @@ def character_contract_details(
         logger.warning(error_msg)
         context = {
             "error": error_msg,
+            "character": character,
         }
     else:
-        items_included = None
-        items_requested = None
-        if contract.contract_type in [
-            CharacterContract.TYPE_ITEM_EXCHANGE,
-            CharacterContract.TYPE_AUCTION,
-        ]:
-            try:
-                items_qs = (
-                    contract.items.annotate_pricing()
-                    .select_related(
-                        "eve_type",
-                        "eve_type__eve_group",
-                        "eve_type__eve_group__eve_category",
-                    )
-                    .values(
-                        "quantity",
-                        "eve_type_id",
-                        "price",
-                        "total",
-                        name=F("eve_type__name"),
-                        group=F("eve_type__eve_group__name"),
-                        category=F("eve_type__eve_group__eve_category__name"),
-                    )
-                )
-                items_included = items_qs.filter(is_included=True)
-                items_requested = items_qs.filter(is_included=False)
-            except ObjectDoesNotExist:
-                pass
+        try:
+            has_items_included = contract.items.filter(is_included=True).exists()
+            has_items_requested = contract.items.filter(is_included=False).exists()
+        except ObjectDoesNotExist:
+            has_items_included = False
+            has_items_requested = False
 
-        current_bid = None
-        bids_count = None
-        if contract.contract_type == CharacterContract.TYPE_AUCTION:
-            try:
-                current_bid = (
-                    contract.bids.all().aggregate(Max("amount")).get("amount__max")
-                )
-                bids_count = contract.bids.count()
-            except ObjectDoesNotExist:
-                pass
+        try:
+            current_bid = (
+                contract.bids.all().aggregate(Max("amount")).get("amount__max")
+            )
+            bids_count = contract.bids.count()
+        except ObjectDoesNotExist:
+            current_bid = None
+            bids_count = None
 
         context = {
+            "character": character,
             "contract": contract,
             "contract_summary": contract.summary(),
             "MY_DATETIME_FORMAT": MY_DATETIME_FORMAT,
-            "items_included": items_included,
-            "items_requested": items_requested,
+            "has_items_included": has_items_included,
+            "has_items_requested": has_items_requested,
             "current_bid": current_bid,
             "bids_count": bids_count,
         }
@@ -821,6 +800,93 @@ def character_contract_details(
         "memberaudit/modals/character_viewer/contract_content.html",
         add_common_context(request, context),
     )
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_contract_items_included_data(
+    request, character_pk: int, character: Character, contract_pk: int
+) -> JsonResponse:
+    return _character_contract_items_data(
+        request=request,
+        character_pk=character_pk,
+        character=character,
+        contract_pk=contract_pk,
+        is_included=True,
+    )
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_contract_items_requested_data(
+    request, character_pk: int, character: Character, contract_pk: int
+) -> JsonResponse:
+    return _character_contract_items_data(
+        request=request,
+        character_pk=character_pk,
+        character=character,
+        contract_pk=contract_pk,
+        is_included=False,
+    )
+
+
+def _character_contract_items_data(
+    request,
+    character_pk: int,
+    character: Character,
+    contract_pk: int,
+    is_included: bool,
+) -> JsonResponse:
+    data = list()
+    try:
+        contract = character.contracts.prefetch_related("items").get(pk=contract_pk)
+    except CharacterAsset.DoesNotExist:
+        error_msg = (
+            f"Contract with pk {contract_pk} not found for character {character}"
+        )
+        logger.warning(error_msg)
+        return HttpResponseNotFound(error_msg)
+
+    try:
+        items_qs = (
+            contract.items.annotate_pricing()
+            .filter(is_included=is_included)
+            .select_related(
+                "eve_type",
+                "eve_type__eve_group",
+                "eve_type__eve_group__eve_category",
+            )
+        )
+    except ObjectDoesNotExist:
+        items_qs = CharacterContractItem.objects.none()
+
+    for item in items_qs:
+        name = item.eve_type.name
+        if item.is_bpo:
+            name += " [BPC]"
+
+        name_html = create_icon_plus_name_html(
+            item.eve_type.icon_url(DEFAULT_ICON_SIZE), name
+        )
+        data.append(
+            {
+                "id": item.record_id,
+                "name": {
+                    "display": name_html,
+                    "sort": name,
+                },
+                "quantity": item.quantity if not item.is_singleton else "",
+                "group": item.eve_type.eve_group.name,
+                "category": item.eve_type.eve_group.eve_category.name,
+                "price": item.price,
+                "total": item.total,
+                "is_bpo": item.is_bpo,
+            }
+        )
+
+    return JsonResponse(data, safe=False)
 
 
 @login_required

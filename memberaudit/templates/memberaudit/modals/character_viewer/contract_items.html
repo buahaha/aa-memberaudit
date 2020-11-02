@@ -1,9 +1,6 @@
-{% load humanize %}
 {% load i18n %}
-{% load static %}
-{% load evelinks %}
 
-<table class="table table-striped" id="{{ table_name }}">
+<table class="table table-striped" id="{{ table_name }}" style="width:100%;">
     <thead>
         <tr>
             <th>{% translate 'Name' %}</th>
@@ -16,34 +13,6 @@
     </thead>
 
     <tbody>
-        {% for item in items %}
-            <tr>
-                <td data-order="{{ item.name }}">
-                    <img width="32" src="{{ item.eve_type_id|type_icon_url:32 }}" onerror="this.onerror=null;this.src='';"/>
-                    &nbsp;{{ item.name }}
-                </td>
-
-                <td>
-                    {{ item.quantity|intcomma }}
-                </td>
-
-                <td>
-                    {{ item.group }}
-                </td>
-
-                <td>
-                    {{ item.category }}
-                </td>
-
-                <td>
-                    {{ item.price|default_if_none:"" }}
-                </td>
-
-                <td>
-                    {{ item.total|default_if_none:"" }}
-                </td>
-            </tr>
-        {% endfor%}
     </tbody>
 
     <tfoot>

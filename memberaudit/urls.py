@@ -69,6 +69,16 @@ urlpatterns = [
         name="character_contract_details",
     ),
     path(
+        "character_contract_items_included_data/<int:character_pk>/<int:contract_pk>/",
+        views.character_contract_items_included_data,
+        name="character_contract_items_included_data",
+    ),
+    path(
+        "character_contract_items_requested_data/<int:character_pk>/<int:contract_pk>/",
+        views.character_contract_items_requested_data,
+        name="character_contract_items_requested_data",
+    ),
+    path(
         "character_corporation_history/<int:character_pk>/",
         views.character_corporation_history,
         name="character_corporation_history",

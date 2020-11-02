@@ -10,7 +10,7 @@ from django.test import TestCase, RequestFactory
 from django.utils.timezone import now
 from django.urls import reverse
 
-from eveuniverse.models import EveSolarSystem, EveType, EveEntity
+from eveuniverse.models import EveSolarSystem, EveType, EveEntity, EveMarketPrice
 
 from allianceauth.eveonline.models import EveAllianceInfo
 from allianceauth.tests.auth_utils import AuthUtils
@@ -54,6 +54,8 @@ from ..views import (
     character_contacts_data,
     character_contracts_data,
     character_contract_details,
+    character_contract_items_included_data,
+    character_contract_items_requested_data,
     character_corporation_history,
     character_doctrines_data,
     character_implants_data,
@@ -291,6 +293,8 @@ class TestCharacterContracts(TestViewsBase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
+        cls.item_type_1 = EveType.objects.get(id=19540)
+        cls.item_type_2 = EveType.objects.get(id=19551)
 
     @patch(MODULE_PATH + ".now")
     def test_character_contracts_data_1(self, mock_now):
@@ -321,7 +325,7 @@ class TestCharacterContracts(TestViewsBase):
             is_included=True,
             is_singleton=False,
             quantity=1,
-            eve_type=EveType.objects.get(id=19540),
+            eve_type=self.item_type_1,
         )
 
         # main view
@@ -384,7 +388,7 @@ class TestCharacterContracts(TestViewsBase):
             is_included=True,
             is_singleton=False,
             quantity=1,
-            eve_type=EveType.objects.get(id=19540),
+            eve_type=self.item_type_1,
         )
         CharacterContractItem.objects.create(
             contract=contract,
@@ -392,7 +396,7 @@ class TestCharacterContracts(TestViewsBase):
             is_included=True,
             is_singleton=False,
             quantity=1,
-            eve_type=EveType.objects.get(id=19551),
+            eve_type=self.item_type_2,
         )
         request = self.factory.get(
             reverse("memberaudit:character_contracts_data", args=[self.character.pk])
@@ -487,6 +491,196 @@ class TestCharacterContracts(TestViewsBase):
         self.assertIn(
             "not found for character", response_content_to_str(response.content)
         )
+
+    @patch(MODULE_PATH + ".now")
+    def test_items_included_data_normal(self, mock_now):
+        """items exchange single item"""
+        date_issued = dt.datetime(2020, 10, 8, 16, 45, tzinfo=pytz.utc)
+        date_now = date_issued + dt.timedelta(days=1)
+        date_expired = date_now + dt.timedelta(days=2, hours=3)
+        mock_now.return_value = date_now
+        contract = CharacterContract.objects.create(
+            character=self.character,
+            contract_id=42,
+            availability=CharacterContract.AVAILABILITY_PERSONAL,
+            contract_type=CharacterContract.TYPE_ITEM_EXCHANGE,
+            assignee=EveEntity.objects.get(id=1002),
+            date_issued=date_issued,
+            date_expired=date_expired,
+            for_corporation=False,
+            issuer=EveEntity.objects.get(id=1001),
+            issuer_corporation=EveEntity.objects.get(id=2001),
+            status=CharacterContract.STATUS_IN_PROGRESS,
+            start_location=self.jita_44,
+            end_location=self.jita_44,
+            title="Dummy info",
+        )
+        CharacterContractItem.objects.create(
+            contract=contract,
+            record_id=1,
+            is_included=True,
+            is_singleton=False,
+            quantity=3,
+            eve_type=self.item_type_1,
+        )
+        CharacterContractItem.objects.create(
+            contract=contract,
+            record_id=2,
+            is_included=False,
+            is_singleton=False,
+            quantity=3,
+            eve_type=self.item_type_2,
+        )
+        EveMarketPrice.objects.create(eve_type=self.item_type_1, average_price=5000000)
+        request = self.factory.get(
+            reverse(
+                "memberaudit:character_contract_items_included_data",
+                args=[self.character.pk, contract.pk],
+            )
+        )
+        request.user = self.user
+        response = character_contract_items_included_data(
+            request, self.character.pk, contract.pk
+        )
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python_dict(response)
+
+        self.assertSetEqual(set(data.keys()), {1})
+        obj = data[1]
+        self.assertEqual(obj["name"]["sort"], "High-grade Snake Alpha")
+        self.assertEqual(obj["quantity"], 3)
+        self.assertEqual(obj["group"], "Cyberimplant")
+        self.assertEqual(obj["category"], "Implant")
+        self.assertEqual(obj["price"], 5000000)
+        self.assertEqual(obj["total"], 15000000)
+        self.assertFalse(obj["is_bpo"])
+
+    @patch(MODULE_PATH + ".now")
+    def test_items_included_data_bpo(self, mock_now):
+        """items exchange single item, which is an BPO"""
+        date_issued = dt.datetime(2020, 10, 8, 16, 45, tzinfo=pytz.utc)
+        date_now = date_issued + dt.timedelta(days=1)
+        date_expired = date_now + dt.timedelta(days=2, hours=3)
+        mock_now.return_value = date_now
+        contract = CharacterContract.objects.create(
+            character=self.character,
+            contract_id=42,
+            availability=CharacterContract.AVAILABILITY_PERSONAL,
+            contract_type=CharacterContract.TYPE_ITEM_EXCHANGE,
+            assignee=EveEntity.objects.get(id=1002),
+            date_issued=date_issued,
+            date_expired=date_expired,
+            for_corporation=False,
+            issuer=EveEntity.objects.get(id=1001),
+            issuer_corporation=EveEntity.objects.get(id=2001),
+            status=CharacterContract.STATUS_IN_PROGRESS,
+            start_location=self.jita_44,
+            end_location=self.jita_44,
+            title="Dummy info",
+        )
+        CharacterContractItem.objects.create(
+            contract=contract,
+            record_id=1,
+            is_included=True,
+            is_singleton=True,
+            quantity=1,
+            raw_quantity=-2,
+            eve_type=self.item_type_1,
+        )
+        CharacterContractItem.objects.create(
+            contract=contract,
+            record_id=2,
+            is_included=True,
+            is_singleton=False,
+            quantity=3,
+            eve_type=self.item_type_2,
+        )
+        EveMarketPrice.objects.create(eve_type=self.item_type_1, average_price=5000000)
+        request = self.factory.get(
+            reverse(
+                "memberaudit:character_contract_items_included_data",
+                args=[self.character.pk, contract.pk],
+            )
+        )
+        request.user = self.user
+        response = character_contract_items_included_data(
+            request, self.character.pk, contract.pk
+        )
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python_dict(response)
+
+        self.assertSetEqual(set(data.keys()), {1, 2})
+        obj = data[1]
+        self.assertEqual(obj["name"]["sort"], "High-grade Snake Alpha [BPC]")
+        self.assertEqual(obj["quantity"], "")
+        self.assertEqual(obj["group"], "Cyberimplant")
+        self.assertEqual(obj["category"], "Implant")
+        self.assertIsNone(obj["price"])
+        self.assertIsNone(obj["total"])
+        self.assertTrue(obj["is_bpo"])
+
+    @patch(MODULE_PATH + ".now")
+    def test_items_requested_data_normal(self, mock_now):
+        """items exchange single item"""
+        date_issued = dt.datetime(2020, 10, 8, 16, 45, tzinfo=pytz.utc)
+        date_now = date_issued + dt.timedelta(days=1)
+        date_expired = date_now + dt.timedelta(days=2, hours=3)
+        mock_now.return_value = date_now
+        contract = CharacterContract.objects.create(
+            character=self.character,
+            contract_id=42,
+            availability=CharacterContract.AVAILABILITY_PERSONAL,
+            contract_type=CharacterContract.TYPE_ITEM_EXCHANGE,
+            assignee=EveEntity.objects.get(id=1002),
+            date_issued=date_issued,
+            date_expired=date_expired,
+            for_corporation=False,
+            issuer=EveEntity.objects.get(id=1001),
+            issuer_corporation=EveEntity.objects.get(id=2001),
+            status=CharacterContract.STATUS_IN_PROGRESS,
+            start_location=self.jita_44,
+            end_location=self.jita_44,
+            title="Dummy info",
+        )
+        CharacterContractItem.objects.create(
+            contract=contract,
+            record_id=1,
+            is_included=False,
+            is_singleton=False,
+            quantity=3,
+            eve_type=self.item_type_1,
+        )
+        CharacterContractItem.objects.create(
+            contract=contract,
+            record_id=2,
+            is_included=True,
+            is_singleton=False,
+            quantity=3,
+            eve_type=self.item_type_2,
+        )
+        EveMarketPrice.objects.create(eve_type=self.item_type_1, average_price=5000000)
+        request = self.factory.get(
+            reverse(
+                "memberaudit:character_contract_items_requested_data",
+                args=[self.character.pk, contract.pk],
+            )
+        )
+        request.user = self.user
+        response = character_contract_items_requested_data(
+            request, self.character.pk, contract.pk
+        )
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python_dict(response)
+
+        self.assertSetEqual(set(data.keys()), {1})
+        obj = data[1]
+        self.assertEqual(obj["name"]["sort"], "High-grade Snake Alpha")
+        self.assertEqual(obj["quantity"], 3)
+        self.assertEqual(obj["group"], "Cyberimplant")
+        self.assertEqual(obj["category"], "Implant")
+        self.assertEqual(obj["price"], 5000000)
+        self.assertEqual(obj["total"], 15000000)
+        self.assertFalse(obj["is_bpo"])
 
 
 class TestViewsOther(TestViewsBase):
