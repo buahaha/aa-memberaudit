@@ -8,13 +8,13 @@ _currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfra
 _FILENAME_ESI_TESTDATA = "esi_testdata.json"
 
 
-def _load_test_data():
+def load_test_data():
     with open(f"{_currentdir}/{_FILENAME_ESI_TESTDATA}", "r", encoding="utf-8") as f:
         return json.load(f)
 
 
 esi_client_stub = EsiClientStub(
-    _load_test_data(),
+    load_test_data(),
     [
         EsiEndpoint(
             "Assets",

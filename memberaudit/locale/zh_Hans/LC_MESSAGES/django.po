@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-10-29 14:55-0400\n"
+"POT-Creation-Date: 2020-11-02 09:19-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,223 +22,223 @@ msgstr ""
 msgid "Member Audit"
 msgstr ""
 
-#: models.py:216
+#: models.py:212
 msgid "assets"
 msgstr ""
 
-#: models.py:217
+#: models.py:213
 msgid "character details"
 msgstr ""
 
-#: models.py:218
+#: models.py:214
 msgid "contacts"
 msgstr ""
 
-#: models.py:219
+#: models.py:215
 msgid "contracts"
 msgstr ""
 
-#: models.py:220
+#: models.py:216
 msgid "corporation history"
 msgstr ""
 
-#: models.py:221
+#: models.py:217
 msgid "doctrines"
 msgstr ""
 
-#: models.py:222
+#: models.py:218
 msgid "implants"
 msgstr ""
 
-#: models.py:223
+#: models.py:219
 msgid "jump clones"
 msgstr ""
 
-#: models.py:224
+#: models.py:220
 msgid "location"
 msgstr ""
 
-#: models.py:225
+#: models.py:221
 msgid "loyalty"
 msgstr ""
 
-#: models.py:226
+#: models.py:222
 msgid "mails"
 msgstr ""
 
-#: models.py:227
+#: models.py:223
 msgid "online status"
 msgstr ""
 
-#: models.py:228
+#: models.py:224
 msgid "skills"
 msgstr ""
 
-#: models.py:229
+#: models.py:225
 msgid "skill queue"
 msgstr ""
 
-#: models.py:230
+#: models.py:226
 msgid "wallet balance"
 msgstr ""
 
-#: models.py:231
+#: models.py:227
 msgid "wallet journal"
 msgstr ""
 
-#: models.py:1749
+#: models.py:1825
 msgid "excellent standing"
 msgstr ""
 
-#: models.py:1750
+#: models.py:1826
 msgid "good standing"
 msgstr ""
 
-#: models.py:1751
+#: models.py:1827
 msgid "neutral standing"
 msgstr ""
 
-#: models.py:1752
+#: models.py:1828
 msgid "bad standing"
 msgstr ""
 
-#: models.py:1753
+#: models.py:1829
 msgid "terrible standing"
 msgstr ""
 
-#: models.py:1803
+#: models.py:1879
 msgid "alliance"
 msgstr ""
 
-#: models.py:1804
+#: models.py:1880
 msgid "corporation"
 msgstr ""
 
-#: models.py:1805
+#: models.py:1881
 msgid "private"
 msgstr ""
 
-#: models.py:1806
+#: models.py:1882
 msgid "public"
 msgstr ""
 
-#: models.py:1826
+#: models.py:1902
 msgid "canceled"
 msgstr ""
 
-#: models.py:1827
+#: models.py:1903
 msgid "deleted"
 msgstr ""
 
-#: models.py:1828
+#: models.py:1904
 msgid "failed"
 msgstr ""
 
-#: models.py:1829
+#: models.py:1905
 msgid "finished"
 msgstr ""
 
-#: models.py:1830
+#: models.py:1906
 msgid "finished contractor"
 msgstr ""
 
-#: models.py:1831
+#: models.py:1907
 msgid "finished issuer"
 msgstr ""
 
-#: models.py:1832
+#: models.py:1908
 msgid "in progress"
 msgstr ""
 
-#: models.py:1833
+#: models.py:1909
 msgid "outstanding"
 msgstr ""
 
-#: models.py:1834
+#: models.py:1910
 msgid "rejected"
 msgstr ""
 
-#: models.py:1835
+#: models.py:1911
 msgid "reversed"
 msgstr ""
 
-#: models.py:1856
+#: models.py:1932
 msgid "auction"
 msgstr ""
 
-#: models.py:1857
+#: models.py:1933
 msgid "courier"
 msgstr ""
 
-#: models.py:1858
+#: models.py:1934
 msgid "item exchange"
 msgstr ""
 
-#: models.py:1859
+#: models.py:1935
 msgid "loan"
 msgstr ""
 
-#: models.py:1860
+#: models.py:1936
 msgid "unknown"
 msgstr ""
 
-#: models.py:2019
+#: models.py:2095
 msgid "[Multiple Items]"
 msgstr ""
 
-#: models.py:2085
+#: models.py:2161
 msgid "male"
 msgstr ""
 
-#: models.py:2086
+#: models.py:2162
 msgid "female"
 msgstr ""
 
-#: models.py:2552
+#: models.py:2610
 msgid "undefined"
 msgstr ""
 
-#: models.py:2553
+#: models.py:2611
 msgid "station ID"
 msgstr ""
 
-#: models.py:2554
+#: models.py:2612
 msgid "market transaction ID"
 msgstr ""
 
-#: models.py:2555
+#: models.py:2613
 msgid "character ID"
 msgstr ""
 
-#: models.py:2556
+#: models.py:2614
 msgid "corporation ID"
 msgstr ""
 
-#: models.py:2557
+#: models.py:2615
 msgid "alliance ID"
 msgstr ""
 
-#: models.py:2558
+#: models.py:2616
 msgid "eve system"
 msgstr ""
 
-#: models.py:2559
+#: models.py:2617
 msgid "industry job ID"
 msgstr ""
 
-#: models.py:2560
+#: models.py:2618
 msgid "contract ID"
 msgstr ""
 
-#: models.py:2561
+#: models.py:2619
 msgid "planet ID"
 msgstr ""
 
-#: models.py:2562
+#: models.py:2620
 msgid "system ID"
 msgstr ""
 
-#: models.py:2563
+#: models.py:2621
 msgid "type ID"
 msgstr ""
 
@@ -330,27 +330,27 @@ msgstr ""
 msgid "Register"
 msgstr ""
 
-#: templates/memberaudit/launcher.html:68
+#: templates/memberaudit/launcher.html:76
 msgid "View this character."
 msgstr ""
 
-#: templates/memberaudit/launcher.html:74
+#: templates/memberaudit/launcher.html:82
 msgid "Disable access to this character for recruiters."
 msgstr ""
 
-#: templates/memberaudit/launcher.html:79
+#: templates/memberaudit/launcher.html:87
 msgid "Enable access to this character for recruiters."
 msgstr ""
 
-#: templates/memberaudit/launcher.html:85
+#: templates/memberaudit/launcher.html:93
 msgid "Remove this character."
 msgstr ""
 
-#: templates/memberaudit/launcher.html:97
+#: templates/memberaudit/launcher.html:105
 msgid "No characters registered."
 msgstr ""
 
-#: templates/memberaudit/launcher.html:102
+#: templates/memberaudit/launcher.html:110
 msgid "Unregistered character(s):"
 msgstr ""
 
@@ -439,7 +439,7 @@ msgid "Status:"
 msgstr ""
 
 #: templates/memberaudit/modals/character_viewer/contract_content.html:29
-#: templates/memberaudit/partials/character_viewer/overview.html:79
+#: templates/memberaudit/partials/character_viewer/overview.html:84
 msgid "Location:"
 msgstr ""
 
@@ -525,59 +525,59 @@ msgstr ""
 msgid "Character:"
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/overview.html:31
+#: templates/memberaudit/partials/character_viewer/overview.html:36
 msgid "Corporation:"
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/overview.html:38
+#: templates/memberaudit/partials/character_viewer/overview.html:43
 msgid "Alliance:"
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/overview.html:49
+#: templates/memberaudit/partials/character_viewer/overview.html:54
 msgid "Faction:"
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/overview.html:52
+#: templates/memberaudit/partials/character_viewer/overview.html:57
 msgid "Race:"
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/overview.html:57
+#: templates/memberaudit/partials/character_viewer/overview.html:62
 msgid "(no data)"
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/overview.html:60
+#: templates/memberaudit/partials/character_viewer/overview.html:65
 msgid "Born:"
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/overview.html:63
+#: templates/memberaudit/partials/character_viewer/overview.html:68
 msgid "Skillpoints:"
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/overview.html:66
+#: templates/memberaudit/partials/character_viewer/overview.html:71
 msgid "Sec. Status:"
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/overview.html:69
+#: templates/memberaudit/partials/character_viewer/overview.html:74
 msgid "Assets:"
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/overview.html:72
+#: templates/memberaudit/partials/character_viewer/overview.html:77
 msgid "Wallet:"
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/overview.html:82
+#: templates/memberaudit/partials/character_viewer/overview.html:87
 msgid "System:"
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/overview.html:85
+#: templates/memberaudit/partials/character_viewer/overview.html:90
 msgid "Last Login:"
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/overview.html:88
+#: templates/memberaudit/partials/character_viewer/overview.html:93
 msgid "Main:"
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/sidebar.html:45
+#: templates/memberaudit/partials/character_viewer/sidebar.html:46
 msgid "Main character"
 msgstr ""
 
@@ -643,7 +643,7 @@ msgid "Info"
 msgstr ""
 
 #: templates/memberaudit/partials/character_viewer/tabs/corporation_history_2.html:11
-msgid "TODAY"
+msgid "Today"
 msgstr ""
 
 #: templates/memberaudit/partials/character_viewer/tabs/doctrines.html:9
@@ -767,7 +767,7 @@ msgid "Mails"
 msgstr ""
 
 #: templates/memberaudit/partials/character_viewer/tabs_navigation.html:15
-msgid "Skillqueue"
+msgid "Skill Queue"
 msgstr ""
 
 #: templates/memberaudit/partials/character_viewer/tabs_navigation.html:16

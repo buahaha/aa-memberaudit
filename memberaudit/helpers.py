@@ -3,17 +3,13 @@ from typing import Optional
 from django.db import models
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
+from django.utils.translation import gettext_lazy
 from eveuniverse.models import EveSolarSystem, EveEntity
-from urllib.parse import quote
-from allianceauth.eveonline.evelinks import dotlan
+from allianceauth.eveonline.evelinks import dotlan, evewho
 
 from .utils import create_link_html
 
 import re
-
-_CHARACTER_URL = "https://evewho.com/character/"
-_CORPORATION_URL = "https://evemaps.dotlan.net/corp/"
-_ALLIANCE_URL = "https://evemaps.dotlan.net/alliance/"
 
 
 def get_or_create_esi_or_none(
@@ -85,7 +81,7 @@ _font_regex = re.compile(
     r'<font (?P<pre>.*?)(size="(?P<size>[0-9]{1,2})")? ?(color="#[0-9a-f]{2}(?P<color>[0-9a-f]{6})")?(?P<post>.*?)>'
 )
 _link_regex = re.compile(
-    r'<a href="showinfo:(?P<first_id>\d+)(//(?P<second_id>\d+))?">'
+    r'<a href="(?P<schema>[a-z]+):(?P<first_id>\d+)(//(?P<second_id>\d+))?">'
 )
 
 
@@ -107,24 +103,26 @@ def _font_replace(font_match) -> str:
 
 
 def _link_replace(link_match) -> str:
+    schema = link_match.group("schema")
     first_id = int(link_match.group("first_id"))
     second_id = link_match.group("second_id")
     if second_id is not None:
         second_id = int(second_id)
-
-    if 1373 <= first_id <= 1386:  # Character
-        return f'<a href="{_CHARACTER_URL}{second_id}">'
-    elif first_id == 2:  # Corporation
-        corp_name = EveEntity.objects.resolve_name(second_id)
-        corp_name = quote(corp_name.replace(" ", "_"))
-        return f'<a href="{_CORPORATION_URL}{corp_name}">'
-    elif first_id == 16159:  # Alliance
-        alliance_name = EveEntity.objects.resolve_name(second_id)
-        alliance_name = quote(alliance_name.replace(" ", "_"))
-        return f'<a href="{_ALLIANCE_URL}{alliance_name}">'
-
-    else:
-        return "<a>"
+    if schema == "showinfo":
+        if 1373 <= first_id <= 1386:  # Character
+            return f'<a href="{evewho.character_url(second_id)}" target="_blank">'
+        elif first_id == 5:  # Solar System
+            system_name = EveEntity.objects.resolve_name(second_id)
+            return f'<a href="{dotlan.solar_system_url(system_name)}" target="_blank">'
+        elif first_id == 2:  # Corporation
+            corp_name = EveEntity.objects.resolve_name(second_id)
+            return f'<a href="{dotlan.corporation_url(corp_name)}" target="_blank">'
+        elif first_id == 16159:  # Alliance
+            alliance_name = EveEntity.objects.resolve_name(second_id)
+            return f'<a href="{dotlan.alliance_url(alliance_name)}" target="_blank">'
+    return (
+        f"""<a href="javascript:alert('{gettext_lazy('Unsupported link type.')}');">"""
+    )
 
 
 def eve_xml_to_html(xml: str) -> str:
