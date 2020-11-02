@@ -1,6 +1,10 @@
 {% load i18n %}
 {% load humanize %}
-
+<script>
+    function showInvalidError() {
+        alert('{% translate "Unsupported link type." %}');
+    }
+</script>
 <div role="tabpanel" class="tab-pane" id="mail">
     {% if not character.has_mails %}
         <p>{% translate 'No data yet...' %}</p>

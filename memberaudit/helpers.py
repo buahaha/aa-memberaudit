@@ -3,7 +3,6 @@ from typing import Optional
 from django.db import models
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
-from django.utils.translation import gettext_lazy
 from eveuniverse.models import EveSolarSystem, EveEntity
 from allianceauth.eveonline.evelinks import dotlan, evewho
 
@@ -120,8 +119,7 @@ def _link_replace(link_match) -> str:
         elif first_id == 16159:  # Alliance
             alliance_name = EveEntity.objects.resolve_name(second_id)
             return f'<a href="{dotlan.alliance_url(alliance_name)}" target="_blank">'
-    message = gettext_lazy("Unsupported link type.")
-    return f"""<a href="javascript:alert('{message}');">"""
+    return """<a href="javascript:showInvalidError();">"""
 
 
 def eve_xml_to_html(xml: str) -> str:

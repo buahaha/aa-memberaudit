@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-11-02 09:40-0500\n"
+"POT-Creation-Date: 2020-11-02 17:22-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -23,6 +23,7 @@ msgid "Member Audit"
 msgstr ""
 
 #: helpers.py:123
+#: templates/memberaudit/partials/character_viewer/tabs/mails.html:5
 msgid "Unsupported link type."
 msgstr ""
 
@@ -600,7 +601,7 @@ msgstr ""
 #: templates/memberaudit/partials/character_viewer/tabs/implants.html:13
 #: templates/memberaudit/partials/character_viewer/tabs/jump_clones.html:19
 #: templates/memberaudit/partials/character_viewer/tabs/loyalty.html:17
-#: templates/memberaudit/partials/character_viewer/tabs/mails.html:54
+#: templates/memberaudit/partials/character_viewer/tabs/mails.html:58
 #: templates/memberaudit/partials/character_viewer/tabs/skill_queue.html:38
 #: templates/memberaudit/partials/character_viewer/tabs/skills.html:17
 msgid "Last updated:"
@@ -623,12 +624,12 @@ msgid "Contract"
 msgstr ""
 
 #: templates/memberaudit/partials/character_viewer/tabs/contracts.html:11
-#: templates/memberaudit/partials/character_viewer/tabs/mails.html:44
+#: templates/memberaudit/partials/character_viewer/tabs/mails.html:48
 msgid "From"
 msgstr ""
 
 #: templates/memberaudit/partials/character_viewer/tabs/contracts.html:12
-#: templates/memberaudit/partials/character_viewer/tabs/mails.html:45
+#: templates/memberaudit/partials/character_viewer/tabs/mails.html:49
 msgid "To"
 msgstr ""
 
@@ -678,15 +679,15 @@ msgstr ""
 msgid "Loyalty Points"
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/tabs/mails.html:6
+#: templates/memberaudit/partials/character_viewer/tabs/mails.html:10
 msgid "No data yet..."
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/tabs/mails.html:43
+#: templates/memberaudit/partials/character_viewer/tabs/mails.html:47
 msgid "Sent"
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/tabs/mails.html:46
+#: templates/memberaudit/partials/character_viewer/tabs/mails.html:50
 msgid "Subject"
 msgstr ""
 
