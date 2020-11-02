@@ -516,6 +516,32 @@
                 });
             })
 
+            /* Skillqueue */
+            $('#tab_skillqueue').DataTable({
+                ajax: {
+                    url: "{% url 'memberaudit:character_skillqueue_data' character.pk %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    { data: 'position' },
+                    { data: 'skill' },
+                    { data: 'finished',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
+                ],
+                order: [[0, "asc"]],
+                createdRow: function( row, data, dataIndex ) {
+                    if ( data['is_active'] ) {
+                        $(row).addClass( 'info' );
+                    }
+                }
+            });
+
+
             /* Skills */
             $('#tab_skills').DataTable({
                 ajax: {

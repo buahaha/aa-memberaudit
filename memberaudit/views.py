@@ -16,7 +16,7 @@ from django.urls import reverse
 from django.utils.timesince import timeuntil
 from django.utils.html import format_html
 from django.utils.timezone import now
-from django.utils.translation import gettext_lazy
+from django.utils.translation import gettext_lazy, gettext
 from django.views.decorators.cache import cache_page
 
 from bravado.exception import HTTPError
@@ -402,38 +402,6 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         )
     ).values("list_id", "name", "unread_count")
 
-    # skill queue
-    skill_queue = list()
-    for row in (
-        character.skillqueue.select_related("eve_type")
-        .filter(character_id=character_pk)
-        .order_by("queue_position")
-    ):
-        is_currently_trained_skill = False
-        if row.is_active:
-            is_currently_trained_skill = True
-
-        finish_date_humanized = None
-        if row.finish_date:
-            finish_date_humanized = humanize.naturaltime(
-                dt.datetime.now()
-                + dt.timedelta(
-                    seconds=(
-                        row.finish_date.timestamp() - dt.datetime.now().timestamp()
-                    )
-                )
-            )
-
-        skill_queue.append(
-            {
-                "finish_date": row.finish_date,
-                "finish_date_humanized": finish_date_humanized,
-                "finished_level": MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[row.finished_level],
-                "skill": row.eve_type.name,
-                "is_currently_trained_skill": is_currently_trained_skill,
-            }
-        )
-
     # registered characters
     registered_characters = list(
         Character.objects.select_related(
@@ -477,7 +445,6 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         "character": character,
         "auth_character": auth_character,
         "character_details": character_details,
-        "skill_queue": skill_queue,
         "mail_labels": mail_labels,
         "mailing_lists": mailing_lists,
         "main": main,
@@ -1225,6 +1192,57 @@ def character_mail_data(
         "sent": mail.timestamp.isoformat(),
         "body": mail.body_html if mail.body != "" else "(no data yet)",
     }
+    return JsonResponse(data, safe=False)
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_skillqueue_data(
+    request, character_pk: int, character: Character
+) -> JsonResponse:
+    data = list()
+    try:
+        for row in character.skillqueue.select_related("eve_type").filter(
+            character_id=character_pk
+        ):
+            level_roman = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[row.finished_level]
+            skill_str = f"{row.eve_type.name}&nbsp;{level_roman}"
+            if row.is_active:
+                skill_str += " [ACTIVE]"
+
+            if row.finish_date:
+                finish_date_humanized = humanize.naturaltime(
+                    dt.datetime.now()
+                    + dt.timedelta(
+                        seconds=(
+                            row.finish_date.timestamp() - dt.datetime.now().timestamp()
+                        )
+                    )
+                )
+                finish_date_str = (
+                    f"{row.finish_date.strftime(DATETIME_FORMAT)} "
+                    f"({finish_date_humanized})"
+                )
+                finish_date_sort = row.finish_date.isoformat()
+            else:
+                finish_date_str = gettext("(training not active)")
+                finish_date_sort = None
+
+            data.append(
+                {
+                    "position": row.queue_position + 1,
+                    "skill": skill_str,
+                    "finished": {
+                        "display": finish_date_str,
+                        "sort": finish_date_sort,
+                    },
+                    "is_active": row.is_active,
+                }
+            )
+    except ObjectDoesNotExist:
+        pass
+
     return JsonResponse(data, safe=False)
 
 

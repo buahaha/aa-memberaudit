@@ -36,6 +36,7 @@ from ..models import (
     CharacterMailingList,
     CharacterMailLabel,
     CharacterSkill,
+    CharacterSkillqueueEntry,
     CharacterWalletJournalEntry,
     Doctrine,
     DoctrineShip,
@@ -65,6 +66,7 @@ from ..views import (
     character_mail_headers_by_list_data,
     character_mail_data,
     character_skills_data,
+    character_skillqueue_data,
     character_wallet_journal_data,
     character_finder_data,
     compliance_report_data,
@@ -120,6 +122,8 @@ class TestViewsBase(TestCase):
         cls.corporation_2001 = EveEntity.objects.get(id=2001)
         cls.jita_44 = Location.objects.get(id=60003760)
         cls.structure_1 = Location.objects.get(id=1000000000001)
+        cls.skill_type_1 = EveType.objects.get(id=24311)
+        cls.skill_type_2 = EveType.objects.get(id=24312)
 
 
 class TestCharacterAssets(TestViewsBase):
@@ -762,18 +766,16 @@ class TestViewsOther(TestViewsBase):
         self.assertEqual(row["level"], "Excellent Standing")
 
     def test_doctrines_data(self):
-        skill_type_1 = EveType.objects.get(id=24311)
-        skill_type_2 = EveType.objects.get(id=24312)
         CharacterSkill.objects.create(
             character=self.character,
-            eve_type=skill_type_1,
+            eve_type=self.skill_type_1,
             active_skill_level=5,
             skillpoints_in_skill=10,
             trained_skill_level=5,
         )
         CharacterSkill.objects.create(
             character=self.character,
-            eve_type=skill_type_2,
+            eve_type=self.skill_type_2,
             active_skill_level=2,
             skillpoints_in_skill=10,
             trained_skill_level=5,
@@ -784,19 +786,27 @@ class TestViewsOther(TestViewsBase):
 
         # can fly ship 1
         ship_1 = DoctrineShip.objects.create(name="Ship 1")
-        DoctrineShipSkill.objects.create(ship=ship_1, eve_type=skill_type_1, level=3)
+        DoctrineShipSkill.objects.create(
+            ship=ship_1, eve_type=self.skill_type_1, level=3
+        )
         doctrine_1.ships.add(ship_1)
         doctrine_2.ships.add(ship_1)
 
         # can not fly ship 2
         ship_2 = DoctrineShip.objects.create(name="Ship 2")
-        DoctrineShipSkill.objects.create(ship=ship_2, eve_type=skill_type_1, level=5)
-        DoctrineShipSkill.objects.create(ship=ship_2, eve_type=skill_type_2, level=3)
+        DoctrineShipSkill.objects.create(
+            ship=ship_2, eve_type=self.skill_type_1, level=5
+        )
+        DoctrineShipSkill.objects.create(
+            ship=ship_2, eve_type=self.skill_type_2, level=3
+        )
         doctrine_1.ships.add(ship_2)
 
         # can fly ship 3 (No Doctrine)
         ship_3 = DoctrineShip.objects.create(name="Ship 3")
-        DoctrineShipSkill.objects.create(ship=ship_3, eve_type=skill_type_1, level=1)
+        DoctrineShipSkill.objects.create(
+            ship=ship_3, eve_type=self.skill_type_1, level=1
+        )
 
         self.character.update_doctrines()
 
@@ -896,7 +906,7 @@ class TestViewsOther(TestViewsBase):
     def test_character_skills_data(self):
         CharacterSkill.objects.create(
             character=self.character,
-            eve_type=EveType.objects.get(id=24311),
+            eve_type=self.skill_type_1,
             active_skill_level=1,
             skillpoints_in_skill=1000,
             trained_skill_level=1,
@@ -913,6 +923,66 @@ class TestViewsOther(TestViewsBase):
         self.assertEqual(row["group"], "Spaceship Command")
         self.assertEqual(row["skill"], "Amarr Carrier")
         self.assertEqual(row["level"], 1)
+
+    def test_character_skillqueue_data_1(self):
+        """Char has skills in training"""
+        finish_date_1 = now() + dt.timedelta(days=3)
+        CharacterSkillqueueEntry.objects.create(
+            character=self.character,
+            eve_type=self.skill_type_1,
+            finish_date=finish_date_1,
+            finished_level=5,
+            queue_position=0,
+            start_date=now() - dt.timedelta(days=1),
+        )
+        finish_date_2 = now() + dt.timedelta(days=10)
+        CharacterSkillqueueEntry.objects.create(
+            character=self.character,
+            eve_type=self.skill_type_2,
+            finish_date=finish_date_2,
+            finished_level=5,
+            queue_position=1,
+            start_date=now() - dt.timedelta(days=1),
+        )
+        request = self.factory.get(
+            reverse("memberaudit:character_skillqueue_data", args=[self.character.pk])
+        )
+        request.user = self.user
+        response = character_skillqueue_data(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertEqual(len(data), 2)
+
+        row = data[0]
+        self.assertEqual(row["skill"], "Amarr Carrier&nbsp;V [ACTIVE]")
+        self.assertEqual(row["finished"]["sort"], finish_date_1.isoformat())
+        self.assertTrue(row["is_active"])
+
+        row = data[1]
+        self.assertEqual(row["skill"], "Caldari Carrier&nbsp;V")
+        self.assertEqual(row["finished"]["sort"], finish_date_2.isoformat())
+        self.assertFalse(row["is_active"])
+
+    def test_character_skillqueue_data_2(self):
+        """Char has no skills in training"""
+        CharacterSkillqueueEntry.objects.create(
+            character=self.character,
+            eve_type=self.skill_type_1,
+            finished_level=5,
+            queue_position=0,
+        )
+        request = self.factory.get(
+            reverse("memberaudit:character_skillqueue_data", args=[self.character.pk])
+        )
+        request.user = self.user
+        response = character_skillqueue_data(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertEqual(len(data), 1)
+        row = data[0]
+        self.assertEqual(row["skill"], "Amarr Carrier&nbsp;V")
+        self.assertIsNone(row["finished"]["sort"])
+        self.assertFalse(row["is_active"])
 
     def test_character_wallet_journal_data(self):
         CharacterWalletJournalEntry.objects.create(
@@ -1450,24 +1520,32 @@ class TestDoctrineReportData(TestCase):
         )
         # cls.character_1003 = create_memberaudit_character(1003)
 
+        cls.skill_type_1 = EveType.objects.get(id=24311)
+        cls.skill_type_2 = EveType.objects.get(id=24312)
+
     def test_normal(self):
         def make_data_id(doctrine: Doctrine, character: Character) -> str:
             doctrine_pk = doctrine.pk if doctrine else 0
             return f"{doctrine_pk}_{character.pk}"
 
         # define doctrines
-        skill_type_1 = EveType.objects.get(id=24311)
-        skill_type_2 = EveType.objects.get(id=24312)
-
         ship_1 = DoctrineShip.objects.create(name="Ship 1")
-        DoctrineShipSkill.objects.create(ship=ship_1, eve_type=skill_type_1, level=3)
+        DoctrineShipSkill.objects.create(
+            ship=ship_1, eve_type=self.skill_type_1, level=3
+        )
 
         ship_2 = DoctrineShip.objects.create(name="Ship 2")
-        DoctrineShipSkill.objects.create(ship=ship_2, eve_type=skill_type_1, level=5)
-        DoctrineShipSkill.objects.create(ship=ship_2, eve_type=skill_type_2, level=3)
+        DoctrineShipSkill.objects.create(
+            ship=ship_2, eve_type=self.skill_type_1, level=5
+        )
+        DoctrineShipSkill.objects.create(
+            ship=ship_2, eve_type=self.skill_type_2, level=3
+        )
 
         ship_3 = DoctrineShip.objects.create(name="Ship 3")
-        DoctrineShipSkill.objects.create(ship=ship_3, eve_type=skill_type_1, level=1)
+        DoctrineShipSkill.objects.create(
+            ship=ship_3, eve_type=self.skill_type_1, level=1
+        )
 
         doctrine_1 = Doctrine.objects.create(name="Alpha")
         doctrine_1.ships.add(ship_1)
@@ -1479,14 +1557,14 @@ class TestDoctrineReportData(TestCase):
         # character 1002
         CharacterSkill.objects.create(
             character=self.character_1002,
-            eve_type=skill_type_1,
+            eve_type=self.skill_type_1,
             active_skill_level=5,
             skillpoints_in_skill=10,
             trained_skill_level=5,
         )
         CharacterSkill.objects.create(
             character=self.character_1002,
-            eve_type=skill_type_2,
+            eve_type=self.skill_type_2,
             active_skill_level=2,
             skillpoints_in_skill=10,
             trained_skill_level=2,
@@ -1495,14 +1573,14 @@ class TestDoctrineReportData(TestCase):
         # character 1101
         CharacterSkill.objects.create(
             character=self.character_1101,
-            eve_type=skill_type_1,
+            eve_type=self.skill_type_1,
             active_skill_level=5,
             skillpoints_in_skill=10,
             trained_skill_level=5,
         )
         CharacterSkill.objects.create(
             character=self.character_1101,
-            eve_type=skill_type_2,
+            eve_type=self.skill_type_2,
             active_skill_level=5,
             skillpoints_in_skill=10,
             trained_skill_level=5,

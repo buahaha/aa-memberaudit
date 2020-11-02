@@ -147,6 +147,13 @@
         white-space: nowrap;
     }
 
+    /* Skillqueue */
+    /*
+    #tab_skillqueue tbody td:nth-child(1) {
+        text-align: center;
+    }
+    */
+
     /* Wallet */
     #tab_wallet tbody td:nth-child(1) {
         white-space: nowrap;
@@ -165,10 +172,6 @@
 
     #tab_wallet tfoot td:nth-child(6) {
         text-align: right;
-    }
-
-    .table-memberaudit-skillqueue .active-skill {
-        font-weight: bold;
     }
 
     /* sidebar */

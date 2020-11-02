@@ -3,37 +3,22 @@
 
 <!-- Skill queue -->
 <div role="tabpanel" class="tab-pane" id="skillqueue">
-    {% if skill_queue %}
-        <table class="table table-striped table-responsive table-memberaudit-skillqueue">
+    <div class="table-responsive">
+        <table class="table table-striped" id="tab_skillqueue" style="width:100%;">
             <thead>
                 <tr>
+                    <th>{% translate 'Position' %}</th>
                     <th>{% translate 'Skill' %}</th>
                     <th>{% translate 'Finished' %}</th>
                 </tr>
             </thead>
 
             <tbody>
-                {% for skill in skill_queue %}
-                    <tr {% if skill.is_currently_trained_skill %}class="info active-skill"{% endif %}>
-                        <td>
-                            {{ skill.skill }} {{ skill.finished_level }}
-                            {% if skill.is_currently_trained_skill %}&nbsp;{% translate '[active]' %}{% endif %}
-                        </td>
-
-                        <td>
-                            {% if skill.finish_date %}
-                                {{ skill.finish_date|date:MY_DATETIME_FORMAT }}
-                                ({{ skill.finish_date_humanized }})
-                            {% else %}
-                            {% translate 'Skill queue currently not active.' %}
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
             </tbody>
         </table>
-    {% else %}
-        <p>{% translate 'Currently no skills in training.' %}</p>
-    {% endif %}
-    <p class="text-muted">{% translate 'Last updated:' %} {{ last_updates.skill_queue|naturaltime }}</p>
+    </div>
+
+    <p class="text-muted">
+        {% translate 'Last updated:' %} {{ last_updates.skill_queue|naturaltime }}
+    </p>
 </div>
