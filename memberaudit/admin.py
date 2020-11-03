@@ -259,7 +259,7 @@ class DoctrineMinimumSkillAdminInline(admin.TabularInline):
     model = DoctrineShipSkill
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "skill":
+        if db_field.name == "eve_type":
             kwargs["queryset"] = (
                 EveType.objects.select_related("eve_group__eve_category")
                 .filter(eve_group__eve_category=EVE_CATEGORY_ID_SKILL)
