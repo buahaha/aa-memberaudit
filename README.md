@@ -38,19 +38,19 @@ Memberaudit adds the following key features to Auth:
 
 The main page for users to register their characters and get a key infos of all registered characters.
 
-![launcher](https://i.imgur.com/LdILg1X.png)
+![launcher](https://i.imgur.com/v9AU3Gr.jpg)
 
 ### Character Viewer
 
 The page for displaying all details about a character.
 
-![viewer](https://i.imgur.com/9kGi6dJ.png)
+![viewer](https://i.imgur.com/vo1N3kg.jpg)
 
 ### Character Finder
 
 On this page recruiters and leadership can look for other characters to view (assuming they have been given permission).
 
-![finder](https://i.imgur.com/Uzv07uy.png)
+![finder](https://i.imgur.com/4sDnBcz.png)
 
 ## Installation
 
@@ -95,7 +95,11 @@ python manage.py collectstatic
 
 Restart your supervisor services for Auth
 
-### Step 4 - Verify Celery configuration
+### Step 4 - Update EVE Online API Application
+
+Update the Eve Online API app used for authentication in your AA installation to include all scopes.
+
+### Step 5 - Verify Celery configuration
 
 This app makes heavy use of Celery and will typically run through many thousands of tasks with every character update run. Auth's default process based setup for Celery workers is sadly not well suited for high task volume and we therefore strongly recommend to switch to a thread based setup (e.g. gevent). A thread based setup allows you to run 5-10x more workers in parallel, significantly reducing the duration of character update runs.
 
@@ -103,7 +107,7 @@ For details on how to configure a celery workers with threads please check [this
 
 Note that if you have more than 10 workers you also need to increase the connection pool for django-esi accordingly. See [here](https://gitlab.com/allianceauth/django-esi/-/blob/master/esi/app_settings.py#L32) for the corresponding setting.
 
-### Step 5 - Load Eve Universe map data
+### Step 6 - Load Eve Universe map data
 
 In order to be able to select solar systems and ships types for trackers you need to load that data from ESI once. If you already have run those commands previously you can skip this step.
 
@@ -119,11 +123,31 @@ python manage.py memberaudit_load_eve
 
 You may want to wait until the loading is complete before starting to create new trackers.
 
-### Step 6 - Setup permissions
+### Step 7 - Setup permissions
 
 Finally you want to setup permission to define which users / groups will have access to which parts of the app. Check out [permissions](#permissions) for details.
 
 Congratulations you are now ready to use memberaudit!
+
+## Updating
+
+To update your existing installation of Memberaudit first enable your virtual environment.
+
+Then run the following commands from your AA project directory (the one that contains `manage.py`).
+
+```bash
+pip install -U aa-memberaudit
+```
+
+```bash
+python manage.py migrate
+```
+
+```bash
+python manage.py collectstatic
+```
+
+Finally restart your AA supervisor services.
 
 ## Permissions
 
