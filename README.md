@@ -18,11 +18,11 @@ An app for auditing members on Alliance Auth
 
 ## Overview
 
-Memberaudit provides a way for recruiters and alliance leadership to inspect characters' ESI data. It supports generating reports showing whether a given user has registered all their characters with Memberaudit and whether they can fly doctrine ships. It also allows users to view all their characters ESI data, and allows for selectively sharing character data with recruiters.
+Member Audit provides a way for recruiters and alliance leadership to inspect characters' ESI data. It supports generating reports showing whether a given user has registered all their characters with Member Audit and whether they can fly doctrine ships. It also allows users to view all their characters ESI data, and allows for selectively sharing character data with recruiters.
 
 ## Key Features
 
-Memberaudit adds the following key features to Auth:
+Member Audit adds the following key features to Auth:
 
 - Users can see an overview of all their characters with key information like current location and wallet balance
 - Users can see many details about their characters without having to log into Eve (e.g. wallet, mails, assets, ...)
@@ -56,9 +56,9 @@ On this page recruiters and leadership can look for other characters to view (as
 
 ### Preconditions
 
-1. Memberaudit is a plugin for Alliance Auth. If you don't have Alliance Auth running already, please install it first before proceeding. (see the official [AA installation guide](https://allianceauth.readthedocs.io/en/latest/installation/auth/allianceauth/) for details)
+1. Member Audit is a plugin for Alliance Auth. If you don't have Alliance Auth running already, please install it first before proceeding. (see the official [AA installation guide](https://allianceauth.readthedocs.io/en/latest/installation/auth/allianceauth/) for details)
 
-2. Memberaudit needs the app [django-eveuniverse](https://gitlab.com/ErikKalkoken/django-eveuniverse) to function. Please make sure it is installed, before before continuing.
+2. Member Audit needs the app [django-eveuniverse](https://gitlab.com/ErikKalkoken/django-eveuniverse) to function. Please make sure it is installed, before before continuing.
 
 ### Step 1 - Install app
 
@@ -131,7 +131,7 @@ Congratulations you are now ready to use memberaudit!
 
 ## Updating
 
-To update your existing installation of Memberaudit first enable your virtual environment.
+To update your existing installation of Member Audit first enable your virtual environment.
 
 Then run the following commands from your AA project directory (the one that contains `manage.py`).
 
