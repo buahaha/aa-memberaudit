@@ -6,10 +6,9 @@
 {% load evelinks %}
 
 {% block details %}
-    <div class="rows">
-
+    <div class="row">
         <!-- Main panel-->
-        <div class="col-md-10" id="centerColumn">
+        <div class="col-md-10">
             {% include 'memberaudit/partials/character_viewer/overview.html' %}
 
             <!-- Details sub panel -->
@@ -40,10 +39,9 @@
         </div>
 
         <!-- Side bar -->
-        <div class="col-md-2" id="sideColumn">
+        <div class="col-md-2">
             {% include 'memberaudit/partials/character_viewer/sidebar.html' %}
         </div>
-
     </div>
 
     {% include 'memberaudit/modals/character_viewer/asset_container.html' %}

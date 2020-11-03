@@ -1,14 +1,4 @@
 @media all {
-    /* main panels */
-    #centerColumn {
-        padding-left: 0;
-        padding-right: 8px;
-    }
-
-    #sideColumn {
-        padding-right: 0;
-    }
-
     /* character summary */
     .character-summary-flex {
         display: flex;
@@ -52,6 +42,7 @@
     #tab_assets tbody td:nth-child(5) {
         text-align: right;
     }
+
     #tab_assets tbody td:nth-child(6) {
         text-align: right;
     }
