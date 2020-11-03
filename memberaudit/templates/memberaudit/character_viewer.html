@@ -7,8 +7,13 @@
 
 {% block details %}
     <div class="row">
+        <!-- Side bar -->
+        <div class="col-md-2 col-md-push-10">
+            {% include 'memberaudit/partials/character_viewer/sidebar.html' %}
+        </div>
+
         <!-- Main panel-->
-        <div class="col-md-10">
+        <div class="col-md-10 col-md-pull-2">
             {% include 'memberaudit/partials/character_viewer/overview.html' %}
 
             <!-- Details sub panel -->
@@ -36,11 +41,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- Side bar -->
-        <div class="col-md-2">
-            {% include 'memberaudit/partials/character_viewer/sidebar.html' %}
         </div>
     </div>
 
