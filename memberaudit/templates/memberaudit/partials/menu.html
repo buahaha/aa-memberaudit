@@ -13,20 +13,24 @@
                 <span class="icon-bar"></span>
                 <span class="icon-bar"></span>
             </button>
+
             <a class="navbar-brand" href="{% url 'memberaudit:index' %}">
                 {{ app_title }}
             </a>
         </div>
+
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
             <ul class="nav navbar-nav">
                 <li class="{% navactive request 'memberaudit:launcher' %}">
                     <a href="{% url 'memberaudit:launcher' %}">
                         {% translate 'My Characters' %}
+
                         {%  if unregistered_count > 0 %}
                             <span class="badge">{{ unregistered_count }}</span>
                         {% endif %}
                     </a>
                 </li>
+
                 {% if "/character_viewer/" in request.path %}
                     <li class="{% renavactive request '/character_viewer/' %}">
                         <a href="#">{% translate 'Character Sheet' %}</a>
@@ -40,6 +44,7 @@
                         </a>
                     </li>
                 {% endif %}
+
                 {% if perms.memberaudit.reports_access %}
                     <li class="{% navactive request 'memberaudit:reports' %}">
                         <a href="{% url 'memberaudit:reports' %}">

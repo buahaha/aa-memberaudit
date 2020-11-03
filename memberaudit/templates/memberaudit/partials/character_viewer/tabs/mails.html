@@ -10,7 +10,6 @@
         <p>{% translate 'No data yet...' %}</p>
     {% else %}
         <div class="row">
-
             <!-- Mail Labels -->
             <div class="col-md-2">
                 <ul class="nav nav-pills nav-stacked">
@@ -24,7 +23,9 @@
                             </a>
                         </li>
                     {% endfor %}
+
                     <hr>
+
                     {% for item in mailing_lists|dictsort:"name.lower" %}
                         <li role="presentation" class="pillMailLabel" data-list-id="{{ item.list_id }}">
                             <a href="#" onclick="return false;">
@@ -51,8 +52,8 @@
                                 <th></th>
                             </tr>
                         </thead>
-                        <tbody>
-                        </tbody>
+
+                        <tbody></tbody>
                     </table>
                 </div>
                 <p class="text-muted">{% translate 'Last updated:' %} {{ last_updates.mails|naturaltime }}</p>
