@@ -123,10 +123,8 @@ def _link_replace(link_match) -> str:
 
 
 def eve_xml_to_html(xml: str) -> str:
-    x = xml.replace("<br>", "\n")
-    x = _font_regex.sub(_font_replace, x)
+    x = _font_regex.sub(_font_replace, xml)
     x = x.replace("</font>", "</span>")
     x = _link_regex.sub(_link_replace, x)
     # x = strip_tags(x)
-    x = x.replace("\n", "<br>")
     return mark_safe(x)
