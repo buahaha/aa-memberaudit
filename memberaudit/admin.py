@@ -275,8 +275,8 @@ class DoctrineShipAdmin(admin.ModelAdmin):
 
     def _skills(self, obj):
         return [
-            f"{x.skill.name} {x.level}"
-            for x in obj.skills.all().order_by("skill__name")
+            f"{x.eve_type.name} {x.level}"
+            for x in obj.skills.all().order_by("eve_type__name")
         ]
 
     def _doctrines(self, obj) -> list:
