@@ -161,32 +161,32 @@
     }
 }
 
-@media(min-width: 40rem) {
+@media (min-width: 40rem) {
     .cards_container .cards_item {
         width: calc(100% / 2);
     }
 }
 
-@media(min-width: 56rem) {
+@media (min-width: 56rem) {
     .cards_container .cards_item {
         width: calc(100% / 3);
     }
 }
 
-@media(min-width: 75rem) {
+@media (min-width: 75rem) {
     .cards_container .cards_item {
         width: calc(100% / 4);
     }
 }
 
-@media(min-width: 90rem) {
+@media (min-width: 90rem) {
     .cards_container .cards_item {
         width: calc(100% / 5);
     }
 }
 
 
-@media(min-width: 105rem) {
+@media (min-width: 105rem) {
     .cards_container .cards_item {
         width: calc(100% / 6);
     }

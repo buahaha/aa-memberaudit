@@ -7,22 +7,46 @@
     }
 
     .text-high-sec {
-        color: green;
+        color: rgb(0, 128, 0);
     }
 
     .text-low-sec {
-        color: orange;
+        color: rgb(255, 165, 0);
     }
 
     .text-null-sec {
-        color: red;
+        color: rgb(255, 0, 0);
     }
 
     .boolean-icon-false{
-        color: red;
+        color: rgb(255, 0, 0);
     }
 
     .boolean-icon-true {
-        color: green;
+        color: rgb(0, 128, 0);
+    }
+}
+/* DataTables
+--------------------------------------------------------------------------------------------------------------------- */
+@media all {
+    .dataTables_wrapper > .form-inline {
+        margin-bottom: 1rem;
+    }
+
+    .dataTables_wrapper > .form-inline select {
+        margin-right: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .dataTables_wrapper > .form-inline select:first-child {
+        margin-left: 1rem;
+    }
+
+    .dataTables_wrapper > .form-inline select:last-child {
+        margin-right: 0;
+    }
+
+    .dataTables_length select {
+        margin: 0 1rem;
     }
 }

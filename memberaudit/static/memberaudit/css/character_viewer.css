@@ -1,5 +1,4 @@
 @media all {
-
     /* main panels */
     #centerColumn {
         padding-left: 0;
@@ -31,6 +30,7 @@
         text-align: left;
         width: 7em;
     }
+
     .dl-horizontal dd {
         margin-left: 7em;
     }
@@ -43,18 +43,22 @@
     #tab_assets tbody td:nth-child(2) {
         text-align: right;
     }
+
     #tab_assets tbody td:nth-child(4) {
         text-align: right;
     }
+
     #tab_assets tbody td:nth-child(5) {
         text-align: right;
     }
     #tab_assets tbody td:nth-child(6) {
         text-align: right;
     }
+
     #tab_assets tfoot th:nth-child(5) {
         text-align: right;
     }
+
     #tab_assets tfoot th:nth-child(6) {
         text-align: right;
     }
@@ -63,21 +67,27 @@
     #tab_asset_children tbody td:nth-child(1) {
         white-space: nowrap;
     }
+
     #tab_asset_children tbody td:nth-child(2) {
         text-align: right;
     }
+
     #tab_asset_children tbody td:nth-child(4) {
         text-align: right;
     }
+
     #tab_asset_children tbody td:nth-child(5) {
         text-align: right;
     }
+
     #tab_asset_children tbody td:nth-child(6) {
         text-align: right;
     }
+
     #tab_asset_children tfoot th:nth-child(5) {
         text-align: right;
     }
+
     #tab_asset_children tfoot th:nth-child(6) {
         text-align: right;
     }
@@ -86,6 +96,7 @@
         color: rgb(0, 0, 0);
         font-weight: bold;
     }
+
     .template-dark-mode .breadcrumb >.active {
         color: rgb(255, 255, 255);
         font-weight: bold;
@@ -95,6 +106,7 @@
     #tab_contacts tbody td:nth-child(1) {
         white-space: nowrap;
     }
+
     #tab_contacts tbody td:nth-child(3) {
         text-align: right;
     }
@@ -112,24 +124,30 @@
     #tab_contract_items_requested tbody td:nth-child(5) {
         text-align: right;
     }
+
     #tab_contract_items_requested tbody td:nth-child(6) {
         text-align: right;
     }
+
     #tab_contract_items_requested tfoot th:nth-child(5) {
         text-align: right;
     }
+
     #tab_contract_items_requested tfoot th:nth-child(6) {
         text-align: right;
     }
+
     #tab_contract_items_included tbody td:nth-child(5) {
         text-align: right;
     }
+
     #tab_contract_items_included tbody td:nth-child(6) {
         text-align: right;
     }
     #tab_contract_items_included tfoot th:nth-child(5) {
         text-align: right;
     }
+
     #tab_contract_items_included tfoot th:nth-child(6) {
         text-align: right;
     }
@@ -138,6 +156,7 @@
     #tab_loyalty tbody td:nth-child(1) {
         white-space: nowrap;
     }
+
     #tab_loyalty tbody td:nth-child(2) {
         text-align: right;
     }
@@ -158,6 +177,7 @@
     #tab_wallet tbody td:nth-child(1) {
         white-space: nowrap;
     }
+
     #tab_wallet tbody td:nth-child(5) {
         text-align: right;
     }
