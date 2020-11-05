@@ -369,23 +369,30 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         main_character = None
         main = "-"
 
+    # mailing lists
+    mailing_lists = list(
+        character.mailing_lists.annotate(
+            unread_count=Count(
+                "charactermailrecipient",
+                filter=Q(charactermailrecipient__mail__is_read=False),
+            )
+        ).values("list_id", "name", "unread_count")
+    )
+
     # mail labels
     mail_labels = list(
         character.mail_labels.values(
             "label_id", "name", unread_count_2=F("unread_count")
         )
     )
-    """TODO: Correct or remove
-    mail_labels = list(
-        character.mail_labels.annotate(
-            unread_count_2=Count(
-                "mails__mail_id",
-                filter=Q(mails__is_read=False),
-            )
-        ).values("label_id", "name", "unread_count_2")
+
+    total_unread_count = sum(
+        [obj["unread_count_2"] for obj in mail_labels if obj["unread_count_2"]]
     )
-    """
-    total_unread_count = character.mails.filter(is_read=False).count()
+    total_unread_count += sum(
+        [obj["unread_count"] for obj in mailing_lists if obj["unread_count"]]
+    )
+
     mail_labels.append(
         {
             "label_id": MAIL_LABEL_ID_ALL_MAILS,
@@ -393,14 +400,6 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
             "unread_count_2": total_unread_count,
         }
     )
-
-    # mailing_lists = character.mailing_lists.values("list_id", "name")
-    mailing_lists = character.mailing_lists.annotate(
-        unread_count=Count(
-            "charactermailrecipient",
-            filter=Q(charactermailrecipient__mail__is_read=False),
-        )
-    ).values("list_id", "name", "unread_count")
 
     # registered characters
     registered_characters = list(

@@ -1113,32 +1113,44 @@ class Character(models.Model):
     def update_mailing_lists(self, token: Token):
         """update the mailing lists for the given character"""
         logger.info("%s: Fetching mailing lists from ESI", self)
-        mailing_lists = esi.client.Mail.get_characters_character_id_mail_lists(
+        mailing_lists_raw = esi.client.Mail.get_characters_character_id_mail_lists(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
+        if mailing_lists_raw:
+            mailing_lists = {
+                obj["mailing_list_id"]: obj
+                for obj in mailing_lists_raw
+                if "mailing_list_id" in obj
+            }
+        else:
+            mailing_lists = dict()
+
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(mailing_lists, "mailing_lists")
 
-        # TODO: Replace delete + create with create + update
-        if not mailing_lists:
-            logger.info("%s: No mailing lists", self)
-            return
-
-        logger.info("%s: Storing %s mailing lists", self, len(mailing_lists))
+        # TODO: replace with bulk methods to optimize
         with transaction.atomic():
-            self.mailing_lists.all().delete()
-            new_lists = [
-                CharacterMailingList(
-                    character=self,
-                    list_id=mailing_list.get("mailing_list_id"),
-                    name=mailing_list.get("name"),
+            incoming_ids = set(mailing_lists.keys())
+            existing_ids = set(self.mailing_lists.values_list("list_id", flat=True))
+            obsolete_ids = existing_ids.difference(incoming_ids)
+            if obsolete_ids:
+                logger.info(
+                    "%s: Removing %s obsolete mailing lists", self, len(obsolete_ids)
                 )
-                for mailing_list in mailing_lists
-            ]
-            CharacterMailingList.objects.bulk_create(
-                new_lists, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-            )
+                self.mailing_lists.filter(list_id__in=obsolete_ids).delete()
+
+            if not incoming_ids:
+                logger.info("%s: No mailing lists", self)
+                return
+
+            logger.info("%s: Updating %s mailing lists", self, len(incoming_ids))
+            for list_id, mailing_list in mailing_lists.items():
+                CharacterMailingList.objects.update_or_create(
+                    character=self,
+                    list_id=list_id,
+                    defaults={"name": mailing_list.get("name")},
+                )
 
     @fetch_token_for_character("esi-mail.read_mail.v1")
     def update_mail_labels(self, token: Token):
@@ -1210,7 +1222,7 @@ class Character(models.Model):
         update_pks = list(
             self.mail_labels.filter(label_id__in=label_ids).values_list("pk", flat=True)
         )
-        labels = CharacterMailLabel.objects.in_bulk(update_pks)
+        labels = self.mail_labels.in_bulk(update_pks)
         for label in labels.values():
             record = mail_labels_list.get(label.label_id)
             if record:
@@ -1372,11 +1384,11 @@ class Character(models.Model):
 
     def _update_mail_headers(self, mail_headers: dict, update_ids) -> None:
         logger.info("%s: Updating %s mail headers", self, len(update_ids))
-        mail_pks = CharacterMail.objects.filter(mail_id__in=update_ids).values_list(
+        mail_pks = self.mails.filter(mail_id__in=update_ids).values_list(
             "pk", flat=True
         )
         labels = self.mail_labels.get_all_labels()
-        mails = CharacterMail.objects.in_bulk(mail_pks)
+        mails = self.mails.in_bulk(mail_pks)
         for mail in mails.values():
             mail_header = mail_headers.get(mail.mail_id)
             if mail_header:
@@ -1539,7 +1551,7 @@ class Character(models.Model):
         update_pks = list(
             self.skills.filter(eve_type_id__in=update_ids).values_list("pk", flat=True)
         )
-        skills = CharacterSkill.objects.in_bulk(update_pks)
+        skills = self.skills.in_bulk(update_pks)
         for skill in skills.values():
             skill_info = skills_list.get(skill.eve_type_id)
             if skill_info:

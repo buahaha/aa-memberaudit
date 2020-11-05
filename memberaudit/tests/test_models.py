@@ -900,6 +900,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
             character=self.character_1001, list_id=9001, name="Dummy 1"
         )
 
+        self.character_1001.update_mailing_lists()
         self.character_1001.update_mail_labels()
         self.character_1001.update_mail_headers()
         self.assertSetEqual(
@@ -930,20 +931,22 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
     def test_update_mail_headers_2(self, mock_esi):
         """can update existing mail"""
         mock_esi.client = esi_client_stub
+        mailing_list = CharacterMailingList.objects.create(
+            character=self.character_1001, list_id=9001, name="Dummy 1"
+        )
         mail = CharacterMail.objects.create(
             character=self.character_1001,
             mail_id=1,
             from_entity=EveEntity.objects.get(id=1002),
             subject="Mail 1",
-            is_read=False,
             timestamp=parse_datetime("2015-09-30T16:07:00Z"),
         )
         CharacterMailRecipient.objects.create(
             mail=mail, eve_entity=EveEntity.objects.get(id=1001)
         )
-        CharacterMailingList.objects.create(
-            character=self.character_1001, list_id=9001, name="Dummy 1"
-        )
+        CharacterMailRecipient.objects.create(mail=mail, mailing_list=mailing_list)
+
+        self.character_1001.update_mailing_lists()
         self.character_1001.update_mail_labels()
         label = self.character_1001.mail_labels.get(label_id=17)
         mail.labels.add(label)
@@ -959,6 +962,44 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertIsNone(obj.from_mailing_list)
         self.assertTrue(obj.is_read)
         self.assertEqual(obj.subject, "Mail 1")
+        self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T16:07:00Z"))
+        self.assertFalse(obj.body)
+        self.assertTrue(obj.recipients.filter(eve_entity_id=1001).exists())
+        self.assertTrue(obj.recipients.filter(mailing_list__list_id=9001).exists())
+        self.assertSetEqual(set(obj.labels.values_list("label_id", flat=True)), {3})
+
+    def test_update_mail_headers_3(self, mock_esi):
+        """can update existing mail, also for mailing lists"""
+        mock_esi.client = esi_client_stub
+        mailing_list = CharacterMailingList.objects.create(
+            character=self.character_1001, list_id=9001, name="Dummy 1"
+        )
+        mail = CharacterMail.objects.create(
+            character=self.character_1001,
+            mail_id=2,
+            from_mailing_list=mailing_list,
+            subject="Mail 2",
+            timestamp=parse_datetime("2015-09-30T16:07:00Z"),
+        )
+        CharacterMailRecipient.objects.create(
+            mail=mail, eve_entity=EveEntity.objects.get(id=1001)
+        )
+        self.character_1001.update_mailing_lists()
+        self.character_1001.update_mail_labels()
+        label = self.character_1001.mail_labels.get(label_id=17)
+        mail.labels.add(label)
+
+        self.character_1001.update_mail_headers()
+        self.assertSetEqual(
+            set(self.character_1001.mails.values_list("mail_id", flat=True)),
+            {1, 2},
+        )
+
+        obj = self.character_1001.mails.get(mail_id=2)
+        self.assertEqual(obj.from_mailing_list, mailing_list)
+        self.assertIsNone(obj.from_entity)
+        self.assertFalse(obj.is_read)
+        self.assertEqual(obj.subject, "Mail 2")
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T16:07:00Z"))
         self.assertFalse(obj.body)
         self.assertTrue(obj.recipients.filter(eve_entity_id=1001).exists())
