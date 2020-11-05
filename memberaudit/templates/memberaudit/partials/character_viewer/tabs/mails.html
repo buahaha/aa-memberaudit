@@ -1,10 +1,13 @@
 {% load i18n %}
 {% load humanize %}
+{% load static %}
+
 <script>
     function showInvalidError() {
         alert('{% translate "Unsupported link type." %}');
     }
 </script>
+
 <div role="tabpanel" class="tab-pane" id="mail">
     {% if not character.has_mails %}
         <p>{% translate 'No data yet...' %}</p>
@@ -41,22 +44,33 @@
 
             <!-- Mails for current label-->
             <div class="col-md-10">
-                <div class="table-responsive">
-                    <table class="table table-striped" id="tab_mails" style="width:100%;">
-                        <thead>
-                            <tr>
-                                <th>{% translate 'Sent' %}</th>
-                                <th>{% translate 'From' %}</th>
-                                <th>{% translate 'To' %}</th>
-                                <th>{% translate 'Subject' %}</th>
-                                <th></th>
-                            </tr>
-                        </thead>
+                <div id="div_mails_loader">
+					{% if NIGHT_MODE %}
+                        <img src="{% static 'memberaudit/images/Spinner-1s-64px-dark.gif' %}"/>
+                    {% else %}
+                        <img src="{% static 'memberaudit/images/Spinner-1s-64px-light.gif' %}"/>
+                    {% endif %}
+				</div>
 
-                        <tbody></tbody>
-                    </table>
+                <div id="div_mails_main" style="display: none !important;">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="tab_mails" style="width:100%;">
+                            <thead>
+                                <tr>
+                                    <th>{% translate 'Sent' %}</th>
+                                    <th>{% translate 'From' %}</th>
+                                    <th>{% translate 'To' %}</th>
+                                    <th>{% translate 'Subject' %}</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <p class="text-muted">{% translate 'Last updated:' %} {{ last_updates.mails|naturaltime }}</p>
                 </div>
-                <p class="text-muted">{% translate 'Last updated:' %} {{ last_updates.mails|naturaltime }}</p>
+
             </div>
         </div>
     {% endif %}

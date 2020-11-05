@@ -475,6 +475,13 @@
                 }
             });
 
+            /* Show mails when AJAX loading has finished */
+            table.on( 'xhr', function () {
+                table.columns.adjust().draw();
+                $("#div_mails_loader").hide();
+                $("#div_mails_main").show();
+            } );
+
             /* reload mails when a label is selected*/
             $(".pillMailLabel").on("click", function (event) {
                 var element = $(event.currentTarget);
@@ -485,6 +492,10 @@
                 // and make current pill active
                 $(".pillMailLabel").removeClass("active");
                 element.addClass("active");
+
+                // reactive loader
+                $("#div_mails_main").hide();
+                $("#div_mails_loader").show();
 
                 // reload data table for selected label
                 if (listId!=undefined) {
