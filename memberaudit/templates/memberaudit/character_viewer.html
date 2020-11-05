@@ -499,13 +499,12 @@
 
                 // reload data table for selected label
                 if (listId!=undefined) {
-                    var url2 = "{% url 'memberaudit:character_mail_headers_by_list_data' character.pk 0 %}".replace("0", listId);
-                    table.ajax.url( url2 ).load();
+                    var url2 = "{% url 'memberaudit:character_mail_headers_by_list_data' character.pk 0 %}".replace("/0/", "/" + listId + "/");
                 }
                 else {
-                    var url2 = "{% url 'memberaudit:character_mail_headers_by_label_data' character.pk 0 %}".replace("0", labelId);
-                    table.ajax.url( url2 ).load();
+                    var url2 = "{% url 'memberaudit:character_mail_headers_by_label_data' character.pk 0 %}".replace("/0/", "/" + labelId + "/");
                 }
+                table.ajax.url( url2 ).load();
 
             });
 
