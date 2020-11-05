@@ -2735,7 +2735,15 @@ class DoctrineShip(models.Model):
 
     name = models.CharField(max_length=NAMES_MAX_LENGTH, unique=True)
     ship_type = models.ForeignKey(
-        EveType, on_delete=models.SET_DEFAULT, default=None, null=True, blank=True
+        EveType,
+        on_delete=models.SET_DEFAULT,
+        default=None,
+        null=True,
+        blank=True,
+        help_text=(
+            "Ship type is used for visual presentation only. "
+            "All skill requirements must be explicitly defined."
+        ),
     )
     is_visible = models.BooleanField(
         default=True,
