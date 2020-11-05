@@ -1698,6 +1698,7 @@ class Character(models.Model):
             "esi-clones.read_clones.v1",
             "esi-clones.read_implants.v1",
             "esi-contracts.read_character_contracts.v1",
+            "esi-corporations.read_corporation_membership.v1",
             "esi-industry.read_character_jobs.v1",
             "esi-industry.read_character_mining.v1",
             "esi-killmails.read_killmails.v1",
