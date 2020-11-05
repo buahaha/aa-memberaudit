@@ -12,6 +12,7 @@ An app for auditing members on Alliance Auth
 - [Key Features](#key-features)
 - [Screenshots](#screenshots)
 - [Installation](#installation)
+- [Updating](#updating)
 - [Permissions](#permissions)
 - [Settings](#settings)
 - [Change Log](CHANGELOG.md)
@@ -44,6 +45,17 @@ The main page for users to register their characters and get a key infos of all 
 The page for displaying all details about a character.
 
 ![viewer](https://i.imgur.com/vo1N3kg.jpg)
+
+
+### Doctrines
+
+This tab on the character view allows you to view what fittings a character can or can't fly. For ships they can't fly, it also shows what skills are missing.
+
+![doctrines](https://i.imgur.com/ATlExgl.jpg)
+
+ Skill requirements can be customized per ship in the administration panel.
+ 
+![doctrine-admin](https://i.imgur.com/nUp7ffV.jpg)
 
 ### Character Finder
 
@@ -162,7 +174,7 @@ You may want to wait until the loading is complete before starting to create new
 
 Finally you want to setup permission to define which users / groups will have access to which parts of the app. Check out [permissions](#permissions) for details.
 
-Congratulations you are now ready to use memberaudit!
+Congratulations you are now ready to use Member Audit!
 
 ## Updating
 
