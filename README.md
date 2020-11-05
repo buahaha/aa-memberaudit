@@ -54,7 +54,7 @@ This tab on the character view allows you to view what fittings a character can 
 ![doctrines](https://i.imgur.com/ATlExgl.jpg)
 
  Skill requirements can be customized per ship in the administration panel.
- 
+
 ![doctrine-admin](https://i.imgur.com/nUp7ffV.jpg)
 
 ### Character Finder
