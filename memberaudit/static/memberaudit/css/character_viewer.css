@@ -208,14 +208,16 @@
     }
 
     .template-dark-mode .sidebar_character > a {
-        color: white;
+        color: rgb(255, 255, 255);
     }
 
-    .template-light-mode .sidebar_character:hover > a {
+    .template-light-mode .sidebar_character:hover > a,
+    .template-light-mode .sidebar_character.active > a {
         background-color: rgb(236, 240, 241);
     }
 
-    .template-dark-mode .sidebar_character:hover > a {
+    .template-dark-mode .sidebar_character:hover > a,
+    .template-dark-mode .sidebar_character.active > a {
         background-color: rgb(34, 34, 34);
     }
 
