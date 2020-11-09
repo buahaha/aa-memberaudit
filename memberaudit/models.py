@@ -4,7 +4,8 @@ import json
 import os
 from typing import List, Optional
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
+from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -2795,3 +2796,65 @@ class DoctrineShipSkill(models.Model):
 
     def __str__(self) -> str:
         return f"{self.ship}-{self.eve_type}"
+
+
+class SingletonBase(models.Model):
+    """A base class for models where only one instance is desired (ex. Settings).
+    Implementation courtesy of:
+    https://steelkiwi.com/blog/practical-application-singleton-design-pattern/
+    """
+
+    class Meta:
+        abstract = True
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super(SingletonBase, self).save(*args, **kwargs)
+        self.set_cache()
+
+    def delete(self, *args, **kwargs):
+        pass
+
+    @classmethod
+    def load(cls):
+        if cache.get(cls.__name__) is None:
+            obj, created = cls.objects.get_or_create(pk=1)
+            if not created:
+                obj.set_cache()
+        return cache.get(cls.__name__)
+
+    def set_cache(self):
+        cache.set(self.__class__.__name__, self)
+
+
+class Settings(SingletonBase):
+    """Application settings"""
+
+    class Meta:
+        verbose_name = "settings"
+        verbose_name_plural = "settings"
+
+    compliant_user_group = models.OneToOneField(
+        Group,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        help_text="""Group users that are compliant will be added to
+        automatically. The contents of this group should be considered
+        ephemeral, and users should not be manually added.""",
+    )
+
+    def save(self, *args, **kwargs):
+        # if self.pk is not None:
+        orig = Settings.objects.filter(pk=1).first()
+        super(Settings, self).save(*args, **kwargs)
+        if orig is None or orig.compliant_user_group != self.compliant_user_group:
+            # Remove everyone from the old group, if it exists
+            if orig is not None and orig.compliant_user_group is not None:
+                orig.compliant_user_group.user_set.set([])
+            # Remove everyone from the new group
+            if self.compliant_user_group is not None:
+                self.compliant_user_group.user_set.set([])
+
+    def __str__(self):
+        return "configuration"

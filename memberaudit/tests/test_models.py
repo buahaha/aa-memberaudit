@@ -1,6 +1,7 @@
 import datetime as dt
 from unittest.mock import patch, Mock
 
+from django.contrib.auth.models import Group
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.utils.dateparse import parse_datetime
@@ -40,6 +41,7 @@ from ..models import (
     DoctrineShip,
     DoctrineShipSkill,
     Location,
+    Settings,
 )
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
@@ -2046,3 +2048,12 @@ class TestCharacterMailLabelManager(TestCharacterUpdateBase):
     def test_empty(self):
         labels = CharacterMailLabel.objects.get_all_labels()
         self.assertDictEqual(labels, dict())
+
+
+class TestSettings(NoSocketsTestCase):
+    def test_save_and_retrieve(self):
+        group = Group.objects.create(name="Test Group")
+        saved = Settings.objects.create(compliant_user_group=group)
+        saved.save()
+        restored = Settings.load()
+        self.assertEquals(restored.compliant_user_group, saved.compliant_user_group)
