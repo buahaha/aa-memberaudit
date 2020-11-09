@@ -1015,9 +1015,14 @@ class Character(models.Model):
         """update the location for the given character"""
         eve_solar_system, location = self.fetch_location()
         if eve_solar_system:
-            CharacterLocation.objects.update_or_create(
-                character=self, eve_solar_system=eve_solar_system, location=location
-            )
+            with transaction.atomic():
+                CharacterLocation.objects.update_or_create(
+                    character=self,
+                    defaults={
+                        "eve_solar_system": eve_solar_system,
+                        "location": location,
+                    },
+                )
 
     @fetch_token_for_character("esi-characters.read_loyalty.v1")
     def update_loyalty(self, token):

@@ -29,16 +29,6 @@ urlpatterns = [
         name="unshare_character",
     ),
     path(
-        "character_location_data/<int:character_pk>/",
-        views.character_location_data,
-        name="character_location_data",
-    ),
-    path(
-        "character_solar_system_data/<int:character_pk>/",
-        views.character_solar_system_data,
-        name="character_solar_system_data",
-    ),
-    path(
         "character_assets_data/<int:character_pk>/",
         views.character_assets_data,
         name="character_assets_data",

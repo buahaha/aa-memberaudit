@@ -17,9 +17,7 @@ from django.utils.timesince import timeuntil
 from django.utils.html import format_html
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy, gettext
-from django.views.decorators.cache import cache_page
 
-from bravado.exception import HTTPError
 from esi.decorators import token_required
 
 from allianceauth.authentication.models import CharacterOwnership, User
@@ -288,49 +286,6 @@ def unshare_character(request, character_pk: int) -> HttpResponse:
         )
 
     return redirect("memberaudit:launcher")
-
-
-def _character_location_to_html(character: Character, category: str) -> str:
-    """fetches current character location
-    and returns either as solar system or location in HTML
-    """
-    try:
-        solar_system, location = character.fetch_location()
-    except HTTPError:
-        logger.warning("Network error", exc_info=True)
-        html = '<p class="text-danger">Network error</p>'
-    except Exception as ex:
-        logger.warning(f"Unexpected error: {ex}", exc_info=True)
-        html = '<p class="text-danger">Unexpected error</p>'
-    else:
-        if category == "solar_system":
-            html = eve_solar_system_to_html(solar_system)
-        elif location:
-            html = location.name
-        else:
-            html = "-"
-
-    return html
-
-
-@cache_page(30)
-@login_required
-@permission_required("memberaudit.basic_access")
-@fetch_character_if_allowed()
-def character_solar_system_data(
-    request, character_pk: int, character: Character
-) -> HttpResponse:
-    return HttpResponse(_character_location_to_html(character, "solar_system"))
-
-
-@cache_page(30)
-@login_required
-@permission_required("memberaudit.basic_access")
-@fetch_character_if_allowed()
-def character_location_data(
-    request, character_pk: int, character: Character
-) -> HttpResponse:
-    return HttpResponse(_character_location_to_html(character, "location"))
 
 
 @login_required

@@ -2,7 +2,6 @@ import datetime as dt
 import json
 from unittest.mock import patch
 
-from bravado.exception import HTTPNotFound
 import pytz
 
 from django.http import JsonResponse
@@ -43,13 +42,11 @@ from ..models import (
     DoctrineShipSkill,
     Location,
 )
-from .utils import ResponseStub
 from ..utils import generate_invalid_pk
 from ..views import (
     index,
     launcher,
     character_viewer,
-    character_location_data,
     character_assets_data,
     character_asset_container,
     character_asset_container_data,
@@ -1427,71 +1424,6 @@ class TestComplianceReportData(TestCase):
                 self.character_1003.character_ownership.user.pk,
             },
         )
-
-
-@patch(MODULE_PATH + ".Character.fetch_location")
-class TestCharacterLocationData(TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        super().setUpClass()
-        cls.factory = RequestFactory()
-        load_eveuniverse()
-        load_entities()
-        load_locations()
-        cls.character = create_memberaudit_character(1001)
-        cls.user = cls.character.character_ownership.user
-        cls.jita = EveSolarSystem.objects.get(id=30000142)
-        cls.jita_44 = Location.objects.get(id=60003760)
-
-    def test_location_normal(self, mock_fetch_location):
-        mock_fetch_location.return_value = (self.jita, self.jita_44)
-
-        request = self.factory.get(
-            reverse("memberaudit:character_location_data", args=[self.character.pk])
-        )
-        request.user = self.user
-        orig_view = character_location_data.__wrapped__
-        response = orig_view(request, self.character.pk)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("Caldari Navy Assembly Plant", response.content.decode("utf8"))
-
-    def test_solar_system_normal(self, mock_fetch_location):
-        mock_fetch_location.return_value = (self.jita, self.jita_44)
-
-        request = self.factory.get(
-            reverse("memberaudit:character_location_data", args=[self.character.pk])
-        )
-        request.user = self.user
-        orig_view = character_location_data.__wrapped__
-        response = orig_view(request, self.character.pk)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("Jita", response.content.decode("utf8"))
-
-    def test_http_error(self, mock_fetch_location):
-        mock_fetch_location.side_effect = HTTPNotFound(
-            response=ResponseStub(404, "Test exception")
-        )
-
-        request = self.factory.get(
-            reverse("memberaudit:character_location_data", args=[self.character.pk])
-        )
-        request.user = self.user
-        orig_view = character_location_data.__wrapped__
-        response = orig_view(request, self.character.pk)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("Network error", response.content.decode("utf8"))
-
-    def test_unexpected_error(self, mock_fetch_location):
-        mock_fetch_location.side_effect = RuntimeError
-
-        request = self.factory.get(
-            reverse("memberaudit:character_location_data", args=[self.character.pk])
-        )
-        request.user = self.user
-        orig_view = character_location_data.__wrapped__
-        response = orig_view(request, self.character.pk)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("Unexpected error", response.content.decode("utf8"))
 
 
 class TestDoctrineReportData(TestCase):
