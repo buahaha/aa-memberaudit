@@ -47,7 +47,7 @@ from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
 from .testdata.load_locations import load_locations
-from .utils import queryset_pks
+from .utils import queryset_pks, ResponseStub
 from ..utils import NoSocketsTestCase
 
 MODELS_PATH = "memberaudit.models"
@@ -1848,7 +1848,7 @@ class TestLocationManager(NoSocketsTestCase):
 
     def test_can_create_empty_location_on_access_error_1(self, mock_esi):
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
-            HTTPForbidden(Mock())
+            HTTPForbidden(response=ResponseStub(403, "Test exception"))
         )
 
         obj, created = Location.objects.update_or_create_esi(
@@ -1859,7 +1859,7 @@ class TestLocationManager(NoSocketsTestCase):
 
     def test_can_create_empty_location_on_access_error_2(self, mock_esi):
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
-            HTTPUnauthorized(Mock())
+            HTTPUnauthorized(response=ResponseStub(401, "Test exception"))
         )
 
         obj, created = Location.objects.update_or_create_esi(

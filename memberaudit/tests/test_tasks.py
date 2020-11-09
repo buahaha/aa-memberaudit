@@ -1,8 +1,8 @@
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 
 from allianceauth.tests.auth_utils import AuthUtils
 from allianceauth.authentication.models import CharacterOwnership
-from bravado.exception import HTTPUnauthorized
+from bravado.exception import HTTPForbidden, HTTPInternalServerError
 from celery.exceptions import Retry as CeleryRetry
 
 from django.core.cache import cache
@@ -28,11 +28,16 @@ from ..tasks import (
     update_character_assets,
     update_structure_esi,
     update_all_user_assignments,
+    update_character_mails,
+    update_character_contacts,
+    update_character_contracts,
+    update_character_wallet_journal,
 )
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
 from .testdata.load_locations import load_locations
+from .utils import ResponseStub
 from ..utils import generate_invalid_pk
 
 MODELS_PATH = "memberaudit.models"
@@ -219,6 +224,208 @@ class TestUpdateCharacterAssets(TestCase):
             },
         )
 
+    def test_update_assets_5(self, mock_esi):
+        """when update succeeded then report update success"""
+        mock_esi.client = esi_client_stub
+
+        update_character_assets(self.character_1001.pk)
+
+        status = self.character_1001.update_status_set.get(
+            section=Character.UPDATE_SECTION_ASSETS
+        )
+        self.assertTrue(status.is_success)
+        self.assertFalse(status.error_message)
+
+    def test_update_assets_6(self, mock_esi):
+        """when update failed then report the error"""
+        mock_esi.client.Assets.get_characters_character_id_assets.side_effect = (
+            HTTPInternalServerError(response=ResponseStub(500, "Test exception"))
+        )
+
+        with self.assertRaises(HTTPInternalServerError):
+            update_character_assets(self.character_1001.pk)
+
+        status = self.character_1001.update_status_set.get(
+            section=Character.UPDATE_SECTION_ASSETS
+        )
+        self.assertFalse(status.is_success)
+        self.assertEqual(
+            status.error_message, "HTTPInternalServerError: 500 Test exception"
+        )
+
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODELS_PATH + ".esi")
+class TestUpdateCharacterMails(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_eveuniverse()
+        load_entities()
+        cls.character_1001 = create_memberaudit_character(1001)
+        cls.token = cls.character_1001.character_ownership.user.token_set.first()
+
+    def test_update_ok(self, mock_esi):
+        """when update succeeded then report update success"""
+        mock_esi.client = esi_client_stub
+
+        update_character_mails(self.character_1001.pk)
+
+        status = self.character_1001.update_status_set.get(
+            section=Character.UPDATE_SECTION_MAILS
+        )
+        self.assertTrue(status.is_success)
+        self.assertFalse(status.error_message)
+
+    def test_detect_error(self, mock_esi):
+        """when update failed then report the error"""
+        mock_esi.client.Mail.get_characters_character_id_mail_lists.side_effect = (
+            HTTPInternalServerError(response=ResponseStub(500, "Test exception"))
+        )
+
+        try:
+            update_character_mails(self.character_1001.pk)
+        except Exception:
+            status = self.character_1001.update_status_set.get(
+                section=Character.UPDATE_SECTION_MAILS
+            )
+            self.assertFalse(status.is_success)
+            self.assertEqual(
+                status.error_message, "HTTPInternalServerError: 500 Test exception"
+            )
+        else:
+            self.assertTrue(False)  # Hack to ensure the test fails when it gets here
+
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODELS_PATH + ".esi")
+class TestUpdateCharacterContacts(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_eveuniverse()
+        load_entities()
+        cls.character_1001 = create_memberaudit_character(1001)
+        cls.token = cls.character_1001.character_ownership.user.token_set.first()
+
+    def test_update_ok(self, mock_esi):
+        """when update succeeded then report update success"""
+        mock_esi.client = esi_client_stub
+
+        update_character_contacts(self.character_1001.pk)
+
+        status = self.character_1001.update_status_set.get(
+            section=Character.UPDATE_SECTION_CONTACTS
+        )
+        self.assertTrue(status.is_success)
+        self.assertFalse(status.error_message)
+
+    def test_detect_error(self, mock_esi):
+        """when update failed then report the error"""
+        mock_esi.client.Contacts.get_characters_character_id_contacts_labels.side_effect = HTTPInternalServerError(
+            response=ResponseStub(500, "Test exception")
+        )
+
+        try:
+            update_character_contacts(self.character_1001.pk)
+        except Exception:
+            status = self.character_1001.update_status_set.get(
+                section=Character.UPDATE_SECTION_CONTACTS
+            )
+            self.assertFalse(status.is_success)
+            self.assertEqual(
+                status.error_message, "HTTPInternalServerError: 500 Test exception"
+            )
+        else:
+            self.assertTrue(False)  # Hack to ensure the test fails when it gets here
+
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODELS_PATH + ".esi")
+class TestUpdateCharacterContracts(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_eveuniverse()
+        load_entities()
+        load_locations()
+        cls.character_1001 = create_memberaudit_character(1001)
+        cls.token = cls.character_1001.character_ownership.user.token_set.first()
+
+    def test_update_ok(self, mock_esi):
+        """when update succeeded then report update success"""
+        mock_esi.client = esi_client_stub
+
+        update_character_contracts(self.character_1001.pk)
+
+        status = self.character_1001.update_status_set.get(
+            section=Character.UPDATE_SECTION_CONTRACTS
+        )
+        self.assertTrue(status.is_success)
+        self.assertFalse(status.error_message)
+
+    def test_detect_error(self, mock_esi):
+        """when update failed then report the error"""
+        mock_esi.client.Contracts.get_characters_character_id_contracts.side_effect = (
+            HTTPInternalServerError(response=ResponseStub(500, "Test exception"))
+        )
+
+        try:
+            update_character_contracts(self.character_1001.pk)
+        except Exception:
+            status = self.character_1001.update_status_set.get(
+                section=Character.UPDATE_SECTION_CONTRACTS
+            )
+            self.assertFalse(status.is_success)
+            self.assertEqual(
+                status.error_message, "HTTPInternalServerError: 500 Test exception"
+            )
+        else:
+            self.assertTrue(False)  # Hack to ensure the test fails when it gets here
+
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODELS_PATH + ".esi")
+class TestUpdateCharacterWalletJournal(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_eveuniverse()
+        load_entities()
+        cls.character_1001 = create_memberaudit_character(1001)
+        cls.token = cls.character_1001.character_ownership.user.token_set.first()
+
+    def test_update_ok(self, mock_esi):
+        """when update succeeded then report update success"""
+        mock_esi.client = esi_client_stub
+
+        update_character_wallet_journal(self.character_1001.pk)
+
+        status = self.character_1001.update_status_set.get(
+            section=Character.UPDATE_SECTION_WALLET_JOURNAL
+        )
+        self.assertTrue(status.is_success)
+        self.assertFalse(status.error_message)
+
+    def test_detect_error(self, mock_esi):
+        """when update failed then report the error"""
+        mock_esi.client.Wallet.get_characters_character_id_wallet_journal.side_effect = HTTPInternalServerError(
+            response=ResponseStub(500, "Test exception")
+        )
+
+        try:
+            update_character_wallet_journal(self.character_1001.pk)
+        except Exception:
+            status = self.character_1001.update_status_set.get(
+                section=Character.UPDATE_SECTION_WALLET_JOURNAL
+            )
+            self.assertFalse(status.is_success)
+            self.assertEqual(
+                status.error_message, "HTTPInternalServerError: 500 Test exception"
+            )
+        else:
+            self.assertTrue(False)  # Hack to ensure the test fails when it gets here
+
 
 @patch(MODELS_PATH + ".is_esi_online", lambda: True)
 @patch(MODELS_PATH + ".esi")
@@ -241,18 +448,20 @@ class TestUpdateCharacter(TestCase):
         self.assertTrue(self.character.is_update_status_ok())
 
     def test_report_error(self, mock_esi):
-        mock_esi.client.Assets.get_characters_character_id_assets.side_effect = (
-            RuntimeError("Dummy")
+        mock_esi.client.Skills.get_characters_character_id_skills.side_effect = (
+            HTTPInternalServerError(response=ResponseStub(500, "Test exception"))
         )
 
         update_character(self.character.pk)
         self.assertFalse(self.character.is_update_status_ok())
 
         status = self.character.update_status_set.get(
-            character=self.character, section=Character.UPDATE_SECTION_ASSETS
+            character=self.character, section=Character.UPDATE_SECTION_SKILLS
         )
         self.assertFalse(status.is_success)
-        self.assertEqual(status.error_message, "RuntimeError: Dummy")
+        self.assertEqual(
+            status.error_message, "HTTPInternalServerError: 500 Test exception"
+        )
 
     @patch(TASKS_PATH + ".Character.update_skills")
     def test_do_not_update_current_section_1(self, mock_update_skills, mock_esi):
@@ -348,7 +557,9 @@ class TestUpdateStructureEsi(TestCase):
             update_structure_esi(id=1, token_pk=generate_invalid_pk(Token))
 
     def test_access_forbidden(self, mock_structure_update_or_create_esi):
-        mock_structure_update_or_create_esi.side_effect = HTTPUnauthorized(Mock())
+        mock_structure_update_or_create_esi.side_effect = HTTPForbidden(
+            response=ResponseStub(403, "Test exception")
+        )
 
         update_structure_esi(id=1, token_pk=self.token.pk)
         self.assertTrue(cache.get(LOCATION_ESI_ERRORS_CACHE_KEY), 1)

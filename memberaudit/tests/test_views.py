@@ -1,6 +1,6 @@
 import datetime as dt
 import json
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 
 from bravado.exception import HTTPNotFound
 import pytz
@@ -43,6 +43,7 @@ from ..models import (
     DoctrineShipSkill,
     Location,
 )
+from .utils import ResponseStub
 from ..utils import generate_invalid_pk
 from ..views import (
     index,
@@ -1468,7 +1469,7 @@ class TestCharacterLocationData(TestCase):
 
     def test_http_error(self, mock_fetch_location):
         mock_fetch_location.side_effect = HTTPNotFound(
-            Mock(**{"response.status_code": 404})
+            response=ResponseStub(404, "Test exception")
         )
 
         request = self.factory.get(
