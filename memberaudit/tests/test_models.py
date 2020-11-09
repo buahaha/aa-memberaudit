@@ -348,34 +348,6 @@ class TestCharacterManagerUserHasAccess(TestCase):
         )
 
 
-class TestCharacterHasTopic(TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        super().setUpClass()
-        load_entities()
-
-    def setUp(self) -> None:
-        self.character = create_memberaudit_character(1001)
-
-    def test_has_mails_1(self):
-        """when mails exist then return True"""
-        CharacterMail.objects.create(character=self.character, mail_id=1)
-        self.assertTrue(self.character.has_mails)
-
-    def test_has_mails_2(self):
-        """when update status is ok then return True"""
-        CharacterUpdateStatus.objects.create(
-            character=self.character,
-            section=Character.UPDATE_SECTION_MAILS,
-            is_success=True,
-        )
-        self.assertTrue(self.character.has_mails)
-
-    def test_has_mails_3(self):
-        """when no update status and no mails then return False"""
-        self.assertFalse(self.character.has_mails)
-
-
 class TestCharacterUpdateBase(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls) -> None:

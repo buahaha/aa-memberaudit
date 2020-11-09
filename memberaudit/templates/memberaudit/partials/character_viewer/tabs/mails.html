@@ -8,26 +8,23 @@
 </script>
 
 <div role="tabpanel" class="tab-pane" id="mail">
-    {% if not character.has_mails %}
-        <p>{% translate 'No data yet...' %}</p>
-    {% else %}
-        <div class="row">
-            <!-- Mail Labels -->
-            <div class="col-md-2">
-                <ul class="nav nav-pills nav-stacked">
-                    {% for item in mail_labels|dictsort:"label_id" %}
-                        <li role="presentation" class="pillMailLabel{% if item.label_id == 1%} active{% endif %}" data-label-id="{{ item.label_id }}">
-                            <a href="#" onclick="return false;">
-                                {{ item.name }}
-                                {% if item.unread_count_2 %}
-                                    <span class="badge">{{ item.unread_count_2 }}</span>
-                                {% endif %}
-                            </a>
-                        </li>
-                    {% endfor %}
+    <div class="row">
+        <!-- Mail Labels -->
+        <div class="col-md-2">
+            <ul class="nav nav-pills nav-stacked">
+                {% for item in mail_labels|dictsort:"label_id" %}
+                    <li role="presentation" class="pillMailLabel{% if item.label_id == 1%} active{% endif %}" data-label-id="{{ item.label_id }}">
+                        <a href="#" onclick="return false;">
+                            {{ item.name }}
+                            {% if item.unread_count_2 %}
+                                <span class="badge">{{ item.unread_count_2 }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                {% endfor %}
 
+                {% if mailing_lists %}
                     <hr>
-
                     {% for item in mailing_lists|dictsort:"name.lower" %}
                         <li role="presentation" class="pillMailLabel" data-list-id="{{ item.list_id }}">
                             <a href="#" onclick="return false;">
@@ -38,39 +35,40 @@
                             </a>
                         </li>
                     {% endfor %}
-                </ul>
-            </div>
-
-            <!-- Mails for current label-->
-            <div class="col-md-10">
-                <div id="div_mails_loader">
-					{% if NIGHT_MODE %}
-                        <img src="{% static 'memberaudit/images/Spinner-1s-64px-dark.gif' %}"/>
-                    {% else %}
-                        <img src="{% static 'memberaudit/images/Spinner-1s-64px-light.gif' %}"/>
-                    {% endif %}
-				</div>
-
-                <div id="div_mails_main" style="display: none !important;">
-                    <div class="table-responsive">
-                        <table class="table table-striped" id="tab_mails" style="width:100%;">
-                            <thead>
-                                <tr>
-                                    <th>{% translate 'Sent' %}</th>
-                                    <th>{% translate 'From' %}</th>
-                                    <th>{% translate 'To' %}</th>
-                                    <th>{% translate 'Subject' %}</th>
-                                    <th></th>
-                                </tr>
-                            </thead>
-
-                            <tbody></tbody>
-                        </table>
-                    </div>
-                    {% include 'memberaudit/partials/character_viewer/tabs/last_updated.html' with update_section=last_updates.mails %}
-                </div>
-
-            </div>
+                {% endif %}
+            </ul>
         </div>
-    {% endif %}
+
+        <!-- Mails for current label-->
+        <div class="col-md-10">
+            <div id="div_mails_loader">
+                {% if NIGHT_MODE %}
+                    <img src="{% static 'memberaudit/images/Spinner-1s-64px-dark.gif' %}"/>
+                {% else %}
+                    <img src="{% static 'memberaudit/images/Spinner-1s-64px-light.gif' %}"/>
+                {% endif %}
+            </div>
+
+            <div id="div_mails_main" style="display: none !important;">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="tab_mails" style="width:100%;">
+                        <thead>
+                            <tr>
+                                <th>{% translate 'Sent' %}</th>
+                                <th>{% translate 'From' %}</th>
+                                <th>{% translate 'To' %}</th>
+                                <th>{% translate 'Subject' %}</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+
+                        <tbody></tbody>
+                    </table>
+                </div>
+                {% include 'memberaudit/partials/character_viewer/tabs/last_updated.html' with update_section=last_updates.mails %}
+            </div>
+
+        </div>
+    </div>
+
 </div>

@@ -273,15 +273,6 @@ class Character(models.Model):
             f"character_ownership='{self.character_ownership}')"
         )
 
-    @property
-    def has_mails(self):
-        return (
-            self.mails.count() > 0
-            or self.update_status_set.filter(
-                section=Character.UPDATE_SECTION_MAILS
-            ).exists()
-        )
-
     def user_has_access(self, user: User) -> bool:
         """Returns True if given user has permission to view this character"""
         if self.character_ownership.user == user:

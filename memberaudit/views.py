@@ -908,7 +908,10 @@ def character_corporation_history(
                 }
             )
 
-    context = {"corporation_history": reversed(corporation_history)}
+    context = {
+        "corporation_history": reversed(corporation_history),
+        "has_corporation_history": len(corporation_history) > 0,
+    }
     return render(
         request,
         "memberaudit/partials/character_viewer/tabs/corporation_history_2.html",

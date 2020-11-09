@@ -67,7 +67,12 @@
 
                                         <div class="text-center">
                                             {% include 'memberaudit/partials/solar_system.html' with character=auth_character.character only %}<br>
-                                            {{ auth_character.character.wallet_balance.total|intword|default_if_none:"-" }} ISK<br>
+                                            {% if auth_character.character.wallet_balance %}
+                                                {{ auth_character.character.wallet_balance.total|intword|default_if_none:"-" }} ISK<br>
+                                            {% else %}
+                                                <span class="text-muted">{% translate "(no data yet)" %}</span>
+                                            {% endif %}
+
                                         </div>
                                     </div>
 
