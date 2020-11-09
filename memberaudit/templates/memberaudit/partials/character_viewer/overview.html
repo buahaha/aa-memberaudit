@@ -22,7 +22,7 @@
                         <img src="{{ 1|character_portrait_url:32 }}" title="{{ auth_character.character_name }} on EveWho" width="16px" height="16px">
                     </a>
 
-                    <a href="https://forums.eveonline.com/u/{{ auth_character.character_name.split|join:"_" }}/summary" target="_blank">
+                    <a href="https://forums.eveonline.com/u/{{ auth_character.character_name.split|join:'_' }}/summary" target="_blank">
                         <img src="{% static 'memberaudit/images/evelogo.png' %}" title="{{ auth_character.character_name }} on Eve Forums" width="16px" height="16px">
                     </a>
 
@@ -35,6 +35,8 @@
                     </a>
                 </p>
             </div>
+
+            {% translate "(no data yet)" as no_data %}
 
             <div class="character-summary-info">
                 <div class="row">
@@ -71,48 +73,83 @@
                             </dd>
 
                             <dt>{% translate 'Faction:' %}</dt>
-                            <dd>{{ character_details.faction|default:"-" }}</dd>
+                            {% if character_details %}
+                                <dd>{{ character_details.faction|default:"-" }}</dd>
+                            {% else %}
+                                <dd class="text-muted">{{no_data}}</dd>
+                            {% endif %}
 
                             <dt>{% translate 'Race:' %}</dt>
-                            <dd>{{ character_details.eve_bloodline.eve_race }} / {{ character_details.eve_bloodline }}</dd>
+                            {% if character_details %}
+                                <dd>{{ character_details.eve_bloodline.eve_race }} / {{ character_details.eve_bloodline }}</dd>
+                            {% else %}
+                                <dd class="text-muted">{{no_data}}</dd>
+                            {% endif %}
                         </dl>
                     </div>
 
-                    {% translate "(no data)" as no_data %}
                     <div class="col-md-6 col-lg-4">
                         <dl class="dl-horizontal">
                             <dt>{% translate 'Born:' %}</dt>
-                            <dd class="nowrap">{{ character_details.birthday|naturaltime|default_if_none:no_data }}</dd>
+                            {% if character_details %}
+                                <dd>{{ character_details.birthday|naturaltime }}</dd>
+                            {% else %}
+                                <dd class="text-muted">{{no_data}}</dd>
+                            {% endif %}
 
                             <dt>{% translate 'Skillpoints:' %}</dt>
-                            <dd>{{ character.skillpoints.total|intword|default_if_none:no_data }}</dd>
+                            {% if character.skillpoints %}
+                                <dd>{{ character.skillpoints.total|intword }}</dd>
+                            {% else %}
+                                <dd class="text-muted">{{no_data}}</dd>
+                            {% endif %}
 
                             <dt>{% translate 'Sec. Status:' %}</dt>
-                            <dd class="{% if character_details.security_status < 0 %}text-danger{% elif character_details.security_status > 0 %}text-success{% endif %}">
-                                {{ character_details.security_status|floatformat:1|default_if_none:no_data }}
-                            </dd>
+                            {% if character_details.security_status %}
+                                <dd class="{% if character_details.security_status < 0 %}text-danger{% elif character_details.security_status > 0 %}text-success{% endif %}">
+                                    {{ character_details.security_status|floatformat:1 }}
+                                </dd>
+                            {% else %}
+                                <dd class="text-muted">{{no_data}}</dd>
+                            {% endif %}
 
                             <dt>{% translate 'Assets:' %}</dt>
-                            <dd>{{ character_assets_total|intword|default_if_none:no_data }} ISK (est.)</dd>
+                            {% if character_assets_total %}
+                                <dd>{{ character_assets_total|intword }} ISK (est.)</dd>
+                            {% else %}
+                                <dd class="text-muted">{{no_data}}</dd>
+                            {% endif %}
 
                             <dt>{% translate 'Wallet:' %}</dt>
-                            <dd>{{ character.wallet_balance.total|intword|default_if_none:no_data }} ISK</dd>
+                            {% if character.wallet_balance %}
+                                <dd>{{ character.wallet_balance.total|intword }} ISK</dd>
+                            {% else %}
+                                <dd class="text-muted">{{no_data}}</dd>
+                            {% endif %}
                         </dl>
                     </div>
 
                     <div class="col-md-6 col-lg-4">
                         <dl class="dl-horizontal">
                             <dt>{% translate 'Location:' %}</dt>
-                            <dd>{{ character.location.location.name_plus }}</dd>
+                            {% if character.location %}
+                                <dd>{{ character.location.location.name_plus }}</dd>
+                            {% else %}
+                                <dd class="text-muted">{{no_data}}</dd>
+                            {% endif %}
 
                             <dt>{% translate 'System:' %}</dt>
                             <dd>{% include 'memberaudit/partials/solar_system.html' with character=character only %}</dd>
 
                             <dt>{% translate 'Last Login:' %}</dt>
-                            <dd class="nowrap">{{ character.online_status.last_login|naturaltime }}</dd>
+                            {% if character.online_status.last_login %}
+                                <dd class="nowrap">{{ character.online_status.last_login|naturaltime }}</dd>
+                            {% else %}
+                                <dd class="text-muted">{{no_data}}</dd>
+                            {% endif %}
 
                             <dt>{% translate 'Main:' %}</dt>
-                            <dd>{{ main }}</dd>
+                            <dd>{{ main|default:"-" }}</dd>
                         </dl>
                     </div>
                 </div>

@@ -532,7 +532,6 @@
                     cache: false
                 },
                 columns: [
-                    { data: 'position' },
                     { data: 'skill' },
                     { data: 'finished',
                         render: {
@@ -540,6 +539,7 @@
                             sort: 'sort'
                         }
                     },
+                    { data: 'position' },
                 ],
                 order: [[0, "asc"]],
                 createdRow: function( row, data, dataIndex ) {

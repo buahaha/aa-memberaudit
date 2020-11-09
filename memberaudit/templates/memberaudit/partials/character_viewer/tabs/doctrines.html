@@ -16,6 +16,5 @@
             <tbody></tbody>
         </table>
     </div>
-
-    <p class="text-muted">{% translate 'Last updated:' %} {{ last_updates.doctrines|naturaltime }}</p>
+    {% include 'memberaudit/partials/character_viewer/tabs/last_updated.html' with update_section=last_updates.doctrines %}
 </div>

@@ -641,7 +641,7 @@ def update_user_assignment(user_pk: int) -> None:
             user=user, memberaudit_character__isnull=True
         ).exists()
     )
-    logger.debug("User %s %s compliant.", user, "is" if user_compliant else "is not")
+    logger.info("User %s %s compliant.", user, "is" if user_compliant else "is not")
     compliant_group = Settings.load().compliant_user_group
     if compliant_group is not None:
         if user_compliant:

@@ -18,5 +18,5 @@
             <tbody></tbody>
         </table>
     </div>
-    <p class="text-muted">{% translate 'Last updated:' %} {{ last_updates.contacts|naturaltime }}</p>
+    {% include 'memberaudit/partials/character_viewer/tabs/last_updated.html' with update_section=last_updates.contacts %}
 </div>

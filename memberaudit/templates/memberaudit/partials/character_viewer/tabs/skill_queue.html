@@ -1,23 +1,18 @@
 {% load i18n %}
-{% load humanize %}
 
-<!-- Skill queue -->
 <div role="tabpanel" class="tab-pane" id="skillqueue">
     <div class="table-responsive">
         <table class="table table-striped" id="tab_skillqueue" style="width:100%;">
             <thead>
                 <tr>
-                    <th>{% translate 'Position' %}</th>
                     <th>{% translate 'Skill' %}</th>
                     <th>{% translate 'Finished' %}</th>
+                    <th>{% translate 'Position' %}</th>
                 </tr>
             </thead>
 
             <tbody></tbody>
         </table>
     </div>
-
-    <p class="text-muted">
-        {% translate 'Last updated:' %} {{ last_updates.skill_queue|naturaltime }}
-    </p>
+    {% include 'memberaudit/partials/character_viewer/tabs/last_updated.html' with update_section=last_updates.skill_queue %}
 </div>

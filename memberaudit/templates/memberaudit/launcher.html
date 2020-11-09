@@ -101,12 +101,8 @@
                 </ul>
             </div>
 
-            {% if not has_registered_characters  %}
-                <p class="text-muted">{% translate 'No characters registered.' %}</p>
-            {% endif %}
-
             {% if unregistered_chars|length > 0 %}
-                <p>
+                <p class="text-info">
                     <strong>{% translate 'Unregistered character(s):' %}&nbsp;&nbsp;</strong>
                     {{ unregistered_chars|join:", " }}
                 </p>

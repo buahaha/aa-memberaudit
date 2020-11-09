@@ -11,5 +11,5 @@
         {% endif %}
     </div>
     <br>
-    <p class="text-muted">{% translate 'Last updated:' %} {{ last_updates.corporation_history|naturaltime }}</p>
+    {% include 'memberaudit/partials/character_viewer/tabs/last_updated.html' with update_section=last_updates.corporation_history %}
 </div>

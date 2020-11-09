@@ -135,7 +135,6 @@ def launcher(request) -> HttpResponse:
         try:
             character = character_ownership.memberaudit_character
         except AttributeError:
-            character = None
             unregistered_chars.append(eve_character.character_name)
         else:
             auth_characters.append(
@@ -149,6 +148,8 @@ def launcher(request) -> HttpResponse:
                     "corporation_name": eve_character.corporation_name,
                 }
             )
+
+    unregistered_chars = sorted(unregistered_chars)
 
     try:
         main_character_id = request.user.profile.main_character.character_id
@@ -383,6 +384,13 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         .get("total")
     )
 
+    # implants
+    try:
+        has_implants = character.implants.count() > 0
+    except ObjectDoesNotExist:
+        has_implants = False
+
+    # last updates
     try:
         last_updates = {
             obj["section"]: obj["updated_at"]
@@ -407,6 +415,7 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         "show_tab": show_tab,
         "last_updates": last_updates,
         "character_assets_total": character_assets_total,
+        "has_implants": has_implants,
     }
     return render(
         request,

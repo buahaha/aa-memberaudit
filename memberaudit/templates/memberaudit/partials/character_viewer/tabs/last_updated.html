@@ -1,0 +1,4 @@
+{% load i18n %}
+{% load humanize %}
+
+<p class="text-muted">{% translate 'Last updated:' %} {{ update_section|naturaltime|default:"(No data)" }}</p>

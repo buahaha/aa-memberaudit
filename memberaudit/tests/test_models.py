@@ -375,26 +375,6 @@ class TestCharacterHasTopic(TestCase):
         """when no update status and no mails then return False"""
         self.assertFalse(self.character.has_mails)
 
-    def test_has_wallet_journal_1(self):
-        """when mails exist then return True"""
-        CharacterWalletJournalEntry.objects.create(
-            character=self.character, entry_id=1, amount=100, balance=100, date=now()
-        )
-        self.assertTrue(self.character.has_wallet_journal)
-
-    def test_has_wallet_journal_2(self):
-        """when update status is ok then return True"""
-        CharacterUpdateStatus.objects.create(
-            character=self.character,
-            section=Character.UPDATE_SECTION_WALLET_JOURNAL,
-            is_success=True,
-        )
-        self.assertTrue(self.character.has_wallet_journal)
-
-    def test_has_wallet_journal_3(self):
-        """when no update status and no mails then return False"""
-        self.assertFalse(self.character.has_wallet_journal)
-
 
 class TestCharacterUpdateBase(NoSocketsTestCase):
     @classmethod

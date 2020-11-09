@@ -1,13 +1,15 @@
 {% load i18n %}
-{% load humanize %}
 
 <div role="tabpanel" class="tab-pane" id="implants">
-    <div class="table-responsive">
-        <table class="table table-striped" id="tab_implants" style="width:100%;">
-            <thead></thead>
-            <tbody></tbody>
-        </table>
-    </div>
-
-    <p class="text-muted">{% translate 'Last updated:' %} {{ last_updates.implants|naturaltime }}</p>
+    {% if has_implants %}
+        <div class="table-responsive">
+            <table class="table table-striped" id="tab_implants" style="width:100%;">
+                <thead></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    {% else %}
+        <p>No implants</p>
+    {% endif %}
+    {% include 'memberaudit/partials/character_viewer/tabs/last_updated.html' with update_section=last_updates.implants %}
 </div>
