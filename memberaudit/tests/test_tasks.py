@@ -1,16 +1,25 @@
 from unittest.mock import patch, Mock
 
+from allianceauth.tests.auth_utils import AuthUtils
+from allianceauth.authentication.models import CharacterOwnership
 from bravado.exception import HTTPUnauthorized
 from celery.exceptions import Retry as CeleryRetry
 
 from django.core.cache import cache
+from django.contrib.auth.models import Group
 from django.test import TestCase, override_settings
 
 from eveuniverse.models import EveSolarSystem, EveType
 from esi.models import Token
 
 from . import create_memberaudit_character
-from ..models import Character, CharacterAsset, CharacterUpdateStatus, Location
+from ..models import (
+    Character,
+    CharacterAsset,
+    CharacterUpdateStatus,
+    Location,
+    Settings,
+)
 from ..tasks import (
     LOCATION_ESI_ERRORS_CACHE_KEY,
     ESI_ERROR_LIMIT,
@@ -18,6 +27,7 @@ from ..tasks import (
     update_character,
     update_character_assets,
     update_structure_esi,
+    update_all_user_assignments,
 )
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
@@ -331,7 +341,9 @@ class TestUpdateStructureEsi(TestCase):
         cache.set(LOCATION_ESI_ERRORS_CACHE_KEY, 40)
         update_structure_esi(id=1, token_pk=self.token.pk)
 
-    def test_raise_exception_on_invali_token(self, mock_structure_update_or_create_esi):
+    def test_raise_exception_on_invalid_token(
+        self, mock_structure_update_or_create_esi
+    ):
         with self.assertRaises(Token.DoesNotExist):
             update_structure_esi(id=1, token_pk=generate_invalid_pk(Token))
 
@@ -345,3 +357,107 @@ class TestUpdateStructureEsi(TestCase):
         cache.set(LOCATION_ESI_ERRORS_CACHE_KEY, ESI_ERROR_LIMIT + 1)
         with self.assertRaises(CeleryRetry):
             update_structure_esi(id=1, token_pk=self.token.pk)
+
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+class TestGroupProvisioning(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_entities()
+
+    def setUp(self) -> None:
+        self.user = AuthUtils.create_user("George_RR_Martin")
+        self.character_1 = AuthUtils.add_main_character_2(
+            self.user, "Sansha Stark", 1005
+        )
+        self.character_2 = AuthUtils.add_main_character_2(self.user, "Aria Stark", 1006)
+        self.group, _ = Group.objects.get_or_create(name="Test Group")
+
+    def _associate_character(self, user, character):
+        return CharacterOwnership.objects.create(
+            character=character,
+            owner_hash="x1" + character.character_name,
+            user=user,
+        )
+
+    @patch(MODELS_PATH + ".Settings.load")
+    def test_update_user_assignment_none(self, mock_settings_load):
+        """When we have no compliance group defined, we should not add users"""
+        mock_settings_load.return_value = Settings(compliant_user_group=None)
+        self._associate_character(self.user, self.character_1)
+        update_all_user_assignments()
+        self.assertEquals(len(self.user.groups.values()), 0)
+
+    @patch(MODELS_PATH + ".Settings.load")
+    def test_update_user_assignment_single_not_added(self, mock_settings_load):
+        """When we have a single character not registered with member audit, we should not add users"""
+        mock_settings_load.return_value = Settings(compliant_user_group=self.group)
+        self._associate_character(self.user, self.character_1)
+        update_all_user_assignments()
+        self.assertEquals(len(self.user.groups.values()), 0)
+
+    @patch(MODELS_PATH + ".Settings.load")
+    def test_update_user_assignment_single_remove(self, mock_settings_load):
+        """When we have a single character not registered with member audit, we should remove existing users"""
+        mock_settings_load.return_value = Settings(compliant_user_group=self.group)
+        self._associate_character(self.user, self.character_1)
+        self.group.user_set.add(self.user)
+        update_all_user_assignments()
+        self.assertEquals(len(self.user.groups.values()), 0)
+
+    @patch(MODELS_PATH + ".Settings.load")
+    def test_update_user_assignment_zero_not_added(self, mock_settings_load):
+        """When we have no characters not registered with member audit, we should NOT add users"""
+        mock_settings_load.return_value = Settings(compliant_user_group=self.group)
+        update_all_user_assignments()
+        self.assertEquals(len(self.user.groups.values()), 0)
+
+    @patch(MODELS_PATH + ".Settings.load")
+    def test_update_user_assignment_single_added(self, mock_settings_load):
+        """When we have a single character registered with member audit, we should add users"""
+        mock_settings_load.return_value = Settings(compliant_user_group=self.group)
+        ownership = self._associate_character(self.user, self.character_1)
+        Character.objects.create(character_ownership=ownership)
+        update_all_user_assignments()
+        self.assertEquals(self.user.groups.first(), self.group)
+
+    @patch(MODELS_PATH + ".Settings.load")
+    def test_update_user_assignment_partial_not_added(self, mock_settings_load):
+        """When we have a single character registered with member audit AND one character not registered, we should not add users"""
+        mock_settings_load.return_value = Settings(compliant_user_group=self.group)
+        ownership_1 = self._associate_character(self.user, self.character_1)
+        self._associate_character(self.user, self.character_2)
+        Character.objects.create(character_ownership=ownership_1)
+        update_all_user_assignments()
+        self.assertEquals(len(self.user.groups.values()), 0)
+
+    @patch(MODELS_PATH + ".Settings.load")
+    def test_update_user_assignment_partial_removed(self, mock_settings_load):
+        """When we have a single character registered with member audit AND one character not registered, we should remove users"""
+        mock_settings_load.return_value = Settings(compliant_user_group=self.group)
+        ownership_1 = self._associate_character(self.user, self.character_1)
+        self._associate_character(self.user, self.character_2)
+        Character.objects.create(character_ownership=ownership_1)
+        self.group.user_set.add(self.user)
+        update_all_user_assignments()
+        self.assertEquals(len(self.user.groups.values()), 0)
+
+    @patch(MODELS_PATH + ".Settings.load")
+    def test_update_user_assignment_all_added(self, mock_settings_load):
+        """When we have all characters registered with member audit, we should add users"""
+        mock_settings_load.return_value = Settings(compliant_user_group=self.group)
+        self.assertTrue(Settings.load().compliant_user_group == self.group)
+        ownership_1 = self._associate_character(self.user, self.character_1)
+        ownership_2 = self._associate_character(self.user, self.character_2)
+        Character.objects.create(character_ownership=ownership_1)
+        Character.objects.create(character_ownership=ownership_2)
+        update_all_user_assignments()
+        self.assertEquals(self.user.groups.first(), self.group)
+
+    @patch(TASKS_PATH + ".update_user_assignment")
+    def test_update_all_user_assignments_noop(self, mock_update_user_assignment):
+        Settings.objects.create(compliant_user_group=None)
+        self.assertTrue(Settings.load().compliant_user_group is None)
+        update_all_user_assignments()
+        self.assertFalse(mock_update_user_assignment.called)

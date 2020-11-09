@@ -1,7 +1,12 @@
 from django.contrib import admin
+
+
+from django.contrib.admin.options import csrf_protect_m
 from django.utils.html import format_html
 
 from eveuniverse.models import EveType
+
+import re
 
 from .constants import EVE_CATEGORY_ID_SKILL
 from .models import (
@@ -11,6 +16,7 @@ from .models import (
     DoctrineShip,
     DoctrineShipSkill,
     Location,
+    Settings,
 )
 from . import tasks
 
@@ -293,3 +299,47 @@ class DoctrineShipAdmin(admin.ModelAdmin):
                 .order_by("name")
             )
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+class SingletonAdmin(admin.ModelAdmin):
+    class Meta:
+        abstract = True
+
+    def has_add_permission(self, request):
+        if self.model.objects.all().count() == 0:
+            return True
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        if self.model.objects.all().count() == 1:
+            return True
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def add_view(self, request, form_url="", extra_context=None):
+        template_response = super(SingletonAdmin, self).add_view(
+            request, form_url=form_url, extra_context=extra_context
+        )
+        # POST request won't have html response
+        if request.method == "GET":
+            # removing Save and add another button: with regex
+            template_response.content = re.sub(
+                "<input.*?_addanother.*?(/>|>)", "", template_response.rendered_content
+            )
+        return template_response
+
+    @csrf_protect_m
+    def changelist_view(self, request, extra_context=None):
+        instance = self.model.objects.first()
+        return self.changeform_view(
+            request=request,
+            object_id=str(instance.id) if instance else None,
+            extra_context=extra_context,
+        )
+
+
+@admin.register(Settings)
+class SettingsAdmin(SingletonAdmin):
+    pass

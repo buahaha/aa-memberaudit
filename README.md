@@ -30,6 +30,7 @@ Member Audit adds the following key features to Auth:
 - Recruiters can see characters of applicants for vetting
 - Leadership can see characters of their members for auditing (e.g. to check suspicious members)
 - Leadership can see reports and analytics about their members (e.g. which members can fly certain doctrines)
+- Users are assigned to a group automatically based on compliance
 - More features will be added soon
 
 ## Screenshots
