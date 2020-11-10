@@ -35,4 +35,5 @@ DROP TABLE IF EXISTS memberaudit_doctrine_ships;
 DROP TABLE IF EXISTS memberaudit_doctrineship;
 DROP TABLE IF EXISTS memberaudit_doctrineshipskill;
 DROP TABLE IF EXISTS memberaudit_location;
+DROP TABLE IF EXISTS memberaudit_settings;
 SET FOREIGN_KEY_CHECKS=1;
