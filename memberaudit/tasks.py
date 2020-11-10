@@ -68,37 +68,55 @@ TASK_ESI_KWARGS = {
 
 
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_all_characters() -> None:
-    """Start the update of all registered characters"""
+def run_regular_updates() -> None:
+    """Main task to be run on a regular basis to keep everyting updated and running"""
+    update_compliance_group_all.apply_async(priority=DEFAULT_TASK_PRIORITY)
     if not is_esi_online():
         logger.info(
-            "ESI is currently offline. Can not start character update. Aborting"
+            "ESI is currently offline. Can not start ESI related tasks. Aborting"
         )
         return
 
+    update_market_prices.apply_async(priority=DEFAULT_TASK_PRIORITY)
+    update_all_characters.apply_async(priority=DEFAULT_TASK_PRIORITY)
+
+
+@shared_task(**TASK_DEFAULT_KWARGS)
+def update_all_characters() -> None:
+    """Start the update of all registered characters"""
     for character in Character.objects.all():
         update_character.apply_async(
             kwargs={"character_pk": character.pk}, priority=DEFAULT_TASK_PRIORITY
         )
-
-    update_market_prices.apply_async(priority=DEFAULT_TASK_PRIORITY)
-    update_compliance_group_for_all.apply_async(priority=DEFAULT_TASK_PRIORITY)
 
 
 # Main character update tasks
 
 
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_character(character_pk: int, force_update=False) -> None:
+def update_character(character_pk: int, force_update=False) -> bool:
     """Start respective update tasks for all stale sections of a character
 
     Args:
     - character_pk: PL of character to update
     - force_update: When set to True will always update regardless of stale status
+
+    Returns:
+    - True when update was conducted
+    - False when no updated was needed
     """
     character = Character.objects.get(pk=character_pk)
+    all_sections = Character.update_sections()
+    needs_update = force_update
+    for section in all_sections:
+        needs_update |= character.is_update_section_stale(section)
+
+    if not needs_update:
+        logger.info("%s: No update required", character)
+        return False
+
     logger.info("%s: Starting character update", character)
-    sections = {x[0] for x in Character.UPDATE_SECTION_CHOICES}.difference(
+    sections = all_sections.difference(
         {
             Character.UPDATE_SECTION_ASSETS,
             Character.UPDATE_SECTION_MAILS,
@@ -152,6 +170,8 @@ def update_character(character_pk: int, force_update=False) -> None:
             kwargs={"character_pk": character.pk},
             priority=DEFAULT_TASK_PRIORITY,
         )
+
+    return True
 
 
 # Update sections
@@ -618,6 +638,14 @@ def update_character_wallet_journal_entries(character_pk: int) -> None:
 # Tasks for other objects
 
 
+@shared_task(**TASK_ESI_KWARGS)
+def update_market_prices():
+    """Update market prices from ESI"""
+    EveMarketPrice.objects.update_from_esi(
+        minutes_until_stale=MEMBERAUDIT_UPDATE_STALE_RING_2
+    )
+
+
 @shared_task(
     **{**TASK_ESI_KWARGS},
     **{
@@ -652,16 +680,8 @@ def update_structure_esi(self, id: int, token_pk: int):
         raise self.retry(countdown=ESI_TIMEOUT_ONCE_ERROR_LIMIT_REACHED)
 
 
-@shared_task(**TASK_ESI_KWARGS)
-def update_market_prices():
-    """Update market prices from ESI"""
-    EveMarketPrice.objects.update_from_esi(
-        minutes_until_stale=MEMBERAUDIT_UPDATE_STALE_RING_2
-    )
-
-
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_compliance_group_for_user(user_pk: int) -> None:
+def update_compliance_group_user(user_pk: int) -> None:
     """Reprovision group membership based on Member Audit compliance"""
     user = User.objects.get(pk=user_pk)
     logger.debug("Reprovisioning based on compliance for user %s", user)
@@ -700,10 +720,10 @@ def update_compliance_group_for_user(user_pk: int) -> None:
 
 
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_compliance_group_for_all() -> None:
+def update_compliance_group_all() -> None:
     """Reprovision group membership based on Member Audit compliance"""
     if Settings.load().compliant_user_group is not None:
         for user in User.objects.all():
-            update_compliance_group_for_user.apply_async(
+            update_compliance_group_user.apply_async(
                 kwargs={"user_pk": user.pk}, priority=DEFAULT_TASK_PRIORITY
             )

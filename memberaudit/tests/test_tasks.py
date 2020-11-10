@@ -23,15 +23,17 @@ from ..models import (
 from ..tasks import (
     LOCATION_ESI_ERRORS_CACHE_KEY,
     ESI_ERROR_LIMIT,
+    run_regular_updates,
     update_all_characters,
     update_character,
     update_character_assets,
     update_structure_esi,
-    update_compliance_group_for_all,
+    update_compliance_group_all,
     update_character_mails,
     update_character_contacts,
     update_character_contracts,
     update_character_wallet_journal,
+    update_market_prices,
 )
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
@@ -43,6 +45,44 @@ from ..utils import generate_invalid_pk
 MODELS_PATH = "memberaudit.models"
 MANAGERS_PATH = "memberaudit.managers"
 TASKS_PATH = "memberaudit.tasks"
+
+
+@patch(TASKS_PATH + ".update_all_characters")
+@patch(TASKS_PATH + ".update_market_prices")
+@patch(TASKS_PATH + ".update_compliance_group_all")
+class TestRegularUpdates(TestCase):
+    @patch(TASKS_PATH + ".is_esi_online", lambda: True)
+    def test_normal(
+        self,
+        mock_update_compliance_group_all,
+        mock_update_market_prices,
+        mock_update_all_characters,
+    ):
+        run_regular_updates()
+
+        self.assertTrue(mock_update_compliance_group_all.apply_async.called)
+        self.assertTrue(mock_update_market_prices.apply_async.called)
+        self.assertTrue(mock_update_all_characters.apply_async.called)
+
+    @patch(TASKS_PATH + ".is_esi_online", lambda: False)
+    def test_esi_down(
+        self,
+        mock_update_compliance_group_all,
+        mock_update_market_prices,
+        mock_update_all_characters,
+    ):
+        run_regular_updates()
+
+        self.assertTrue(mock_update_compliance_group_all.apply_async.called)
+        self.assertFalse(mock_update_market_prices.apply_async.called)
+        self.assertFalse(mock_update_all_characters.apply_async.called)
+
+
+class TestOtherTasks(TestCase):
+    @patch(TASKS_PATH + ".EveMarketPrice.objects.update_from_esi")
+    def test_update_market_prices(self, mock_update_from_esi):
+        update_market_prices()
+        self.assertTrue(mock_update_from_esi.called)
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
@@ -427,7 +467,6 @@ class TestUpdateCharacterWalletJournal(TestCase):
             self.assertTrue(False)  # Hack to ensure the test fails when it gets here
 
 
-@patch(MODELS_PATH + ".is_esi_online", lambda: True)
 @patch(MODELS_PATH + ".esi")
 @override_settings(CELERY_ALWAYS_EAGER=True)
 class TestUpdateCharacter(TestCase):
@@ -444,7 +483,8 @@ class TestUpdateCharacter(TestCase):
     def test_normal(self, mock_esi):
         mock_esi.client = esi_client_stub
 
-        update_character(self.character.pk)
+        result = update_character(self.character.pk)
+        self.assertTrue(result)
         self.assertTrue(self.character.is_update_status_ok())
 
     def test_report_error(self, mock_esi):
@@ -509,8 +549,20 @@ class TestUpdateCharacter(TestCase):
 
         self.assertTrue(mock_update_skills.called)
 
+    def test_no_update_required(self, mock_esi):
+        """Do not update anything when not required"""
+        mock_esi.client = esi_client_stub
+        for section in Character.update_sections():
+            CharacterUpdateStatus.objects.create(
+                character=self.character,
+                section=section,
+                is_success=True,
+            )
 
-@patch(TASKS_PATH + ".is_esi_online", lambda: True)
+        result = update_character(self.character.pk)
+        self.assertFalse(result)
+
+
 @patch(MODELS_PATH + ".esi")
 @override_settings(CELERY_ALWAYS_EAGER=True)
 class TestUpdateAllCharacters(TestCase):
@@ -597,7 +649,7 @@ class TestGroupProvisioning(TestCase):
         """When we have no compliance group defined, we should not add users"""
         mock_settings_load.return_value = Settings(compliant_user_group=None)
         self._associate_character(self.user, self.character_1)
-        update_compliance_group_for_all()
+        update_compliance_group_all()
         self.assertEquals(len(self.user.groups.values()), 0)
 
     @patch(MODELS_PATH + ".Settings.load")
@@ -605,7 +657,7 @@ class TestGroupProvisioning(TestCase):
         """When we have a single character not registered with member audit, we should not add users"""
         mock_settings_load.return_value = Settings(compliant_user_group=self.group)
         self._associate_character(self.user, self.character_1)
-        update_compliance_group_for_all()
+        update_compliance_group_all()
         self.assertEquals(len(self.user.groups.values()), 0)
 
     @patch(MODELS_PATH + ".Settings.load")
@@ -614,14 +666,14 @@ class TestGroupProvisioning(TestCase):
         mock_settings_load.return_value = Settings(compliant_user_group=self.group)
         self._associate_character(self.user, self.character_1)
         self.group.user_set.add(self.user)
-        update_compliance_group_for_all()
+        update_compliance_group_all()
         self.assertEquals(len(self.user.groups.values()), 0)
 
     @patch(MODELS_PATH + ".Settings.load")
     def test_update_user_assignment_zero_not_added(self, mock_settings_load):
         """When we have no characters not registered with member audit, we should NOT add users"""
         mock_settings_load.return_value = Settings(compliant_user_group=self.group)
-        update_compliance_group_for_all()
+        update_compliance_group_all()
         self.assertEquals(len(self.user.groups.values()), 0)
 
     @patch(MODELS_PATH + ".Settings.load")
@@ -630,7 +682,7 @@ class TestGroupProvisioning(TestCase):
         mock_settings_load.return_value = Settings(compliant_user_group=self.group)
         ownership = self._associate_character(self.user, self.character_1)
         Character.objects.create(character_ownership=ownership)
-        update_compliance_group_for_all()
+        update_compliance_group_all()
         self.assertEquals(self.user.groups.first(), self.group)
 
     @patch(MODELS_PATH + ".Settings.load")
@@ -640,7 +692,7 @@ class TestGroupProvisioning(TestCase):
         ownership_1 = self._associate_character(self.user, self.character_1)
         self._associate_character(self.user, self.character_2)
         Character.objects.create(character_ownership=ownership_1)
-        update_compliance_group_for_all()
+        update_compliance_group_all()
         self.assertEquals(len(self.user.groups.values()), 0)
 
     @patch(MODELS_PATH + ".Settings.load")
@@ -651,7 +703,7 @@ class TestGroupProvisioning(TestCase):
         self._associate_character(self.user, self.character_2)
         Character.objects.create(character_ownership=ownership_1)
         self.group.user_set.add(self.user)
-        update_compliance_group_for_all()
+        update_compliance_group_all()
         self.assertEquals(len(self.user.groups.values()), 0)
 
     @patch(MODELS_PATH + ".Settings.load")
@@ -663,12 +715,12 @@ class TestGroupProvisioning(TestCase):
         ownership_2 = self._associate_character(self.user, self.character_2)
         Character.objects.create(character_ownership=ownership_1)
         Character.objects.create(character_ownership=ownership_2)
-        update_compliance_group_for_all()
+        update_compliance_group_all()
         self.assertEquals(self.user.groups.first(), self.group)
 
-    @patch(TASKS_PATH + ".update_compliance_group_for_user")
+    @patch(TASKS_PATH + ".update_compliance_group_user")
     def test_update_all_user_assignments_noop(self, mock_update_user_assignment):
         Settings.objects.create(compliant_user_group=None)
         self.assertTrue(Settings.load().compliant_user_group is None)
-        update_compliance_group_for_all()
+        update_compliance_group_all()
         self.assertFalse(mock_update_user_assignment.called)

@@ -327,6 +327,11 @@ class Character(models.Model):
 
         return dt.timedelta(minutes=minutes)
 
+    @classmethod
+    def update_sections(cls) -> set:
+        """returns set of all update sections"""
+        return {x[0] for x in cls.UPDATE_SECTION_CHOICES}
+
     def update_section_last_update(self, section: str) -> dt.datetime:
         """Datetime of last successful update or None"""
         try:

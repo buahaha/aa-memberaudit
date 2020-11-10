@@ -47,7 +47,6 @@ The page for displaying all details about a character.
 
 ![viewer](https://i.imgur.com/vo1N3kg.jpg)
 
-
 ### Doctrines
 
 This tab on the character view allows you to view what fittings a character can or can't fly. For ships they can't fly, it also shows what skills are missing.
@@ -88,8 +87,8 @@ Configure your Auth settings (`local.py`) as follows:
 - Add below lines to your settings file:
 
 ```python
-CELERYBEAT_SCHEDULE['memberaudit_update_all_characters'] = {
-    'task': 'memberaudit.tasks.update_all_characters',
+CELERYBEAT_SCHEDULE['memberaudit_run_regular_updates'] = {
+    'task': 'memberaudit.tasks.run_regular_updates',
     'schedule': crontab(minute=0, hour='*/1'),
 }
 ```
