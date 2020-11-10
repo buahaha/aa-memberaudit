@@ -2002,10 +2002,45 @@ class TestCharacterMailLabelManager(TestCharacterUpdateBase):
         self.assertDictEqual(labels, dict())
 
 
-class TestSettings(NoSocketsTestCase):
+class TestSettings(TestCase):
     def test_save_and_retrieve(self):
         group = Group.objects.create(name="Test Group")
         saved = Settings.objects.create(compliant_user_group=group)
-        saved.save()
         restored = Settings.load()
         self.assertEquals(restored.compliant_user_group, saved.compliant_user_group)
+
+    def test_clear_old_compliance_group_1(self):
+        """
+        Given user is member of compliance group and one other group
+        When compliance group is changed,
+        then user is kicked from compliance group and remains member of other group
+        """
+        group_1 = Group.objects.create(name="Compliance Group 1")
+        group_2 = Group.objects.create(name="Compliance Group 2")
+        group_3 = Group.objects.create(name="Other Group")
+        settings = Settings.objects.create(compliant_user_group=group_1)
+        user = AuthUtils.create_user("Bruce Wayne")
+        user.groups.add(group_1)
+        user.groups.add(group_3)
+
+        settings.compliant_user_group = group_2
+        settings.save()
+
+        self.assertFalse(group_1 in user.groups.all())
+        self.assertTrue(group_3 in user.groups.all())
+
+    def test_clear_old_compliance_group_2(self):
+        """
+        Given current compliance group has no members,
+        When compliance group is changed,
+        then it still can be changed
+        """
+        group_1 = Group.objects.create(name="Compliance Group 1")
+        group_2 = Group.objects.create(name="Compliance Group 2")
+        settings = Settings.objects.create(compliant_user_group=group_1)
+
+        settings.compliant_user_group = group_2
+        settings.save()
+
+        settings.refresh_from_db()
+        self.assertEqual(settings.compliant_user_group, group_2)

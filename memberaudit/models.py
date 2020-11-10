@@ -2796,7 +2796,7 @@ class SingletonBase(models.Model):
 
     def save(self, *args, **kwargs):
         self.pk = 1
-        super(SingletonBase, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
         self.set_cache()
 
     def delete(self, *args, **kwargs):
@@ -2834,14 +2834,14 @@ class Settings(SingletonBase):
     def save(self, *args, **kwargs):
         # if self.pk is not None:
         orig = Settings.objects.filter(pk=1).first()
-        super(Settings, self).save(*args, **kwargs)
+        super().save(*args, **kwargs)
         if orig is None or orig.compliant_user_group != self.compliant_user_group:
             # Remove everyone from the old group, if it exists
             if orig is not None and orig.compliant_user_group is not None:
-                orig.compliant_user_group.user_set.set([])
+                orig.compliant_user_group.user_set.clear()
             # Remove everyone from the new group
             if self.compliant_user_group is not None:
-                self.compliant_user_group.user_set.set([])
+                self.compliant_user_group.user_set.clear()
 
     def __str__(self):
-        return "configuration"
+        return "settings"
