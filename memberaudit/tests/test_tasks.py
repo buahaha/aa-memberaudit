@@ -27,7 +27,7 @@ from ..tasks import (
     update_character,
     update_character_assets,
     update_structure_esi,
-    update_all_user_assignments,
+    update_compliance_group_for_all,
     update_character_mails,
     update_character_contacts,
     update_character_contracts,
@@ -597,7 +597,7 @@ class TestGroupProvisioning(TestCase):
         """When we have no compliance group defined, we should not add users"""
         mock_settings_load.return_value = Settings(compliant_user_group=None)
         self._associate_character(self.user, self.character_1)
-        update_all_user_assignments()
+        update_compliance_group_for_all()
         self.assertEquals(len(self.user.groups.values()), 0)
 
     @patch(MODELS_PATH + ".Settings.load")
@@ -605,7 +605,7 @@ class TestGroupProvisioning(TestCase):
         """When we have a single character not registered with member audit, we should not add users"""
         mock_settings_load.return_value = Settings(compliant_user_group=self.group)
         self._associate_character(self.user, self.character_1)
-        update_all_user_assignments()
+        update_compliance_group_for_all()
         self.assertEquals(len(self.user.groups.values()), 0)
 
     @patch(MODELS_PATH + ".Settings.load")
@@ -614,14 +614,14 @@ class TestGroupProvisioning(TestCase):
         mock_settings_load.return_value = Settings(compliant_user_group=self.group)
         self._associate_character(self.user, self.character_1)
         self.group.user_set.add(self.user)
-        update_all_user_assignments()
+        update_compliance_group_for_all()
         self.assertEquals(len(self.user.groups.values()), 0)
 
     @patch(MODELS_PATH + ".Settings.load")
     def test_update_user_assignment_zero_not_added(self, mock_settings_load):
         """When we have no characters not registered with member audit, we should NOT add users"""
         mock_settings_load.return_value = Settings(compliant_user_group=self.group)
-        update_all_user_assignments()
+        update_compliance_group_for_all()
         self.assertEquals(len(self.user.groups.values()), 0)
 
     @patch(MODELS_PATH + ".Settings.load")
@@ -630,7 +630,7 @@ class TestGroupProvisioning(TestCase):
         mock_settings_load.return_value = Settings(compliant_user_group=self.group)
         ownership = self._associate_character(self.user, self.character_1)
         Character.objects.create(character_ownership=ownership)
-        update_all_user_assignments()
+        update_compliance_group_for_all()
         self.assertEquals(self.user.groups.first(), self.group)
 
     @patch(MODELS_PATH + ".Settings.load")
@@ -640,7 +640,7 @@ class TestGroupProvisioning(TestCase):
         ownership_1 = self._associate_character(self.user, self.character_1)
         self._associate_character(self.user, self.character_2)
         Character.objects.create(character_ownership=ownership_1)
-        update_all_user_assignments()
+        update_compliance_group_for_all()
         self.assertEquals(len(self.user.groups.values()), 0)
 
     @patch(MODELS_PATH + ".Settings.load")
@@ -651,7 +651,7 @@ class TestGroupProvisioning(TestCase):
         self._associate_character(self.user, self.character_2)
         Character.objects.create(character_ownership=ownership_1)
         self.group.user_set.add(self.user)
-        update_all_user_assignments()
+        update_compliance_group_for_all()
         self.assertEquals(len(self.user.groups.values()), 0)
 
     @patch(MODELS_PATH + ".Settings.load")
@@ -663,12 +663,12 @@ class TestGroupProvisioning(TestCase):
         ownership_2 = self._associate_character(self.user, self.character_2)
         Character.objects.create(character_ownership=ownership_1)
         Character.objects.create(character_ownership=ownership_2)
-        update_all_user_assignments()
+        update_compliance_group_for_all()
         self.assertEquals(self.user.groups.first(), self.group)
 
-    @patch(TASKS_PATH + ".update_user_assignment")
+    @patch(TASKS_PATH + ".update_compliance_group_for_user")
     def test_update_all_user_assignments_noop(self, mock_update_user_assignment):
         Settings.objects.create(compliant_user_group=None)
         self.assertTrue(Settings.load().compliant_user_group is None)
-        update_all_user_assignments()
+        update_compliance_group_for_all()
         self.assertFalse(mock_update_user_assignment.called)

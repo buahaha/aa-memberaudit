@@ -1,6 +1,12 @@
 from celery import shared_task, chain
 
-from bravado.exception import HTTPUnauthorized, HTTPForbidden
+from bravado.exception import (
+    HTTPUnauthorized,
+    HTTPForbidden,
+    HTTPBadGateway,
+    HTTPGatewayTimeout,
+    HTTPServiceUnavailable,
+)
 from esi.models import Token
 from eveuniverse.core.esitools import is_esi_online
 from eveuniverse.models import EveEntity, EveMarketPrice
@@ -40,8 +46,28 @@ ESI_ERROR_LIMIT = 50
 ESI_TIMEOUT_ONCE_ERROR_LIMIT_REACHED = 60
 LOCATION_ESI_ERRORS_CACHE_KEY = "MEMBERAUDIT_LOCATION_ESI_ERRORS"
 
+# params for all tasks
+TASK_DEFAULT_KWARGS = {
+    "time_limit": MEMBERAUDIT_TASKS_TIME_LIMIT,
+}
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+# params for tasks that make ESI calls
+TASK_ESI_KWARGS = {
+    **TASK_DEFAULT_KWARGS,
+    **{
+        "autoretry_for": (
+            OSError,
+            HTTPBadGateway,
+            HTTPGatewayTimeout,
+            HTTPServiceUnavailable,
+        ),
+        "retry_kwargs": {"max_retries": 3},
+        "retry_backoff": True,
+    },
+}
+
+
+@shared_task(**TASK_DEFAULT_KWARGS)
 def update_all_characters() -> None:
     """Start the update of all registered characters"""
     if not is_esi_online():
@@ -56,13 +82,13 @@ def update_all_characters() -> None:
         )
 
     update_market_prices.apply_async(priority=DEFAULT_TASK_PRIORITY)
-    update_all_user_assignments.apply_async(priority=DEFAULT_TASK_PRIORITY)
+    update_compliance_group_for_all.apply_async(priority=DEFAULT_TASK_PRIORITY)
 
 
 # Main character update tasks
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_DEFAULT_KWARGS)
 def update_character(character_pk: int, force_update=False) -> None:
     """Start respective update tasks for all stale sections of a character
 
@@ -131,7 +157,7 @@ def update_character(character_pk: int, force_update=False) -> None:
 # Update sections
 
 
-@shared_task(base=QueueOnce, time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**{**TASK_ESI_KWARGS}, **{"base": QueueOnce})
 def update_character_section(character_pk: int, section: str) -> None:
     """Task that updates the section of a character"""
     character = Character.objects.get(pk=character_pk)
@@ -181,7 +207,7 @@ def _log_character_update_success(character: Character, section: str):
     )
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_ESI_KWARGS)
 def update_unresolved_eve_entities(
     character_pk: int, section: str, last_in_chain: bool = False
 ) -> None:
@@ -200,7 +226,7 @@ def update_unresolved_eve_entities(
 # Special tasks for updating assets
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_ESI_KWARGS)
 def update_character_assets(character_pk: int) -> None:
     """Main tasks for updating the character's assets"""
     character = Character.objects.get(pk=character_pk)
@@ -219,7 +245,7 @@ def update_character_assets(character_pk: int) -> None:
     )
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_ESI_KWARGS)
 def assets_create_parents(character_pk: int, asset_list: dict, round: int = 1) -> None:
     """creates the parent assets from given asset_list
 
@@ -293,7 +319,7 @@ def assets_create_parents(character_pk: int, asset_list: dict, round: int = 1) -
             _log_character_update_success(character, Character.UPDATE_SECTION_ASSETS)
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_ESI_KWARGS)
 def assets_create_children(character_pk: int, asset_list: dict, round: int = 1) -> None:
     """Created child assets from given asset list
 
@@ -369,7 +395,7 @@ def assets_create_children(character_pk: int, asset_list: dict, round: int = 1) 
 # Special tasks for updating mail section
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_ESI_KWARGS)
 def update_character_mails(character_pk: int) -> None:
     """Main task for updating mails of a character"""
     character = Character.objects.get(pk=character_pk)
@@ -385,7 +411,7 @@ def update_character_mails(character_pk: int) -> None:
     ).apply_async(priority=DEFAULT_TASK_PRIORITY)
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_ESI_KWARGS)
 def update_character_mailing_lists(character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
@@ -393,7 +419,7 @@ def update_character_mailing_lists(character_pk: int) -> None:
     )
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_ESI_KWARGS)
 def update_character_mail_labels(character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
@@ -401,7 +427,7 @@ def update_character_mail_labels(character_pk: int) -> None:
     )
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_ESI_KWARGS)
 def update_character_mail_headers(character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
@@ -409,7 +435,7 @@ def update_character_mail_headers(character_pk: int) -> None:
     )
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_ESI_KWARGS)
 def update_mail_body_esi(character_pk: int, mail_pk: int):
     """Task for updating the body of a mail from ESI"""
     character = Character.objects.get(pk=character_pk)
@@ -419,7 +445,7 @@ def update_mail_body_esi(character_pk: int, mail_pk: int):
     )
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_ESI_KWARGS)
 def update_character_mail_bodies(character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     mails_without_body_qs = character.mails.filter(body="")
@@ -440,7 +466,7 @@ def update_character_mail_bodies(character_pk: int) -> None:
 # special tasks for updating contacts
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_DEFAULT_KWARGS)
 def update_character_contacts(character_pk: int) -> None:
     """Main task for updating contacts of a character"""
     character = Character.objects.get(pk=character_pk)
@@ -454,7 +480,7 @@ def update_character_contacts(character_pk: int) -> None:
     ).apply_async(priority=DEFAULT_TASK_PRIORITY)
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_ESI_KWARGS)
 def update_character_contact_labels(character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
@@ -462,7 +488,7 @@ def update_character_contact_labels(character_pk: int) -> None:
     )
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_ESI_KWARGS)
 def update_character_contacts_2(character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
@@ -473,7 +499,7 @@ def update_character_contacts_2(character_pk: int) -> None:
 # special tasks for updating contracts
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_DEFAULT_KWARGS)
 def update_character_contracts(character_pk: int) -> None:
     """Main task for updating contracts of a character"""
     character = Character.objects.get(pk=character_pk)
@@ -488,7 +514,7 @@ def update_character_contracts(character_pk: int) -> None:
     ).apply_async(priority=DEFAULT_TASK_PRIORITY)
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_ESI_KWARGS)
 def update_character_contract_headers(character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
@@ -496,7 +522,7 @@ def update_character_contract_headers(character_pk: int) -> None:
     )
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_DEFAULT_KWARGS)
 def update_character_contracts_items(character_pk: int) -> None:
     """Update items for all contracts of a character"""
     character = Character.objects.get(pk=character_pk)
@@ -514,15 +540,16 @@ def update_character_contracts_items(character_pk: int) -> None:
             "%s: Starting updating items for %s contracts", character, len(contract_pks)
         )
         for contract_pk in contract_pks:
-            update_contract_items_esi(
-                character_pk=character.pk, contract_pk=contract_pk
+            update_contract_items_esi.apply_async(
+                kwargs={"character_pk": character.pk, "contract_pk": contract_pk},
+                priority=DEFAULT_TASK_PRIORITY,
             )
 
     else:
         logger.info("%s: No items to update", character)
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_ESI_KWARGS)
 def update_contract_items_esi(character_pk: int, contract_pk: int):
     """Task for updating the items of a contract from ESI"""
     character = Character.objects.get(pk=character_pk)
@@ -530,7 +557,7 @@ def update_contract_items_esi(character_pk: int, contract_pk: int):
     character.update_contract_items(contract)
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_DEFAULT_KWARGS)
 def update_character_contracts_bids(character_pk: int) -> None:
     """Update bids for all contracts of a character"""
     character = Character.objects.get(pk=character_pk)
@@ -545,13 +572,16 @@ def update_character_contracts_bids(character_pk: int) -> None:
             "%s: Starting updating bids for %s contracts", character, len(contract_pks)
         )
         for contract_pk in contract_pks:
-            update_contract_bids_esi(character_pk=character.pk, contract_pk=contract_pk)
+            update_contract_bids_esi.apply_async(
+                kwargs={"character_pk": character.pk, "contract_pk": contract_pk},
+                priority=DEFAULT_TASK_PRIORITY,
+            )
 
     else:
         logger.info("%s: No bids to update", character)
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_ESI_KWARGS)
 def update_contract_bids_esi(character_pk: int, contract_pk: int):
     """Task for updating the bids of a contract from ESI"""
     character = Character.objects.get(pk=character_pk)
@@ -562,7 +592,7 @@ def update_contract_bids_esi(character_pk: int, contract_pk: int):
 # special tasks for updating wallet
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_DEFAULT_KWARGS)
 def update_character_wallet_journal(character_pk: int) -> None:
     """Main task for updating wallet journal of a character"""
     character = Character.objects.get(pk=character_pk)
@@ -575,7 +605,7 @@ def update_character_wallet_journal(character_pk: int) -> None:
     ).apply_async(priority=DEFAULT_TASK_PRIORITY)
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_ESI_KWARGS)
 def update_character_wallet_journal_entries(character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
@@ -589,11 +619,13 @@ def update_character_wallet_journal_entries(character_pk: int) -> None:
 
 
 @shared_task(
-    bind=True,
-    base=QueueOnce,
-    once={"keys": ["id"], "graceful": True},
-    max_retries=None,
-    time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT,
+    **{**TASK_ESI_KWARGS},
+    **{
+        "bind": True,
+        "base": QueueOnce,
+        "once": {"keys": ["id"], "graceful": True},
+        "max_retries": None,
+    },
 )
 def update_structure_esi(self, id: int, token_pk: int):
     """Updates a structure object from ESI
@@ -620,7 +652,7 @@ def update_structure_esi(self, id: int, token_pk: int):
         raise self.retry(countdown=ESI_TIMEOUT_ONCE_ERROR_LIMIT_REACHED)
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
+@shared_task(**TASK_ESI_KWARGS)
 def update_market_prices():
     """Update market prices from ESI"""
     EveMarketPrice.objects.update_from_esi(
@@ -628,8 +660,8 @@ def update_market_prices():
     )
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
-def update_user_assignment(user_pk: int) -> None:
+@shared_task(**TASK_DEFAULT_KWARGS)
+def update_compliance_group_for_user(user_pk: int) -> None:
     """Reprovision group membership based on Member Audit compliance"""
     user = User.objects.get(pk=user_pk)
     logger.debug("Reprovisioning based on compliance for user %s", user)
@@ -667,11 +699,11 @@ def update_user_assignment(user_pk: int) -> None:
         user.save()
 
 
-@shared_task(time_limit=MEMBERAUDIT_TASKS_TIME_LIMIT)
-def update_all_user_assignments() -> None:
+@shared_task(**TASK_DEFAULT_KWARGS)
+def update_compliance_group_for_all() -> None:
     """Reprovision group membership based on Member Audit compliance"""
     if Settings.load().compliant_user_group is not None:
         for user in User.objects.all():
-            update_user_assignment.apply_async(
+            update_compliance_group_for_user.apply_async(
                 kwargs={"user_pk": user.pk}, priority=DEFAULT_TASK_PRIORITY
             )
