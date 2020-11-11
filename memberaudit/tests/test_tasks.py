@@ -644,49 +644,68 @@ class TestGroupProvisioning(TestCase):
             user=user,
         )
 
+    @patch(TASKS_PATH + ".notify")
     @patch(MODELS_PATH + ".Settings.load")
-    def test_update_user_assignment_none(self, mock_settings_load):
+    def test_update_user_assignment_none(self, mock_settings_load, mock_notify):
         """When we have no compliance group defined, we should not add users"""
         mock_settings_load.return_value = Settings(compliant_user_group=None)
         self._associate_character(self.user, self.character_1)
         update_compliance_group_all()
         self.assertEquals(len(self.user.groups.values()), 0)
+        self.assertFalse(mock_notify.called)
 
+    @patch(TASKS_PATH + ".notify")
     @patch(MODELS_PATH + ".Settings.load")
-    def test_update_user_assignment_single_not_added(self, mock_settings_load):
+    def test_update_user_assignment_single_not_added(
+        self, mock_settings_load, mock_notify
+    ):
         """When we have a single character not registered with member audit, we should not add users"""
         mock_settings_load.return_value = Settings(compliant_user_group=self.group)
         self._associate_character(self.user, self.character_1)
         update_compliance_group_all()
         self.assertEquals(len(self.user.groups.values()), 0)
+        self.assertFalse(mock_notify.called)
 
+    @patch(TASKS_PATH + ".notify")
     @patch(MODELS_PATH + ".Settings.load")
-    def test_update_user_assignment_single_remove(self, mock_settings_load):
+    def test_update_user_assignment_single_remove(
+        self, mock_settings_load, mock_notify
+    ):
         """When we have a single character not registered with member audit, we should remove existing users"""
         mock_settings_load.return_value = Settings(compliant_user_group=self.group)
         self._associate_character(self.user, self.character_1)
         self.group.user_set.add(self.user)
         update_compliance_group_all()
         self.assertEquals(len(self.user.groups.values()), 0)
+        self.assertTrue(mock_notify.called)
 
+    @patch(TASKS_PATH + ".notify")
     @patch(MODELS_PATH + ".Settings.load")
-    def test_update_user_assignment_zero_not_added(self, mock_settings_load):
+    def test_update_user_assignment_zero_not_added(
+        self, mock_settings_load, mock_notify
+    ):
         """When we have no characters not registered with member audit, we should NOT add users"""
         mock_settings_load.return_value = Settings(compliant_user_group=self.group)
         update_compliance_group_all()
         self.assertEquals(len(self.user.groups.values()), 0)
+        self.assertFalse(mock_notify.called)
 
+    @patch(TASKS_PATH + ".notify")
     @patch(MODELS_PATH + ".Settings.load")
-    def test_update_user_assignment_single_added(self, mock_settings_load):
+    def test_update_user_assignment_single_added(self, mock_settings_load, mock_notify):
         """When we have a single character registered with member audit, we should add users"""
         mock_settings_load.return_value = Settings(compliant_user_group=self.group)
         ownership = self._associate_character(self.user, self.character_1)
         Character.objects.create(character_ownership=ownership)
         update_compliance_group_all()
         self.assertEquals(self.user.groups.first(), self.group)
+        self.assertTrue(mock_notify.called)
 
+    @patch(TASKS_PATH + ".notify")
     @patch(MODELS_PATH + ".Settings.load")
-    def test_update_user_assignment_partial_not_added(self, mock_settings_load):
+    def test_update_user_assignment_partial_not_added(
+        self, mock_settings_load, mock_notify
+    ):
         """When we have a single character registered with member audit AND one character not registered, we should not add users"""
         mock_settings_load.return_value = Settings(compliant_user_group=self.group)
         ownership_1 = self._associate_character(self.user, self.character_1)
@@ -694,9 +713,13 @@ class TestGroupProvisioning(TestCase):
         Character.objects.create(character_ownership=ownership_1)
         update_compliance_group_all()
         self.assertEquals(len(self.user.groups.values()), 0)
+        self.assertFalse(mock_notify.called)
 
+    @patch(TASKS_PATH + ".notify")
     @patch(MODELS_PATH + ".Settings.load")
-    def test_update_user_assignment_partial_removed(self, mock_settings_load):
+    def test_update_user_assignment_partial_removed(
+        self, mock_settings_load, mock_notify
+    ):
         """When we have a single character registered with member audit AND one character not registered, we should remove users"""
         mock_settings_load.return_value = Settings(compliant_user_group=self.group)
         ownership_1 = self._associate_character(self.user, self.character_1)
@@ -705,9 +728,11 @@ class TestGroupProvisioning(TestCase):
         self.group.user_set.add(self.user)
         update_compliance_group_all()
         self.assertEquals(len(self.user.groups.values()), 0)
+        self.assertTrue(mock_notify.called)
 
+    @patch(TASKS_PATH + ".notify")
     @patch(MODELS_PATH + ".Settings.load")
-    def test_update_user_assignment_all_added(self, mock_settings_load):
+    def test_update_user_assignment_all_added(self, mock_settings_load, mock_notify):
         """When we have all characters registered with member audit, we should add users"""
         mock_settings_load.return_value = Settings(compliant_user_group=self.group)
         self.assertTrue(Settings.load().compliant_user_group == self.group)
@@ -717,6 +742,7 @@ class TestGroupProvisioning(TestCase):
         Character.objects.create(character_ownership=ownership_2)
         update_compliance_group_all()
         self.assertEquals(self.user.groups.first(), self.group)
+        self.assertTrue(mock_notify.called)
 
     @patch(TASKS_PATH + ".update_compliance_group_user")
     def test_update_all_user_assignments_noop(self, mock_update_user_assignment):

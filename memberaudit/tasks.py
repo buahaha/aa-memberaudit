@@ -696,26 +696,29 @@ def update_compliance_group_user(user_pk: int) -> None:
     logger.info("User %s %s compliant.", user, "is" if user_compliant else "is not")
     compliant_group = Settings.load().compliant_user_group
     if compliant_group is not None:
+        was_compliant = user.groups.filter(pk=compliant_group.pk).exists()
         if user_compliant:
             logger.debug("User %s will be added to the compliant user group.", user)
             user.groups.add(compliant_group)
-            notify(
-                user=user,
-                title=f"{__title__}: All characters in compliance.",
-                message="All characters have been registered, and your account "
-                "has been marked as compliant.",
-                level="success",
-            )
+            if not was_compliant:
+                notify(
+                    user=user,
+                    title=f"{__title__}: All characters in compliance.",
+                    message="All characters have been registered, and your account "
+                    "has been marked as compliant.",
+                    level="success",
+                )
         else:
             user.groups.remove(compliant_group)
-            notify(
-                user=user,
-                title=f"{__title__}: Character(s) not compliant.",
-                message="One of your characters has been unregistered, or a "
-                "new, non-registered character has been added. Please register "
-                f"them using {__title__}.",
-                level="danger",
-            )
+            if was_compliant:
+                notify(
+                    user=user,
+                    title=f"{__title__}: Character(s) not compliant.",
+                    message="One of your characters has been unregistered, or a "
+                    "new, non-registered character has been added. Please register "
+                    f"them using {__title__}.",
+                    level="danger",
+                )
         user.save()
 
 
