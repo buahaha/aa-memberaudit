@@ -703,6 +703,19 @@ class TestGroupProvisioning(TestCase):
 
     @patch(TASKS_PATH + ".notify")
     @patch(MODELS_PATH + ".Settings.load")
+    def test_update_user_assignment_single_stays(self, mock_settings_load, mock_notify):
+        """When we have a single character already registered with member audit, we should keep them"""
+
+        mock_settings_load.return_value = Settings(compliant_user_group=self.group)
+        ownership = self._associate_character(self.user, self.character_1)
+        self.user.groups.add(self.group)
+        Character.objects.create(character_ownership=ownership)
+        update_compliance_group_all()
+        self.assertEquals(self.user.groups.first(), self.group)
+        self.assertFalse(mock_notify.called)
+
+    @patch(TASKS_PATH + ".notify")
+    @patch(MODELS_PATH + ".Settings.load")
     def test_update_user_assignment_partial_not_added(
         self, mock_settings_load, mock_notify
     ):
