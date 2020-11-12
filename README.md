@@ -168,7 +168,9 @@ python manage.py eveuniverse_load_data map
 python manage.py memberaudit_load_eve
 ```
 
-You may want to wait until the loading is complete before starting to create new trackers.
+You may want to wait until the loading is complete before continuing.
+
+> **Hint**: These command will spawn a thousands of tasks. One easy way to monitor the progress is to watch the number of tasks shown on the Dashboard.
 
 ### Step 7 - Setup permissions
 

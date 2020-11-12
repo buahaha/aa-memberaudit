@@ -3,3 +3,7 @@ include README.md
 recursive-include memberaudit *.py
 recursive-include memberaudit/static *
 recursive-include memberaudit/templates *
+recursive-include memberaudit/locale *.mo
+include memberaudit/swagger.json
+recursive-exclude testauth *.*
+recursive-exclude memberaudit/tests *.*
