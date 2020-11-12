@@ -1,12 +1,9 @@
 from unittest.mock import patch
 
-from allianceauth.tests.auth_utils import AuthUtils
-from allianceauth.authentication.models import CharacterOwnership
 from bravado.exception import HTTPForbidden, HTTPInternalServerError
 from celery.exceptions import Retry as CeleryRetry
 
 from django.core.cache import cache
-from django.contrib.auth.models import Group
 from django.test import TestCase, override_settings
 
 from eveuniverse.models import EveSolarSystem, EveType
@@ -18,7 +15,6 @@ from ..models import (
     CharacterAsset,
     CharacterUpdateStatus,
     Location,
-    Settings,
 )
 from ..tasks import (
     LOCATION_ESI_ERRORS_CACHE_KEY,
@@ -28,7 +24,6 @@ from ..tasks import (
     update_character,
     update_character_assets,
     update_structure_esi,
-    update_compliance_group_all,
     update_character_mails,
     update_character_contacts,
     update_character_contracts,
@@ -49,31 +44,26 @@ TASKS_PATH = "memberaudit.tasks"
 
 @patch(TASKS_PATH + ".update_all_characters")
 @patch(TASKS_PATH + ".update_market_prices")
-@patch(TASKS_PATH + ".update_compliance_group_all")
 class TestRegularUpdates(TestCase):
     @patch(TASKS_PATH + ".is_esi_online", lambda: True)
     def test_normal(
         self,
-        mock_update_compliance_group_all,
         mock_update_market_prices,
         mock_update_all_characters,
     ):
         run_regular_updates()
 
-        self.assertTrue(mock_update_compliance_group_all.apply_async.called)
         self.assertTrue(mock_update_market_prices.apply_async.called)
         self.assertTrue(mock_update_all_characters.apply_async.called)
 
     @patch(TASKS_PATH + ".is_esi_online", lambda: False)
     def test_esi_down(
         self,
-        mock_update_compliance_group_all,
         mock_update_market_prices,
         mock_update_all_characters,
     ):
         run_regular_updates()
 
-        self.assertTrue(mock_update_compliance_group_all.apply_async.called)
         self.assertFalse(mock_update_market_prices.apply_async.called)
         self.assertFalse(mock_update_all_characters.apply_async.called)
 
@@ -620,146 +610,3 @@ class TestUpdateStructureEsi(TestCase):
         cache.set(LOCATION_ESI_ERRORS_CACHE_KEY, ESI_ERROR_LIMIT + 1)
         with self.assertRaises(CeleryRetry):
             update_structure_esi(id=1, token_pk=self.token.pk)
-
-
-@override_settings(CELERY_ALWAYS_EAGER=True)
-class TestGroupProvisioning(TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        super().setUpClass()
-        load_entities()
-
-    def setUp(self) -> None:
-        self.user = AuthUtils.create_user("George_RR_Martin")
-        self.character_1 = AuthUtils.add_main_character_2(
-            self.user, "Sansha Stark", 1005
-        )
-        self.character_2 = AuthUtils.add_main_character_2(self.user, "Aria Stark", 1006)
-        self.group, _ = Group.objects.get_or_create(name="Test Group")
-
-    def _associate_character(self, user, character):
-        return CharacterOwnership.objects.create(
-            character=character,
-            owner_hash="x1" + character.character_name,
-            user=user,
-        )
-
-    @patch(TASKS_PATH + ".notify")
-    @patch(MODELS_PATH + ".Settings.load")
-    def test_update_user_assignment_none(self, mock_settings_load, mock_notify):
-        """When we have no compliance group defined, we should not add users"""
-        mock_settings_load.return_value = Settings(compliant_user_group=None)
-        self._associate_character(self.user, self.character_1)
-        update_compliance_group_all()
-        self.assertEquals(len(self.user.groups.values()), 0)
-        self.assertFalse(mock_notify.called)
-
-    @patch(TASKS_PATH + ".notify")
-    @patch(MODELS_PATH + ".Settings.load")
-    def test_update_user_assignment_single_not_added(
-        self, mock_settings_load, mock_notify
-    ):
-        """When we have a single character not registered with member audit, we should not add users"""
-        mock_settings_load.return_value = Settings(compliant_user_group=self.group)
-        self._associate_character(self.user, self.character_1)
-        update_compliance_group_all()
-        self.assertEquals(len(self.user.groups.values()), 0)
-        self.assertFalse(mock_notify.called)
-
-    @patch(TASKS_PATH + ".notify")
-    @patch(MODELS_PATH + ".Settings.load")
-    def test_update_user_assignment_single_remove(
-        self, mock_settings_load, mock_notify
-    ):
-        """When we have a single character not registered with member audit, we should remove existing users"""
-        mock_settings_load.return_value = Settings(compliant_user_group=self.group)
-        self._associate_character(self.user, self.character_1)
-        self.group.user_set.add(self.user)
-        update_compliance_group_all()
-        self.assertEquals(len(self.user.groups.values()), 0)
-        self.assertTrue(mock_notify.called)
-
-    @patch(TASKS_PATH + ".notify")
-    @patch(MODELS_PATH + ".Settings.load")
-    def test_update_user_assignment_zero_not_added(
-        self, mock_settings_load, mock_notify
-    ):
-        """When we have no characters not registered with member audit, we should NOT add users"""
-        mock_settings_load.return_value = Settings(compliant_user_group=self.group)
-        update_compliance_group_all()
-        self.assertEquals(len(self.user.groups.values()), 0)
-        self.assertFalse(mock_notify.called)
-
-    @patch(TASKS_PATH + ".notify")
-    @patch(MODELS_PATH + ".Settings.load")
-    def test_update_user_assignment_single_added(self, mock_settings_load, mock_notify):
-        """When we have a single character registered with member audit, we should add users"""
-        mock_settings_load.return_value = Settings(compliant_user_group=self.group)
-        ownership = self._associate_character(self.user, self.character_1)
-        Character.objects.create(character_ownership=ownership)
-        update_compliance_group_all()
-        self.assertEquals(self.user.groups.first(), self.group)
-        self.assertTrue(mock_notify.called)
-
-    @patch(TASKS_PATH + ".notify")
-    @patch(MODELS_PATH + ".Settings.load")
-    def test_update_user_assignment_single_stays(self, mock_settings_load, mock_notify):
-        """When we have a single character already registered with member audit, we should keep them"""
-
-        mock_settings_load.return_value = Settings(compliant_user_group=self.group)
-        ownership = self._associate_character(self.user, self.character_1)
-        self.user.groups.add(self.group)
-        Character.objects.create(character_ownership=ownership)
-        update_compliance_group_all()
-        self.assertEquals(self.user.groups.first(), self.group)
-        self.assertFalse(mock_notify.called)
-
-    @patch(TASKS_PATH + ".notify")
-    @patch(MODELS_PATH + ".Settings.load")
-    def test_update_user_assignment_partial_not_added(
-        self, mock_settings_load, mock_notify
-    ):
-        """When we have a single character registered with member audit AND one character not registered, we should not add users"""
-        mock_settings_load.return_value = Settings(compliant_user_group=self.group)
-        ownership_1 = self._associate_character(self.user, self.character_1)
-        self._associate_character(self.user, self.character_2)
-        Character.objects.create(character_ownership=ownership_1)
-        update_compliance_group_all()
-        self.assertEquals(len(self.user.groups.values()), 0)
-        self.assertFalse(mock_notify.called)
-
-    @patch(TASKS_PATH + ".notify")
-    @patch(MODELS_PATH + ".Settings.load")
-    def test_update_user_assignment_partial_removed(
-        self, mock_settings_load, mock_notify
-    ):
-        """When we have a single character registered with member audit AND one character not registered, we should remove users"""
-        mock_settings_load.return_value = Settings(compliant_user_group=self.group)
-        ownership_1 = self._associate_character(self.user, self.character_1)
-        self._associate_character(self.user, self.character_2)
-        Character.objects.create(character_ownership=ownership_1)
-        self.group.user_set.add(self.user)
-        update_compliance_group_all()
-        self.assertEquals(len(self.user.groups.values()), 0)
-        self.assertTrue(mock_notify.called)
-
-    @patch(TASKS_PATH + ".notify")
-    @patch(MODELS_PATH + ".Settings.load")
-    def test_update_user_assignment_all_added(self, mock_settings_load, mock_notify):
-        """When we have all characters registered with member audit, we should add users"""
-        mock_settings_load.return_value = Settings(compliant_user_group=self.group)
-        self.assertTrue(Settings.load().compliant_user_group == self.group)
-        ownership_1 = self._associate_character(self.user, self.character_1)
-        ownership_2 = self._associate_character(self.user, self.character_2)
-        Character.objects.create(character_ownership=ownership_1)
-        Character.objects.create(character_ownership=ownership_2)
-        update_compliance_group_all()
-        self.assertEquals(self.user.groups.first(), self.group)
-        self.assertTrue(mock_notify.called)
-
-    @patch(TASKS_PATH + ".update_compliance_group_user")
-    def test_update_all_user_assignments_noop(self, mock_update_user_assignment):
-        Settings.objects.create(compliant_user_group=None)
-        self.assertTrue(Settings.load().compliant_user_group is None)
-        update_compliance_group_all()
-        self.assertFalse(mock_update_user_assignment.called)

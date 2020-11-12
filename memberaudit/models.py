@@ -4,8 +4,7 @@ import json
 import os
 from typing import List, Optional
 
-from django.contrib.auth.models import User, Group
-from django.core.cache import cache
+from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -97,9 +96,8 @@ class Location(models.Model):
     _STATION_ID_END = 64_000_000
     _STRUCTURE_ID_START = 1_000_000_000_000
 
-    id = models.BigIntegerField(
+    id = models.PositiveBigIntegerField(
         primary_key=True,
-        validators=[MinValueValidator(0)],
         help_text=(
             "Eve Online location ID, "
             "either item ID for stations or structure ID for structures"
@@ -1745,7 +1743,7 @@ class CharacterAsset(models.Model):
     character = models.ForeignKey(
         Character, on_delete=models.CASCADE, related_name="assets"
     )
-    item_id = models.BigIntegerField(validators=[MinValueValidator(0)])
+    item_id = models.PositiveBigIntegerField()
 
     location = models.ForeignKey(
         Location, on_delete=models.CASCADE, default=None, null=True
@@ -1814,7 +1812,7 @@ class CharacterContactLabel(models.Model):
     character = models.ForeignKey(
         Character, on_delete=models.CASCADE, related_name="contact_labels"
     )
-    label_id = models.BigIntegerField(validators=[MinValueValidator(0)])
+    label_id = models.PositiveBigIntegerField()
     name = models.CharField(max_length=NAMES_MAX_LENGTH)
 
     class Meta:
@@ -2494,8 +2492,8 @@ class CharacterSkill(models.Model):
     active_skill_level = models.PositiveIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(5)]
     )
-    skillpoints_in_skill = models.BigIntegerField(validators=[MinValueValidator(0)])
-    trained_skill_level = models.PositiveIntegerField(
+    skillpoints_in_skill = models.PositiveBigIntegerField()
+    trained_skill_level = models.PositiveBigIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(5)]
     )
 
@@ -2519,7 +2517,7 @@ class CharacterSkillpoints(models.Model):
         on_delete=models.CASCADE,
         related_name="skillpoints",
     )
-    total = models.BigIntegerField(validators=[MinValueValidator(0)])
+    total = models.PositiveBigIntegerField()
     unallocated = models.PositiveIntegerField(default=None, null=True)
 
 
@@ -2646,7 +2644,7 @@ class CharacterWalletJournalEntry(models.Model):
     character = models.ForeignKey(
         Character, on_delete=models.CASCADE, related_name="wallet_journal"
     )
-    entry_id = models.BigIntegerField(validators=[MinValueValidator(0)])
+    entry_id = models.PositiveBigIntegerField()
     amount = models.DecimalField(
         max_digits=CURRENCY_MAX_DIGITS,
         decimal_places=CURRENCY_MAX_DECIMALS,
@@ -2661,7 +2659,7 @@ class CharacterWalletJournalEntry(models.Model):
         null=True,
         blank=True,
     )
-    context_id = models.BigIntegerField(default=None, null=True)
+    context_id = models.PositiveBigIntegerField(default=None, null=True)
     context_id_type = models.CharField(max_length=3, choices=CONTEXT_ID_CHOICES)
     date = models.DateTimeField()
     description = models.TextField()
@@ -2788,73 +2786,3 @@ class DoctrineShipSkill(models.Model):
 
     def __str__(self) -> str:
         return f"{self.ship}-{self.eve_type}"
-
-
-class SingletonBase(models.Model):
-    """A base class for models where only one instance is desired (ex. Settings).
-    Implementation courtesy of:
-    https://steelkiwi.com/blog/practical-application-singleton-design-pattern/
-    """
-
-    class Meta:
-        abstract = True
-
-    def save(self, *args, **kwargs):
-        self.pk = 1
-        super().save(*args, **kwargs)
-        self.set_cache()
-
-    def delete(self, *args, **kwargs):
-        pass
-
-    @classmethod
-    def load(cls):
-        if cache.get(cls.__name__) is None:
-            obj, created = cls.objects.get_or_create(pk=1)
-            if not created:
-                obj.set_cache()
-        return cache.get(cls.__name__)
-
-    def set_cache(self):
-        cache.set(self.__class__.__name__, self)
-
-
-class Settings(SingletonBase):
-    """Application settings"""
-
-    class Meta:
-        verbose_name = "settings"
-        verbose_name_plural = "settings"
-
-    compliant_user_group = models.OneToOneField(
-        Group,
-        on_delete=models.SET_NULL,
-        blank=True,
-        null=True,
-        help_text="""Group users that are compliant will be added to
-        automatically. The contents of this group should be considered
-        ephemeral, and users should not be manually added.""",
-    )
-
-    def save(self, *args, **kwargs):
-        orig = Settings.objects.filter(pk=1).first()
-        super().save(*args, **kwargs)
-
-        with transaction.atomic():
-            if (
-                orig
-                and orig.compliant_user_group
-                and orig.compliant_user_group != self.compliant_user_group
-            ):
-                # move members of old compliance group to new compliance group
-                user_pks = set(
-                    orig.compliant_user_group.user_set.values_list("pk", flat=True)
-                )
-                self.compliant_user_group.user_set.set(user_pks, clear=True)
-                orig.compliant_user_group.user_set.clear()
-
-            elif not orig and self.compliant_user_group:
-                self.compliant_user_group.user_set.clear()
-
-    def __str__(self):
-        return "settings"

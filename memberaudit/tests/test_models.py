@@ -1,7 +1,6 @@
 import datetime as dt
 from unittest.mock import patch, Mock
 
-from django.contrib.auth.models import Group
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.utils.dateparse import parse_datetime
@@ -41,7 +40,6 @@ from ..models import (
     DoctrineShip,
     DoctrineShipSkill,
     Location,
-    Settings,
 )
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
@@ -2000,96 +1998,3 @@ class TestCharacterMailLabelManager(TestCharacterUpdateBase):
     def test_empty(self):
         labels = CharacterMailLabel.objects.get_all_labels()
         self.assertDictEqual(labels, dict())
-
-
-class TestSettings(TestCase):
-    def test_save_and_retrieve(self):
-        group = Group.objects.create(name="Test Group")
-        saved = Settings.objects.create(compliant_user_group=group)
-        restored = Settings.load()
-        self.assertEquals(restored.compliant_user_group, saved.compliant_user_group)
-
-    def test_save_compliance_group_1(self):
-        """
-        when there is no compliance group defined
-        then we can define a compliance group defined
-        """
-        settings = Settings.objects.create()
-        group = Group.objects.create(name="Compliance Group 1")
-        settings.compliant_user_group = group
-        settings.save()
-        settings.refresh_from_db()
-
-        self.assertEqual(settings.compliant_user_group, group)
-
-    def test_save_compliance_group_2(self):
-        """
-        Given user is member of compliance group and one other group
-        When compliance group is changed,
-        then user is added to the new compliance group
-        and kicked from old compliance group
-        and remains member of other group
-        and other members of the new compliance group are removed from it
-        """
-        group_1 = Group.objects.create(name="Compliance Group 1")
-        group_2 = Group.objects.create(name="Compliance Group 2")
-        group_3 = Group.objects.create(name="Other Group")
-        settings = Settings.objects.create(compliant_user_group=group_1)
-        user_1 = AuthUtils.create_user("Bruce Wayne")
-        user_1.groups.add(group_1)
-        user_1.groups.add(group_3)
-        user_2 = AuthUtils.create_user("Lex Luther")
-        user_2.groups.add(group_2)
-
-        settings.compliant_user_group = group_2
-        settings.save()
-
-        self.assertFalse(group_1 in user_1.groups.all())
-        self.assertTrue(group_2 in user_1.groups.all())
-        self.assertTrue(group_3 in user_1.groups.all())
-        self.assertFalse(group_2 in user_2.groups.all())
-
-    def test_save_compliance_group_3(self):
-        """
-        Given current compliance group has no members,
-        When compliance group is changed,
-        then it still can be changed
-        """
-        group_1 = Group.objects.create(name="Compliance Group 1")
-        group_2 = Group.objects.create(name="Compliance Group 2")
-        settings = Settings.objects.create(compliant_user_group=group_1)
-
-        settings.compliant_user_group = group_2
-        settings.save()
-
-        settings.refresh_from_db()
-        self.assertEqual(settings.compliant_user_group, group_2)
-
-    def test_save_compliance_group_4(self):
-        """
-        When compliance group is set,
-        then all existing members are removed from it
-        """
-        group = Group.objects.create(name="Compliance Group")
-        user = AuthUtils.create_user("Bruce Wayne")
-        user.groups.add(group)
-
-        Settings.objects.create(compliant_user_group=group)
-
-        self.assertFalse(group in user.groups.all())
-
-    def test_save_compliance_group_5(self):
-        """
-        when there is a compliance group and it is updated with the same group
-        then do not reset the group
-        """
-        group = Group.objects.create(name="Compliance Group 1")
-        user = AuthUtils.create_user("Bruce Wayne")
-        user.groups.add(group)
-        settings = Settings.objects.create(compliant_user_group=group)
-
-        settings.compliant_user_group = group
-        settings.save()
-
-        settings.refresh_from_db()
-        self.assertFalse(group in user.groups.all())
