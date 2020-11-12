@@ -1,4 +1,4 @@
 default_app_config = "memberaudit.apps.MemberauditConfig"
 
-__version__ = "0.2.0dev1"
+__version__ = "1.0.0a1"
 __title__ = "Member Audit"
