@@ -1057,19 +1057,19 @@ def character_jump_clones_data(
 def _character_mail_headers_data(request, character, mail_headers_qs) -> JsonResponse:
     mails_data = list()
     try:
-        for mail in mail_headers_qs.select_related(
-            "from_entity", "from_mailing_list"
-        ).prefetch_related("recipients"):
+        for mail in mail_headers_qs.select_related("from_entity", "from_mailing_list"):
             mail_ajax_url = reverse(
                 "memberaudit:character_mail_data", args=[character.pk, mail.pk]
             )
-
-            actions_html = (
-                '<button type="button" class="btn btn-primary" '
-                'data-toggle="modal" data-target="#modalCharacterMail" '
-                f"data-ajax_mail_body={mail_ajax_url}>"
-                '<i class="fas fa-search"></i></button>'
-            )
+            if mail.body:
+                actions_html = (
+                    '<button type="button" class="btn btn-primary" '
+                    'data-toggle="modal" data-target="#modalCharacterMail" '
+                    f"data-ajax_mail_body={mail_ajax_url}>"
+                    '<i class="fas fa-search"></i></button>'
+                )
+            else:
+                actions_html = ""
 
             from_name = (
                 mail.from_mailing_list.name

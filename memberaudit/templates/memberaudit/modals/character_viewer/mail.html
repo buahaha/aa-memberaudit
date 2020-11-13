@@ -15,16 +15,28 @@
             </div>
 
             <div class="modal-body">
-                <dl class="dl-horizontal">
-                    <dt>{% translate 'From:' %}</dt>
-                    <dd id="mail_from">{% translate 'Loading...' %}</dd>
-                    <dt>{% translate 'To:' %}</dt>
-                    <dd id="mail_to">{% translate 'Loading...' %}</dd>
-                    <dt>{% translate 'Sent:' %}</dt>
-                    <dd id="mail_sent">{% translate 'Loading...' %}</dd>
-                    <br>
-                    <div id="mail_body">{% translate 'Loading...' %}</div>
-                </dl>
+
+                <div id="div_mail_body_loader">
+                    {% if NIGHT_MODE %}
+                        <img src="{% static 'memberaudit/images/Spinner-1s-64px-dark.gif' %}"/>
+                    {% else %}
+                        <img src="{% static 'memberaudit/images/Spinner-1s-64px-light.gif' %}"/>
+                    {% endif %}
+                </div>
+
+                <div id="div_mail_body_main" style="display: none !important;">
+                    <dl class="dl-horizontal">
+                        <dt>{% translate 'From:' %}</dt>
+                        <dd id="mail_from">{% translate 'Loading...' %}</dd>
+                        <dt>{% translate 'To:' %}</dt>
+                        <dd id="mail_to">{% translate 'Loading...' %}</dd>
+                        <dt>{% translate 'Sent:' %}</dt>
+                        <dd id="mail_sent">{% translate 'Loading...' %}</dd>
+                        <br>
+                        <div id="mail_body">{% translate 'Loading...' %}</div>
+                    </dl>
+                </div>
+
             </div>
 
             <div class="modal-footer">

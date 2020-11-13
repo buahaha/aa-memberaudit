@@ -513,14 +513,24 @@
                 var ajax_mail_body = button.data('ajax_mail_body');
                 var modal = $(this);
 
+                // reactive loader
+                modal.find("#div_mail_body_main").hide();
+                modal.find("#div_mail_body_loader").show();
+                modal.find('.modal-title').text("{% translate 'Loading...' %}");
+
                 $.get(
                     ajax_mail_body,
                     function(data, status) {
                         modal.find('.modal-title').html(data.subject);
                         modal.find('#mail_from').html(data.from);
                         modal.find('#mail_to').html(data.to);
-                        modal.find('#mail_sent').html(moment(data.sent).format(DATETIME_FORMAT_2));
+                        modal.find('#mail_sent').html(
+                            moment(data.sent).format(DATETIME_FORMAT_2)
+                        );
                         modal.find('#mail_body').html(data.body);
+                        // disable loader
+                        modal.find("#div_mail_body_main").show();
+                        modal.find("#div_mail_body_loader").hide();
                 });
             })
 
