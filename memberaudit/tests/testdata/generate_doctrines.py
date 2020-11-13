@@ -1,5 +1,7 @@
 # flake8: noqa
-"""This scripts generates test doctrines complete with ships and skills"""
+"""
+This is a standalone scripts that generates test doctrines complete with ships and skills
+"""
 
 from datetime import timedelta
 import inspect

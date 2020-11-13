@@ -25,6 +25,11 @@
     .boolean-icon-true {
         color: rgb(0, 128, 0);
     }
+
+    /* fix to remove vertical slider when in response mode */
+    .table-width-fix {
+        width: 100% !important;
+    }
 }
 /* DataTables
 --------------------------------------------------------------------------------------------------------------------- */
