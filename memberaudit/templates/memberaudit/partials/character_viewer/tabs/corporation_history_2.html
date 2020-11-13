@@ -11,6 +11,7 @@
         {% else %}
             {% translate 'Today' %}
         {% endif %}
+        &nbsp;({{ entry.end_date|timeuntil:entry.start_date }})
         <hr id="history_divider">
     {% endfor %}
 {% else %}
