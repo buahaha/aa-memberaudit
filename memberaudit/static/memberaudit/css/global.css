@@ -1,5 +1,19 @@
 /* Global styles shared by all apps */
 
+/* attempting to fix AA's wrong usage of bootstrap classes
+----------------------------------------------------------------------------------------------------------------------*/
+@media all {
+    .aa-memberaudit {
+        margin-left: 15px;
+    }
+}
+
+@media all and (min-width: 768px) {
+    .aa-memberaudit {
+        margin-left: 0;
+    }
+}
+
 @media all {
     /* Bootstrap Tabs */
     .template-light-mode .nav-tabs > li.active > a {
