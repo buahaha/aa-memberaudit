@@ -1,14 +1,15 @@
 from typing import Optional
+import re
 
+from django.contrib.auth.models import User, Permission
 from django.db import models
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
+
 from eveuniverse.models import EveSolarSystem, EveEntity
 from allianceauth.eveonline.evelinks import dotlan, evewho
 
 from .utils import create_link_html
-
-import re
 
 
 def get_or_create_esi_or_none(
@@ -128,3 +129,16 @@ def eve_xml_to_html(xml: str) -> str:
     x = _link_regex.sub(_link_replace, x)
     # x = strip_tags(x)
     return mark_safe(x)
+
+
+def users_with_permission(permission: Permission) -> models.QuerySet:
+    """returns queryset of users that have the given permission in Auth"""
+    return (
+        User.objects.prefetch_related("user_permissions").filter(
+            user_permissions=permission
+        )
+        | User.objects.prefetch_related("groups").filter(groups__permissions=permission)
+        | User.objects.prefetch_related("profile__state__permissions").filter(
+            profile__state__permissions=permission
+        )
+    )

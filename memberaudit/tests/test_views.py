@@ -1377,11 +1377,15 @@ class TestComplianceReportData(TestCase):
         cls.character_1003 = create_memberaudit_character(1003)
         cls.character_1101 = create_memberaudit_character(1101)
         cls.character_1102 = create_memberaudit_character(1102)
+        cls.character_1103 = add_memberaudit_character_to_user(
+            cls.character_1002.character_ownership.user, 1103
+        )
 
         cls.user = cls.character_1001.character_ownership.user
         cls.user = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.reports_access", cls.user
         )
+        AuthUtils.create_user("John Doe")  # this user should not show up in view
 
     @staticmethod
     def user_pks_set(data) -> set:
@@ -1425,6 +1429,22 @@ class TestComplianceReportData(TestCase):
             },
         )
 
+    def test_view_everything_permission(self):
+        self.user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_everything", self.user
+        )
+        result = self._execute_request()
+        self.assertSetEqual(
+            self.user_pks_set(result),
+            {
+                self.character_1001.character_ownership.user.pk,
+                self.character_1002.character_ownership.user.pk,
+                self.character_1003.character_ownership.user.pk,
+                self.character_1101.character_ownership.user.pk,
+                self.character_1102.character_ownership.user.pk,
+            },
+        )
+
 
 class TestDoctrineReportData(TestCase):
     @classmethod
@@ -1455,6 +1475,8 @@ class TestDoctrineReportData(TestCase):
 
         cls.skill_type_1 = EveType.objects.get(id=24311)
         cls.skill_type_2 = EveType.objects.get(id=24312)
+
+        AuthUtils.create_user("John Doe")  # this user should not show up in view
 
     def test_normal(self):
         def make_data_id(doctrine: Doctrine, character: Character) -> str:

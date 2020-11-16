@@ -20,7 +20,7 @@ from django.utils.translation import gettext_lazy, gettext
 
 from esi.decorators import token_required
 
-from allianceauth.authentication.models import CharacterOwnership, User
+from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
 
@@ -36,6 +36,7 @@ from .models import (
     CharacterMail,
     Doctrine,
     Location,
+    accessible_users,
 )
 from .utils import (
     add_no_wrap_html,
@@ -1379,26 +1380,6 @@ def character_finder_data(request) -> JsonResponse:
 # Section: Reports
 
 
-def _report_user_qs(request):
-    if request.user.has_perm("memberaudit.view_everything"):
-        users_qs = User.objects.all()
-    else:
-        users_qs = User.objects.none()
-        if (
-            request.user.has_perm("memberaudit.view_same_alliance")
-            and request.user.profile.main_character.alliance_id
-        ):
-            users_qs = User.objects.select_related("profile__main_character").filter(
-                profile__main_character__alliance_id=request.user.profile.main_character.alliance_id
-            )
-        elif request.user.has_perm("memberaudit.view_same_corporation"):
-            users_qs = User.objects.select_related("profile__main_character").filter(
-                profile__main_character__corporation_id=request.user.profile.main_character.corporation_id
-            )
-
-    return users_qs
-
-
 @login_required
 @permission_required("memberaudit.reports_access")
 def reports(request) -> HttpResponse:
@@ -1415,10 +1396,8 @@ def reports(request) -> HttpResponse:
 @login_required
 @permission_required("memberaudit.reports_access")
 def compliance_report_data(request) -> JsonResponse:
-    users_qs = _report_user_qs(request)
-
-    member_users = (
-        users_qs.filter(profile__state__name="Member")
+    users_and_character_counts = (
+        accessible_users(request.user)
         .annotate(total_chars=Count("character_ownerships"))
         .annotate(
             unregistered_chars=Count(
@@ -1430,7 +1409,7 @@ def compliance_report_data(request) -> JsonResponse:
     )
 
     user_data = list()
-    for user in member_users:
+    for user in users_and_character_counts:
         try:
             main_character = user.profile.main_character
         except AttributeError:
@@ -1526,7 +1505,6 @@ def doctrines_report_data(request) -> JsonResponse:
             "can_fly_str": yesno_str(bool(can_fly)),
         }
 
-    users_qs = _report_user_qs(request)
     data = list()
 
     character_qs = (
@@ -1537,7 +1515,7 @@ def doctrines_report_data(request) -> JsonResponse:
             "character_ownership__character",
         )
         .prefetch_related("doctrine_ships")
-        .filter(character_ownership__user__in=users_qs)
+        .filter(character_ownership__user__in=accessible_users(request.user))
     )
 
     my_select_related = "ship", "ship__ship_type"

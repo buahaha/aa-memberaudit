@@ -4,7 +4,7 @@ import json
 import os
 from typing import List, Optional
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Permission
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -45,6 +45,7 @@ from .helpers import (
     get_or_none,
     get_or_create_or_none,
     eve_xml_to_html,
+    users_with_permission,
 )
 from .managers import (
     CharacterAssetManager,
@@ -67,6 +68,35 @@ CURRENCY_MAX_DECIMALS = 2
 NAMES_MAX_LENGTH = 100
 
 
+def accessible_users(user: User) -> models.QuerySet:
+    """users that the given user can access"""
+    if user.has_perm("memberaudit.view_everything"):
+        users_qs = General.users_with_basic_access()
+    else:
+        users_qs = User.objects.none()
+        if (
+            user.has_perm("memberaudit.view_same_alliance")
+            and user.profile.main_character.alliance_id
+        ):
+            users_qs = (
+                General.users_with_basic_access()
+                .select_related("profile__main_character")
+                .filter(
+                    profile__main_character__alliance_id=user.profile.main_character.alliance_id
+                )
+            )
+        elif user.has_perm("memberaudit.view_same_corporation"):
+            users_qs = (
+                General.users_with_basic_access()
+                .select_related("profile__main_character")
+                .filter(
+                    profile__main_character__corporation_id=user.profile.main_character.corporation_id
+                )
+            )
+
+    return users_qs
+
+
 class General(models.Model):
     """Meta model for app permissions"""
 
@@ -85,6 +115,17 @@ class General(models.Model):
             ("view_same_alliance", "Can view alliance characters"),
             ("view_everything", "Can view all characters"),
         )
+
+    @classmethod
+    def basic_permission(cls):
+        """return basic permission needed to use this app"""
+        return Permission.objects.select_related("content_type").get(
+            content_type__app_label=cls._meta.app_label, codename="basic_access"
+        )
+
+    @classmethod
+    def users_with_basic_access(cls) -> models.QuerySet:
+        return users_with_permission(cls.basic_permission())
 
 
 class Location(models.Model):

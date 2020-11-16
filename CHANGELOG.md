@@ -13,6 +13,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [1.0.0a3] - 2020-11-17
+
+### Fixed
+
+- Can't see alts of other alliance mains ([#45](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/45))
+- Change report restriction ([#49](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/49))
+
 ## [1.0.0a2] - 2020-11-14
 
 ### Added
