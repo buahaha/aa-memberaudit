@@ -250,12 +250,16 @@ class CharacterManager(models.Manager):
                 user.has_perm("memberaudit.view_same_alliance")
                 and user.profile.main_character.alliance_id
             ):
-                qs = qs | self.select_related("character_ownership__character").filter(
-                    character_ownership__character__alliance_id=user.profile.main_character.alliance_id
+                qs = qs | self.select_related(
+                    "character_ownership__user__profile__main_character"
+                ).filter(
+                    character_ownership__user__profile__main_character__alliance_id=user.profile.main_character.alliance_id
                 )
             elif user.has_perm("memberaudit.view_same_corporation"):
-                qs = qs | self.select_related("character_ownership__character").filter(
-                    character_ownership__character__corporation_id=user.profile.main_character.corporation_id
+                qs = qs | self.select_related(
+                    "character_ownership__user__profile__main_character"
+                ).filter(
+                    character_ownership__user__profile__main_character__corporation_id=user.profile.main_character.corporation_id
                 )
 
             if user.has_perm("memberaudit.view_shared_characters"):

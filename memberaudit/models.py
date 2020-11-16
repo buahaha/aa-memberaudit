@@ -281,13 +281,13 @@ class Character(models.Model):
             user.has_perm("memberaudit.view_same_alliance")
             and user.profile.main_character.alliance_id
             and user.profile.main_character.alliance_id
-            == self.character_ownership.character.alliance_id
+            == self.character_ownership.user.profile.main_character.alliance_id
         ):
             return True
         elif (
             user.has_perm("memberaudit.view_same_corporation")
             and user.profile.main_character.corporation_id
-            == self.character_ownership.character.corporation_id
+            == self.character_ownership.user.profile.main_character.corporation_id
         ):
             return True
         elif user.has_perm("memberaudit.view_shared_characters") and self.is_shared:

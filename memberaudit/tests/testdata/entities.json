@@ -46,6 +46,13 @@
             "corporation_id": 2102,
             "corporation_name": "Harley Quinn inc.",
             "corporation_ticker": "HQ"
+        },
+        {
+            "character_id": 1103,
+            "character_name": "Floyd Lawton",
+            "corporation_id": 2103,
+            "corporation_name": "Suicide Squad",
+            "corporation_ticker": "SS"
         }
     ],
     "EveEntity": [
