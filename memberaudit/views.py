@@ -1401,11 +1401,12 @@ def reports(request) -> HttpResponse:
 def compliance_report_data(request) -> JsonResponse:
     users_and_character_counts = (
         accessible_users(request.user)
-        .annotate(total_chars=Count("character_ownerships"))
+        .annotate(total_chars=Count("character_ownerships__character", distinct=True))
         .annotate(
             unregistered_chars=Count(
                 "character_ownerships",
                 filter=Q(character_ownerships__memberaudit_character=None),
+                distinct=True,
             )
         )
         .select_related("profile__main_character")
@@ -1424,9 +1425,14 @@ def compliance_report_data(request) -> JsonResponse:
             avatar=True,
         )
         organization_html = create_main_organization_html(main_character)
+        alliance_name = (
+            main_character.alliance_name if main_character.alliance_name else ""
+        )
+        is_registered = user.unregistered_chars < user.total_chars
+        is_compliant = user.unregistered_chars == 0
         user_data.append(
             {
-                "user_pk": user.pk,
+                "id": user.pk,
                 "main": {
                     "display": main_html,
                     "sort": main_character.character_name,
@@ -1436,11 +1442,13 @@ def compliance_report_data(request) -> JsonResponse:
                     "sort": main_character.corporation_name,
                 },
                 "corporation_name": main_character.corporation_name,
-                "alliance_name": main_character.alliance_name,
+                "alliance_name": alliance_name,
                 "total_chars": user.total_chars,
                 "unregistered_chars": user.unregistered_chars,
-                "is_compliant": user.unregistered_chars == 0,
-                "compliance_str": "yes" if user.unregistered_chars == 0 else "no",
+                "is_registered": is_registered,
+                "registered_str": yesno_str(is_registered),
+                "is_compliant": is_compliant,
+                "compliance_str": yesno_str(is_compliant),
             }
         )
 

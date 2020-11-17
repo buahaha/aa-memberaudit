@@ -50,25 +50,26 @@
                             sort: 'sort'
                         }
                     },
+                    { data: 'registered_str' },
+                    { data: 'compliance_str' },
                     { data: 'total_chars' },
                     { data: 'unregistered_chars' },
-                    { data: 'compliance_str' },
                     /* hidden columns */
                     { data: 'alliance_name' },
                     { data: 'corporation_name' },
                 ],
                 columnDefs: [
-                    { "visible": false, "targets": [ 5, 6 ] },
+                    { "visible": false, "targets": [ 6, 7 ] },
                 ],
                 order: [ [ 0, "asc" ] ],
                 filterDropDown: {
                     columns: [
                         {
-                            idx: 5,
+                            idx: 6,
                             title: "{% translate 'Alliance' %}"
                         },
                         {
-                            idx: 6,
+                            idx: 7,
                             title: "{% translate 'Corporation' %}"
                         },
                         {
@@ -85,8 +86,13 @@
                 },
                 createdRow: function( row, data, dataIndex )
                 {
-                    if (!data['is_compliant'])
-                    {
+                    if (data['is_compliant']){
+                        $(row).addClass('success');
+                    }
+                    else if (data['is_registered']){
+                        $(row).addClass('warning');
+                    }
+                    else {
                         $(row).addClass('danger');
                     }
                 }

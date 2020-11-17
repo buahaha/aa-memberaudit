@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytz
 
+from django.contrib.auth.models import Group
 from django.http import JsonResponse
 from django.test import TestCase, RequestFactory
 from django.utils.timezone import now
@@ -18,7 +19,11 @@ from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
 from .testdata.load_locations import load_locations
 
-from . import create_memberaudit_character, add_memberaudit_character_to_user
+from . import (
+    create_memberaudit_character,
+    add_memberaudit_character_to_user,
+    add_auth_character_to_user,
+)
 from ..models import (
     Character,
     CharacterAsset,
@@ -1377,9 +1382,6 @@ class TestComplianceReportData(TestCase):
         cls.character_1003 = create_memberaudit_character(1003)
         cls.character_1101 = create_memberaudit_character(1101)
         cls.character_1102 = create_memberaudit_character(1102)
-        cls.character_1103 = add_memberaudit_character_to_user(
-            cls.character_1002.character_ownership.user, 1103
-        )
 
         cls.user = cls.character_1001.character_ownership.user
         cls.user = AuthUtils.add_permission_to_user_by_name(
@@ -1387,20 +1389,16 @@ class TestComplianceReportData(TestCase):
         )
         AuthUtils.create_user("John Doe")  # this user should not show up in view
 
-    @staticmethod
-    def user_pks_set(data) -> set:
-        return {x["user_pk"] for x in data}
-
-    def _execute_request(self) -> list:
+    def _execute_request(self) -> dict:
         request = self.factory.get(reverse("memberaudit:compliance_report_data"))
         request.user = self.user
         response = compliance_report_data(request)
         self.assertEqual(response.status_code, 200)
-        return json_response_to_python(response)
+        return json_response_to_python_dict(response)
 
     def test_no_scope(self):
         result = self._execute_request()
-        self.assertSetEqual(self.user_pks_set(result), set())
+        self.assertSetEqual(set(result.keys()), set())
 
     def test_corporation_permission(self):
         self.user = AuthUtils.add_permission_to_user_by_name(
@@ -1408,7 +1406,7 @@ class TestComplianceReportData(TestCase):
         )
         result = self._execute_request()
         self.assertSetEqual(
-            self.user_pks_set(result),
+            set(result.keys()),
             {
                 self.character_1001.character_ownership.user.pk,
                 self.character_1002.character_ownership.user.pk,
@@ -1421,7 +1419,7 @@ class TestComplianceReportData(TestCase):
         )
         result = self._execute_request()
         self.assertSetEqual(
-            self.user_pks_set(result),
+            set(result.keys()),
             {
                 self.character_1001.character_ownership.user.pk,
                 self.character_1002.character_ownership.user.pk,
@@ -1435,7 +1433,7 @@ class TestComplianceReportData(TestCase):
         )
         result = self._execute_request()
         self.assertSetEqual(
-            self.user_pks_set(result),
+            set(result.keys()),
             {
                 self.character_1001.character_ownership.user.pk,
                 self.character_1002.character_ownership.user.pk,
@@ -1444,6 +1442,23 @@ class TestComplianceReportData(TestCase):
                 self.character_1102.character_ownership.user.pk,
             },
         )
+
+    def test_char_counts(self):
+        self.user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_everything", self.user
+        )
+        user = self.character_1002.character_ownership.user
+        add_auth_character_to_user(user, 1103)
+        group, _ = Group.objects.get_or_create(name="Test Group")
+        AuthUtils.add_permissions_to_groups(
+            [AuthUtils.get_permission_by_name("memberaudit.basic_access")], [group]
+        )
+        user.groups.add(group)
+
+        result = self._execute_request()
+        result_1002 = result[user.pk]
+        self.assertEqual(result_1002["total_chars"], 2)
+        self.assertEqual(result_1002["unregistered_chars"], 1)
 
 
 class TestDoctrineReportData(TestCase):

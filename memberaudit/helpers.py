@@ -3,6 +3,7 @@ import re
 
 from django.contrib.auth.models import User, Permission
 from django.db import models
+from django.db.models import Q
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
@@ -133,12 +134,16 @@ def eve_xml_to_html(xml: str) -> str:
 
 def users_with_permission(permission: Permission) -> models.QuerySet:
     """returns queryset of users that have the given permission in Auth"""
-    return (
-        User.objects.prefetch_related("user_permissions").filter(
-            user_permissions=permission
+    users_qs = (
+        User.objects.prefetch_related(
+            "user_permissions", "groups", "profile__state__permissions"
         )
-        | User.objects.prefetch_related("groups").filter(groups__permissions=permission)
-        | User.objects.prefetch_related("profile__state__permissions").filter(
-            profile__state__permissions=permission
+        .filter(
+            Q(user_permissions=permission)
+            | Q(groups__permissions=permission)
+            | Q(profile__state__permissions=permission)
         )
+        .distinct()
     )
+
+    return users_qs
