@@ -1150,7 +1150,11 @@ class Character(models.Model):
 
     @fetch_token_for_character("esi-mail.read_mail.v1")
     def update_mailing_lists(self, token: Token):
-        """update the mailing lists for the given character"""
+        """update the mailing lists for the given character
+
+        Note: Obsolete mailing lists must not be removed,
+        since they might still be referenced by older mails
+        """
         logger.info("%s: Fetching mailing lists from ESI", self)
         mailing_lists_raw = esi.client.Mail.get_characters_character_id_mail_lists(
             character_id=self.character_ownership.character.character_id,
@@ -1171,16 +1175,9 @@ class Character(models.Model):
         # TODO: replace with bulk methods to optimize
         with transaction.atomic():
             incoming_ids = set(mailing_lists.keys())
-            existing_ids = set(self.mailing_lists.values_list("list_id", flat=True))
-            obsolete_ids = existing_ids.difference(incoming_ids)
-            if obsolete_ids:
-                logger.info(
-                    "%s: Removing %s obsolete mailing lists", self, len(obsolete_ids)
-                )
-                self.mailing_lists.filter(list_id__in=obsolete_ids).delete()
-
+            # existing_ids = set(self.mailing_lists.values_list("list_id", flat=True))
             if not incoming_ids:
-                logger.info("%s: No mailing lists", self)
+                logger.info("%s: No new mailing lists", self)
                 return
 
             logger.info("%s: Updating %s mailing lists", self, len(incoming_ids))
@@ -1325,15 +1322,16 @@ class Character(models.Model):
 
     def _create_mail_headers(self, mail_headers: dict, create_ids) -> None:
         logger.info("%s: Create %s new mail headers", self, len(create_ids))
-        mailing_list_ids = set(self.mailing_lists.values_list("list_id", flat=True))
         new_mail_headers_list = {
             mail_info["mail_id"]: mail_info
             for mail_id, mail_info in mail_headers.items()
             if mail_id in create_ids
         }
+        self._add_missing_mailing_lists_from_recipients(new_mail_headers_list)
 
         # create headers
         new_headers = list()
+        mailing_list_ids = set(self.mailing_lists.values_list("list_id", flat=True))
         for mail_id, header in new_mail_headers_list.items():
             from_id = header.get("from")
             if from_id in mailing_list_ids:
@@ -1397,6 +1395,22 @@ class Character(models.Model):
             CharacterMailRecipient.objects.bulk_create(
                 new_recipients, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
             )
+
+    def _add_missing_mailing_lists_from_recipients(self, new_mail_headers_list):
+        """Add mailing lists from recipients that are not part of the known
+        mailing lists"""
+        incoming_ids = set()
+        for header in new_mail_headers_list.values():
+            for recipient in header.get("recipients"):
+                if recipient.get("recipient_type") == "mailing_list":
+                    incoming_ids.add(recipient.get("recipient_id"))
+
+        with transaction.atomic():
+            existing_ids = set(self.mailing_lists.values_list("list_id", flat=True))
+            create_ids = incoming_ids.difference(existing_ids)
+            logger.info("%s: Adding %s unknown mailing lists", self, len(create_ids))
+            for list_id in create_ids:
+                CharacterMailingList.objects.create(character=self, list_id=list_id)
 
     def _update_labels_of_mail(
         self,
@@ -2430,6 +2444,15 @@ class CharacterMail(models.Model):
         """returns the body as html"""
         return eve_xml_to_html(self.body)
 
+    @property
+    def from_name(self) -> str:
+        """Name of sender. Can be a character, corporation, alliance or mailing list"""
+        return (
+            self.from_mailing_list.name_plus
+            if self.from_mailing_list
+            else self.from_entity.name
+        )
+
 
 class CharacterMailingList(models.Model):
     """Mailing list of a character"""
@@ -2452,7 +2475,11 @@ class CharacterMailingList(models.Model):
         ]
 
     def __str__(self) -> str:
-        return self.name
+        return self.name_plus
+
+    @property
+    def name_plus(self) -> str:
+        return self.name if self.name else f"Mailing list #{self.list_id}"
 
 
 class CharacterMailLabel(models.Model):

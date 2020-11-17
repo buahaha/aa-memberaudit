@@ -799,7 +799,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertEqual(obj.name, "Dummy 2")
 
     def test_update_mailing_lists_2(self, mock_esi):
-        """removes obsolete mailing lists"""
+        """does not remove obsolete mailing lists"""
         mock_esi.client = esi_client_stub
         CharacterMailingList.objects.create(
             character=self.character_1001, list_id=5, name="Obsolete"
@@ -809,7 +809,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
 
         self.assertSetEqual(
             set(self.character_1001.mailing_lists.values_list("list_id", flat=True)),
-            {9001, 9002},
+            {9001, 9002, 5},
         )
 
     def test_update_mailing_lists_3(self, mock_esi):
@@ -900,7 +900,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.character_1001.update_mail_headers()
         self.assertSetEqual(
             set(self.character_1001.mails.values_list("mail_id", flat=True)),
-            {1, 2},
+            {1, 2, 3},
         )
 
         obj = self.character_1001.mails.get(mail_id=1)
@@ -922,6 +922,11 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T18:07:00Z"))
         self.assertFalse(obj.body)
         self.assertSetEqual(set(obj.labels.values_list("label_id", flat=True)), {3})
+
+        obj = self.character_1001.mails.get(mail_id=3)
+        self.assertEqual(obj.from_entity.id, 1002)
+        self.assertIsNone(obj.from_mailing_list)
+        self.assertTrue(obj.recipients.filter(mailing_list__list_id=9003).exists())
 
     def test_update_mail_headers_2(self, mock_esi):
         """can update existing mail"""
@@ -949,7 +954,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.character_1001.update_mail_headers()
         self.assertSetEqual(
             set(self.character_1001.mails.values_list("mail_id", flat=True)),
-            {1, 2},
+            {1, 2, 3},
         )
 
         obj = self.character_1001.mails.get(mail_id=1)
@@ -987,7 +992,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.character_1001.update_mail_headers()
         self.assertSetEqual(
             set(self.character_1001.mails.values_list("mail_id", flat=True)),
-            {1, 2},
+            {1, 2, 3},
         )
 
         obj = self.character_1001.mails.get(mail_id=2)
@@ -2041,3 +2046,44 @@ class TestCharacterMailLabelManager(TestCharacterUpdateBase):
     def test_empty(self):
         labels = CharacterMailLabel.objects.get_all_labels()
         self.assertDictEqual(labels, dict())
+
+
+class TestCharacterMailingList(TestCharacterUpdateBase):
+    def test_name_plus_1(self):
+        """when mailing list has name then return it's name"""
+        mailing_list = CharacterMailingList(
+            self.character_1001, list_id=99, name="Avengers Talk"
+        )
+        self.assertEqual(mailing_list.name_plus, "Avengers Talk")
+
+    def test_name_plus_2(self):
+        """when mailing list has no name then return a generic name"""
+        mailing_list = CharacterMailingList(self.character_1001, list_id=99)
+        self.assertEqual(mailing_list.name_plus, "Mailing list #99")
+
+
+class TestCharacterMail(TestCharacterUpdateBase):
+    def test_from_name_1(self):
+        """when from is an eve_entity, then return it's name"""
+        mail = CharacterMail.objects.create(
+            character=self.character_1001,
+            mail_id=1,
+            from_entity=EveEntity.objects.get(id=1002),
+            subject="Mail 1",
+            timestamp=parse_datetime("2015-09-30T16:07:00Z"),
+        )
+        self.assertEqual(mail.from_name, "Clark Kent")
+
+    def test_from_name_2(self):
+        """when from is a mailing list, then return it's name"""
+        mailing_list = CharacterMailingList.objects.create(
+            character=self.character_1001, list_id=9001, name="Mailing List"
+        )
+        mail = CharacterMail.objects.create(
+            character=self.character_1001,
+            mail_id=1,
+            from_mailing_list=mailing_list,
+            subject="Mail 1",
+            timestamp=parse_datetime("2015-09-30T16:07:00Z"),
+        )
+        self.assertEqual(mail.from_name, "Mailing List")

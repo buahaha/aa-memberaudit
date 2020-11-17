@@ -1080,15 +1080,10 @@ def _character_mail_headers_data(request, character, mail_headers_qs) -> JsonRes
             else:
                 actions_html = ""
 
-            from_name = (
-                mail.from_mailing_list.name
-                if mail.from_mailing_list
-                else mail.from_entity.name
-            )
             mails_data.append(
                 {
                     "mail_id": mail.mail_id,
-                    "from": from_name,
+                    "from": mail.from_name,
                     "to": ", ".join(
                         sorted(
                             [
@@ -1152,7 +1147,7 @@ def character_mail_data(
     data = {
         "mail_id": mail.mail_id,
         "labels": list(mail.labels.values_list("label_id", flat=True)),
-        "from": mail.from_entity.name,
+        "from": mail.from_name,
         "to": ", ".join(
             sorted(
                 [
