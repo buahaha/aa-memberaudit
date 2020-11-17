@@ -312,6 +312,10 @@ class Character(models.Model):
             f"character_ownership='{self.character_ownership}')"
         )
 
+    def user_is_owner(self, user: User) -> bool:
+        """Return True if the given user is owner of this character"""
+        return self.character_ownership.user == user
+
     def user_has_access(self, user: User) -> bool:
         """Returns True if given user has permission to view this character"""
         if self.character_ownership.user == user:

@@ -85,12 +85,12 @@
                                         {% if auth_character.character.is_shared %}
                                             <a class="btn btn-primary btn-sm" href="{% url 'memberaudit:unshare_character' auth_character.character.pk %}"
                                                 role="button" title="{% translate 'Disable access to this character for recruiters.' %}">
-                                                <i class="fas fa-lock"></i>
+                                                <i class="far fa-eye-slash"></i>
                                             </a>
                                         {% else %}
                                             <a class="btn btn-warning btn-sm" href="{% url 'memberaudit:share_character' auth_character.character.pk %}"
                                                 role="button" title="{% translate 'Enable access to this character for recruiters.' %}">
-                                                <i class="fas fa-lock-open"></i>
+                                                <i class="far fa-eye"></i>
                                             </a>
                                         {% endif %}
 

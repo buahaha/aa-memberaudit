@@ -296,7 +296,9 @@ def unshare_character(request, character_pk: int) -> HttpResponse:
     "details",
     "wallet_balance",
     "skillpoints",
+    "character_ownership__user",
     "character_ownership__user__profile__main_character",
+    "character_ownership__character",
     "location__location",
     "location__eve_solar_system",
     "location__eve_solar_system__eve_constellation__eve_region",
@@ -402,9 +404,15 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
     except ObjectDoesNotExist:
         last_updates = None
 
-    show_tab = request.GET.get("tab", "")
+    page_title = "Character Sheet"
+    if not character.user_is_owner(request.user):
+        page_title = format_html(
+            '{}&nbsp;<i class="far fa-eye" title="You do not own this character"></i>',
+            page_title,
+        )
+
     context = {
-        "page_title": "Character Sheet",
+        "page_title": page_title,
         "character": character,
         "auth_character": auth_character,
         "character_details": character_details,
@@ -413,7 +421,7 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         "main": main,
         "main_character_id": main_character.character_id if main_character else None,
         "registered_characters": registered_characters,
-        "show_tab": show_tab,
+        "show_tab": request.GET.get("tab", ""),
         "last_updates": last_updates,
         "character_assets_total": character_assets_total,
         "has_implants": has_implants,
