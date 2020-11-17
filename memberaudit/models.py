@@ -9,6 +9,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models, transaction
+from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 
@@ -311,6 +312,16 @@ class Character(models.Model):
             f"Character(pk={self.pk}, "
             f"character_ownership='{self.character_ownership}')"
         )
+
+    @cached_property
+    def is_main(self) -> bool:
+        try:
+            return (
+                self.character_ownership.user.profile.main_character.character_id
+                == self.character_ownership.character.character_id
+            )
+        except AttributeError:
+            return False
 
     def user_is_owner(self, user: User) -> bool:
         """Return True if the given user is owner of this character"""

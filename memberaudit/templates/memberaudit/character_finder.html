@@ -27,6 +27,10 @@
                     <tbody></tbody>
                 </table>
             </div>
+            <p class="text-muted">
+                <i class="fas fa-crown"></i> Main character&nbsp;•&nbsp;
+                <i class="far fa-eye"></i> Currently shared with recruiters
+            </p>
         </div>
     </div>
 {% endblock details %}
@@ -65,11 +69,12 @@
                     { data: 'corporation_name' },
                     { data: 'region_name' },
                     { data: 'solar_system_name' },
+                    { data: 'main_str' },
                 ],
 
                 columnDefs: [
                     { "orderable": false, "targets": [ 5 ] },
-                    { "visible": false, "targets": [ 6, 7, 8, 9 ] },
+                    { "visible": false, "targets": [ 6, 7, 8, 9, 10 ] },
                 ],
 
                 order: [ [ 0, "asc" ] ],
@@ -85,7 +90,8 @@
                             title: "{% translate 'Corporation' %}"
                         },
                         {
-                            idx: 3
+                            idx: 10,
+                            title: "{% translate 'Main?' %}"
                         },
                         {
                             idx: 4

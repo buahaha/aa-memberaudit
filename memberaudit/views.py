@@ -15,6 +15,7 @@ from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.utils.timesince import timeuntil
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy, gettext
 
@@ -68,15 +69,24 @@ def create_img_html(src: str, classes: list = None, size: int = None) -> str:
 
 
 def create_icon_plus_name_html(
-    icon_url, name, size: int = DEFAULT_ICON_SIZE, avatar=False, url=None
+    icon_url,
+    name,
+    size: int = DEFAULT_ICON_SIZE,
+    avatar: bool = False,
+    url: str = None,
+    text: str = None,
 ) -> str:
     """create HTML to display an icon next to a name. Can also be a link."""
+    name_html = create_link_html(url, name, new_window=False) if url else name
+    if text:
+        name_html = format_html("{}&nbsp;{}", name_html, text)
+
     return format_html(
         "{}&nbsp;&nbsp;&nbsp;{}",
         create_img_html(
             icon_url, classes=["ra-avatar", "img-circle"] if avatar else [], size=size
         ),
-        create_link_html(url, name, new_window=False) if url else name,
+        name_html,
     )
 
 
@@ -1324,12 +1334,6 @@ def character_finder_data(request) -> JsonResponse:
         character_organization = format_html(
             "{}<br><em>{}</em>", auth_character.corporation_name, alliance_name
         )
-        character_html = create_icon_plus_name_html(
-            auth_character.portrait_url(),
-            auth_character.character_name,
-            avatar=True,
-            url=character_viewer_url,
-        )
         user_profile = character.character_ownership.user.profile
         try:
             main_html = create_icon_plus_name_html(
@@ -1340,6 +1344,23 @@ def character_finder_data(request) -> JsonResponse:
 
         except AttributeError:
             main_html = ""
+
+        text = format_html(
+            "{}&nbsp;{}",
+            mark_safe('&nbsp;<i class="fas fa-crown" title="Main character">')
+            if character.is_main
+            else "",
+            mark_safe('&nbsp;<i class="far fa-eye" title="Shared character">')
+            if character.is_shared
+            else "",
+        )
+        character_html = create_icon_plus_name_html(
+            auth_character.portrait_url(),
+            auth_character.character_name,
+            avatar=True,
+            url=character_viewer_url,
+            text=text,
+        )
 
         try:
             location_name = (
@@ -1374,6 +1395,7 @@ def character_finder_data(request) -> JsonResponse:
                 "alliance_name": alliance_name,
                 "solar_system_name": solar_system_name,
                 "region_name": region_name,
+                "main_str": yesno_str(character.is_main),
             }
         )
     return JsonResponse(character_list, safe=False)

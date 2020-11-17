@@ -2087,3 +2087,20 @@ class TestCharacterMail(TestCharacterUpdateBase):
             timestamp=parse_datetime("2015-09-30T16:07:00Z"),
         )
         self.assertEqual(mail.from_name, "Mailing List")
+
+
+class TestCharacter(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_entities()
+        cls.character_1001 = create_memberaudit_character(1001)
+        cls.user = cls.character_1001.character_ownership.user
+
+    def test_is_main_1(self):
+        self.assertTrue(self.character_1001.is_main)
+
+    def test_is_main_2(self):
+        character_1101 = add_memberaudit_character_to_user(self.user, 1101)
+        self.assertTrue(self.character_1001.is_main)
+        self.assertFalse(character_1101.is_main)
