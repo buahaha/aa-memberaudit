@@ -2857,9 +2857,6 @@ class Doctrine(models.Model):
         default=True, db_index=True, help_text="Whether this doctrine is in active use"
     )
 
-    class Meta:
-        default_permissions = ()
-
     def __str__(self) -> str:
         return str(self.name)
 
@@ -2888,9 +2885,6 @@ class DoctrineShip(models.Model):
         ),
     )
 
-    class Meta:
-        default_permissions = ()
-
     def __str__(self) -> str:
         return str(self.name)
 
@@ -2911,7 +2905,6 @@ class DoctrineShipSkill(models.Model):
     )
 
     class Meta:
-        default_permissions = ()
         constraints = [
             models.UniqueConstraint(
                 fields=["ship", "eve_type"],
