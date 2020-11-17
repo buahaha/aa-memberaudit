@@ -566,9 +566,11 @@ class Character(models.Model):
                     len(entries),
                 )
                 CharacterCorporationHistory.objects.bulk_create(entries)
-                EveEntity.objects.bulk_update_new_esi()
             else:
                 logger.info("%s: Corporation history is empty", self)
+
+        if entries:
+            EveEntity.objects.bulk_update_new_esi()
 
     @fetch_token_for_character("esi-characters.read_contacts.v1")
     def update_contact_labels(self, token: Token):
@@ -1081,7 +1083,8 @@ class Character(models.Model):
             CharacterLoyaltyEntry.objects.bulk_create(
                 new_entries, MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
             )
-            EveEntity.objects.bulk_update_new_esi()
+
+        EveEntity.objects.bulk_update_new_esi()
 
     @fetch_token_for_character(
         ["esi-clones.read_clones.v1", "esi-universe.read_structures.v1"]
@@ -1676,7 +1679,8 @@ class Character(models.Model):
             CharacterWalletJournalEntry.objects.bulk_create(
                 entries, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
             )
-            EveEntity.objects.bulk_update_new_esi()
+
+        EveEntity.objects.bulk_update_new_esi()
 
     @fetch_token_for_character(
         ["esi-location.read_location.v1", "esi-universe.read_structures.v1"]
