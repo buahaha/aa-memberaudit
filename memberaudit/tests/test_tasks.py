@@ -4,15 +4,25 @@ from unittest.mock import patch
 from bravado.exception import HTTPInternalServerError
 from celery.exceptions import Retry as CeleryRetry
 
+from django.contrib.auth.models import Group
 from django.test import TestCase, override_settings
 from django.utils.timezone import now
 from esi.models import Token
 from eveuniverse.models import EveSolarSystem, EveType
 
+from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import generate_invalid_pk
 
 from ..helpers import EsiErrorLimitExceeded, EsiOffline, EsiStatus
-from ..models import Character, CharacterAsset, CharacterUpdateStatus, Location
+from ..models import (
+    Character,
+    CharacterAsset,
+    CharacterOwnership,
+    CharacterUpdateStatus,
+    ComplianceGroup,
+    Location,
+    State,
+)
 from ..tasks import (
     delete_character,
     run_regular_updates,
@@ -24,6 +34,7 @@ from ..tasks import (
     update_character_mails,
     update_character_wallet_journal,
     update_characters_skill_checks,
+    update_compliance_group_all,
     update_mail_entity_esi,
     update_market_prices,
     update_structure_esi,
@@ -786,3 +797,138 @@ class TestDeleteCharacter(TestCase):
         delete_character.delay(character_1001.pk)
         # then
         self.assertFalse(Character.objects.filter(pk=character_1001.pk).exists())
+
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+class TestGroupProvisioning(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_entities()
+
+    def setUp(self) -> None:
+        self.user = AuthUtils.create_user("George_RR_Martin")
+        self.character_1 = AuthUtils.add_main_character_2(
+            self.user, "Sansha Stark", 1005
+        )
+        self.character_2 = AuthUtils.add_main_character_2(self.user, "Aria Stark", 1006)
+        self.state = State.objects.get_for_user(self.user)
+        self.state2 = State.objects.create(name="Test State 2", priority=1000)
+        self.group, _ = Group.objects.get_or_create(name="Test Group")
+
+    def _associate_character(self, user, character):
+        return CharacterOwnership.objects.create(
+            character=character,
+            owner_hash="x1" + character.character_name,
+            user=user,
+        )
+
+    @patch(TASKS_PATH + ".notify")
+    def test_update_user_assignment_none(self, mock_notify):
+        """When we have no compliance group defined, we should not add users"""
+        self._associate_character(self.user, self.character_1)
+        update_compliance_group_all()
+        self.assertEquals(len(self.user.groups.values()), 0)
+        self.assertFalse(mock_notify.called)
+
+    @patch(TASKS_PATH + ".notify")
+    def test_update_user_assignment_single_not_added(self, mock_notify):
+        """When we have a single character not registered with member audit, we should not add users"""
+        ComplianceGroup.objects.create(group=self.group, state=self.state)
+        self._associate_character(self.user, self.character_1)
+        update_compliance_group_all()
+        self.assertEquals(len(self.user.groups.values()), 0)
+        self.assertFalse(mock_notify.called)
+
+    @patch(TASKS_PATH + ".notify")
+    def test_update_user_assignment_single_remove(self, mock_notify):
+        """When we have a single character not registered with member audit, we should remove existing users"""
+        ComplianceGroup.objects.create(group=self.group, state=self.state)
+        self._associate_character(self.user, self.character_1)
+        self.group.user_set.add(self.user)
+        update_compliance_group_all()
+        self.assertEquals(len(self.user.groups.values()), 0)
+        self.assertTrue(mock_notify.called)
+
+    @patch(TASKS_PATH + ".notify")
+    def test_update_user_assignment_zero_not_added(self, mock_notify):
+        """When we have no characters not registered with member audit, we should NOT add users"""
+        ComplianceGroup.objects.create(group=self.group, state=self.state)
+        update_compliance_group_all()
+        self.assertEquals(len(self.user.groups.values()), 0)
+        self.assertFalse(mock_notify.called)
+
+    @patch(TASKS_PATH + ".notify")
+    def test_update_user_assignment_single_added(self, mock_notify):
+        """When we have a single character registered with member audit, we should add users"""
+        ComplianceGroup.objects.create(group=self.group, state=self.state)
+        ownership = self._associate_character(self.user, self.character_1)
+        Character.objects.create(character_ownership=ownership)
+        update_compliance_group_all()
+        self.assertEquals(self.user.groups.first(), self.group)
+        self.assertTrue(mock_notify.called)
+
+    @patch(TASKS_PATH + ".notify")
+    def test_update_user_assignment_single_stays(self, mock_notify):
+        """When we have a single character already registered with member audit, we should keep them"""
+        ComplianceGroup.objects.create(group=self.group, state=self.state)
+        ownership = self._associate_character(self.user, self.character_1)
+        self.user.groups.add(self.group)
+        Character.objects.create(character_ownership=ownership)
+        update_compliance_group_all()
+        self.assertEquals(self.user.groups.first(), self.group)
+        self.assertFalse(mock_notify.called)
+
+    @patch(TASKS_PATH + ".notify")
+    def test_update_user_assignment_partial_not_added(self, mock_notify):
+        """When we have a single character registered with member audit AND one character not registered, we should not add users"""
+
+        ComplianceGroup.objects.create(group=self.group, state=self.state)
+        ownership_1 = self._associate_character(self.user, self.character_1)
+        self._associate_character(self.user, self.character_2)
+        Character.objects.create(character_ownership=ownership_1)
+        update_compliance_group_all()
+        self.assertEquals(len(self.user.groups.values()), 0)
+        self.assertFalse(mock_notify.called)
+
+    @patch(TASKS_PATH + ".notify")
+    def test_update_user_assignment_partial_removed(self, mock_notify):
+        """When we have a single character registered with member audit AND one character not registered, we should remove users"""
+
+        ComplianceGroup.objects.create(group=self.group, state=self.state)
+        ownership_1 = self._associate_character(self.user, self.character_1)
+        self._associate_character(self.user, self.character_2)
+        Character.objects.create(character_ownership=ownership_1)
+        self.group.user_set.add(self.user)
+        update_compliance_group_all()
+        self.assertEquals(len(self.user.groups.values()), 0)
+        self.assertTrue(mock_notify.called)
+
+    @patch(TASKS_PATH + ".notify")
+    def test_update_user_assignment_all_added(self, mock_notify):
+        """When we have all characters registered with member audit, we should add users"""
+
+        ComplianceGroup.objects.create(group=self.group, state=self.state)
+        ownership_1 = self._associate_character(self.user, self.character_1)
+        ownership_2 = self._associate_character(self.user, self.character_2)
+        Character.objects.create(character_ownership=ownership_1)
+        Character.objects.create(character_ownership=ownership_2)
+        update_compliance_group_all()
+        self.assertEquals(self.user.groups.first(), self.group)
+        self.assertTrue(mock_notify.called)
+
+    @patch(TASKS_PATH + ".notify")
+    def test_update_user_state(self, mock_notify):
+        """When a user changes state, they should be removed from the group"""
+        ComplianceGroup.objects.create(group=self.group, state=self.state)
+        ownership = self._associate_character(self.user, self.character_1)
+        self.user.groups.add(self.group)
+        Character.objects.create(character_ownership=ownership)
+        AuthUtils.assign_state(self.user, self.state2)
+        self.assertEquals(len(self.user.groups.values()), 0)
+        self.assertFalse(mock_notify.called)
+
+    @patch(TASKS_PATH + ".update_compliance_group_user")
+    def test_update_all_user_assignments_noop(self, mock_update_user_assignment):
+        update_compliance_group_all()
+        self.assertFalse(mock_update_user_assignment.called)

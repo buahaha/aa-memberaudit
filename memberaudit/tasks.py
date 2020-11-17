@@ -10,12 +10,20 @@ from django.utils.timezone import now
 from esi.models import Token
 from eveuniverse.models import EveEntity, EveMarketPrice
 
+from allianceauth.authentication.models import (
+    CharacterOwnership,
+    State,
+    User,
+    UserProfile,
+)
+from allianceauth.notifications import notify
 from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
 from app_utils.logging import LoggerAddTag
 
 from . import __title__
 from .app_settings import (
+    MEMBERAUDIT_APP_NAME,
     MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
     MEMBERAUDIT_LOG_UPDATE_STATS,
     MEMBERAUDIT_TASKS_MAX_ASSETS_PER_PASS,
@@ -30,6 +38,7 @@ from .models import (
     CharacterContract,
     CharacterMail,
     CharacterUpdateStatus,
+    ComplianceGroup,
     Location,
     MailEntity,
 )
@@ -1024,3 +1033,68 @@ def delete_character(character_pk) -> None:
     character = Character.objects.get(pk=character_pk)
     logger.info("%s: Deleting character", character)
     character.delete()
+
+
+@shared_task(**TASK_DEFAULT_KWARGS)
+def update_compliance_group_user(user_pk: int) -> None:
+    """Reprovision group membership based on Member Audit compliance"""
+    user = User.objects.get(pk=user_pk)
+    user_profile = UserProfile.objects.filter(user=user).first()
+    logger.debug("Reprovisioning based on compliance for user %s", user)
+    has_character = CharacterOwnership.objects.filter(user=user).exists()
+    # Just because you have no characters doesn't mean you can sneak in!
+    user_compliant = (
+        has_character
+        and not CharacterOwnership.objects.filter(
+            user=user, memberaudit_character__isnull=True
+        ).exists()
+    )
+    logger.info("User %s %s compliant.", user, "is" if user_compliant else "is not")
+    try:
+        compliant_group = user_profile.state.compliancegroup
+    except State.compliancegroup.RelatedObjectDoesNotExist:
+        compliant_group = None
+    if compliant_group is not None:
+        was_compliant = user.groups.filter(pk=compliant_group.group.pk).exists()
+        if user_compliant:
+            logger.debug(
+                "User %s will be added to the compliant user group %s.",
+                user,
+                compliant_group.group,
+            )
+            user.groups.add(compliant_group.group)
+            if not was_compliant:
+                notify(
+                    user=user,
+                    title=f"{MEMBERAUDIT_APP_NAME}: All characters in compliance.",
+                    message="All characters have been registered, and your account "
+                    "has been marked as compliant.",
+                    level="success",
+                )
+        else:
+            logger.debug(
+                "User %s will be removed from the compliant user group %s.",
+                user,
+                compliant_group.group,
+            )
+            user.groups.remove(compliant_group.group)
+            if was_compliant:
+                notify(
+                    user=user,
+                    title=f"{MEMBERAUDIT_APP_NAME}: Character(s) not compliant.",
+                    message="One of your characters has been unregistered, or a "
+                    "new, non-registered character has been added. Please register "
+                    f"them using {MEMBERAUDIT_APP_NAME}.",
+                    level="danger",
+                )
+        user.save()
+
+
+@shared_task(**TASK_DEFAULT_KWARGS)
+def update_compliance_group_all() -> None:
+    """Reprovision group membership based on Member Audit compliance"""
+    if ComplianceGroup.objects.count() > 0:
+        for user in User.objects.all():
+            update_compliance_group_user.apply_async(
+                kwargs={"user_pk": user.pk}, priority=DEFAULT_TASK_PRIORITY
+            )

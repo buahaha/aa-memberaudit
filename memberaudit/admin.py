@@ -12,6 +12,7 @@ from .models import (
     CharacterUpdateStatus,
     EveShipType,
     EveSkillType,
+    ComplianceGroup,
     Location,
     SkillSet,
     SkillSetGroup,
@@ -445,3 +446,8 @@ class SkillSetAdmin(admin.ModelAdmin):
         obj.user = request.user
         super().delete_model(request, obj)
         tasks.update_characters_skill_checks.delay(force_update=True)
+
+
+@admin.register(ComplianceGroup)
+class ComplianceGroupAdmin(admin.ModelAdmin):
+    fields = ("state", "group")

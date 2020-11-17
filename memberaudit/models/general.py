@@ -2,13 +2,14 @@
 Top level models
 """
 
-from django.contrib.auth.models import Permission, User
+from django.contrib.auth.models import Group, Permission, User
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from eveuniverse.models import EveEntity, EveSolarSystem, EveType
 
+from allianceauth.authentication.models import State
 from allianceauth.eveonline.evelinks import dotlan, evewho
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.django import users_with_permission
@@ -369,3 +370,11 @@ class MailEntity(models.Model):
 
         else:
             return ""
+
+
+class ComplianceGroup(models.Model):
+    group = models.OneToOneField(Group, on_delete=models.CASCADE)
+    state = models.OneToOneField(State, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"State '{self.state.name}' → Group '{self.group.name}'"
