@@ -89,13 +89,16 @@
                                             </a>
                                         {% else %}
                                             <a class="btn btn-warning btn-sm" href="{% url 'memberaudit:share_character' auth_character.character.pk %}"
-                                                role="button" title="{% translate 'Enable access to this character for recruiters.' %}">
+                                                role="button"
+                                                onclick="return confirm('Are you sure you want to SHARE this character?')"
+                                                title="{% translate 'Enable access to this character for recruiters.' %}">
                                                 <i class="far fa-eye"></i>
                                             </a>
                                         {% endif %}
 
                                         <a class="btn btn-danger btn-sm" href="{% url 'memberaudit:remove_character' auth_character.character.pk %}"
-                                            role="button" title="{% translate 'Remove this character.' %}">
+                                            role="button" title="{% translate 'Remove this character.' %}"
+                                            onclick="return confirm('Are you sure you want to REMOVE this character?')">
                                             <i class="far fa-trash-alt"></i>
                                         </a>
                                     </div>
