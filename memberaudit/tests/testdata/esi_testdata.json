@@ -464,7 +464,22 @@
                             "recipient_type": "mailing_list"
                         }
                     ],
-                    "subject": "Unknown mailing list",
+                    "subject": "Unknown mailing list recipient",
+                    "timestamp": "2015-09-30T18:07:00Z"
+                }
+            ],
+            "1002": [
+                {
+                    "from": 9099,
+                    "labels": null,
+                    "mail_id": 21,
+                    "recipients": [
+                        {
+                            "recipient_id": 1001,
+                            "recipient_type": "character"
+                        }
+                    ],
+                    "subject": "From unknown mailing list",
                     "timestamp": "2015-09-30T18:07:00Z"
                 }
             ]
@@ -496,6 +511,14 @@
                 "read": true,
                 "subject": "Unknown mailing list",
                 "timestamp": "2015-09-30T16:07:00Z"
+            },
+            "21": {
+                "body": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+                "from": 9099,
+                "labels": null,
+                "read": true,
+                "subject": "From unknown mailing list",
+                "timestamp": "2015-09-30T18:07:00Z"
             }
         }
     },

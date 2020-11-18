@@ -1005,6 +1005,31 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertTrue(obj.recipients.filter(eve_entity_id=1001).exists())
         self.assertSetEqual(set(obj.labels.values_list("label_id", flat=True)), {3})
 
+    @patch("eveuniverse.managers.esi")
+    def test_update_mail_headers_4(self, mock_esi_2, mock_esi):
+        """can handle from unknown mailing list"""
+        mock_esi.client = esi_client_stub
+        mock_esi_2.client.Universe.post_universe_names.side_effect = HTTPNotFound(
+            response=ResponseStub(404, "Test exception")
+        )
+
+        self.character_1002.update_mail_headers()
+        self.assertSetEqual(
+            set(self.character_1002.mails.values_list("mail_id", flat=True)), {21}
+        )
+
+        obj = self.character_1002.mails.get(mail_id=21)
+        self.assertIsNone(obj.from_entity)
+        self.assertEqual(
+            obj.from_mailing_list, CharacterMailingList.objects.get(list_id=9099)
+        )
+        self.assertFalse(obj.is_read)
+        self.assertEqual(obj.subject, "From unknown mailing list")
+        self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T18:07:00Z"))
+        self.assertFalse(obj.body)
+        self.assertTrue(obj.recipients.filter(eve_entity_id=1001).exists())
+        self.assertEqual(obj.labels.count(), 0)
+
     def test_update_mail_body_1(self, mock_esi):
         """can update mail body"""
         mock_esi.client = esi_client_stub

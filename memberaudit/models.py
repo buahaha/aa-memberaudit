@@ -1349,8 +1349,14 @@ class Character(models.Model):
                 from_mailing_list = self.mailing_lists.get(list_id=from_id)
                 from_entity = None
             else:
-                from_entity = get_or_create_or_none("from", header, EveEntity)
-                from_mailing_list = None
+                from_entity, _ = EveEntity.objects.get_or_create_esi(id=from_id)
+                if not from_entity:
+                    # if the from ID was invalid it must be a unknown mailing list
+                    from_mailing_list, _ = CharacterMailingList.objects.get_or_create(
+                        character=self, list_id=from_id
+                    )
+                else:
+                    from_mailing_list = None
 
             new_headers.append(
                 CharacterMail(
@@ -1419,9 +1425,12 @@ class Character(models.Model):
         with transaction.atomic():
             existing_ids = set(self.mailing_lists.values_list("list_id", flat=True))
             create_ids = incoming_ids.difference(existing_ids)
-            logger.info("%s: Adding %s unknown mailing lists", self, len(create_ids))
-            for list_id in create_ids:
-                CharacterMailingList.objects.create(character=self, list_id=list_id)
+            if create_ids:
+                logger.info(
+                    "%s: Adding %s unknown mailing lists", self, len(create_ids)
+                )
+                for list_id in create_ids:
+                    CharacterMailingList.objects.create(character=self, list_id=list_id)
 
     def _update_labels_of_mail(
         self,
