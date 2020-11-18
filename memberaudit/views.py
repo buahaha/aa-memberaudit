@@ -340,12 +340,14 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
 
     # mailing lists
     mailing_lists = list(
-        character.mailing_lists.annotate(
+        character.mailing_lists.all_with_name_plus()
+        .annotate(
             unread_count=Count(
                 "charactermailrecipient",
                 filter=Q(charactermailrecipient__mail__is_read=False),
             )
-        ).values("list_id", "name", "unread_count")
+        )
+        .values("list_id", "name_plus_2", "unread_count")
     )
 
     # mail labels

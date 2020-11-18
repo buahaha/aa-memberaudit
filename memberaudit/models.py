@@ -52,6 +52,7 @@ from .managers import (
     CharacterAssetManager,
     CharacterContractItemManager,
     CharacterMailLabelManager,
+    CharacterMailingListManager,
     CharacterManager,
     LocationManager,
 )
@@ -2485,6 +2486,8 @@ class CharacterMailingList(models.Model):
     )
     list_id = models.PositiveIntegerField(db_index=True)
     name = models.CharField(max_length=254)
+
+    objects = CharacterMailingListManager()
 
     class Meta:
         constraints = [

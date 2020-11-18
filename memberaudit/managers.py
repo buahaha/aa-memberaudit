@@ -4,6 +4,7 @@ from typing import Dict, Tuple
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import F, ExpressionWrapper, When, Case, Value
+from django.db.models.functions import Concat
 from django.utils.timezone import now
 
 from bravado.exception import HTTPUnauthorized, HTTPForbidden
@@ -331,3 +332,15 @@ class CharacterMailLabelManager(models.Manager):
         """Returns all label objects as dict by label_id"""
         label_pks = self.values_list("pk", flat=True)
         return {label.label_id: label for label in self.in_bulk(label_pks).values()}
+
+
+class CharacterMailingListManager(models.Manager):
+    def all_with_name_plus(self) -> models.QuerySet:
+        """return all mailing lists annotated with name_plus_2 attribute"""
+        return self.annotate(
+            name_plus_2=Case(
+                When(name="", then=Concat(Value("Mailing List #"), "list_id")),
+                default=F("name"),
+                output_field=models.CharField(),
+            )
+        )
