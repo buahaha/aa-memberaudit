@@ -5,9 +5,25 @@ Tools for building unit tests with django-esi
 from collections import namedtuple
 from typing import Any, List
 
-from bravado.exception import HTTPNotFound
+from bravado.exception import HTTPNotFound, HTTPInternalServerError
 
 from django.utils.dateparse import parse_datetime
+
+
+class BravadoResponseStub:
+    """Stub for IncomingResponse in bravado, e.g. for HTTPError exceptions"""
+
+    def __init__(
+        self, status_code, reason="", text="", headers=dict(), raw_bytes=None
+    ) -> None:
+        self.reason = reason
+        self.status_code = status_code
+        self.text = text
+        self.headers = headers
+        self.raw_bytes = raw_bytes
+
+    def __str__(self):
+        return "{0} {1}".format(self.status_code, self.reason)
 
 
 class BravadoOperationStub:
@@ -47,24 +63,23 @@ def EsiEndpoint(
     return EsiEndpoint_T(category, method, primary_key, needs_token)
 
 
-class _BravadoResponseStub:
-    def __init__(self, status_code, *args, **kwargs):
-        self.status_code = status_code
-
-
 class _EsiRoute:
     def __init__(
-        self,
-        endpoint: EsiEndpoint_T,
-        testdata: dict,
+        self, endpoint: EsiEndpoint_T, testdata: dict, http_error: bool = False
     ) -> None:
         self._category = endpoint.category
         self._method = endpoint.method
         self._primary_key = endpoint.primary_key
         self._needs_token = endpoint.needs_token
         self._testdata = testdata
+        self._http_error = http_error
 
     def call(self, **kwargs):
+        if self._http_error:
+            raise HTTPInternalServerError(
+                response=BravadoResponseStub(500, "Test exception")
+            )
+
         pk_value = None
         if self._primary_key:
             if isinstance(self._primary_key, tuple):
@@ -113,9 +128,11 @@ class _EsiRoute:
 
         except KeyError:
             raise HTTPNotFound(
-                _BravadoResponseStub(404),
-                f"{self._category}.{self._method}: No test data for "
-                f"{self._primary_key} = {pk_value}",
+                response=BravadoResponseStub(
+                    404,
+                    f"{self._category}.{self._method}: No test data for "
+                    f"{self._primary_key} = {pk_value}",
+                ),
             ) from None
 
         return BravadoOperationStub(result)
@@ -136,8 +153,11 @@ class _EsiRoute:
 
 
 class EsiClientStub:
-    def __init__(self, testdata: dict, endpoints: List[EsiEndpoint_T]) -> None:
+    def __init__(
+        self, testdata: dict, endpoints: List[EsiEndpoint_T], http_error: bool = False
+    ) -> None:
         self._testdata = testdata
+        self._http_error = http_error
         for endpoint in endpoints:
             self._validate_endpoint(endpoint)
             self._add_endpoint(endpoint)
@@ -156,7 +176,11 @@ class EsiClientStub:
             setattr(
                 my_category,
                 endpoint.method,
-                _EsiRoute(endpoint, self._testdata).call,
+                _EsiRoute(
+                    endpoint=endpoint,
+                    testdata=self._testdata,
+                    http_error=self._http_error,
+                ).call,
             )
         else:
             raise ValueError(f"Endpoint for {endpoint} already defined!")

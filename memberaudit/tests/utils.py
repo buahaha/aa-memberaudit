@@ -156,19 +156,3 @@ def queryset_pks(queryset) -> set:
     Useful for comparing test results.
     """
     return set(queryset.values_list("pk", flat=True))
-
-
-class ResponseStub:
-    """Stub for IncomingResponse in HTTPError"""
-
-    def __init__(
-        self, status_code, reason="", text="", headers=dict(), raw_bytes=None
-    ) -> None:
-        self.reason = reason
-        self.status_code = status_code
-        self.text = text
-        self.headers = headers
-        self.raw_bytes = raw_bytes
-
-    def __str__(self):
-        return "{0} {1}".format(self.status_code, self.reason)

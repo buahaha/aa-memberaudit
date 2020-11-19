@@ -43,10 +43,11 @@ from ..models import (
     Location,
 )
 from .testdata.esi_client_stub import esi_client_stub
+from .testdata.esi_test_tools import BravadoResponseStub
 from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
 from .testdata.load_locations import load_locations
-from .utils import queryset_pks, ResponseStub
+from .utils import queryset_pks
 from ..utils import NoSocketsTestCase
 
 MODELS_PATH = "memberaudit.models"
@@ -1010,7 +1011,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         """can handle from unknown mailing list"""
         mock_esi.client = esi_client_stub
         mock_esi_2.client.Universe.post_universe_names.side_effect = HTTPNotFound(
-            response=ResponseStub(404, "Test exception")
+            response=BravadoResponseStub(404, "Test exception")
         )
 
         self.character_1002.update_mail_headers()
@@ -1871,7 +1872,7 @@ class TestLocationManager(NoSocketsTestCase):
 
     def test_can_create_empty_location_on_access_error_1(self, mock_esi):
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
-            HTTPForbidden(response=ResponseStub(403, "Test exception"))
+            HTTPForbidden(response=BravadoResponseStub(403, "Test exception"))
         )
 
         obj, created = Location.objects.update_or_create_esi(
@@ -1882,7 +1883,7 @@ class TestLocationManager(NoSocketsTestCase):
 
     def test_can_create_empty_location_on_access_error_2(self, mock_esi):
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
-            HTTPUnauthorized(response=ResponseStub(401, "Test exception"))
+            HTTPUnauthorized(response=BravadoResponseStub(401, "Test exception"))
         )
 
         obj, created = Location.objects.update_or_create_esi(
@@ -1899,6 +1900,27 @@ class TestLocationManager(NoSocketsTestCase):
         )
         with self.assertRaises(RuntimeError):
             Location.objects.update_or_create_esi(id=1000000000099, token=self.token)
+
+    @patch(MANAGERS_PATH + ".esi_errors")
+    def test_records_esi_error_on_access_error(self, mock_esi_errors, mock_esi):
+        mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
+            HTTPForbidden(
+                response=BravadoResponseStub(
+                    403,
+                    "Test exception",
+                    headers={
+                        "X-Esi-Error-Limit-Remain": "40",
+                        "X-Esi-Error-Limit-Reset": "30",
+                    },
+                )
+            )
+        )
+
+        obj, created = Location.objects.update_or_create_esi(
+            id=1000000000099, token=self.token
+        )
+        self.assertTrue(created)
+        self.assertTrue(mock_esi_errors.set_from_bravado_exception.called)
 
     # Stations
 

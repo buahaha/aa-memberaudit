@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from bravado.exception import HTTPForbidden, HTTPInternalServerError
+from bravado.exception import HTTPInternalServerError
 from celery.exceptions import Retry as CeleryRetry
 
 from django.core.cache import cache
@@ -10,6 +10,7 @@ from eveuniverse.models import EveSolarSystem, EveType
 from esi.models import Token
 
 from . import create_memberaudit_character
+from ..core import _EsiErrorStatus
 from ..models import (
     Character,
     CharacterAsset,
@@ -17,8 +18,6 @@ from ..models import (
     Location,
 )
 from ..tasks import (
-    LOCATION_ESI_ERRORS_CACHE_KEY,
-    ESI_ERROR_LIMIT,
     run_regular_updates,
     update_all_characters,
     update_character,
@@ -30,11 +29,11 @@ from ..tasks import (
     update_character_wallet_journal,
     update_market_prices,
 )
-from .testdata.esi_client_stub import esi_client_stub
+from .testdata.esi_client_stub import esi_client_stub, esi_client_error_stub
 from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
 from .testdata.load_locations import load_locations
-from .utils import ResponseStub
+from .testdata.esi_test_tools import BravadoResponseStub
 from ..utils import generate_invalid_pk
 
 MODELS_PATH = "memberaudit.models"
@@ -269,7 +268,7 @@ class TestUpdateCharacterAssets(TestCase):
     def test_update_assets_6(self, mock_esi):
         """when update failed then report the error"""
         mock_esi.client.Assets.get_characters_character_id_assets.side_effect = (
-            HTTPInternalServerError(response=ResponseStub(500, "Test exception"))
+            HTTPInternalServerError(response=BravadoResponseStub(500, "Test exception"))
         )
 
         with self.assertRaises(HTTPInternalServerError):
@@ -310,7 +309,7 @@ class TestUpdateCharacterMails(TestCase):
     def test_detect_error(self, mock_esi):
         """when update failed then report the error"""
         mock_esi.client.Mail.get_characters_character_id_mail_lists.side_effect = (
-            HTTPInternalServerError(response=ResponseStub(500, "Test exception"))
+            HTTPInternalServerError(response=BravadoResponseStub(500, "Test exception"))
         )
 
         try:
@@ -353,7 +352,7 @@ class TestUpdateCharacterContacts(TestCase):
     def test_detect_error(self, mock_esi):
         """when update failed then report the error"""
         mock_esi.client.Contacts.get_characters_character_id_contacts_labels.side_effect = HTTPInternalServerError(
-            response=ResponseStub(500, "Test exception")
+            response=BravadoResponseStub(500, "Test exception")
         )
 
         try:
@@ -397,7 +396,7 @@ class TestUpdateCharacterContracts(TestCase):
     def test_detect_error(self, mock_esi):
         """when update failed then report the error"""
         mock_esi.client.Contracts.get_characters_character_id_contracts.side_effect = (
-            HTTPInternalServerError(response=ResponseStub(500, "Test exception"))
+            HTTPInternalServerError(response=BravadoResponseStub(500, "Test exception"))
         )
 
         try:
@@ -440,7 +439,7 @@ class TestUpdateCharacterWalletJournal(TestCase):
     def test_detect_error(self, mock_esi):
         """when update failed then report the error"""
         mock_esi.client.Wallet.get_characters_character_id_wallet_journal.side_effect = HTTPInternalServerError(
-            response=ResponseStub(500, "Test exception")
+            response=BravadoResponseStub(500, "Test exception")
         )
 
         try:
@@ -477,16 +476,15 @@ class TestUpdateCharacter(TestCase):
         self.assertTrue(result)
         self.assertTrue(self.character.is_update_status_ok())
 
-    def test_report_error(self, mock_esi):
-        mock_esi.client.Skills.get_characters_character_id_skills.side_effect = (
-            HTTPInternalServerError(response=ResponseStub(500, "Test exception"))
-        )
+    @patch(TASKS_PATH + ".esi_errors")
+    def test_report_error(self, mock_esi_errors, mock_esi):
+        mock_esi.client = esi_client_error_stub
 
         update_character(self.character.pk)
         self.assertFalse(self.character.is_update_status_ok())
 
         status = self.character.update_status_set.get(
-            character=self.character, section=Character.UPDATE_SECTION_SKILLS
+            character=self.character, section=Character.UPDATE_SECTION_CHARACTER_DETAILS
         )
         self.assertFalse(status.is_success)
         self.assertEqual(
@@ -573,40 +571,57 @@ class TestUpdateAllCharacters(TestCase):
         self.assertTrue(self.character_1001.is_update_status_ok())
 
 
-@patch(TASKS_PATH + ".Location.objects.structure_update_or_create_esi")
+@patch(TASKS_PATH + ".esi_errors")
+@patch(MANAGERS_PATH + ".esi")
 class TestUpdateStructureEsi(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
         load_entities()
+        load_eveuniverse()
         cls.character = create_memberaudit_character(1001)
         cls.token = cls.character.character_ownership.user.token_set.first()
 
     def setUp(self) -> None:
         cache.clear()
+        Location.objects.all().delete()
 
-    def test_normal(self, mock_structure_update_or_create_esi):
-        update_structure_esi(id=1, token_pk=self.token.pk)
+    def test_normal(self, mock_esi, mock_esi_errors):
+        """
+        when character has access and there are no ESI errors
+        then update succeeds and structure is created
+        """
+        mock_esi.client = esi_client_stub
+        mock_esi_errors.get.return_value = None
 
-    def test_below_error_limit(self, mock_structure_update_or_create_esi):
-        cache.set(LOCATION_ESI_ERRORS_CACHE_KEY, 40)
-        update_structure_esi(id=1, token_pk=self.token.pk)
+        update_structure_esi(id=1000000000001, token_pk=self.token.pk)
+        self.assertTrue(Location.objects.filter(id=1000000000001).exists())
 
-    def test_raise_exception_on_invalid_token(
-        self, mock_structure_update_or_create_esi
-    ):
+    def test_raise_exception_on_invalid_token(self, mock_esi, mock_esi_errors):
+        """when token is invalid, then raise exception"""
+        mock_esi.client = esi_client_stub
+        mock_esi_errors.get.return_value = None
+
         with self.assertRaises(Token.DoesNotExist):
-            update_structure_esi(id=1, token_pk=generate_invalid_pk(Token))
+            update_structure_esi(id=1000000000001, token_pk=generate_invalid_pk(Token))
 
-    def test_access_forbidden(self, mock_structure_update_or_create_esi):
-        mock_structure_update_or_create_esi.side_effect = HTTPForbidden(
-            response=ResponseStub(403, "Test exception")
+    def test_below_error_limit(self, mock_esi, mock_esi_errors):
+        """when below error limit, then make request to ESI"""
+        mock_esi.client = esi_client_stub
+        mock_esi_errors.get.return_value = _EsiErrorStatus(
+            remain=10, reset=30, is_exceeded=False
         )
 
-        update_structure_esi(id=1, token_pk=self.token.pk)
-        self.assertTrue(cache.get(LOCATION_ESI_ERRORS_CACHE_KEY), 1)
+        update_structure_esi(id=1000000000001, token_pk=self.token.pk)
+        self.assertTrue(Location.objects.filter(id=1000000000001).exists())
 
-    def test_above_error_limit(self, mock_structure_update_or_create_esi):
-        cache.set(LOCATION_ESI_ERRORS_CACHE_KEY, ESI_ERROR_LIMIT + 1)
+    def test_above_error_limit(self, mock_esi, mock_esi_errors):
+        """when above error limit, then make no request to ESI and retry task"""
+        mock_esi.client = esi_client_stub
+        mock_esi_errors.get.return_value = _EsiErrorStatus(
+            remain=99, reset=30, is_exceeded=True
+        )
+
+        # TODO: Add ability to verify countdown is set correctly for retry
         with self.assertRaises(CeleryRetry):
-            update_structure_esi(id=1, token_pk=self.token.pk)
+            update_structure_esi(id=1000000000001, token_pk=self.token.pk)

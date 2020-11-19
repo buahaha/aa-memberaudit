@@ -1,18 +1,18 @@
+import random
+
 from celery import shared_task, chain
 
 from bravado.exception import (
-    HTTPUnauthorized,
-    HTTPForbidden,
     HTTPBadGateway,
     HTTPGatewayTimeout,
     HTTPServiceUnavailable,
+    HTTPError,
 )
 from esi.models import Token
 from eveuniverse.core.esitools import is_esi_online
 from eveuniverse.models import EveEntity, EveMarketPrice
 
 from django.db import transaction
-from django.core.cache import cache
 from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
 
@@ -23,7 +23,7 @@ from .app_settings import (
     MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
     MEMBERAUDIT_UPDATE_STALE_RING_2,
 )
-
+from .core import esi_errors
 from .models import (
     Character,
     CharacterAsset,
@@ -39,9 +39,6 @@ from .utils import LoggerAddTag
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 DEFAULT_TASK_PRIORITY = 6
-ESI_ERROR_LIMIT = 50
-ESI_TIMEOUT_ONCE_ERROR_LIMIT_REACHED = 60
-LOCATION_ESI_ERRORS_CACHE_KEY = "MEMBERAUDIT_LOCATION_ESI_ERRORS"
 
 # params for all tasks
 TASK_DEFAULT_KWARGS = {
@@ -121,7 +118,7 @@ def update_character(character_pk: int, force_update=False) -> bool:
             Character.UPDATE_SECTION_WALLET_JOURNAL,
         }
     )
-    for section in sections:
+    for section in sorted(sections):
         if force_update or character.is_update_section_stale(section):
             update_character_section.apply_async(
                 kwargs={
@@ -195,6 +192,9 @@ def _character_update_with_error_logging(
         return method(*args, **kwargs)
     except Exception as ex:
         error_message = f"{type(ex).__name__}: {str(ex)}"
+        if isinstance(ex, HTTPError):
+            esi_errors.set_from_bravado_exception(ex)
+
         logger.error(
             "%s: %s: Error ocurred: %s",
             character,
@@ -662,15 +662,9 @@ def update_structure_esi(self, id: int, token_pk: int):
             f"Location #{id}: Requested token with pk {token_pk} does not exist"
         )
 
-    errors_count = cache.get(key=LOCATION_ESI_ERRORS_CACHE_KEY)
-    if not errors_count or errors_count < ESI_ERROR_LIMIT:
-        try:
-            Location.objects.structure_update_or_create_esi(id, token)
-        except (HTTPUnauthorized, HTTPForbidden):
-            try:
-                cache.incr(LOCATION_ESI_ERRORS_CACHE_KEY)
-            except ValueError:
-                cache.add(key=LOCATION_ESI_ERRORS_CACHE_KEY, value=1)
-    else:
+    error_status = esi_errors.get()
+    if error_status and error_status.is_exceeded:
         logger.info("Location #%s: Error limit reached. Defering task", id)
-        raise self.retry(countdown=ESI_TIMEOUT_ONCE_ERROR_LIMIT_REACHED)
+        raise self.retry(countdown=error_status.reset + int(random.uniform(1, 20)))
+    else:
+        Location.objects.structure_update_or_create_esi(id, token)
