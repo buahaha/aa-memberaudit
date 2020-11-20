@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [1.0.0a6] - 2020-11-20
+
+### Changed
+
+- Changed approach: Structure resolving exceeds ESI error rate limit ([#53](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/53))
+
 ## [1.0.0a5] - 2020-11-19
 
 ### Fixed
