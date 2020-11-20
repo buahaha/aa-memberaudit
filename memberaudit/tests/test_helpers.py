@@ -1,5 +1,7 @@
 from unittest.mock import Mock, patch
 
+import requests_mock
+
 from django.contrib.auth.models import Group
 from django.test import TestCase
 
@@ -8,7 +10,10 @@ from allianceauth.tests.auth_utils import AuthUtils
 
 from .testdata.esi_client_stub import load_test_data
 from .testdata.load_entities import load_entities
-from ..helpers import eve_xml_to_html, users_with_permission
+from ..helpers import eve_xml_to_html, users_with_permission, fetch_esi_status
+
+
+MODULE_PATH = "memberaudit.helpers"
 
 
 class TestHTMLConversion(TestCase):
@@ -109,3 +114,178 @@ class TestUsersWithPermissionQS(TestCase):
         self.user_1.groups.add(self.group)
         AuthUtils.assign_state(self.user_1, self.state, disconnect_signals=True)
         self.assertSetEqual(self.user_with_permission_pks(), {self.user_1.pk})
+
+
+@requests_mock.Mocker()
+class TestEsiStatus(TestCase):
+    def test_normal(self, requests_mocker):
+        """When ESI is online and header is complete, then report status accordingly"""
+        requests_mocker.register_uri(
+            "GET",
+            url="https://esi.evetech.net/latest/status/",
+            headers={
+                "X-Esi-Error-Limit-Remain": "40",
+                "X-Esi-Error-Limit-Reset": "30",
+            },
+            json={
+                "players": 12345,
+                "server_version": "1132976",
+                "start_time": "2017-01-02T12:34:56Z",
+            },
+        )
+        status = fetch_esi_status()
+        self.assertTrue(status.is_online)
+        self.assertEqual(status.error_limit_remain, 40)
+        self.assertEqual(status.error_limit_reset, 30)
+
+    def test_esi_offline(self, requests_mocker):
+        """When ESI is offline and header is complete, then report status accordingly"""
+        requests_mocker.register_uri(
+            "GET",
+            url="https://esi.evetech.net/latest/status/",
+            headers={
+                "X-Esi-Error-Limit-Remain": "40",
+                "X-Esi-Error-Limit-Reset": "30",
+            },
+            status_code=404,  # HTTPNotFound
+        )
+        status = fetch_esi_status()
+        self.assertFalse(status.is_online)
+        self.assertEqual(status.error_limit_remain, 40)
+        self.assertEqual(status.error_limit_reset, 30)
+
+    def test_esi_vip(self, requests_mocker):
+        """When ESI is offline and header is complete, then report status accordingly"""
+        requests_mocker.register_uri(
+            "GET",
+            url="https://esi.evetech.net/latest/status/",
+            headers={
+                "X-Esi-Error-Limit-Remain": "40",
+                "X-Esi-Error-Limit-Reset": "30",
+            },
+            json={
+                "vip": True,
+                "players": 12345,
+                "server_version": "1132976",
+                "start_time": "2017-01-02T12:34:56Z",
+            },
+        )
+        status = fetch_esi_status()
+        self.assertFalse(status.is_online)
+        self.assertEqual(status.error_limit_remain, 40)
+        self.assertEqual(status.error_limit_reset, 30)
+
+    def test_esi_invalid_json(self, requests_mocker):
+        """When ESI response JSON can not be parse, then report as offline"""
+        requests_mocker.register_uri(
+            "GET",
+            url="https://esi.evetech.net/latest/status/",
+            headers={
+                "X-Esi-Error-Limit-Remain": "40",
+                "X-Esi-Error-Limit-Reset": "30",
+            },
+            text="this is not json",
+        )
+        status = fetch_esi_status()
+        self.assertFalse(status.is_online)
+        self.assertEqual(status.error_limit_remain, 40)
+        self.assertEqual(status.error_limit_reset, 30)
+
+    def test_headers_missing(self, requests_mocker):
+        """When header is incomplete, then report error limits with None"""
+        requests_mocker.register_uri(
+            "GET",
+            url="https://esi.evetech.net/latest/status/",
+            headers={
+                "X-Esi-Error-Limit-Remain": "40",
+            },
+            json={
+                "players": 12345,
+                "server_version": "1132976",
+                "start_time": "2017-01-02T12:34:56Z",
+            },
+        )
+        status = fetch_esi_status()
+        self.assertTrue(status.is_online)
+        self.assertIsNone(status.error_limit_remain)
+        self.assertIsNone(status.error_limit_reset)
+
+    @patch(MODULE_PATH + ".sleep", lambda x: None)
+    def test_retry_on_specific_http_errors_1(self, requests_mocker):
+        """When specific HTTP code occurred, then retry until HTTP OK is received"""
+
+        counter = 0
+
+        def response_callback(request, context) -> str:
+            nonlocal counter
+            counter += 1
+            if counter == 2:
+                context.status_code = 200
+                return {
+                    "players": 12345,
+                    "server_version": "1132976",
+                    "start_time": "2017-01-02T12:34:56Z",
+                }
+            else:
+                context.status_code = 504
+                return "[]"
+
+        requests_mocker.register_uri(
+            "GET",
+            url="https://esi.evetech.net/latest/status/",
+            headers={
+                "X-Esi-Error-Limit-Remain": "40",
+                "X-Esi-Error-Limit-Reset": "30",
+            },
+            json=response_callback,
+        )
+        fetch_esi_status()
+        self.assertEqual(requests_mocker.call_count, 2)
+
+    @patch(MODULE_PATH + ".sleep", lambda x: None)
+    def test_retry_on_specific_http_errors_2(self, requests_mocker):
+        """When specific HTTP code occurred, then retry up to maximum retries"""
+        requests_mocker.register_uri(
+            "GET",
+            url="https://esi.evetech.net/latest/status/",
+            headers={
+                "X-Esi-Error-Limit-Remain": "40",
+                "X-Esi-Error-Limit-Reset": "30",
+            },
+            status_code=504,
+        )
+        status = fetch_esi_status()
+        self.assertEqual(requests_mocker.call_count, 4)
+        self.assertFalse(status.is_online)
+
+    @patch(MODULE_PATH + ".sleep", lambda x: None)
+    def test_retry_on_specific_http_errors_3(self, requests_mocker):
+        """When specific HTTP code occurred, then retry up to maximum retries"""
+        requests_mocker.register_uri(
+            "GET",
+            url="https://esi.evetech.net/latest/status/",
+            headers={
+                "X-Esi-Error-Limit-Remain": "40",
+                "X-Esi-Error-Limit-Reset": "30",
+            },
+            status_code=502,
+        )
+        status = fetch_esi_status()
+        self.assertEqual(requests_mocker.call_count, 4)
+        self.assertFalse(status.is_online)
+
+    @patch(MODULE_PATH + ".sleep", lambda x: None)
+    def test_retry_on_specific_http_errors_4(self, requests_mocker):
+        """Do not repeat on other HTTP errors"""
+        requests_mocker.register_uri(
+            "GET",
+            url="https://esi.evetech.net/latest/status/",
+            headers={
+                "X-Esi-Error-Limit-Remain": "40",
+                "X-Esi-Error-Limit-Reset": "30",
+            },
+            status_code=404,
+        )
+        status = fetch_esi_status()
+        self.assertEqual(requests_mocker.call_count, 1)
+        self.assertFalse(status.is_online)

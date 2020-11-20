@@ -1,5 +1,10 @@
-from typing import Optional
+from collections import namedtuple
 import re
+import random
+from time import sleep
+from typing import Optional
+
+import requests
 
 from django.contrib.auth.models import User, Permission
 from django.db import models
@@ -9,8 +14,12 @@ from django.utils.safestring import mark_safe
 
 from eveuniverse.models import EveSolarSystem, EveEntity
 from allianceauth.eveonline.evelinks import dotlan, evewho
+from allianceauth.services.hooks import get_extension_logger
 
-from .utils import create_link_html
+from . import __title__, __version__
+from .utils import create_link_html, LoggerAddTag
+
+logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
 def get_or_create_esi_or_none(
@@ -147,3 +156,68 @@ def users_with_permission(permission: Permission) -> models.QuerySet:
     )
 
     return users_qs
+
+
+EsiStatus = namedtuple(
+    "EsiStatus", ["is_online", "error_limit_remain", "error_limit_reset"]
+)
+
+
+def fetch_esi_status() -> EsiStatus:
+    """returns the current ESI online and error status"""
+    max_retries = 3
+    retries = 0
+    while True:
+        try:
+            r = requests.get(
+                "https://esi.evetech.net/latest/status/",
+                timeout=(5, 30),
+                headers={"User-Agent": f"{__title__};{__version__}"},
+            )
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+            logger.warning("Network error when trying to call ESI", exc_info=True)
+            return EsiStatus(
+                is_online=False, error_limit_remain=None, error_limit_reset=None
+            )
+        if r.status_code not in {
+            502,  # HTTPBadGateway
+            503,  # HTTPServiceUnavailable
+            504,  # HTTPGatewayTimeout
+        }:
+            break
+        else:
+            retries += 1
+            if retries > max_retries:
+                break
+            else:
+                logger.warning(
+                    "HTTP status code %s - Retry %s/%s",
+                    r.status_code,
+                    retries,
+                    max_retries,
+                )
+                wait_secs = 0.1 * (random.uniform(2, 4) ** (retries - 1))
+                sleep(wait_secs)
+
+    if not r.ok:
+        is_online = False
+    else:
+        try:
+            is_online = False if r.json().get("vip") else True
+        except ValueError:
+            is_online = False
+
+    try:
+        remain = int(r.headers.get("X-Esi-Error-Limit-Remain"))
+        reset = int(r.headers.get("X-Esi-Error-Limit-Reset"))
+    except TypeError:
+        logger.warning("Failed to parse HTTP headers: %s", r.headers, exc_info=True)
+        return EsiStatus(
+            is_online=is_online, error_limit_remain=None, error_limit_reset=None
+        )
+    else:
+        # TODO: demote logger to DEBUG once stable
+        logger.info("ESI error status: remain = %s, reset = %s", remain, reset)
+        return EsiStatus(
+            is_online=is_online, error_limit_remain=remain, error_limit_reset=reset
+        )

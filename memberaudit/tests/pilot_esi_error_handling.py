@@ -35,7 +35,7 @@ character = Character.objects.first()
 token = character.fetch_token()
 base_structure_id = 1000000000000
 
-for _ in range(200):
+for _ in range(120):
     random_structure_id = random.randint(1000000000000, 1100000000000)
     Location.objects.update_or_create_esi_async(id=random_structure_id, token=token)
 

@@ -17,7 +17,6 @@ from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
 from .constants import EVE_TYPE_ID_SOLAR_SYSTEM
-from .core import esi_errors
 from .app_settings import MEMBERAUDIT_LOCATION_STALE_HOURS
 
 from .providers import esi
@@ -193,17 +192,8 @@ class LocationManager(models.Manager):
                 structure_id=id, token=token.valid_access_token()
             ).results()
         except (HTTPUnauthorized, HTTPForbidden) as http_error:
-            error_status = esi_errors.set_from_bravado_exception(http_error)
             logger.warn("%s: No access to this structure: %s", id, http_error)
             location, created = self.get_or_create(id=id)
-            if error_status:
-                logger.debug(
-                    "%s: ESI error status: remain = %s, reset = %s",
-                    id,
-                    error_status.remain,
-                    error_status.reset,
-                )
-
         else:
             location, created = self._structure_update_or_create_dict(
                 id=id, structure=structure

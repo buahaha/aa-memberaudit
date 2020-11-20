@@ -1901,8 +1901,7 @@ class TestLocationManager(NoSocketsTestCase):
         with self.assertRaises(RuntimeError):
             Location.objects.update_or_create_esi(id=1000000000099, token=self.token)
 
-    @patch(MANAGERS_PATH + ".esi_errors")
-    def test_records_esi_error_on_access_error(self, mock_esi_errors, mock_esi):
+    def test_records_esi_error_on_access_error(self, mock_esi):
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
             HTTPForbidden(
                 response=BravadoResponseStub(
@@ -1920,7 +1919,6 @@ class TestLocationManager(NoSocketsTestCase):
             id=1000000000099, token=self.token
         )
         self.assertTrue(created)
-        self.assertTrue(mock_esi_errors.set_from_bravado_exception.called)
 
     # Stations
 

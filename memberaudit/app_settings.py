@@ -6,8 +6,23 @@ MEMBERAUDIT_APP_NAME = clean_setting(
     "MEMBERAUDIT_APP_NAME", _("Member Audit"), required_type=str
 )
 
+
+# Technical parameter defining the maximum number of objects processed per run
+# of Django batch methods, e.g. bulk_create and bulk_update
+MEMBERAUDIT_BULK_METHODS_BATCH_SIZE = clean_setting(
+    "MEMBERAUDIT_BULK_METHODS_BATCH_SIZE", 500
+)
+
 # Activate developer mode for additional debug output. Undocumented feature
 MEMBERAUDIT_DEVELOPER_MODE = clean_setting("MEMBERAUDIT_DEVELOPER_MODE", False)
+
+# ESI error limit remain threshold. The number of remaining errors is counted down
+# from 100 as errors occur. Because multiple tasks may request the value simultaneously
+# and get the same response, the threshold must be above 0
+# to prevent the API from shutting down with a 420 error
+MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD = clean_setting(
+    "MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD", 25
+)
 
 # Hours after a existing location (e.g. structure) becomes stale and gets updated
 # e.g. for name changes of structures
@@ -24,12 +39,6 @@ MEMBERAUDIT_TASKS_TIME_LIMIT = clean_setting("MEMBERAUDIT_TASKS_TIME_LIMIT", 720
 # A higher value reduces duration, but also increases task queue congestion
 MEMBERAUDIT_TASKS_MAX_ASSETS_PER_PASS = clean_setting(
     "MEMBERAUDIT_TASKS_MAX_ASSETS_PER_PASS", 250
-)
-
-# Technical parameter defining the maximum number of objects processed per run
-# of Django batch methods, e.g. bulk_create and bulk_update
-MEMBERAUDIT_BULK_METHODS_BATCH_SIZE = clean_setting(
-    "MEMBERAUDIT_BULK_METHODS_BATCH_SIZE", 500
 )
 
 # Character sections are updated on different schedules, called rings.

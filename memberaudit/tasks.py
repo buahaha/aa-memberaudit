@@ -6,7 +6,6 @@ from bravado.exception import (
     HTTPBadGateway,
     HTTPGatewayTimeout,
     HTTPServiceUnavailable,
-    HTTPError,
 )
 from esi.models import Token
 from eveuniverse.core.esitools import is_esi_online
@@ -18,12 +17,13 @@ from allianceauth.services.tasks import QueueOnce
 
 from . import __title__
 from .app_settings import (
+    MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
+    MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD,
     MEMBERAUDIT_TASKS_TIME_LIMIT,
     MEMBERAUDIT_TASKS_MAX_ASSETS_PER_PASS,
-    MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
     MEMBERAUDIT_UPDATE_STALE_RING_2,
 )
-from .core import esi_errors
+from .helpers import fetch_esi_status
 from .models import (
     Character,
     CharacterAsset,
@@ -32,7 +32,6 @@ from .models import (
     CharacterUpdateStatus,
     Location,
 )
-
 from .utils import LoggerAddTag
 
 
@@ -56,7 +55,7 @@ TASK_ESI_KWARGS = {
             HTTPServiceUnavailable,
         ),
         "retry_kwargs": {"max_retries": 3},
-        "retry_backoff": True,
+        "retry_backoff": 30,
     },
 }
 
@@ -192,9 +191,6 @@ def _character_update_with_error_logging(
         return method(*args, **kwargs)
     except Exception as ex:
         error_message = f"{type(ex).__name__}: {str(ex)}"
-        if isinstance(ex, HTTPError):
-            esi_errors.set_from_bravado_exception(ex)
-
         logger.error(
             "%s: %s: Error ocurred: %s",
             character,
@@ -662,9 +658,23 @@ def update_structure_esi(self, id: int, token_pk: int):
             f"Location #{id}: Requested token with pk {token_pk} does not exist"
         )
 
-    error_status = esi_errors.get()
-    if error_status and error_status.is_exceeded:
-        logger.info("Location #%s: Error limit reached. Defering task", id)
-        raise self.retry(countdown=error_status.reset + int(random.uniform(1, 20)))
-    else:
-        Location.objects.structure_update_or_create_esi(id, token)
+    esi_status = fetch_esi_status()
+    if not esi_status.is_online:
+        logger.warning("ESI appears to be offline. Trying again in 30 minutes.")
+        raise self.retry(countdown=30 * 60 + int(random.uniform(1, 20)))
+
+    if (
+        esi_status.error_limit_reset
+        and esi_status.error_limit_remain
+        and esi_status.error_limit_remain <= MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD
+    ):
+        retry_in = esi_status.error_limit_remain + int(random.uniform(1, 20))
+        logger.warning(
+            "Location %s: ESI error limit threshold reached. "
+            "Trying again in %s seconds",
+            id,
+            retry_in,
+        )
+        raise self.retry(countdown=retry_in)
+
+    Location.objects.structure_update_or_create_esi(id, token)

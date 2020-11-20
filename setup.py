@@ -44,10 +44,7 @@ setup(
         "django-esi>=2",
         "django-eveuniverse>=0.6.1",
         "humanize",
+        "requests",
     ],
-    extras_require={
-        "testing": [
-            "django-webtest",
-        ]
-    },
+    extras_require={"testing": ["django-webtest", "requests-mock"]},
 )
