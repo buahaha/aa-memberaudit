@@ -19,6 +19,7 @@ from . import (
     scope_names_set,
     add_memberaudit_character_to_user,
 )
+from ..core import EsiErrorStatus
 from ..helpers import eve_xml_to_html
 from ..models import (
     Character,
@@ -1903,6 +1904,10 @@ class TestLocationManager(NoSocketsTestCase):
 
     @patch(MANAGERS_PATH + ".esi_errors")
     def test_records_esi_error_on_access_error(self, mock_esi_errors, mock_esi):
+        mock_esi_errors.update.return_value = (
+            EsiErrorStatus(99, now() + dt.timedelta(seconds=59)),
+            True,
+        )
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
             HTTPForbidden(
                 response=BravadoResponseStub(
@@ -1920,7 +1925,7 @@ class TestLocationManager(NoSocketsTestCase):
             id=1000000000099, token=self.token
         )
         self.assertTrue(created)
-        self.assertTrue(mock_esi_errors.set_from_bravado_exception.called)
+        self.assertTrue(mock_esi_errors.update.called)
 
     # Stations
 

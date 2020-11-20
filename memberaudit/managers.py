@@ -193,16 +193,11 @@ class LocationManager(models.Manager):
                 structure_id=id, token=token.valid_access_token()
             ).results()
         except (HTTPUnauthorized, HTTPForbidden) as http_error:
-            error_status = esi_errors.set_from_bravado_exception(http_error)
+            error_status, _ = esi_errors.update(http_error.response.headers)
             logger.warn("%s: No access to this structure: %s", id, http_error)
             location, created = self.get_or_create(id=id)
             if error_status:
-                logger.debug(
-                    "%s: ESI error status: remain = %s, reset = %s",
-                    id,
-                    error_status.remain,
-                    error_status.reset,
-                )
+                logger.info("%s: %s", id, error_status)
 
         else:
             location, created = self._structure_update_or_create_dict(

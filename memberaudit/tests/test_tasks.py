@@ -1,3 +1,4 @@
+import datetime as dt
 from unittest.mock import patch
 
 from bravado.exception import HTTPInternalServerError
@@ -5,12 +6,13 @@ from celery.exceptions import Retry as CeleryRetry
 
 from django.core.cache import cache
 from django.test import TestCase, override_settings
+from django.utils.timezone import now
 
 from eveuniverse.models import EveSolarSystem, EveType
 from esi.models import Token
 
 from . import create_memberaudit_character
-from ..core import _EsiErrorStatus
+from ..core import EsiErrorStatus
 from ..models import (
     Character,
     CharacterAsset,
@@ -478,6 +480,10 @@ class TestUpdateCharacter(TestCase):
 
     @patch(TASKS_PATH + ".esi_errors")
     def test_report_error(self, mock_esi_errors, mock_esi):
+        mock_esi_errors.update.return_value = (
+            EsiErrorStatus(99, now() + dt.timedelta(seconds=59)),
+            True,
+        )
         mock_esi.client = esi_client_error_stub
 
         update_character(self.character.pk)
@@ -608,8 +614,8 @@ class TestUpdateStructureEsi(TestCase):
     def test_below_error_limit(self, mock_esi, mock_esi_errors):
         """when below error limit, then make request to ESI"""
         mock_esi.client = esi_client_stub
-        mock_esi_errors.get.return_value = _EsiErrorStatus(
-            remain=10, reset=30, is_exceeded=False
+        mock_esi_errors.get.return_value = EsiErrorStatus(
+            remain=99, until=now() + dt.timedelta(seconds=30)
         )
 
         update_structure_esi(id=1000000000001, token_pk=self.token.pk)
@@ -618,8 +624,8 @@ class TestUpdateStructureEsi(TestCase):
     def test_above_error_limit(self, mock_esi, mock_esi_errors):
         """when above error limit, then make no request to ESI and retry task"""
         mock_esi.client = esi_client_stub
-        mock_esi_errors.get.return_value = _EsiErrorStatus(
-            remain=99, reset=30, is_exceeded=True
+        mock_esi_errors.get.return_value = EsiErrorStatus(
+            remain=5, until=now() + dt.timedelta(seconds=30)
         )
 
         # TODO: Add ability to verify countdown is set correctly for retry

@@ -193,7 +193,9 @@ def _character_update_with_error_logging(
     except Exception as ex:
         error_message = f"{type(ex).__name__}: {str(ex)}"
         if isinstance(ex, HTTPError):
-            esi_errors.set_from_bravado_exception(ex)
+            error_status, _ = esi_errors.update(ex.response.headers)
+            if error_status:
+                logger.info("%s, %s: %s", character, section, error_status)
 
         logger.error(
             "%s: %s: Error ocurred: %s",
@@ -663,8 +665,10 @@ def update_structure_esi(self, id: int, token_pk: int):
         )
 
     error_status = esi_errors.get()
-    if error_status and error_status.is_exceeded:
-        logger.info("Location #%s: Error limit reached. Defering task", id)
-        raise self.retry(countdown=error_status.reset + int(random.uniform(1, 20)))
+    if error_status and error_status.is_valid and error_status.is_exceeded:
+        logger.warning(
+            "Location #%s: About to reach ESI error rate limit. Defering task.", id
+        )
+        raise self.retry(countdown=error_status.reset + random.randint(1, 20))
     else:
         Location.objects.structure_update_or_create_esi(id, token)
