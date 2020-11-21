@@ -47,6 +47,7 @@ TASK_DEFAULT_KWARGS = {
 TASK_ESI_KWARGS = {
     **TASK_DEFAULT_KWARGS,
     **{
+        "bind": True,
         "autoretry_for": (
             OSError,
             HTTPBadGateway,
@@ -169,19 +170,22 @@ def update_character(character_pk: int, force_update=False) -> bool:
 
 
 @shared_task(**{**TASK_ESI_KWARGS}, **{"base": QueueOnce})
-def update_character_section(character_pk: int, section: str) -> None:
+def update_character_section(self, character_pk: int, section: str) -> None:
     """Task that updates the section of a character"""
     character = Character.objects.get(pk=character_pk)
     character.update_status_set.filter(section=section).delete()
     logger.info("%s: Updating %s", character, Character.section_display_name(section))
     _character_update_with_error_logging(
-        character, section, getattr(character, Character.section_method_name(section))
+        self,
+        character,
+        section,
+        getattr(character, Character.section_method_name(section)),
     )
     _log_character_update_success(character, section)
 
 
 def _character_update_with_error_logging(
-    character: Character, section: str, method: object, *args, **kwargs
+    self, character: Character, section: str, method: object, *args, **kwargs
 ):
     """Allows catching and logging of any exceptions occuring
     during an character update
@@ -220,7 +224,7 @@ def _log_character_update_success(character: Character, section: str):
 
 @shared_task(**TASK_ESI_KWARGS)
 def update_unresolved_eve_entities(
-    character_pk: int, section: str, last_in_chain: bool = False
+    self, character_pk: int, section: str, last_in_chain: bool = False
 ) -> None:
     """Bulk resolved all unresolved EveEntity objects in database and logs errors to respective section
 
@@ -228,7 +232,7 @@ def update_unresolved_eve_entities(
     """
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
-        character, section, EveEntity.objects.bulk_update_new_esi
+        self, character, section, EveEntity.objects.bulk_update_new_esi
     )
     if last_in_chain:
         _log_character_update_success(character, section)
@@ -238,14 +242,14 @@ def update_unresolved_eve_entities(
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_assets(character_pk: int) -> None:
+def update_character_assets(self, character_pk: int) -> None:
     """Main tasks for updating the character's assets"""
     character = Character.objects.get(pk=character_pk)
     section = Character.UPDATE_SECTION_ASSETS
     logger.info("%s: Updating %s", character, Character.section_display_name(section))
     character.update_status_set.filter(section=section).delete()
     asset_list = _character_update_with_error_logging(
-        character, section, character.assets_build_list_from_esi
+        self, character, section, character.assets_build_list_from_esi
     )
     logger.info("%s: Recreating asset tree for %s assets", character, len(asset_list))
     # TODO: Add update section logging for assets_create_parents
@@ -257,7 +261,9 @@ def update_character_assets(character_pk: int) -> None:
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def assets_create_parents(character_pk: int, asset_list: dict, round: int = 1) -> None:
+def assets_create_parents(
+    self, character_pk: int, asset_list: dict, round: int = 1
+) -> None:
     """creates the parent assets from given asset_list
 
     Parent assets are assets attached directly to a Location object (e.g. station)
@@ -331,7 +337,9 @@ def assets_create_parents(character_pk: int, asset_list: dict, round: int = 1) -
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def assets_create_children(character_pk: int, asset_list: dict, round: int = 1) -> None:
+def assets_create_children(
+    self, character_pk: int, asset_list: dict, round: int = 1
+) -> None:
     """Created child assets from given asset list
 
     Child assets are assets located within other assets (aka containers)
@@ -407,7 +415,7 @@ def assets_create_children(character_pk: int, asset_list: dict, round: int = 1) 
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_mails(character_pk: int) -> None:
+def update_character_mails(self, character_pk: int) -> None:
     """Main task for updating mails of a character"""
     character = Character.objects.get(pk=character_pk)
     section = Character.UPDATE_SECTION_MAILS
@@ -423,41 +431,45 @@ def update_character_mails(character_pk: int) -> None:
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_mailing_lists(character_pk: int) -> None:
+def update_character_mailing_lists(self, character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
-        character, Character.UPDATE_SECTION_MAILS, character.update_mailing_lists
+        self, character, Character.UPDATE_SECTION_MAILS, character.update_mailing_lists
     )
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_mail_labels(character_pk: int) -> None:
+def update_character_mail_labels(self, character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
-        character, Character.UPDATE_SECTION_MAILS, character.update_mail_labels
+        self, character, Character.UPDATE_SECTION_MAILS, character.update_mail_labels
     )
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_mail_headers(character_pk: int) -> None:
+def update_character_mail_headers(self, character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
-        character, Character.UPDATE_SECTION_MAILS, character.update_mail_headers
+        self, character, Character.UPDATE_SECTION_MAILS, character.update_mail_headers
     )
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_mail_body_esi(character_pk: int, mail_pk: int):
+def update_mail_body_esi(self, character_pk: int, mail_pk: int):
     """Task for updating the body of a mail from ESI"""
     character = Character.objects.get(pk=character_pk)
     mail = CharacterMail.objects.get(pk=mail_pk)
     _character_update_with_error_logging(
-        character, Character.UPDATE_SECTION_MAILS, character.update_mail_body, mail
+        self,
+        character,
+        Character.UPDATE_SECTION_MAILS,
+        character.update_mail_body,
+        mail,
     )
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_mail_bodies(character_pk: int) -> None:
+def update_character_mail_bodies(self, character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     mails_without_body_qs = character.mails.filter(body="")
     mails_without_body_count = mails_without_body_qs.count()
@@ -492,18 +504,21 @@ def update_character_contacts(character_pk: int) -> None:
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_contact_labels(character_pk: int) -> None:
+def update_character_contact_labels(self, character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
-        character, Character.UPDATE_SECTION_CONTACTS, character.update_contact_labels
+        self,
+        character,
+        Character.UPDATE_SECTION_CONTACTS,
+        character.update_contact_labels,
     )
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_contacts_2(character_pk: int) -> None:
+def update_character_contacts_2(self, character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
-        character, Character.UPDATE_SECTION_CONTACTS, character.update_contacts
+        self, character, Character.UPDATE_SECTION_CONTACTS, character.update_contacts
     )
 
 
@@ -526,10 +541,13 @@ def update_character_contracts(character_pk: int) -> None:
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_contract_headers(character_pk: int) -> None:
+def update_character_contract_headers(self, character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
-        character, Character.UPDATE_SECTION_CONTRACTS, character.update_contract_headers
+        self,
+        character,
+        Character.UPDATE_SECTION_CONTRACTS,
+        character.update_contract_headers,
     )
 
 
@@ -561,7 +579,7 @@ def update_character_contracts_items(character_pk: int) -> None:
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_contract_items_esi(character_pk: int, contract_pk: int):
+def update_contract_items_esi(self, character_pk: int, contract_pk: int):
     """Task for updating the items of a contract from ESI"""
     character = Character.objects.get(pk=character_pk)
     contract = CharacterContract.objects.get(pk=contract_pk)
@@ -593,7 +611,7 @@ def update_character_contracts_bids(character_pk: int) -> None:
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_contract_bids_esi(character_pk: int, contract_pk: int):
+def update_contract_bids_esi(self, character_pk: int, contract_pk: int):
     """Task for updating the bids of a contract from ESI"""
     character = Character.objects.get(pk=character_pk)
     contract = CharacterContract.objects.get(pk=contract_pk)
@@ -617,9 +635,10 @@ def update_character_wallet_journal(character_pk: int) -> None:
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_wallet_journal_entries(character_pk: int) -> None:
+def update_character_wallet_journal_entries(self, character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
+        self,
         character,
         Character.UPDATE_SECTION_WALLET_JOURNAL,
         character.update_wallet_journal,
@@ -630,7 +649,7 @@ def update_character_wallet_journal_entries(character_pk: int) -> None:
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_market_prices():
+def update_market_prices(self):
     """Update market prices from ESI"""
     EveMarketPrice.objects.update_from_esi(
         minutes_until_stale=MEMBERAUDIT_UPDATE_STALE_RING_2
@@ -640,7 +659,6 @@ def update_market_prices():
 @shared_task(
     **{**TASK_ESI_KWARGS},
     **{
-        "bind": True,
         "base": QueueOnce,
         "once": {"keys": ["id"], "graceful": True},
         "max_retries": None,
