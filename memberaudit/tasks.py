@@ -18,7 +18,6 @@ from allianceauth.services.tasks import QueueOnce
 from . import __title__
 from .app_settings import (
     MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
-    MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD,
     MEMBERAUDIT_TASKS_TIME_LIMIT,
     MEMBERAUDIT_TASKS_MAX_ASSETS_PER_PASS,
     MEMBERAUDIT_UPDATE_STALE_RING_2,
@@ -663,11 +662,7 @@ def update_structure_esi(self, id: int, token_pk: int):
         logger.warning("ESI appears to be offline. Trying again in 30 minutes.")
         raise self.retry(countdown=30 * 60 + int(random.uniform(1, 20)))
 
-    if (
-        esi_status.error_limit_reset
-        and esi_status.error_limit_remain
-        and esi_status.error_limit_remain <= MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD
-    ):
+    if esi_status.is_error_limit_exceeded:
         retry_in = esi_status.error_limit_remain + int(random.uniform(1, 20))
         logger.warning(
             "Location %s: ESI error limit threshold reached. "

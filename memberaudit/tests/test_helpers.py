@@ -10,7 +10,12 @@ from allianceauth.tests.auth_utils import AuthUtils
 
 from .testdata.esi_client_stub import load_test_data
 from .testdata.load_entities import load_entities
-from ..helpers import eve_xml_to_html, users_with_permission, fetch_esi_status
+from ..helpers import (
+    eve_xml_to_html,
+    users_with_permission,
+    fetch_esi_status,
+    EsiStatus,
+)
 
 
 MODULE_PATH = "memberaudit.helpers"
@@ -116,8 +121,55 @@ class TestUsersWithPermissionQS(TestCase):
         self.assertSetEqual(self.user_with_permission_pks(), {self.user_1.pk})
 
 
-@requests_mock.Mocker()
 class TestEsiStatus(TestCase):
+    def test_create_1(self):
+        obj = EsiStatus(True)
+        self.assertTrue(obj.is_online)
+        self.assertIsNone(obj.error_limit_remain)
+        self.assertIsNone(obj.error_limit_reset)
+
+    def test_create_2(self):
+        obj = EsiStatus(False, 1)
+        self.assertFalse(obj.is_online)
+        self.assertIsNone(obj.error_limit_remain)
+        self.assertIsNone(obj.error_limit_reset)
+
+    def test_create_3(self):
+        obj = EsiStatus(True, None, 1)
+        self.assertTrue(obj.is_online)
+        self.assertIsNone(obj.error_limit_remain)
+        self.assertIsNone(obj.error_limit_reset)
+
+    def test_create_4(self):
+        obj = EsiStatus(True, 10, 20)
+        self.assertTrue(obj.is_online)
+        self.assertEqual(obj.error_limit_remain, 10)
+        self.assertEqual(obj.error_limit_reset, 20)
+
+    def test_create_5(self):
+        obj = EsiStatus(True, "10", "20")
+        self.assertTrue(obj.is_online)
+        self.assertEqual(obj.error_limit_remain, 10)
+        self.assertEqual(obj.error_limit_reset, 20)
+
+    @patch(MODULE_PATH + ".MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD", 25)
+    def test_is_error_limit_exceeded_1(self):
+        obj = EsiStatus(True, error_limit_remain=30, error_limit_reset=20)
+        self.assertFalse(obj.is_error_limit_exceeded)
+
+    @patch(MODULE_PATH + ".MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD", 25)
+    def test_is_error_limit_exceeded_2(self):
+        obj = EsiStatus(True, error_limit_remain=10, error_limit_reset=20)
+        self.assertTrue(obj.is_error_limit_exceeded)
+
+    @patch(MODULE_PATH + ".MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD", 25)
+    def test_is_error_limit_exceeded_3(self):
+        obj = EsiStatus(True, error_limit_remain=10)
+        self.assertFalse(obj.is_error_limit_exceeded)
+
+
+@requests_mock.Mocker()
+class TestFetchEsiStatus(TestCase):
     def test_normal(self, requests_mocker):
         """When ESI is online and header is complete, then report status accordingly"""
         requests_mocker.register_uri(

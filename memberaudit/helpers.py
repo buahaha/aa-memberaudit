@@ -1,4 +1,3 @@
-from collections import namedtuple
 import re
 import random
 from time import sleep
@@ -17,6 +16,7 @@ from allianceauth.eveonline.evelinks import dotlan, evewho
 from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__, __version__
+from .app_settings import MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD
 from .utils import create_link_html, LoggerAddTag
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -158,9 +158,46 @@ def users_with_permission(permission: Permission) -> models.QuerySet:
     return users_qs
 
 
-EsiStatus = namedtuple(
-    "EsiStatus", ["is_online", "error_limit_remain", "error_limit_reset"]
-)
+class EsiStatus:
+    """Current status of ESI (immutable)"""
+
+    def __init__(
+        self,
+        is_online: bool,
+        error_limit_remain: int = None,
+        error_limit_reset: int = None,
+    ) -> None:
+        self._is_online = bool(is_online)
+        if error_limit_remain is None or error_limit_reset is None:
+            self._error_limit_remain = None
+            self._error_limit_reset = None
+        else:
+            self._error_limit_remain = int(error_limit_remain)
+            self._error_limit_reset = int(error_limit_reset)
+
+    @property
+    def is_online(self) -> bool:
+        return self._is_online
+
+    @property
+    def error_limit_remain(self) -> Optional[int]:
+        return self._error_limit_remain
+
+    @property
+    def error_limit_reset(self) -> Optional[int]:
+        return self._error_limit_reset
+
+    @property
+    def is_error_limit_exceeded(self) -> bool:
+        """return True if remain is below the threshold, else False.
+
+        Will also return False if remain/reset are not defined
+        """
+        return bool(
+            self.error_limit_remain
+            and self.error_limit_reset
+            and self.error_limit_remain <= MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD
+        )
 
 
 def fetch_esi_status() -> EsiStatus:
@@ -212,9 +249,7 @@ def fetch_esi_status() -> EsiStatus:
         reset = int(r.headers.get("X-Esi-Error-Limit-Reset"))
     except TypeError:
         logger.warning("Failed to parse HTTP headers: %s", r.headers, exc_info=True)
-        return EsiStatus(
-            is_online=is_online, error_limit_remain=None, error_limit_reset=None
-        )
+        return EsiStatus(is_online=is_online)
     else:
         # TODO: demote logger to DEBUG once stable
         logger.info("ESI error status: remain = %s, reset = %s", remain, reset)

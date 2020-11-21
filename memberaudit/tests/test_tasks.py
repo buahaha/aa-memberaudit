@@ -604,7 +604,7 @@ class TestUpdateStructureEsi(TestCase):
         with self.assertRaises(Token.DoesNotExist):
             update_structure_esi(id=1000000000001, token_pk=generate_invalid_pk(Token))
 
-    @patch(TASKS_PATH + ".MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD", 25)
+    @patch("memberaudit.helpers.MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD", 25)
     def test_below_error_limit(self, mock_fetch_esi_status, mock_esi):
         """when error limit threshold not exceeded, then make request to ESI"""
         mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
@@ -613,7 +613,7 @@ class TestUpdateStructureEsi(TestCase):
         update_structure_esi(id=1000000000001, token_pk=self.token.pk)
         self.assertTrue(Location.objects.filter(id=1000000000001).exists())
 
-    @patch(TASKS_PATH + ".MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD", 25)
+    @patch("memberaudit.helpers.MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD", 25)
     def test_above_error_limit(self, mock_fetch_esi_status, mock_esi):
         """
         when error limit threshold is exceeded,
