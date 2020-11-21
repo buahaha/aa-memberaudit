@@ -167,6 +167,22 @@ class TestEsiStatus(TestCase):
         obj = EsiStatus(True, error_limit_remain=10)
         self.assertFalse(obj.is_error_limit_exceeded)
 
+    @patch(MODULE_PATH + ".EsiStatus.MAX_JITTER", 20)
+    def test_error_limit_reset_w_jitter_1(self):
+        obj = EsiStatus(True, error_limit_remain=30, error_limit_reset=20)
+        result = obj.error_limit_reset_w_jitter()
+        for _ in range(1000):
+            self.assertGreaterEqual(result, 21)
+            self.assertLessEqual(result, 41)
+
+    @patch(MODULE_PATH + ".EsiStatus.MAX_JITTER", 20)
+    def test_error_limit_reset_w_jitter_2(self):
+        obj = EsiStatus(True, error_limit_remain=30, error_limit_reset=20)
+        result = obj.error_limit_reset_w_jitter(10)
+        for _ in range(1000):
+            self.assertGreaterEqual(result, 11)
+            self.assertLessEqual(result, 31)
+
 
 @requests_mock.Mocker()
 class TestFetchEsiStatus(TestCase):

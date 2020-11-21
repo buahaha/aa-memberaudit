@@ -161,6 +161,8 @@ def users_with_permission(permission: Permission) -> models.QuerySet:
 class EsiStatus:
     """Current status of ESI (immutable)"""
 
+    MAX_JITTER = 20
+
     def __init__(
         self,
         is_online: bool,
@@ -198,6 +200,16 @@ class EsiStatus:
             and self.error_limit_reset
             and self.error_limit_remain <= MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD
         )
+
+    def error_limit_reset_w_jitter(self, max_jitter: int = None) -> int:
+        """seconds to retry in order to reach next error window incl. jitter"""
+        if self.error_limit_reset is None:
+            return 0
+        else:
+            if not max_jitter or max_jitter < 1:
+                max_jitter = self.MAX_JITTER
+
+            return self.error_limit_reset + int(random.uniform(1, max_jitter))
 
 
 def fetch_esi_status() -> EsiStatus:
@@ -251,8 +263,12 @@ def fetch_esi_status() -> EsiStatus:
         logger.warning("Failed to parse HTTP headers: %s", r.headers, exc_info=True)
         return EsiStatus(is_online=is_online)
     else:
-        # TODO: demote logger to DEBUG once stable
-        logger.info("ESI error status: remain = %s, reset = %s", remain, reset)
+        logger.debug(
+            "ESI status: is_online: %s, error_limit_remain = %s, error_limit_reset = %s",
+            is_online,
+            remain,
+            reset,
+        )
         return EsiStatus(
             is_online=is_online, error_limit_remain=remain, error_limit_reset=reset
         )

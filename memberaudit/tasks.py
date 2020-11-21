@@ -681,7 +681,7 @@ def update_structure_esi(self, id: int, token_pk: int):
         raise self.retry(countdown=30 * 60 + int(random.uniform(1, 20)))
 
     if esi_status.is_error_limit_exceeded:
-        retry_in = esi_status.error_limit_remain + int(random.uniform(1, 20))
+        retry_in = esi_status.error_limit_reset_w_jitter()
         logger.warning(
             "Location %s: ESI error limit threshold reached. "
             "Trying again in %s seconds",
