@@ -176,6 +176,9 @@ class Location(models.Model):
 
     objects = LocationManager()
 
+    class Meta:
+        default_permissions = ()
+
     def __str__(self) -> str:
         return self.name
 
@@ -304,6 +307,9 @@ class Character(models.Model):
     )
 
     objects = CharacterManager()
+
+    class Meta:
+        default_permissions = ()
 
     def __str__(self) -> str:
         return f"{self.character_ownership.character.character_name} (PK:{self.pk})"
@@ -1850,6 +1856,7 @@ class CharacterAsset(models.Model):
     objects = CharacterAssetManager()
 
     class Meta:
+        default_permissions = ()
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "item_id"],
@@ -1900,6 +1907,7 @@ class CharacterContactLabel(models.Model):
     name = models.CharField(max_length=NAMES_MAX_LENGTH)
 
     class Meta:
+        default_permissions = ()
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "label_id"],
@@ -1931,6 +1939,7 @@ class CharacterContact(models.Model):
     labels = models.ManyToManyField(CharacterContactLabel, related_name="contacts")
 
     class Meta:
+        default_permissions = ()
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "eve_entity"],
@@ -2128,6 +2137,7 @@ class CharacterContract(models.Model):
     volume = models.FloatField(default=None, null=True)
 
     class Meta:
+        default_permissions = ()
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "contract_id"],
@@ -2201,6 +2211,9 @@ class CharacterContractBid(models.Model):
     bidder = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
     date_bid = models.DateTimeField()
 
+    class Meta:
+        default_permissions = ()
+
     def __str__(self) -> str:
         return f"{self.contract}-{self.bid_id}"
 
@@ -2218,6 +2231,9 @@ class CharacterContractItem(models.Model):
     eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
 
     objects = CharacterContractItemManager()
+
+    class Meta:
+        default_permissions = ()
 
     def __str__(self) -> str:
         return f"{self.contract}-{self.record_id}"
@@ -2238,6 +2254,7 @@ class CharacterCorporationHistory(models.Model):
     start_date = models.DateTimeField(db_index=True)
 
     class Meta:
+        default_permissions = ()
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "record_id"],
@@ -2293,6 +2310,9 @@ class CharacterDetails(models.Model):
     security_status = models.FloatField(default=None, null=True)
     title = models.TextField()
 
+    class Meta:
+        default_permissions = ()
+
     def __str__(self) -> str:
         return str(self.character)
 
@@ -2313,6 +2333,7 @@ class CharacterDoctrineShipCheck(models.Model):
     insufficient_skills = models.ManyToManyField("DoctrineShipSkill")
 
     class Meta:
+        default_permissions = ()
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "ship"],
@@ -2337,6 +2358,7 @@ class CharacterImplant(models.Model):
     eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
 
     class Meta:
+        default_permissions = ()
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "eve_type"],
@@ -2360,6 +2382,9 @@ class CharacterLocation(models.Model):
         Location, on_delete=models.SET_DEFAULT, default=None, null=True
     )
 
+    class Meta:
+        default_permissions = ()
+
     def __str__(self) -> str:
         return str(f"{self.character}-{self.eve_solar_system}")
 
@@ -2377,6 +2402,7 @@ class CharacterLoyaltyEntry(models.Model):
     loyalty_points = models.PositiveIntegerField()
 
     class Meta:
+        default_permissions = ()
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "corporation"],
@@ -2400,6 +2426,7 @@ class CharacterJumpClone(models.Model):
     name = models.CharField(max_length=NAMES_MAX_LENGTH, default="")
 
     class Meta:
+        default_permissions = ()
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "jump_clone_id"],
@@ -2418,6 +2445,9 @@ class CharacterJumpCloneImplant(models.Model):
         CharacterJumpClone, on_delete=models.CASCADE, related_name="implants"
     )
     eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
+
+    class Meta:
+        default_permissions = ()
 
     def __str__(self) -> str:
         return str(f"{self.jump_clone}-{self.eve_type}")
@@ -2451,6 +2481,7 @@ class CharacterMail(models.Model):
     labels = models.ManyToManyField("CharacterMailLabel", related_name="mails")
 
     class Meta:
+        default_permissions = ()
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "mail_id"], name="functional_pk_charactermail"
@@ -2490,6 +2521,7 @@ class CharacterMailingList(models.Model):
     objects = CharacterMailingListManager()
 
     class Meta:
+        default_permissions = ()
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "list_id"],
@@ -2520,6 +2552,7 @@ class CharacterMailLabel(models.Model):
     objects = CharacterMailLabelManager()
 
     class Meta:
+        default_permissions = ()
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "label_id"],
@@ -2548,6 +2581,9 @@ class CharacterMailRecipient(models.Model):
         blank=True,
     )
 
+    class Meta:
+        default_permissions = ()
+
     def __str__(self) -> str:
         return self.mailing_list.name if self.mailing_list else self.eve_entity.name
 
@@ -2563,6 +2599,9 @@ class CharacterMailUnreadCount(models.Model):
     )
     total = models.PositiveIntegerField()
 
+    class Meta:
+        default_permissions = ()
+
 
 class CharacterOnlineStatus(models.Model):
     """Online Status of a character"""
@@ -2577,6 +2616,9 @@ class CharacterOnlineStatus(models.Model):
     last_login = models.DateTimeField(default=None, null=True)
     last_logout = models.DateTimeField(default=None, null=True)
     logins = models.PositiveIntegerField(default=None, null=True)
+
+    class Meta:
+        default_permissions = ()
 
     def __str__(self) -> str:
         return str(self.character)
@@ -2597,6 +2639,7 @@ class CharacterSkill(models.Model):
     )
 
     class Meta:
+        default_permissions = ()
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "eve_type"], name="functional_pk_characterskill"
@@ -2618,6 +2661,9 @@ class CharacterSkillpoints(models.Model):
     )
     total = models.PositiveBigIntegerField()
     unallocated = models.PositiveIntegerField(default=None, null=True)
+
+    class Meta:
+        default_permissions = ()
 
 
 class CharacterSkillqueueEntry(models.Model):
@@ -2641,6 +2687,7 @@ class CharacterSkillqueueEntry(models.Model):
     training_start_sp = models.PositiveIntegerField(default=None, null=True)
 
     class Meta:
+        default_permissions = ()
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "queue_position"],
@@ -2672,6 +2719,7 @@ class CharacterUpdateStatus(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        default_permissions = ()
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "section"],
@@ -2695,6 +2743,9 @@ class CharacterWalletBalance(models.Model):
     total = models.DecimalField(
         max_digits=CURRENCY_MAX_DIGITS, decimal_places=CURRENCY_MAX_DECIMALS
     )
+
+    class Meta:
+        default_permissions = ()
 
 
 class CharacterWalletJournalEntry(models.Model):
@@ -2797,6 +2848,7 @@ class CharacterWalletJournalEntry(models.Model):
     )
 
     class Meta:
+        default_permissions = ()
         constraints = [
             models.UniqueConstraint(
                 fields=["character", "entry_id"],
