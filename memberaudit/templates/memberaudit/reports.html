@@ -53,23 +53,22 @@
                     { data: 'registered_str' },
                     { data: 'compliance_str' },
                     { data: 'total_chars' },
-                    { data: 'unregistered_chars' },
                     /* hidden columns */
                     { data: 'alliance_name' },
                     { data: 'corporation_name' },
                 ],
                 columnDefs: [
-                    { "visible": false, "targets": [ 6, 7 ] },
+                    { "visible": false, "targets": [ 5, 6 ] },
                 ],
                 order: [ [ 0, "asc" ] ],
                 filterDropDown: {
                     columns: [
                         {
-                            idx: 6,
+                            idx: 5,
                             title: "{% translate 'Alliance' %}"
                         },
                         {
-                            idx: 7,
+                            idx: 6,
                             title: "{% translate 'Corporation' %}"
                         },
                         {
@@ -77,9 +76,6 @@
                         },
                         {
                             idx: 3
-                        },
-                        {
-                            idx: 4
                         }
                     ],
                     bootstrap: true
