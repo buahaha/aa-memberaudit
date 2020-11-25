@@ -1426,10 +1426,14 @@ class Character(models.Model):
         )
         create_ids = incoming_ids.difference(existing_ids)
         if create_ids:
-            logger.info("%s: Adding %s unknown mailing lists", self, len(create_ids))
+            logger.info(
+                "%s: Adding %s unknown mailing lists from recipients",
+                self,
+                len(create_ids),
+            )
             for list_id in create_ids:
-                MailEntity.objects.create(
-                    id=list_id, category=MailEntity.Category.MAILING_LIST
+                MailEntity.objects.get_or_create(
+                    id=list_id, defaults={"category": MailEntity.Category.MAILING_LIST}
                 )
 
     def _update_labels_of_mail(
