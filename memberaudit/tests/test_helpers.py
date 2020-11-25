@@ -15,6 +15,8 @@ from ..helpers import (
     users_with_permission,
     fetch_esi_status,
     EsiStatus,
+    EsiOffline,
+    EsiErrorLimitExceeded,
 )
 
 
@@ -121,6 +123,16 @@ class TestUsersWithPermissionQS(TestCase):
         self.assertSetEqual(self.user_with_permission_pks(), {self.user_1.pk})
 
 
+class TestEsiStatusExceptions(TestCase):
+    def test_offline(self):
+        try:
+            raise EsiErrorLimitExceeded(45)
+        except Exception as ex:
+            self.assertIsInstance(ex, EsiErrorLimitExceeded)
+            self.assertEqual(ex.retry_in, 45)
+            self.assertIn("ESI error limit has been exceeded", ex.message)
+
+
 class TestEsiStatus(TestCase):
     def test_create_1(self):
         obj = EsiStatus(True)
@@ -182,6 +194,28 @@ class TestEsiStatus(TestCase):
         for _ in range(1000):
             self.assertGreaterEqual(result, 11)
             self.assertLessEqual(result, 31)
+
+    def test_raise_for_status_1(self):
+        """When no error condition is met, do nothing"""
+        obj = EsiStatus(True, error_limit_remain=99, error_limit_reset=20)
+        try:
+            obj.raise_for_status()
+        except Exception:
+            self.fail("raise_for_status() raised Exception unexpectedly!")
+
+    @patch(MODULE_PATH + ".MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD", 25)
+    def test_raise_for_status_2(self):
+        """When ESI is offline, then raise exception"""
+        obj = EsiStatus(False, error_limit_remain=99, error_limit_reset=20)
+        with self.assertRaises(EsiOffline):
+            obj.raise_for_status()
+
+    @patch(MODULE_PATH + ".MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD", 25)
+    def test_raise_for_status_3(self):
+        """When ESI error limit is exceeded, then raise exception"""
+        obj = EsiStatus(True, error_limit_remain=15, error_limit_reset=20)
+        with self.assertRaises(EsiErrorLimitExceeded):
+            obj.raise_for_status()
 
 
 @requests_mock.Mocker()

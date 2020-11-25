@@ -5,7 +5,7 @@ import os
 from typing import List, Optional
 
 from django.contrib.auth.models import User, Permission
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models, transaction
@@ -27,7 +27,7 @@ from eveuniverse.models import (
     EveType,
 )
 
-from allianceauth.eveonline.evelinks import dotlan
+from allianceauth.eveonline.evelinks import dotlan, evewho
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.services.hooks import get_extension_logger
 
@@ -52,9 +52,9 @@ from .managers import (
     CharacterAssetManager,
     CharacterContractItemManager,
     CharacterMailLabelManager,
-    CharacterMailingListManager,
     CharacterManager,
     LocationManager,
+    MailEntityManager,
 )
 from .providers import esi
 from .utils import LoggerAddTag, chunks
@@ -238,58 +238,66 @@ class Character(models.Model):
     This is the head model for all characters
     """
 
-    UPDATE_SECTION_ASSETS = "assets"
-    UPDATE_SECTION_CHARACTER_DETAILS = "character_details"
-    UPDATE_SECTION_CONTACTS = "contacts"
-    UPDATE_SECTION_CONTRACTS = "contracts"
-    UPDATE_SECTION_CORPORATION_HISTORY = "corporation_history"
-    UPDATE_SECTION_DOCTRINES = "doctrines"
-    UPDATE_SECTION_IMPLANTS = "implants"
-    UPDATE_SECTION_JUMP_CLONES = "jump_clones"
-    UPDATE_SECTION_LOCATION = "location"
-    UPDATE_SECTION_LOYALTY = "loyalty"
-    UPDATE_SECTION_MAILS = "mails"
-    UPDATE_SECTION_ONLINE_STATUS = "online_status"
-    UPDATE_SECTION_SKILLS = "skills"
-    UPDATE_SECTION_SKILL_QUEUE = "skill_queue"
-    UPDATE_SECTION_WALLET_BALLANCE = "wallet_balance"
-    UPDATE_SECTION_WALLET_JOURNAL = "wallet_journal"
-    UPDATE_SECTION_CHOICES = (
-        (UPDATE_SECTION_ASSETS, _("assets")),
-        (UPDATE_SECTION_CHARACTER_DETAILS, _("character details")),
-        (UPDATE_SECTION_CONTACTS, _("contacts")),
-        (UPDATE_SECTION_CONTRACTS, _("contracts")),
-        (UPDATE_SECTION_CORPORATION_HISTORY, _("corporation history")),
-        (UPDATE_SECTION_DOCTRINES, _("doctrines")),
-        (UPDATE_SECTION_IMPLANTS, _("implants")),
-        (UPDATE_SECTION_JUMP_CLONES, _("jump clones")),
-        (UPDATE_SECTION_LOCATION, _("location")),
-        (UPDATE_SECTION_LOYALTY, _("loyalty")),
-        (UPDATE_SECTION_MAILS, _("mails")),
-        (UPDATE_SECTION_ONLINE_STATUS, _("online status")),
-        (UPDATE_SECTION_SKILLS, _("skills")),
-        (UPDATE_SECTION_SKILL_QUEUE, _("skill queue")),
-        (UPDATE_SECTION_WALLET_BALLANCE, _("wallet balance")),
-        (UPDATE_SECTION_WALLET_JOURNAL, _("wallet journal")),
-    )
+    class UpdateSection(models.TextChoices):
+        ASSETS = "assets", _("assets")
+        CHARACTER_DETAILS = "character_details", ("character details")
+        CONTACTS = "contacts", _("contacts")
+        CONTRACTS = "contracts", _("contracts")
+        CORPORATION_HISTORY = "corporation_history", _("corporation history")
+        DOCTRINES = "doctrines", _("doctrines")
+        IMPLANTS = "implants", _("implants")
+        JUMP_CLONES = "jump_clones", _("jump clones")
+        LOCATION = "location", _("location")
+        LOYALTY = "loyalty", _("loyalty")
+        MAILS = "mails", _("mails")
+        ONLINE_STATUS = "online_status", _("online status")
+        SKILLS = "skills", _("skills")
+        SKILL_QUEUE = "skill_queue", _("skill queue")
+        WALLET_BALLANCE = "wallet_balance", _("wallet balance")
+        WALLET_JOURNAL = "wallet_journal", _("wallet journal")
+
+        @classmethod
+        def method_name(cls, section: str) -> str:
+            """returns name of update method corresponding with the given section
+
+            Raises:
+            - ValueError if secton is invalid
+            """
+            if section not in cls.values:
+                raise ValueError(f"Unknown section: {section}")
+
+            return f"update_{section}"
+
+        @classmethod
+        def display_name(cls, section: str) -> str:
+            """returns display name of given section
+
+            Raises:
+            - ValueError if secton is invalid
+            """
+            for short_name, long_name in cls.choices:
+                if short_name == section:
+                    return long_name
+
+            raise ValueError(f"Unknown section: {section}")
 
     UPDATE_SECTION_RINGS_MAP = {
-        UPDATE_SECTION_ASSETS: 3,
-        UPDATE_SECTION_CHARACTER_DETAILS: 2,
-        UPDATE_SECTION_CONTACTS: 2,
-        UPDATE_SECTION_CONTRACTS: 2,
-        UPDATE_SECTION_CORPORATION_HISTORY: 2,
-        UPDATE_SECTION_DOCTRINES: 2,
-        UPDATE_SECTION_IMPLANTS: 2,
-        UPDATE_SECTION_JUMP_CLONES: 2,
-        UPDATE_SECTION_LOCATION: 1,
-        UPDATE_SECTION_LOYALTY: 2,
-        UPDATE_SECTION_MAILS: 2,
-        UPDATE_SECTION_ONLINE_STATUS: 1,
-        UPDATE_SECTION_SKILLS: 2,
-        UPDATE_SECTION_SKILL_QUEUE: 1,
-        UPDATE_SECTION_WALLET_BALLANCE: 2,
-        UPDATE_SECTION_WALLET_JOURNAL: 2,
+        UpdateSection.ASSETS: 3,
+        UpdateSection.CHARACTER_DETAILS: 2,
+        UpdateSection.CONTACTS: 2,
+        UpdateSection.CONTRACTS: 2,
+        UpdateSection.CORPORATION_HISTORY: 2,
+        UpdateSection.DOCTRINES: 2,
+        UpdateSection.IMPLANTS: 2,
+        UpdateSection.JUMP_CLONES: 2,
+        UpdateSection.LOCATION: 1,
+        UpdateSection.LOYALTY: 2,
+        UpdateSection.MAILS: 2,
+        UpdateSection.ONLINE_STATUS: 1,
+        UpdateSection.SKILLS: 2,
+        UpdateSection.SKILL_QUEUE: 1,
+        UpdateSection.WALLET_BALLANCE: 2,
+        UpdateSection.WALLET_JOURNAL: 2,
     }
 
     character_ownership = models.OneToOneField(
@@ -322,6 +330,7 @@ class Character(models.Model):
 
     @cached_property
     def is_main(self) -> bool:
+        """returns True if this character is a main character, else False"""
         try:
             return (
                 self.character_ownership.user.profile.main_character.character_id
@@ -370,7 +379,7 @@ class Character(models.Model):
         ok_count = self.update_status_set.filter(is_success=True).count()
         if errors_count > 0:
             return False
-        elif ok_count == len(Character.UPDATE_SECTION_CHOICES):
+        elif ok_count == len(Character.UpdateSection.choices):
             return True
         else:
             return None
@@ -387,11 +396,6 @@ class Character(models.Model):
             minutes = MEMBERAUDIT_UPDATE_STALE_RING_3
 
         return dt.timedelta(minutes=minutes)
-
-    @classmethod
-    def update_sections(cls) -> set:
-        """returns set of all update sections"""
-        return {x[0] for x in cls.UPDATE_SECTION_CHOICES}
 
     def update_section_last_update(self, section: str) -> dt.datetime:
         """Datetime of last successful update or None"""
@@ -1065,14 +1069,13 @@ class Character(models.Model):
         """update the location for the given character"""
         eve_solar_system, location = self.fetch_location()
         if eve_solar_system:
-            with transaction.atomic():
-                CharacterLocation.objects.update_or_create(
-                    character=self,
-                    defaults={
-                        "eve_solar_system": eve_solar_system,
-                        "location": location,
-                    },
-                )
+            CharacterLocation.objects.update_or_create(
+                character=self,
+                defaults={
+                    "eve_solar_system": eve_solar_system,
+                    "location": location,
+                },
+            )
 
     @fetch_token_for_character("esi-characters.read_loyalty.v1")
     def update_loyalty(self, token):
@@ -1168,7 +1171,7 @@ class Character(models.Model):
 
     @fetch_token_for_character("esi-mail.read_mail.v1")
     def update_mailing_lists(self, token: Token):
-        """update the mailing lists for the given character
+        """update mailing lists with input from given character
 
         Note: Obsolete mailing lists must not be removed,
         since they might still be referenced by older mails
@@ -1191,19 +1194,22 @@ class Character(models.Model):
             self._store_list_to_disk(mailing_lists, "mailing_lists")
 
         # TODO: replace with bulk methods to optimize
-        with transaction.atomic():
-            incoming_ids = set(mailing_lists.keys())
-            # existing_ids = set(self.mailing_lists.values_list("list_id", flat=True))
-            if not incoming_ids:
-                logger.info("%s: No new mailing lists", self)
-                return
 
+        incoming_ids = set(mailing_lists.keys())
+        # existing_ids = set(self.mailing_lists.values_list("list_id", flat=True))
+        if not incoming_ids:
+            logger.info("%s: No new mailing lists", self)
+            return
+
+        with transaction.atomic():
             logger.info("%s: Updating %s mailing lists", self, len(incoming_ids))
             for list_id, mailing_list in mailing_lists.items():
-                CharacterMailingList.objects.update_or_create(
-                    character=self,
-                    list_id=list_id,
-                    defaults={"name": mailing_list.get("name")},
+                MailEntity.objects.update_or_create(
+                    id=list_id,
+                    defaults={
+                        "category": MailEntity.Category.MAILING_LIST,
+                        "name": mailing_list.get("name"),
+                    },
                 )
 
     @fetch_token_for_character("esi-mail.read_mail.v1")
@@ -1296,10 +1302,10 @@ class Character(models.Model):
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(mail_headers, "mail_headers")
 
+        self._preload_mail_senders(mail_headers)
         with transaction.atomic():
             incoming_ids = set(mail_headers.keys())
             existing_ids = set(self.mails.values_list("mail_id", flat=True))
-
             create_ids = incoming_ids.difference(existing_ids)
             if create_ids:
                 self._create_mail_headers(mail_headers, create_ids)
@@ -1338,39 +1344,36 @@ class Character(models.Model):
         )
         return mail_headers_all_2
 
-    def _create_mail_headers(self, mail_headers: dict, create_ids) -> None:
-        logger.info("%s: Create %s new mail headers", self, len(create_ids))
-        new_mail_headers_list = {
+    @staticmethod
+    def _headers_list_subset(mail_headers, subset_ids) -> dict:
+        return {
             mail_info["mail_id"]: mail_info
             for mail_id, mail_info in mail_headers.items()
-            if mail_id in create_ids
+            if mail_id in subset_ids
         }
+
+    def _preload_mail_senders(self, mail_headers):
+        incoming_ids = set(mail_headers.keys())
+        existing_ids = set(self.mails.values_list("mail_id", flat=True))
+        create_ids = incoming_ids.difference(existing_ids)
+        if create_ids:
+            new_mail_headers_list = self._headers_list_subset(mail_headers, create_ids)
+            for mail_id, header in new_mail_headers_list.items():
+                MailEntity.objects.get_or_create_esi_async(header.get("from"))
+
+    def _create_mail_headers(self, mail_headers: dict, create_ids) -> None:
+        logger.info("%s: Create %s new mail headers", self, len(create_ids))
+        new_mail_headers_list = self._headers_list_subset(mail_headers, create_ids)
         self._add_missing_mailing_lists_from_recipients(new_mail_headers_list)
 
         # create headers
         new_headers = list()
-        mailing_list_ids = set(self.mailing_lists.values_list("list_id", flat=True))
         for mail_id, header in new_mail_headers_list.items():
-            from_id = header.get("from")
-            if from_id in mailing_list_ids:
-                from_mailing_list = self.mailing_lists.get(list_id=from_id)
-                from_entity = None
-            else:
-                from_entity, _ = EveEntity.objects.get_or_create_esi(id=from_id)
-                if not from_entity:
-                    # if the from ID was invalid it must be a unknown mailing list
-                    from_mailing_list, _ = CharacterMailingList.objects.get_or_create(
-                        character=self, list_id=from_id
-                    )
-                else:
-                    from_mailing_list = None
-
             new_headers.append(
                 CharacterMail(
                     character=self,
                     mail_id=mail_id,
-                    from_entity=from_entity,
-                    from_mailing_list=from_mailing_list,
+                    sender=get_or_none("from", header, MailEntity),
                     is_read=bool(header.get("is_read")),
                     subject=header.get("subject", ""),
                     timestamp=header.get("timestamp"),
@@ -1382,43 +1385,30 @@ class Character(models.Model):
         )
 
         # add recipients and labels
-        new_recipients = list()
         labels = self.mail_labels.get_all_labels()
         for mail_id, header in new_mail_headers_list.items():
             mail_obj = self.mails.get(mail_id=mail_id)
-            for recipient in header.get("recipients"):
-                if recipient.get("recipient_type") != "mailing_list":
-                    new_recipients.append(
-                        CharacterMailRecipient(
-                            mail=mail_obj,
-                            eve_entity=get_or_create_or_none(
-                                "recipient_id", recipient, EveEntity
-                            ),
-                        )
-                    )
-                else:
-                    recipient_id = recipient.get("recipient_id")
-                    if recipient_id and recipient_id in mailing_list_ids:
-                        new_recipients.append(
-                            CharacterMailRecipient(
-                                mail=mail_obj,
-                                mailing_list=self.mailing_lists.get(
-                                    list_id=recipient_id
-                                ),
-                            )
-                        )
-                    else:
-                        logger.warning(
-                            f"{self}: Unknown mailing list with "
-                            f"id {recipient_id} for mail id {mail_obj.mail_id}",
-                        )
+            recipients = list()
+            recipient_type_map = {
+                "alliance": MailEntity.Category.ALLIANCE,
+                "character": MailEntity.Category.CHARACTER,
+                "corporation": MailEntity.Category.CORPORATION,
+                "mailing_list": MailEntity.Category.MAILING_LIST,
+            }
+            for recipient_info in header.get("recipients"):
+                recipient, _ = MailEntity.objects.get_or_create(
+                    id=recipient_info.get("recipient_id"),
+                    defaults={
+                        "category": recipient_type_map[
+                            recipient_info.get("recipient_type")
+                        ]
+                    },
+                )
+                recipients.append(recipient)
 
+            mail_obj.recipients.set(recipients, clear=True)
+            MailEntity.objects.bulk_update_names(recipients, keep_names=True)
             self._update_labels_of_mail(mail_obj, header.get("labels"), labels)
-
-        if new_recipients:
-            CharacterMailRecipient.objects.bulk_create(
-                new_recipients, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-            )
 
     def _add_missing_mailing_lists_from_recipients(self, new_mail_headers_list):
         """Add mailing lists from recipients that are not part of the known
@@ -1429,15 +1419,18 @@ class Character(models.Model):
                 if recipient.get("recipient_type") == "mailing_list":
                     incoming_ids.add(recipient.get("recipient_id"))
 
-        with transaction.atomic():
-            existing_ids = set(self.mailing_lists.values_list("list_id", flat=True))
-            create_ids = incoming_ids.difference(existing_ids)
-            if create_ids:
-                logger.info(
-                    "%s: Adding %s unknown mailing lists", self, len(create_ids)
+        existing_ids = set(
+            MailEntity.objects.filter(
+                category=MailEntity.Category.MAILING_LIST
+            ).values_list("id", flat=True)
+        )
+        create_ids = incoming_ids.difference(existing_ids)
+        if create_ids:
+            logger.info("%s: Adding %s unknown mailing lists", self, len(create_ids))
+            for list_id in create_ids:
+                MailEntity.objects.create(
+                    id=list_id, category=MailEntity.Category.MAILING_LIST
                 )
-                for list_id in create_ids:
-                    CharacterMailingList.objects.create(character=self, list_id=list_id)
 
     def _update_labels_of_mail(
         self,
@@ -1810,21 +1803,6 @@ class Character(models.Model):
             "esi-universe.read_structures.v1",
             "esi-wallet.read_character_wallet.v1",
         ]
-
-    @classmethod
-    def section_method_name(cls, section: str) -> str:
-        if section not in {obj[0] for obj in cls.UPDATE_SECTION_CHOICES}:
-            raise ValueError(f"Unknown section: {section}")
-
-        return f"update_{section}"
-
-    @classmethod
-    def section_display_name(cls, section: str) -> str:
-        for short_name, long_name in cls.UPDATE_SECTION_CHOICES:
-            if short_name == section:
-                return long_name
-
-        raise ValueError(f"Unknown section: {section}")
 
 
 class CharacterAsset(models.Model):
@@ -2464,21 +2442,20 @@ class CharacterMail(models.Model):
     )
     mail_id = models.PositiveIntegerField(db_index=True)
 
-    from_entity = models.ForeignKey(
-        EveEntity, on_delete=models.CASCADE, null=True, default=None
-    )
-    from_mailing_list = models.ForeignKey(
-        "CharacterMailingList",
+    body = models.TextField()
+    is_read = models.BooleanField(null=True, default=None, db_index=True)
+    labels = models.ManyToManyField("CharacterMailLabel", related_name="mails")
+    recipients = models.ManyToManyField("MailEntity", related_name="recipient_mails")
+    # TODO: When migrations are reset remove default for sender
+    sender = models.ForeignKey(
+        "MailEntity",
         on_delete=models.CASCADE,
         null=True,
         default=None,
-        blank=True,
+        related_name="sender_mails",
     )
-    is_read = models.BooleanField(null=True, default=None, db_index=True)
     subject = models.CharField(max_length=255, default="")
-    body = models.TextField()
     timestamp = models.DateTimeField(null=True, default=None)
-    labels = models.ManyToManyField("CharacterMailLabel", related_name="mails")
 
     class Meta:
         default_permissions = ()
@@ -2495,46 +2472,6 @@ class CharacterMail(models.Model):
     def body_html(self) -> str:
         """returns the body as html"""
         return eve_xml_to_html(self.body)
-
-    @property
-    def from_name(self) -> str:
-        """Name of sender. Can be a character, corporation, alliance or mailing list"""
-        return (
-            self.from_mailing_list.name_plus
-            if self.from_mailing_list
-            else self.from_entity.name
-        )
-
-
-class CharacterMailingList(models.Model):
-    """Mailing list of a character"""
-
-    character = models.ForeignKey(
-        Character,
-        on_delete=models.CASCADE,
-        related_name="mailing_lists",
-        help_text="character this mailling list belongs to",
-    )
-    list_id = models.PositiveIntegerField(db_index=True)
-    name = models.CharField(max_length=254)
-
-    objects = CharacterMailingListManager()
-
-    class Meta:
-        default_permissions = ()
-        constraints = [
-            models.UniqueConstraint(
-                fields=["character", "list_id"],
-                name="functional_pk_charactermailinglist",
-            )
-        ]
-
-    def __str__(self) -> str:
-        return self.name_plus
-
-    @property
-    def name_plus(self) -> str:
-        return self.name if self.name else f"Mailing list #{self.list_id}"
 
 
 class CharacterMailLabel(models.Model):
@@ -2562,30 +2499,6 @@ class CharacterMailLabel(models.Model):
 
     def __str__(self) -> str:
         return self.name
-
-
-class CharacterMailRecipient(models.Model):
-    """Mail recipient used in a mail"""
-
-    mail = models.ForeignKey(
-        CharacterMail, on_delete=models.CASCADE, related_name="recipients"
-    )
-    eve_entity = models.ForeignKey(
-        EveEntity, on_delete=models.CASCADE, default=None, null=True
-    )
-    mailing_list = models.ForeignKey(
-        CharacterMailingList,
-        on_delete=models.CASCADE,
-        default=None,
-        null=True,
-        blank=True,
-    )
-
-    class Meta:
-        default_permissions = ()
-
-    def __str__(self) -> str:
-        return self.mailing_list.name if self.mailing_list else self.eve_entity.name
 
 
 class CharacterMailUnreadCount(models.Model):
@@ -2712,7 +2625,7 @@ class CharacterUpdateStatus(models.Model):
     )
 
     section = models.CharField(
-        max_length=64, choices=Character.UPDATE_SECTION_CHOICES, db_index=True
+        max_length=64, choices=Character.UpdateSection.choices, db_index=True
     )
     is_success = models.BooleanField(db_index=True)
     error_message = models.TextField()
@@ -2937,3 +2850,65 @@ class DoctrineShipSkill(models.Model):
 
     def __str__(self) -> str:
         return f"{self.ship}-{self.eve_type}"
+
+
+class MailEntity(models.Model):
+    """A sender or recipient in a mail"""
+
+    class Category(models.TextChoices):
+        ALLIANCE = "AL", _("Alliance")
+        CHARACTER = "CH", _("Character")
+        CORPORATION = "CO", _("Corporation")
+        MAILING_LIST = "ML", _("Mailing List")
+        UNKNOWN = "UN", _("Unknown")
+
+        @classmethod
+        def eve_entity_compatible(cls) -> set:
+            return {cls.ALLIANCE, cls.CHARACTER, cls.CORPORATION}
+
+    id = models.PositiveIntegerField(primary_key=True)
+    category = models.CharField(
+        max_length=2, choices=Category.choices, db_index=True
+    )  # mandatory
+    name = models.CharField(max_length=255, db_index=True)  # optional
+
+    objects = MailEntityManager()
+
+    def __str__(self) -> str:
+        return self.name
+
+    def __repr__(self) -> str:
+        return f"MailEntity(id={self.id}, category={self.category}, name='{self.name}')"
+
+    @property
+    def name_plus(self) -> str:
+        """returns the name if defined or a generatic name based on category and ID"""
+        return self.name if self.name else f"{self.get_category_display()} #{self.id}"
+
+    @property
+    def eve_entity_categories(self) -> set:
+        return {
+            self.Category.ALLIANCE,
+            self.Category.CHARACTER,
+            self.Category.CORPORATION,
+        }
+
+    def save(self, *args, **kwargs):
+        if not self.category:
+            raise ValidationError("You must specify a category")
+
+        super().save(*args, **kwargs)
+
+    def external_url(self) -> str:
+        """returns URL for to show details of this entity on external website"""
+        if self.category == self.Category.ALLIANCE and self.name:
+            return dotlan.alliance_url(self.name)
+
+        elif self.category == self.Category.CHARACTER:
+            return evewho.character_url(self.id)
+
+        elif self.category == self.Category.CORPORATION and self.name:
+            return dotlan.corporation_url(self.name)
+
+        else:
+            return ""

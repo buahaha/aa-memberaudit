@@ -2,6 +2,7 @@ import datetime as dt
 from unittest.mock import patch, Mock
 
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
@@ -19,7 +20,7 @@ from . import (
     scope_names_set,
     add_memberaudit_character_to_user,
 )
-from ..helpers import eve_xml_to_html
+from ..helpers import eve_xml_to_html, EsiStatus
 from ..models import (
     Character,
     CharacterAsset,
@@ -30,9 +31,7 @@ from ..models import (
     CharacterContractItem,
     CharacterDetails,
     CharacterMail,
-    CharacterMailingList,
     CharacterMailLabel,
-    CharacterMailRecipient,
     CharacterSkill,
     CharacterSkillqueueEntry,
     CharacterUpdateStatus,
@@ -41,6 +40,7 @@ from ..models import (
     DoctrineShip,
     DoctrineShipSkill,
     Location,
+    MailEntity,
 )
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.esi_test_tools import BravadoResponseStub
@@ -55,14 +55,14 @@ MANAGERS_PATH = "memberaudit.managers"
 TASKS_PATH = "memberaudit.tasks"
 
 
-class TestCharacterOtherMethods(NoSocketsTestCase):
-    def test_update_section_method_name(self):
-        result = Character.section_method_name(
-            Character.UPDATE_SECTION_CORPORATION_HISTORY
+class TestCharacterUpdateSection(NoSocketsTestCase):
+    def testmethod_name(self):
+        result = Character.UpdateSection.method_name(
+            Character.UpdateSection.CORPORATION_HISTORY
         )
         self.assertEqual(result, "update_corporation_history")
 
-        result = Character.section_method_name(Character.UPDATE_SECTION_MAILS)
+        result = Character.UpdateSection.method_name(Character.UpdateSection.MAILS)
         self.assertEqual(result, "update_mails")
 
 
@@ -72,7 +72,7 @@ class TestCharacterIsUpdateSectionStale(NoSocketsTestCase):
     def setUpClass(cls) -> None:
         super().setUpClass()
         load_entities()
-        cls.section = Character.UPDATE_SECTION_ASSETS
+        cls.section = Character.UpdateSection.ASSETS
 
     def setUp(self) -> None:
         self.character = create_memberaudit_character(1001)
@@ -390,7 +390,7 @@ class TestCharacterManagerUserHasAccess(TestCase):
         )
 
 
-class TestCharacterUpdateBase(NoSocketsTestCase):
+class TestCharacterUpdateBase(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
@@ -789,44 +789,41 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.character_1001.update_mailing_lists()
 
         self.assertSetEqual(
-            set(self.character_1001.mailing_lists.values_list("list_id", flat=True)),
-            {9001, 9002},
+            set(MailEntity.objects.values_list("id", flat=True)), {9001, 9002}
         )
 
-        obj = self.character_1001.mailing_lists.get(list_id=9001)
+        obj = MailEntity.objects.get(id=9001)
         self.assertEqual(obj.name, "Dummy 1")
 
-        obj = self.character_1001.mailing_lists.get(list_id=9002)
+        obj = MailEntity.objects.get(id=9002)
         self.assertEqual(obj.name, "Dummy 2")
 
     def test_update_mailing_lists_2(self, mock_esi):
         """does not remove obsolete mailing lists"""
         mock_esi.client = esi_client_stub
-        CharacterMailingList.objects.create(
-            character=self.character_1001, list_id=5, name="Obsolete"
+        MailEntity.objects.create(
+            id=5, category=MailEntity.Category.MAILING_LIST, name="Obsolete"
         )
 
         self.character_1001.update_mailing_lists()
 
         self.assertSetEqual(
-            set(self.character_1001.mailing_lists.values_list("list_id", flat=True)),
-            {9001, 9002, 5},
+            set(MailEntity.objects.values_list("id", flat=True)), {9001, 9002, 5}
         )
 
     def test_update_mailing_lists_3(self, mock_esi):
         """updates existing mailing lists"""
         mock_esi.client = esi_client_stub
-        CharacterMailingList.objects.create(
-            character=self.character_1001, list_id=9001, name="Update me"
+        MailEntity.objects.create(
+            id=9001, category=MailEntity.Category.MAILING_LIST, name="Update me"
         )
 
         self.character_1001.update_mailing_lists()
 
         self.assertSetEqual(
-            set(self.character_1001.mailing_lists.values_list("list_id", flat=True)),
-            {9001, 9002},
+            set(MailEntity.objects.values_list("id", flat=True)), {9001, 9002}
         )
-        obj = self.character_1001.mailing_lists.get(list_id=9001)
+        obj = MailEntity.objects.get(id=9001)
         self.assertEqual(obj.name, "Dummy 1")
 
     def test_update_mail_labels_1(self, mock_esi):
@@ -888,13 +885,24 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertEqual(obj.unread_count, 4)
         self.assertEqual(obj.color, "#660066")
 
-    def test_update_mail_headers_1(self, mock_esi):
+    @staticmethod
+    def stub_eve_entity_get_or_create_esi(id, *args, **kwargs):
+        """will return EveEntity if it exists else None, False"""
+        try:
+            obj = EveEntity.objects.get(id=id)
+            return obj, True
+        except EveEntity.DoesNotExist:
+            return None, False
+
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
+    def test_update_mail_headers_1(
+        self, mock_eve_entity, mock_fetch_esi_status, mock_esi
+    ):
         """can create new mail from scratch"""
         mock_esi.client = esi_client_stub
-
-        CharacterMailingList.objects.create(
-            character=self.character_1001, list_id=9001, name="Dummy 1"
-        )
+        mock_eve_entity.side_effect = self.stub_eve_entity_get_or_create_esi
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
 
         self.character_1001.update_mailing_lists()
         self.character_1001.update_mail_labels()
@@ -905,19 +913,17 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         )
 
         obj = self.character_1001.mails.get(mail_id=1)
-        self.assertEqual(obj.from_entity.id, 1002)
-        self.assertIsNone(obj.from_mailing_list)
+        self.assertEqual(obj.sender.id, 1002)
         self.assertTrue(obj.is_read)
         self.assertEqual(obj.subject, "Mail 1")
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T16:07:00Z"))
         self.assertFalse(obj.body)
-        self.assertTrue(obj.recipients.filter(eve_entity_id=1001).exists())
-        self.assertTrue(obj.recipients.filter(mailing_list__list_id=9001).exists())
+        self.assertTrue(obj.recipients.filter(id=1001).exists())
+        self.assertTrue(obj.recipients.filter(id=9001).exists())
         self.assertSetEqual(set(obj.labels.values_list("label_id", flat=True)), {3})
 
         obj = self.character_1001.mails.get(mail_id=2)
-        self.assertIsNone(obj.from_entity)
-        self.assertEqual(obj.from_mailing_list.list_id, 9001)
+        self.assertEqual(obj.sender_id, 9001)
         self.assertFalse(obj.is_read)
         self.assertEqual(obj.subject, "Mail 2")
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T18:07:00Z"))
@@ -925,32 +931,37 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertSetEqual(set(obj.labels.values_list("label_id", flat=True)), {3})
 
         obj = self.character_1001.mails.get(mail_id=3)
-        self.assertEqual(obj.from_entity.id, 1002)
-        self.assertIsNone(obj.from_mailing_list)
-        self.assertTrue(obj.recipients.filter(mailing_list__list_id=9003).exists())
+        self.assertEqual(obj.sender_id, 1002)
+        self.assertTrue(obj.recipients.filter(id=9003).exists())
 
-    def test_update_mail_headers_2(self, mock_esi):
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
+    def test_update_mail_headers_2(
+        self, mock_eve_entity, mock_fetch_esi_status, mock_esi
+    ):
         """can update existing mail"""
         mock_esi.client = esi_client_stub
-        mailing_list = CharacterMailingList.objects.create(
-            character=self.character_1001, list_id=9001, name="Dummy 1"
-        )
+        mock_eve_entity.side_effect = self.stub_eve_entity_get_or_create_esi
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
+        sender, _ = MailEntity.objects.update_or_create_from_eve_entity_id(id=1002)
         mail = CharacterMail.objects.create(
             character=self.character_1001,
             mail_id=1,
-            from_entity=EveEntity.objects.get(id=1002),
+            sender=sender,
             subject="Mail 1",
             timestamp=parse_datetime("2015-09-30T16:07:00Z"),
+            is_read=False,  # to be updated
         )
-        CharacterMailRecipient.objects.create(
-            mail=mail, eve_entity=EveEntity.objects.get(id=1001)
+        recipient_1, _ = MailEntity.objects.update_or_create_from_eve_entity_id(id=1001)
+        recipient_2 = MailEntity.objects.create(
+            id=9001, category=MailEntity.Category.MAILING_LIST, name="Dummy 2"
         )
-        CharacterMailRecipient.objects.create(mail=mail, mailing_list=mailing_list)
+        mail.recipients.set([recipient_1, recipient_2])
 
         self.character_1001.update_mailing_lists()
         self.character_1001.update_mail_labels()
         label = self.character_1001.mail_labels.get(label_id=17)
-        mail.labels.add(label)
+        mail.labels.add(label)  # to be updated
 
         self.character_1001.update_mail_headers()
         self.assertSetEqual(
@@ -959,96 +970,35 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         )
 
         obj = self.character_1001.mails.get(mail_id=1)
-        self.assertEqual(obj.from_entity.id, 1002)
-        self.assertIsNone(obj.from_mailing_list)
+        self.assertEqual(obj.sender_id, 1002)
         self.assertTrue(obj.is_read)
         self.assertEqual(obj.subject, "Mail 1")
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T16:07:00Z"))
         self.assertFalse(obj.body)
-        self.assertTrue(obj.recipients.filter(eve_entity_id=1001).exists())
-        self.assertTrue(obj.recipients.filter(mailing_list__list_id=9001).exists())
+        self.assertTrue(obj.recipients.filter(id=1001).exists())
+        self.assertTrue(obj.recipients.filter(id=9001).exists())
         self.assertSetEqual(set(obj.labels.values_list("label_id", flat=True)), {3})
-
-    def test_update_mail_headers_3(self, mock_esi):
-        """can update existing mail, also for mailing lists"""
-        mock_esi.client = esi_client_stub
-        mailing_list = CharacterMailingList.objects.create(
-            character=self.character_1001, list_id=9001, name="Dummy 1"
-        )
-        mail = CharacterMail.objects.create(
-            character=self.character_1001,
-            mail_id=2,
-            from_mailing_list=mailing_list,
-            subject="Mail 2",
-            timestamp=parse_datetime("2015-09-30T16:07:00Z"),
-        )
-        CharacterMailRecipient.objects.create(
-            mail=mail, eve_entity=EveEntity.objects.get(id=1001)
-        )
-        self.character_1001.update_mailing_lists()
-        self.character_1001.update_mail_labels()
-        label = self.character_1001.mail_labels.get(label_id=17)
-        mail.labels.add(label)
-
-        self.character_1001.update_mail_headers()
-        self.assertSetEqual(
-            set(self.character_1001.mails.values_list("mail_id", flat=True)),
-            {1, 2, 3},
-        )
-
-        obj = self.character_1001.mails.get(mail_id=2)
-        self.assertEqual(obj.from_mailing_list, mailing_list)
-        self.assertIsNone(obj.from_entity)
-        self.assertFalse(obj.is_read)
-        self.assertEqual(obj.subject, "Mail 2")
-        self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T16:07:00Z"))
-        self.assertFalse(obj.body)
-        self.assertTrue(obj.recipients.filter(eve_entity_id=1001).exists())
-        self.assertSetEqual(set(obj.labels.values_list("label_id", flat=True)), {3})
-
-    @patch("eveuniverse.managers.esi")
-    def test_update_mail_headers_4(self, mock_esi_2, mock_esi):
-        """can handle from unknown mailing list"""
-        mock_esi.client = esi_client_stub
-        mock_esi_2.client.Universe.post_universe_names.side_effect = HTTPNotFound(
-            response=BravadoResponseStub(404, "Test exception")
-        )
-
-        self.character_1002.update_mail_headers()
-        self.assertSetEqual(
-            set(self.character_1002.mails.values_list("mail_id", flat=True)), {21}
-        )
-
-        obj = self.character_1002.mails.get(mail_id=21)
-        self.assertIsNone(obj.from_entity)
-        self.assertEqual(
-            obj.from_mailing_list, CharacterMailingList.objects.get(list_id=9099)
-        )
-        self.assertFalse(obj.is_read)
-        self.assertEqual(obj.subject, "From unknown mailing list")
-        self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T18:07:00Z"))
-        self.assertFalse(obj.body)
-        self.assertTrue(obj.recipients.filter(eve_entity_id=1001).exists())
-        self.assertEqual(obj.labels.count(), 0)
 
     def test_update_mail_body_1(self, mock_esi):
         """can update mail body"""
         mock_esi.client = esi_client_stub
+        sender, _ = MailEntity.objects.update_or_create_from_eve_entity_id(id=1002)
         mail = CharacterMail.objects.create(
             character=self.character_1001,
             mail_id=1,
-            from_entity=EveEntity.objects.get(id=1002),
+            sender=sender,
             subject="Mail 1",
             body="Update me",
             is_read=False,
             timestamp=parse_datetime("2015-09-30T16:07:00Z"),
         )
-        CharacterMailRecipient.objects.create(
-            mail=mail, eve_entity=EveEntity.objects.get(id=1001)
+        recipient_1001, _ = MailEntity.objects.update_or_create_from_eve_entity_id(
+            id=1001
         )
-        CharacterMailingList.objects.create(
-            character=self.character_1001, list_id=9001, name="Dummy 1"
+        recipient_9001 = MailEntity.objects.create(
+            id=9001, category=MailEntity.Category.MAILING_LIST, name="Dummy 2"
         )
+        mail.recipients.add(recipient_1001, recipient_9001)
 
         self.character_1001.update_mail_body(mail)
 
@@ -1060,21 +1010,17 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         """can update mail body"""
         mock_esi.client = esi_client_stub
         mock_eve_xml_to_html.side_effect = lambda x: eve_xml_to_html(x)
-
+        sender, _ = MailEntity.objects.update_or_create_from_eve_entity_id(id=1002)
         mail = CharacterMail.objects.create(
             character=self.character_1001,
             mail_id=2,
-            from_entity=EveEntity.objects.get(id=1002),
+            sender=sender,
             subject="Mail 1",
             is_read=False,
             timestamp=parse_datetime("2015-09-30T16:07:00Z"),
         )
-        CharacterMailRecipient.objects.create(
-            mail=mail, eve_entity=EveEntity.objects.get(id=1001)
-        )
-        CharacterMailingList.objects.create(
-            character=self.character_1001, list_id=9001, name="Dummy 1"
-        )
+        recipient_1, _ = MailEntity.objects.update_or_create_from_eve_entity_id(id=1001)
+        mail.recipients.add(recipient_1)
 
         self.character_1001.update_mail_body(mail)
 
@@ -1756,7 +1702,9 @@ class TestLocationManager(NoSocketsTestCase):
 
     # Structures
 
-    def test_can_create_structure(self, mock_esi):
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    def test_can_create_structure(self, mock_fetch_esi_status, mock_esi):
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client = esi_client_stub
 
         obj, created = Location.objects.update_or_create_esi(
@@ -1769,7 +1717,9 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertEqual(obj.eve_type, self.astrahus)
         self.assertEqual(obj.owner, self.corporation_2001)
 
-    def test_can_update_structure(self, mock_esi):
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    def test_can_update_structure(self, mock_fetch_esi_status, mock_esi):
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client = esi_client_stub
 
         obj, _ = Location.objects.update_or_create_esi(
@@ -1790,7 +1740,11 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertEqual(obj.eve_type, self.astrahus)
         self.assertEqual(obj.owner, self.corporation_2001)
 
-    def test_does_not_update_existing_location_during_grace_period(self, mock_esi):
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    def test_does_not_update_existing_location_during_grace_period(
+        self, mock_fetch_esi_status, mock_esi
+    ):
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client = esi_client_stub
 
         obj_existing = Location.objects.create(
@@ -1806,18 +1760,22 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertFalse(created)
         self.assertEqual(obj, obj_existing)
 
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
     def test_always_update_existing_empty_locations_after_grace_period_1(
-        self, mock_esi
+        self, mock_fetch_esi_status, mock_esi
     ):
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client = esi_client_stub
 
         Location.objects.create(id=1000000000001)
         obj, _ = Location.objects.get_or_create_esi(id=1000000000001, token=self.token)
         self.assertIsNone(obj.eve_solar_system)
 
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
     def test_always_update_existing_empty_locations_after_grace_period_2(
-        self, mock_esi
+        self, mock_fetch_esi_status, mock_esi
     ):
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client = esi_client_stub
 
         mocked_update_at = now() - dt.timedelta(minutes=6)
@@ -1828,8 +1786,12 @@ class TestLocationManager(NoSocketsTestCase):
             )
         self.assertEqual(obj.eve_solar_system, self.amamake)
 
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
     @patch(MANAGERS_PATH + ".MEMBERAUDIT_LOCATION_STALE_HOURS", 24)
-    def test_always_update_existing_locations_which_are_stale(self, mock_esi):
+    def test_always_update_existing_locations_which_are_stale(
+        self, mock_fetch_esi_status, mock_esi
+    ):
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client = esi_client_stub
 
         mocked_update_at = now() - dt.timedelta(hours=25)
@@ -1847,13 +1809,21 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertFalse(created)
         self.assertEqual(obj.eve_solar_system, self.amamake)
 
-    def test_propagates_http_error_on_structure_create(self, mock_esi):
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    def test_propagates_http_error_on_structure_create(
+        self, mock_fetch_esi_status, mock_esi
+    ):
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client = esi_client_stub
 
         with self.assertRaises(HTTPNotFound):
             Location.objects.update_or_create_esi(id=1000000000099, token=self.token)
 
-    def test_always_creates_empty_location_for_invalid_ids(self, mock_esi):
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    def test_always_creates_empty_location_for_invalid_ids(
+        self, mock_fetch_esi_status, mock_esi
+    ):
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client = esi_client_stub
 
         obj, created = Location.objects.update_or_create_esi(
@@ -1862,7 +1832,11 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertTrue(created)
         self.assertTrue(obj.is_empty)
 
-    def test_propagates_exceptions_on_structure_create(self, mock_esi):
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    def test_propagates_exceptions_on_structure_create(
+        self, mock_fetch_esi_status, mock_esi
+    ):
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
             RuntimeError
         )
@@ -1870,7 +1844,11 @@ class TestLocationManager(NoSocketsTestCase):
         with self.assertRaises(RuntimeError):
             Location.objects.update_or_create_esi(id=1000000000099, token=self.token)
 
-    def test_can_create_empty_location_on_access_error_1(self, mock_esi):
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    def test_can_create_empty_location_on_access_error_1(
+        self, mock_fetch_esi_status, mock_esi
+    ):
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
             HTTPForbidden(response=BravadoResponseStub(403, "Test exception"))
         )
@@ -1881,7 +1859,11 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertTrue(created)
         self.assertEqual(obj.id, 1000000000099)
 
-    def test_can_create_empty_location_on_access_error_2(self, mock_esi):
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    def test_can_create_empty_location_on_access_error_2(
+        self, mock_fetch_esi_status, mock_esi
+    ):
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
             HTTPUnauthorized(response=BravadoResponseStub(401, "Test exception"))
         )
@@ -1892,16 +1874,20 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertTrue(created)
         self.assertEqual(obj.id, 1000000000099)
 
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
     def test_does_not_creates_empty_location_on_access_errors_if_requested(
-        self, mock_esi
+        self, mock_fetch_esi_status, mock_esi
     ):
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
             RuntimeError
         )
         with self.assertRaises(RuntimeError):
             Location.objects.update_or_create_esi(id=1000000000099, token=self.token)
 
-    def test_records_esi_error_on_access_error(self, mock_esi):
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    def test_records_esi_error_on_access_error(self, mock_fetch_esi_status, mock_esi):
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
             HTTPForbidden(
                 response=BravadoResponseStub(
@@ -1961,7 +1947,7 @@ class TestLocationManager(NoSocketsTestCase):
         mock_esi.client = esi_client_stub
 
         with self.assertRaises(HTTPNotFound):
-            Location.objects.update_or_create_esi(id=1000000000099, token=self.token)
+            Location.objects.update_or_create_esi(id=63999999, token=self.token)
 
     # Solar System
 
@@ -2000,7 +1986,9 @@ class TestLocationManagerAsync(TestCase):
         cache.clear()
 
     @override_settings(CELERY_ALWAYS_EAGER=True)
-    def test_can_create_structure_async(self, mock_esi):
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    def test_can_create_structure_async(self, mock_fetch_esi_status, mock_esi):
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client = esi_client_stub
 
         obj, created = Location.objects.update_or_create_esi_async(
@@ -2016,6 +2004,8 @@ class TestLocationManagerAsync(TestCase):
         self.assertEqual(obj.eve_solar_system, self.amamake)
         self.assertEqual(obj.eve_type, self.astrahus)
         self.assertEqual(obj.owner, self.corporation_2001)
+
+        self.assertTrue(mock_fetch_esi_status.called)  # proofs task was called
 
 
 class TestCharacterWalletJournalEntry(NoSocketsTestCase):
@@ -2093,45 +2083,18 @@ class TestCharacterMailLabelManager(TestCharacterUpdateBase):
         self.assertDictEqual(labels, dict())
 
 
-class TestCharacterMailingList(TestCharacterUpdateBase):
-    def test_name_plus_1(self):
-        """when mailing list has name then return it's name"""
-        mailing_list = CharacterMailingList(
-            self.character_1001, list_id=99, name="Avengers Talk"
-        )
-        self.assertEqual(mailing_list.name_plus, "Avengers Talk")
+# class TestCharacterMailingList(TestCharacterUpdateBase):
+#     def test_name_plus_1(self):
+#         """when mailing list has name then return it's name"""
+#         mailing_list = CharacterMailingList(
+#             self.character_1001, list_id=99, name="Avengers Talk"
+#         )
+#         self.assertEqual(mailing_list.name_plus, "Avengers Talk")
 
-    def test_name_plus_2(self):
-        """when mailing list has no name then return a generic name"""
-        mailing_list = CharacterMailingList(self.character_1001, list_id=99)
-        self.assertEqual(mailing_list.name_plus, "Mailing list #99")
-
-
-class TestCharacterMail(TestCharacterUpdateBase):
-    def test_from_name_1(self):
-        """when from is an eve_entity, then return it's name"""
-        mail = CharacterMail.objects.create(
-            character=self.character_1001,
-            mail_id=1,
-            from_entity=EveEntity.objects.get(id=1002),
-            subject="Mail 1",
-            timestamp=parse_datetime("2015-09-30T16:07:00Z"),
-        )
-        self.assertEqual(mail.from_name, "Clark Kent")
-
-    def test_from_name_2(self):
-        """when from is a mailing list, then return it's name"""
-        mailing_list = CharacterMailingList.objects.create(
-            character=self.character_1001, list_id=9001, name="Mailing List"
-        )
-        mail = CharacterMail.objects.create(
-            character=self.character_1001,
-            mail_id=1,
-            from_mailing_list=mailing_list,
-            subject="Mail 1",
-            timestamp=parse_datetime("2015-09-30T16:07:00Z"),
-        )
-        self.assertEqual(mail.from_name, "Mailing List")
+#     def test_name_plus_2(self):
+#         """when mailing list has no name then return a generic name"""
+#         mailing_list = CharacterMailingList(self.character_1001, list_id=99)
+#         self.assertEqual(mailing_list.name_plus, "Mailing list #99")
 
 
 class TestCharacter(NoSocketsTestCase):
@@ -2149,3 +2112,351 @@ class TestCharacter(NoSocketsTestCase):
         character_1101 = add_memberaudit_character_to_user(self.user, 1101)
         self.assertTrue(self.character_1001.is_main)
         self.assertFalse(character_1101.is_main)
+
+
+class TestMailEntity(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_entities()
+
+    def test_name_plus_1(self):
+        obj, _ = MailEntity.objects.update_or_create_from_eve_entity_id(1001)
+        self.assertEqual(obj.name_plus, "Bruce Wayne")
+
+    def test_name_plus_2(self):
+        obj = MailEntity.objects.create(id=42, category=MailEntity.Category.ALLIANCE)
+        self.assertEqual(obj.name_plus, "Alliance #42")
+
+    def test_need_to_specify_category(self):
+        with self.assertRaises(ValidationError):
+            MailEntity.objects.create(id=1)
+
+    def test_url_1(self):
+        obj, _ = MailEntity.objects.update_or_create_from_eve_entity_id(3001)
+        self.assertIn("dotlan", obj.external_url())
+
+    def test_url_2(self):
+        obj, _ = MailEntity.objects.update_or_create_from_eve_entity_id(2001)
+        self.assertIn("dotlan", obj.external_url())
+
+    def test_url_3(self):
+        obj, _ = MailEntity.objects.update_or_create_from_eve_entity_id(1001)
+        self.assertIn("evewho", obj.external_url())
+
+    def test_url_4(self):
+        obj = MailEntity.objects.create(
+            id=42, category=MailEntity.Category.MAILING_LIST, name="Dummy"
+        )
+        self.assertEqual(obj.external_url(), "")
+
+    def test_url_5(self):
+        obj = MailEntity.objects.create(id=9887, category=MailEntity.Category.ALLIANCE)
+        self.assertEqual(obj.external_url(), "")
+
+    def test_url_6(self):
+        obj = MailEntity.objects.create(
+            id=9887, category=MailEntity.Category.CORPORATION
+        )
+        self.assertEqual(obj.external_url(), "")
+
+
+class TestMailEntityManager(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_entities()
+
+    def test_get_or_create_esi_1(self):
+        """When entity already exists, return it"""
+        MailEntity.objects.create(
+            id=1234, category=MailEntity.Category.CHARACTER, name="John Doe"
+        )
+
+        obj, created = MailEntity.objects.get_or_create_esi(id=1234)
+
+        self.assertFalse(created)
+        self.assertEqual(obj.category, MailEntity.Category.CHARACTER)
+        self.assertEqual(obj.name, "John Doe")
+
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    def test_get_or_create_esi_2(self, mock_fetch_esi_status):
+        """When entity does not exist, create it from ESI / existing EveEntity"""
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
+
+        obj, created = MailEntity.objects.get_or_create_esi(id=1001)
+
+        self.assertTrue(created)
+        self.assertEqual(obj.category, MailEntity.Category.CHARACTER)
+        self.assertEqual(obj.name, "Bruce Wayne")
+
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    def test_update_or_create_esi_1(self, mock_fetch_esi_status):
+        """When entity does not exist, create it from ESI / existing EveEntity"""
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
+
+        obj, created = MailEntity.objects.update_or_create_esi(id=1001)
+
+        self.assertTrue(created)
+        self.assertEqual(obj.category, MailEntity.Category.CHARACTER)
+        self.assertEqual(obj.name, "Bruce Wayne")
+
+    def test_update_or_create_esi_2(self):
+        """When entity already exist and is not a mailing list,
+        then update it from ESI / existing EveEntity
+        """
+        MailEntity.objects.create(
+            id=1001, category=MailEntity.Category.CHARACTER, name="John Doe"
+        )
+        obj, created = MailEntity.objects.update_or_create_esi(id=1001)
+
+        self.assertFalse(created)
+        self.assertEqual(obj.category, MailEntity.Category.CHARACTER)
+        self.assertEqual(obj.name, "Bruce Wayne")
+
+    def test_update_or_create_esi_3(self):
+        """When entity already exist and is a mailing list, then do nothing"""
+        MailEntity.objects.create(
+            id=9001, category=MailEntity.Category.MAILING_LIST, name="Dummy"
+        )
+        obj, created = MailEntity.objects.update_or_create_esi(id=9001)
+
+        self.assertFalse(created)
+        self.assertEqual(obj.category, MailEntity.Category.MAILING_LIST)
+        self.assertEqual(obj.name, "Dummy")
+        # method must not create an EveEntity object for the mailing list
+        self.assertFalse(EveEntity.objects.filter(id=9001).exists())
+
+    def test_update_or_create_from_eve_entity_1(self):
+        """When entity does not exist, create it from given EveEntity"""
+        eve_entity = EveEntity.objects.get(id=1001)
+        obj, created = MailEntity.objects.update_or_create_from_eve_entity(eve_entity)
+
+        self.assertTrue(created)
+        self.assertEqual(obj.category, MailEntity.Category.CHARACTER)
+        self.assertEqual(obj.name, "Bruce Wayne")
+
+    def test_update_or_create_from_eve_entity_2(self):
+        """When entity already exist, update it from given EveEntity"""
+        MailEntity.objects.create(
+            id=1001, category=MailEntity.Category.CHARACTER, name="John Doe"
+        )
+
+        eve_entity = EveEntity.objects.get(id=1001)
+        obj, created = MailEntity.objects.update_or_create_from_eve_entity(eve_entity)
+
+        self.assertFalse(created)
+        self.assertEqual(obj.category, MailEntity.Category.CHARACTER)
+        self.assertEqual(obj.name, "Bruce Wayne")
+
+    def test_update_or_create_from_eve_entity_id_1(self):
+        """When entity does not exist, create it from given EveEntity"""
+        eve_entity = EveEntity.objects.get(id=1001)
+        obj, created = MailEntity.objects.update_or_create_from_eve_entity_id(
+            eve_entity.id
+        )
+
+        self.assertTrue(created)
+        self.assertEqual(obj.category, MailEntity.Category.CHARACTER)
+        self.assertEqual(obj.name, "Bruce Wayne")
+
+    def test_update_or_create_from_eve_entity_id_2(self):
+        """When entity already exist, update it from given EveEntity"""
+        MailEntity.objects.create(
+            id=1001, category=MailEntity.Category.CHARACTER, name="John Doe"
+        )
+
+        eve_entity = EveEntity.objects.get(id=1001)
+        obj, created = MailEntity.objects.update_or_create_from_eve_entity_id(
+            eve_entity.id
+        )
+
+        self.assertFalse(created)
+        self.assertEqual(obj.category, MailEntity.Category.CHARACTER)
+        self.assertEqual(obj.name, "Bruce Wayne")
+
+    def test_bulk_resolve_1(self):
+        """Can resolve all 3 categories known by EveEntity"""
+        obj_1001 = MailEntity.objects.create(
+            id=1001, category=MailEntity.Category.CHARACTER
+        )
+        obj_2001 = MailEntity.objects.create(
+            id=2001, category=MailEntity.Category.CORPORATION
+        )
+        obj_3001 = MailEntity.objects.create(
+            id=3001, category=MailEntity.Category.ALLIANCE
+        )
+
+        MailEntity.objects.bulk_update_names([obj_1001, obj_2001, obj_3001])
+
+        self.assertEqual(obj_1001.name, "Bruce Wayne")
+        self.assertEqual(obj_2001.name, "Wayne Technologies")
+        self.assertEqual(obj_3001.name, "Wayne Enterprises")
+
+    def test_bulk_resolve_2(self):
+        """Will ignore categories not known to EveEntity"""
+
+        obj_1001 = MailEntity.objects.create(
+            id=1001, category=MailEntity.Category.CHARACTER
+        )
+        obj_9001 = MailEntity.objects.create(
+            id=9001, category=MailEntity.Category.MAILING_LIST
+        )
+        obj_9002 = MailEntity.objects.create(
+            id=9002, category=MailEntity.Category.UNKNOWN
+        )
+
+        MailEntity.objects.bulk_update_names([obj_1001, obj_9001, obj_9002])
+
+        self.assertEqual(obj_1001.name, "Bruce Wayne")
+        self.assertEqual(obj_9001.name, "")
+        self.assertEqual(obj_9002.name, "")
+
+    def test_bulk_resolve_3(self):
+        """When object list is empty, then no op"""
+
+        try:
+            MailEntity.objects.bulk_update_names([])
+        except Exception as ex:
+            self.fail(f"Unexpected exception: {ex}")
+
+    def test_bulk_resolve_4(self):
+        """When object already has a name, then update it"""
+        obj_1001 = MailEntity.objects.create(
+            id=1001, category=MailEntity.Category.CHARACTER, name="John Doe"
+        )
+
+        MailEntity.objects.bulk_update_names([obj_1001])
+
+        self.assertEqual(obj_1001.name, "Bruce Wayne")
+
+    def test_bulk_resolve_5(self):
+        """When object already has a name and respective option is chosen
+        then ignore it
+        """
+        obj_1001 = MailEntity.objects.create(
+            id=1001, category=MailEntity.Category.CHARACTER, name="John Doe"
+        )
+
+        MailEntity.objects.bulk_update_names([obj_1001], keep_names=True)
+
+        self.assertEqual(obj_1001.name, "John Doe")
+
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MANAGERS_PATH + ".fetch_esi_status")
+class TestMailEntityManagerAsync(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_entities()
+        MailEntity.objects.all().delete()
+
+    def test_get_or_create_esi_async_1(self, mock_fetch_esi_status):
+        """When entity already exists, return it"""
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
+
+        MailEntity.objects.create(
+            id=1234, category=MailEntity.Category.CHARACTER, name="John Doe"
+        )
+
+        obj, created = MailEntity.objects.get_or_create_esi_async(id=1234)
+
+        self.assertFalse(created)
+        self.assertEqual(obj.category, MailEntity.Category.CHARACTER)
+        self.assertEqual(obj.name, "John Doe")
+        self.assertFalse(mock_fetch_esi_status.called)  # was esi error status checked
+
+    def test_get_or_create_esi_async_2(self, mock_fetch_esi_status):
+        """When entity does not exist and no category specified,
+        then create it asynchronously from ESI / existing EveEntity
+        """
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
+
+        obj, created = MailEntity.objects.get_or_create_esi_async(id=1001)
+
+        self.assertTrue(created)
+        self.assertEqual(obj.category, MailEntity.Category.UNKNOWN)
+        self.assertEqual(obj.name, "")
+
+        obj.refresh_from_db()
+        self.assertEqual(obj.category, MailEntity.Category.CHARACTER)
+        self.assertEqual(obj.name, "Bruce Wayne")
+        self.assertTrue(mock_fetch_esi_status.called)  # was esi error status checked
+
+    def test_get_or_create_esi_async_3(self, mock_fetch_esi_status):
+        """When entity does not exist and category is not mailing list,
+        then create it synchronously from ESI / existing EveEntity
+        """
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
+
+        obj, created = MailEntity.objects.get_or_create_esi_async(
+            id=1001, category=MailEntity.Category.CHARACTER
+        )
+
+        self.assertTrue(created)
+        self.assertEqual(obj.category, MailEntity.Category.CHARACTER)
+        self.assertEqual(obj.name, "Bruce Wayne")
+        self.assertFalse(mock_fetch_esi_status.called)  # was esi error status checked
+
+    def test_update_or_create_esi_async_1(self, mock_fetch_esi_status):
+        """When entity does not exist, create empty object and run task to resolve"""
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
+
+        obj, created = MailEntity.objects.update_or_create_esi_async(1001)
+
+        self.assertTrue(created)
+        self.assertEqual(obj.category, MailEntity.Category.UNKNOWN)
+        self.assertEqual(obj.name, "")
+
+        obj.refresh_from_db()
+        self.assertEqual(obj.category, MailEntity.Category.CHARACTER)
+        self.assertEqual(obj.name, "Bruce Wayne")
+
+        self.assertTrue(mock_fetch_esi_status.called)  # was esi error status checked
+
+    def test_update_or_create_esi_async_2(self, mock_fetch_esi_status):
+        """When entity exists and not a mailing list, then update synchronously"""
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
+        MailEntity.objects.create(
+            id=1001, category=MailEntity.Category.CHARACTER, name="John Doe"
+        )
+
+        obj, created = MailEntity.objects.update_or_create_esi_async(1001)
+
+        self.assertFalse(created)
+        self.assertEqual(obj.category, MailEntity.Category.CHARACTER)
+        self.assertEqual(obj.name, "Bruce Wayne")
+
+        self.assertFalse(mock_fetch_esi_status.called)  # was esi error status checked
+
+    def test_update_or_create_esi_async_3(self, mock_fetch_esi_status):
+        """When entity exists and is a mailing list, then do nothing"""
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
+        MailEntity.objects.create(
+            id=9001, category=MailEntity.Category.MAILING_LIST, name="Dummy"
+        )
+
+        obj, created = MailEntity.objects.update_or_create_esi_async(9001)
+
+        self.assertFalse(created)
+        self.assertEqual(obj.category, MailEntity.Category.MAILING_LIST)
+        self.assertEqual(obj.name, "Dummy")
+
+        self.assertFalse(mock_fetch_esi_status.called)  # was esi error status checked
+
+    def test_update_or_create_esi_async_4(self, mock_fetch_esi_status):
+        """When entity does not exist and category is not a mailing list,
+        then create empty object from ESI synchronously
+        """
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
+
+        obj, created = MailEntity.objects.update_or_create_esi_async(
+            1001, MailEntity.Category.CHARACTER
+        )
+
+        self.assertTrue(created)
+        self.assertEqual(obj.category, MailEntity.Category.CHARACTER)
+        self.assertEqual(obj.name, "Bruce Wayne")
+
+        self.assertFalse(mock_fetch_esi_status.called)  # was esi error status checked

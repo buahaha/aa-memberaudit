@@ -1,10 +1,9 @@
 import datetime as dt
-from typing import Dict, Tuple
+from typing import Dict, Iterable, Tuple
 
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import F, ExpressionWrapper, When, Case, Value
-from django.db.models.functions import Concat
 from django.utils.timezone import now
 
 from bravado.exception import HTTPUnauthorized, HTTPForbidden
@@ -18,12 +17,14 @@ from allianceauth.services.hooks import get_extension_logger
 from . import __title__
 from .constants import EVE_TYPE_ID_SOLAR_SYSTEM
 from .app_settings import MEMBERAUDIT_LOCATION_STALE_HOURS
-
+from .helpers import fetch_esi_status
 from .providers import esi
 from .utils import LoggerAddTag
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+
+BULK_METHODS_BATCH_SIZE = 500
 
 
 class LocationManager(models.Manager):
@@ -187,6 +188,7 @@ class LocationManager(models.Manager):
 
     def structure_update_or_create_esi(self, id: int, token: Token):
         """Update or creates structure from ESI"""
+        fetch_esi_status().raise_for_status()
         try:
             structure = esi.client.Universe.get_universe_structures_structure_id(
                 structure_id=id, token=token.valid_access_token()
@@ -230,6 +232,165 @@ class LocationManager(models.Manager):
                 "owner": owner,
             },
         )
+
+
+class MailEntityManager(models.Manager):
+    def get_or_create_esi(
+        self, id: int, category: str = None
+    ) -> Tuple[models.Model, bool]:
+        return self._get_or_create_esi(id=id, category=category, update_async=False)
+
+    def get_or_create_esi_async(
+        self, id: int, category: str = None
+    ) -> Tuple[models.Model, bool]:
+        return self._get_or_create_esi(id=id, category=category, update_async=True)
+
+    def _get_or_create_esi(
+        self, id: int, category: str, update_async: bool
+    ) -> Tuple[models.Model, bool]:
+        id = int(id)
+        try:
+            return self.get(id=id), False
+        except self.model.DoesNotExist:
+            if update_async:
+                return self.update_or_create_esi_async(id=id, category=category)
+            else:
+                return self.update_or_create_esi(id=id, category=category)
+
+    def update_or_create_esi(
+        self, id: int, category: str = None
+    ) -> Tuple[models.Model, bool]:
+        """will try to update or create a new object from ESI
+
+        Mailing lists can not be resolved from ESI
+        and will therefore be created without name
+
+        Trying to resolve a mailing list from ESI will result in an ESI error,
+        which is masked by this method.
+
+        Exceptions:
+        - EsiOffline: ESI offline
+        - EsiErrorLimitExceeded: ESI error limit exceeded
+        - HTTP errors
+        """
+        id = int(id)
+        try:
+            obj = self.get(id=id)
+            category = obj.category
+        except self.model.DoesNotExist:
+            pass
+
+        if not category or category == self.model.Category.UNKNOWN:
+            fetch_esi_status().raise_for_status()
+            eve_entity, _ = EveEntity.objects.get_or_create_esi(id=id)
+            if eve_entity:
+                return self.update_or_create_from_eve_entity(eve_entity)
+            else:
+                return self.update_or_create(
+                    id=id,
+                    defaults={"category": self.model.Category.MAILING_LIST},
+                )
+        else:
+            if category == self.model.Category.MAILING_LIST:
+                return self.update_or_create(
+                    id=id,
+                    defaults={"category": self.model.Category.MAILING_LIST},
+                )
+            else:
+                return self.update_or_create_from_eve_entity_id(id=id)
+
+    def update_or_create_esi_async(
+        self, id: int, category: str = None
+    ) -> Tuple[models.Model, bool]:
+        """Same as update_or_create_esi, but will create and return an empty object and delegate the ID resolution to a task (if needed),
+        which will automatically retry on many common error conditions
+        """
+        id = int(id)
+        try:
+            obj = self.get(id=id)
+            if obj.category == self.model.Category.MAILING_LIST:
+                return obj, False
+            else:
+                category = obj.category
+
+        except self.model.DoesNotExist:
+            pass
+
+        if category and category in self.model.Category.eve_entity_compatible():
+            return self.update_or_create_esi(id=id, category=category)
+        else:
+            return self._update_or_create_esi_async(id=id)
+
+    def _update_or_create_esi_async(self, id: int) -> Tuple[models.Model, bool]:
+        from .tasks import (
+            update_mail_entity_esi as task_update_mail_entity_esi,
+            DEFAULT_TASK_PRIORITY,
+        )
+
+        id = int(id)
+        obj, created = self.get_or_create(
+            id=id, defaults={"category": self.model.Category.UNKNOWN}
+        )
+        task_update_mail_entity_esi.apply_async(
+            kwargs={"id": id}, priority=DEFAULT_TASK_PRIORITY
+        )
+        return obj, created
+
+    def update_or_create_from_eve_entity(
+        self, eve_entity: EveEntity
+    ) -> Tuple[models.Model, bool]:
+        category_map = {
+            EveEntity.CATEGORY_ALLIANCE: self.model.Category.ALLIANCE,
+            EveEntity.CATEGORY_CHARACTER: self.model.Category.CHARACTER,
+            EveEntity.CATEGORY_CORPORATION: self.model.Category.CORPORATION,
+        }
+        return self.update_or_create(
+            id=eve_entity.id,
+            defaults={
+                "category": category_map[eve_entity.category],
+                "name": eve_entity.name,
+            },
+        )
+
+    def update_or_create_from_eve_entity_id(self, id: int) -> Tuple[models.Model, bool]:
+        eve_entity, _ = EveEntity.objects.get_or_create_esi(id=int(id))
+        return self.update_or_create_from_eve_entity(eve_entity)
+
+    def bulk_update_names(
+        self, objs: Iterable[models.Model], keep_names: bool = False
+    ) -> None:
+        """Update names for given objects with categories
+        that can be resolved by EveEntity (e.g. Character)
+
+        Args:
+        - obj: Existing objects to be updated
+        - keep_names: When True objects that already have a name will not be updated
+
+        """
+        valid_categories = self.model.Category.eve_entity_compatible()
+        valid_objs = {
+            obj.id: obj
+            for obj in objs
+            if obj.category in valid_categories and (not keep_names or not obj.name)
+        }
+        if valid_objs:
+            resolver = EveEntity.objects.bulk_resolve_names(valid_objs.keys())
+            for obj in valid_objs.values():
+                obj.name = resolver.to_name(obj.id)
+
+            self.bulk_update(
+                valid_objs.values(), ["name"], batch_size=BULK_METHODS_BATCH_SIZE
+            )
+
+    # def all_with_name_plus(self) -> models.QuerySet:
+    #     """return all mailing lists annotated with name_plus_2 attribute"""
+    #     return self.filter(category=self.model.Category.MAILING_LIST).annotate(
+    #         name_plus_2=Case(
+    #             When(name="", then=Concat(Value("Mailing List #"), "id")),
+    #             default=F("name"),
+    #             output_field=models.CharField(),
+    #         )
+    #     )
 
 
 class CharacterManager(models.Manager):
@@ -330,15 +491,3 @@ class CharacterMailLabelManager(models.Manager):
         """Returns all label objects as dict by label_id"""
         label_pks = self.values_list("pk", flat=True)
         return {label.label_id: label for label in self.in_bulk(label_pks).values()}
-
-
-class CharacterMailingListManager(models.Manager):
-    def all_with_name_plus(self) -> models.QuerySet:
-        """return all mailing lists annotated with name_plus_2 attribute"""
-        return self.annotate(
-            name_plus_2=Case(
-                When(name="", then=Concat(Value("Mailing List #"), "list_id")),
-                default=F("name"),
-                output_field=models.CharField(),
-            )
-        )

@@ -36,8 +36,6 @@ from ..models import (
     CharacterJumpCloneImplant,
     CharacterLoyaltyEntry,
     CharacterMail,
-    CharacterMailRecipient,
-    CharacterMailingList,
     CharacterMailLabel,
     CharacterSkill,
     CharacterSkillqueueEntry,
@@ -46,6 +44,7 @@ from ..models import (
     DoctrineShip,
     DoctrineShipSkill,
     Location,
+    MailEntity,
 )
 from ..utils import generate_invalid_pk
 from ..views import (
@@ -1013,36 +1012,6 @@ class TestViewsOther(TestViewsBase):
         self.assertEqual(row["amount"], "1000000.00")
         self.assertEqual(row["balance"], "10000000.00")
 
-    def test_character_mail_data(self):
-        mailing_list = CharacterMailingList.objects.create(
-            character=self.character, list_id=5, name="Mailing List"
-        )
-        mail = CharacterMail.objects.create(
-            character=self.character,
-            mail_id=99,
-            from_entity=EveEntity.objects.get(id=1002),
-            subject="Dummy",
-            body="This is the body",
-            timestamp=now(),
-        )
-        CharacterMailRecipient.objects.create(
-            mail=mail, eve_entity=EveEntity.objects.get(id=1001)
-        )
-        CharacterMailRecipient.objects.create(mail=mail, mailing_list=mailing_list)
-        request = self.factory.get(
-            reverse(
-                "memberaudit:character_mail_data", args=[self.character.pk, mail.pk]
-            )
-        )
-        request.user = self.user
-        response = character_mail_data(request, self.character.pk, mail.pk)
-        self.assertEqual(response.status_code, 200)
-        data = json_response_to_python(response)
-        self.assertEqual(data["mail_id"], 99)
-        self.assertEqual(data["from"], "Clark Kent")
-        self.assertEqual(data["to"], "Bruce Wayne, Mailing List")
-        self.assertEqual(data["body"], "This is the body")
-
     def test_character_finder_data(self):
         self.user = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.finder_access", self.user
@@ -1106,7 +1075,7 @@ class TestViewsOther(TestViewsBase):
         self.assertEqual(data[implant_1.pk]["implant"]["sort"], 3)
 
 
-class TestMailHeaderData(TestCase):
+class TestMailData(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
@@ -1116,46 +1085,43 @@ class TestMailHeaderData(TestCase):
         cls.character = create_memberaudit_character(1001)
         cls.user = cls.character.character_ownership.user
         cls.corporation_2001 = EveEntity.objects.get(id=2001)
-
-        mailing_list = CharacterMailingList.objects.create(
-            character=cls.character, list_id=5, name="Mailing List"
-        )
         label_1 = CharacterMailLabel.objects.create(
             character=cls.character, label_id=42, name="Dummy"
         )
         labels2 = CharacterMailLabel.objects.create(
             character=cls.character, label_id=8, name="Another label"
         )
+        sender_1002, _ = MailEntity.objects.update_or_create_from_eve_entity_id(id=1002)
         mail_1 = CharacterMail.objects.create(
             character=cls.character,
             mail_id=7001,
-            from_entity=EveEntity.objects.get(id=1002),
+            sender=sender_1002,
             subject="Dummy 1",
             body="Mail with normal entity and mailing list as recipient",
             timestamp=now(),
         )
-        CharacterMailRecipient.objects.create(
-            mail=mail_1, eve_entity=EveEntity.objects.get(id=1001)
+        recipient_1001, _ = MailEntity.objects.update_or_create_from_eve_entity_id(
+            id=1001
         )
-        CharacterMailRecipient.objects.create(
-            mail=mail_1, eve_entity=EveEntity.objects.get(id=1003)
+        mailing_list_5 = MailEntity.objects.create(
+            id=5, category=MailEntity.Category.MAILING_LIST, name="Mailing List"
         )
+        mail_1.recipients.add(recipient_1001, mailing_list_5)
         mail_1.labels.add(label_1)
 
         mail_2 = CharacterMail.objects.create(
             character=cls.character,
             mail_id=7002,
-            from_entity=EveEntity.objects.get(id=1002),
+            sender=sender_1002,
             subject="Dummy 2",
             body="Mail with another label",
             timestamp=now(),
         )
         mail_2.labels.add(labels2)
-
         CharacterMail.objects.create(
             character=cls.character,
             mail_id=7003,
-            from_mailing_list=mailing_list,
+            sender=mailing_list_5,
             subject="Dummy 3",
             body="Mailing List as sender",
             timestamp=now(),
@@ -1164,12 +1130,12 @@ class TestMailHeaderData(TestCase):
         mail_4 = CharacterMail.objects.create(
             character=cls.character,
             mail_id=7004,
-            from_entity=EveEntity.objects.get(id=1002),
+            sender=sender_1002,
             subject="Dummy 4",
             body="Mailing List as recipient",
             timestamp=now(),
         )
-        CharacterMailRecipient.objects.create(mail=mail_4, mailing_list=mailing_list)
+        mail_4.recipients.add(mailing_list_5)
 
     def test_mail_by_Label(self):
         """returns list of mails for given label only"""
@@ -1190,7 +1156,7 @@ class TestMailHeaderData(TestCase):
         row = data[0]
         self.assertEqual(row["mail_id"], 7001)
         self.assertEqual(row["from"], "Clark Kent")
-        self.assertEqual(row["to"], "Bruce Wayne, Peter Parker")
+        self.assertEqual(row["to"], "Bruce Wayne, Mailing List")
 
     def test_all_mails(self):
         """can return all mails"""
@@ -1224,9 +1190,28 @@ class TestMailHeaderData(TestCase):
         self.assertEqual(response.status_code, 200)
         data = json_response_to_python(response)
 
-        self.assertSetEqual({x["mail_id"] for x in data}, {7004})
+        self.assertSetEqual({x["mail_id"] for x in data}, {7001, 7004})
         row = data[0]
-        self.assertEqual(row["to"], "Mailing List")
+        self.assertEqual(row["to"], "Bruce Wayne, Mailing List")
+
+    def test_character_mail_data(self):
+        mail = self.character.mails.get(mail_id=7001)
+        request = self.factory.get(
+            reverse(
+                "memberaudit:character_mail_data", args=[self.character.pk, mail.pk]
+            )
+        )
+        request.user = self.user
+        response = character_mail_data(request, self.character.pk, mail.pk)
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertEqual(data["mail_id"], 7001)
+        self.assertIn("Clark Kent", data["from"])
+        self.assertIn("Bruce Wayne", data["to"])
+        self.assertIn("Mailing List", data["to"])
+        self.assertEqual(
+            data["body"], "Mail with normal entity and mailing list as recipient"
+        )
 
 
 @patch(MODULE_PATH + ".messages_plus")

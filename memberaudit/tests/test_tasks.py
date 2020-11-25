@@ -3,14 +3,13 @@ from unittest.mock import patch
 from bravado.exception import HTTPInternalServerError
 from celery.exceptions import Retry as CeleryRetry
 
-from django.core.cache import cache
 from django.test import TestCase, override_settings
 
 from eveuniverse.models import EveSolarSystem, EveType
 from esi.models import Token
 
 from . import create_memberaudit_character
-from ..helpers import EsiStatus
+from ..helpers import EsiOffline, EsiErrorLimitExceeded
 from ..models import (
     Character,
     CharacterAsset,
@@ -28,6 +27,7 @@ from ..tasks import (
     update_character_contracts,
     update_character_wallet_journal,
     update_market_prices,
+    update_mail_entity_esi,
 )
 from .testdata.esi_client_stub import esi_client_stub, esi_client_error_stub
 from .testdata.load_eveuniverse import load_eveuniverse
@@ -260,7 +260,7 @@ class TestUpdateCharacterAssets(TestCase):
         update_character_assets(self.character_1001.pk)
 
         status = self.character_1001.update_status_set.get(
-            section=Character.UPDATE_SECTION_ASSETS
+            section=Character.UpdateSection.ASSETS
         )
         self.assertTrue(status.is_success)
         self.assertFalse(status.error_message)
@@ -275,7 +275,7 @@ class TestUpdateCharacterAssets(TestCase):
             update_character_assets(self.character_1001.pk)
 
         status = self.character_1001.update_status_set.get(
-            section=Character.UPDATE_SECTION_ASSETS
+            section=Character.UpdateSection.ASSETS
         )
         self.assertFalse(status.is_success)
         self.assertEqual(
@@ -301,7 +301,7 @@ class TestUpdateCharacterMails(TestCase):
         update_character_mails(self.character_1001.pk)
 
         status = self.character_1001.update_status_set.get(
-            section=Character.UPDATE_SECTION_MAILS
+            section=Character.UpdateSection.MAILS
         )
         self.assertTrue(status.is_success)
         self.assertFalse(status.error_message)
@@ -316,7 +316,7 @@ class TestUpdateCharacterMails(TestCase):
             update_character_mails(self.character_1001.pk)
         except Exception:
             status = self.character_1001.update_status_set.get(
-                section=Character.UPDATE_SECTION_MAILS
+                section=Character.UpdateSection.MAILS
             )
             self.assertFalse(status.is_success)
             self.assertEqual(
@@ -344,7 +344,7 @@ class TestUpdateCharacterContacts(TestCase):
         update_character_contacts(self.character_1001.pk)
 
         status = self.character_1001.update_status_set.get(
-            section=Character.UPDATE_SECTION_CONTACTS
+            section=Character.UpdateSection.CONTACTS
         )
         self.assertTrue(status.is_success)
         self.assertFalse(status.error_message)
@@ -359,7 +359,7 @@ class TestUpdateCharacterContacts(TestCase):
             update_character_contacts(self.character_1001.pk)
         except Exception:
             status = self.character_1001.update_status_set.get(
-                section=Character.UPDATE_SECTION_CONTACTS
+                section=Character.UpdateSection.CONTACTS
             )
             self.assertFalse(status.is_success)
             self.assertEqual(
@@ -388,7 +388,7 @@ class TestUpdateCharacterContracts(TestCase):
         update_character_contracts(self.character_1001.pk)
 
         status = self.character_1001.update_status_set.get(
-            section=Character.UPDATE_SECTION_CONTRACTS
+            section=Character.UpdateSection.CONTRACTS
         )
         self.assertTrue(status.is_success)
         self.assertFalse(status.error_message)
@@ -403,7 +403,7 @@ class TestUpdateCharacterContracts(TestCase):
             update_character_contracts(self.character_1001.pk)
         except Exception:
             status = self.character_1001.update_status_set.get(
-                section=Character.UPDATE_SECTION_CONTRACTS
+                section=Character.UpdateSection.CONTRACTS
             )
             self.assertFalse(status.is_success)
             self.assertEqual(
@@ -431,7 +431,7 @@ class TestUpdateCharacterWalletJournal(TestCase):
         update_character_wallet_journal(self.character_1001.pk)
 
         status = self.character_1001.update_status_set.get(
-            section=Character.UPDATE_SECTION_WALLET_JOURNAL
+            section=Character.UpdateSection.WALLET_JOURNAL
         )
         self.assertTrue(status.is_success)
         self.assertFalse(status.error_message)
@@ -446,7 +446,7 @@ class TestUpdateCharacterWalletJournal(TestCase):
             update_character_wallet_journal(self.character_1001.pk)
         except Exception:
             status = self.character_1001.update_status_set.get(
-                section=Character.UPDATE_SECTION_WALLET_JOURNAL
+                section=Character.UpdateSection.WALLET_JOURNAL
             )
             self.assertFalse(status.is_success)
             self.assertEqual(
@@ -483,7 +483,7 @@ class TestUpdateCharacter(TestCase):
         self.assertFalse(self.character.is_update_status_ok())
 
         status = self.character.update_status_set.get(
-            character=self.character, section=Character.UPDATE_SECTION_CHARACTER_DETAILS
+            character=self.character, section=Character.UpdateSection.CHARACTER_DETAILS
         )
         self.assertFalse(status.is_success)
         self.assertEqual(
@@ -496,7 +496,7 @@ class TestUpdateCharacter(TestCase):
         mock_esi.client = esi_client_stub
         CharacterUpdateStatus.objects.create(
             character=self.character,
-            section=Character.UPDATE_SECTION_SKILLS,
+            section=Character.UpdateSection.SKILLS,
             is_success=True,
         )
 
@@ -512,7 +512,7 @@ class TestUpdateCharacter(TestCase):
         mock_esi.client = esi_client_stub
         CharacterUpdateStatus.objects.create(
             character=self.character,
-            section=Character.UPDATE_SECTION_ASSETS,
+            section=Character.UpdateSection.ASSETS,
             is_success=True,
         )
 
@@ -528,7 +528,7 @@ class TestUpdateCharacter(TestCase):
         mock_esi.client = esi_client_stub
         CharacterUpdateStatus.objects.create(
             character=self.character,
-            section=Character.UPDATE_SECTION_SKILLS,
+            section=Character.UpdateSection.SKILLS,
             is_success=True,
         )
 
@@ -539,7 +539,7 @@ class TestUpdateCharacter(TestCase):
     def test_no_update_required(self, mock_esi):
         """Do not update anything when not required"""
         mock_esi.client = esi_client_stub
-        for section in Character.update_sections():
+        for section in Character.UpdateSection.values:
             CharacterUpdateStatus.objects.create(
                 character=self.character,
                 section=section,
@@ -570,58 +570,65 @@ class TestUpdateAllCharacters(TestCase):
         self.assertTrue(self.character_1001.is_update_status_ok())
 
 
-@patch(MANAGERS_PATH + ".esi")
-@patch(TASKS_PATH + ".fetch_esi_status")
+@patch(TASKS_PATH + ".Location.objects.structure_update_or_create_esi")
 class TestUpdateStructureEsi(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
         load_entities()
-        load_eveuniverse()
         cls.character = create_memberaudit_character(1001)
         cls.token = cls.character.character_ownership.user.token_set.first()
 
-    def setUp(self) -> None:
-        cache.clear()
-        Location.objects.all().delete()
+    def test_normal(self, mock_structure_update_or_create_esi):
+        """When ESI status is ok, then create MailEntity"""
+        mock_structure_update_or_create_esi.return_value = None
+        try:
+            update_structure_esi(id=1000000000001, token_pk=self.token.pk)
+        except Exception as ex:
+            self.fail(f"Unexpected exception occurred: {ex}")
 
-    def test_normal(self, mock_fetch_esi_status, mock_esi):
-        """
-        when character has access and there are no ESI errors
-        then update succeeds and structure is created
-        """
-        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
-        mock_esi.client = esi_client_stub
-
-        update_structure_esi(id=1000000000001, token_pk=self.token.pk)
-        self.assertTrue(Location.objects.filter(id=1000000000001).exists())
-
-    def test_raise_exception_on_invalid_token(self, mock_fetch_esi_status, mock_esi):
-        """when token is invalid, then raise exception"""
-        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
-        mock_esi.client = esi_client_stub
+    def test_invalid_token(self, mock_structure_update_or_create_esi):
+        """When called with invalid token, raise exception"""
+        mock_structure_update_or_create_esi.side_effect = EsiOffline
 
         with self.assertRaises(Token.DoesNotExist):
             update_structure_esi(id=1000000000001, token_pk=generate_invalid_pk(Token))
 
-    @patch("memberaudit.helpers.MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD", 25)
-    def test_below_error_limit(self, mock_fetch_esi_status, mock_esi):
-        """when error limit threshold not exceeded, then make request to ESI"""
-        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
-        mock_esi.client = esi_client_stub
+    def test_esi_status_1(self, mock_structure_update_or_create_esi):
+        """When ESI is offline, then retry"""
+        mock_structure_update_or_create_esi.side_effect = EsiOffline
 
-        update_structure_esi(id=1000000000001, token_pk=self.token.pk)
-        self.assertTrue(Location.objects.filter(id=1000000000001).exists())
-
-    @patch("memberaudit.helpers.MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD", 25)
-    def test_above_error_limit(self, mock_fetch_esi_status, mock_esi):
-        """
-        when error limit threshold is exceeded,
-        then make no request to ESI and retry task
-        """
-        mock_fetch_esi_status.return_value = EsiStatus(True, 15, 60)
-        mock_esi.client = esi_client_stub
-
-        # TODO: Add ability to verify countdown is set correctly for retry
         with self.assertRaises(CeleryRetry):
             update_structure_esi(id=1000000000001, token_pk=self.token.pk)
+
+    def test_esi_status_2(self, mock_structure_update_or_create_esi):
+        """When ESI error limit reached, then retry"""
+        mock_structure_update_or_create_esi.side_effect = EsiErrorLimitExceeded(5)
+
+        with self.assertRaises(CeleryRetry):
+            update_structure_esi(id=1000000000001, token_pk=self.token.pk)
+
+
+@patch(TASKS_PATH + ".MailEntity.objects.update_or_create_esi")
+class TestUpdateMailEntityEsi(TestCase):
+    def test_normal(self, mock_update_or_create_esi):
+        """When ESI status is ok, then create MailEntity"""
+        mock_update_or_create_esi.return_value = None
+        try:
+            update_mail_entity_esi(1001)
+        except Exception:
+            self.fail("Unexpected exception occurred")
+
+    def test_esi_status_1(self, mock_update_or_create_esi):
+        """When ESI is offline, then retry"""
+        mock_update_or_create_esi.side_effect = EsiOffline
+
+        with self.assertRaises(CeleryRetry):
+            update_mail_entity_esi(1001)
+
+    def test_esi_status_2(self, mock_update_or_create_esi):
+        """When ESI error limit reached, then retry"""
+        mock_update_or_create_esi.side_effect = EsiErrorLimitExceeded(5)
+
+        with self.assertRaises(CeleryRetry):
+            update_mail_entity_esi(1001)

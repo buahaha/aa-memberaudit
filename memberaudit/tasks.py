@@ -22,7 +22,7 @@ from .app_settings import (
     MEMBERAUDIT_TASKS_MAX_ASSETS_PER_PASS,
     MEMBERAUDIT_UPDATE_STALE_RING_2,
 )
-from .helpers import fetch_esi_status
+from .helpers import EsiOffline, EsiErrorLimitExceeded
 from .models import (
     Character,
     CharacterAsset,
@@ -30,6 +30,7 @@ from .models import (
     CharacterMail,
     CharacterUpdateStatus,
     Location,
+    MailEntity,
 )
 from .utils import LoggerAddTag
 
@@ -74,11 +75,16 @@ def run_regular_updates() -> None:
 
 
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_all_characters() -> None:
-    """Start the update of all registered characters"""
+def update_all_characters(force_update=False) -> None:
+    """Start the update of all registered characters
+
+    Args:
+    - force_update: When set to True will always update regardless of stale status
+    """
     for character in Character.objects.all():
         update_character.apply_async(
-            kwargs={"character_pk": character.pk}, priority=DEFAULT_TASK_PRIORITY
+            kwargs={"character_pk": character.pk, "force_update": force_update},
+            priority=DEFAULT_TASK_PRIORITY,
         )
 
 
@@ -98,7 +104,7 @@ def update_character(character_pk: int, force_update=False) -> bool:
     - False when no updated was needed
     """
     character = Character.objects.get(pk=character_pk)
-    all_sections = Character.update_sections()
+    all_sections = set(Character.UpdateSection.values)
     needs_update = force_update
     for section in all_sections:
         needs_update |= character.is_update_section_stale(section)
@@ -107,14 +113,16 @@ def update_character(character_pk: int, force_update=False) -> bool:
         logger.info("%s: No update required", character)
         return False
 
-    logger.info("%s: Starting character update", character)
+    logger.info(
+        "%s: Starting %s character update", character, "forced" if force_update else ""
+    )
     sections = all_sections.difference(
         {
-            Character.UPDATE_SECTION_ASSETS,
-            Character.UPDATE_SECTION_MAILS,
-            Character.UPDATE_SECTION_CONTACTS,
-            Character.UPDATE_SECTION_CONTRACTS,
-            Character.UPDATE_SECTION_WALLET_JOURNAL,
+            Character.UpdateSection.ASSETS,
+            Character.UpdateSection.MAILS,
+            Character.UpdateSection.CONTACTS,
+            Character.UpdateSection.CONTRACTS,
+            Character.UpdateSection.WALLET_JOURNAL,
         }
     )
     for section in sorted(sections):
@@ -127,36 +135,34 @@ def update_character(character_pk: int, force_update=False) -> bool:
                 priority=DEFAULT_TASK_PRIORITY,
             )
 
-    if force_update or character.is_update_section_stale(
-        Character.UPDATE_SECTION_MAILS
-    ):
+    if force_update or character.is_update_section_stale(Character.UpdateSection.MAILS):
         update_character_mails.apply_async(
             kwargs={"character_pk": character.pk},
             priority=DEFAULT_TASK_PRIORITY,
         )
     if force_update or character.is_update_section_stale(
-        Character.UPDATE_SECTION_CONTACTS
+        Character.UpdateSection.CONTACTS
     ):
         update_character_contacts.apply_async(
             kwargs={"character_pk": character.pk},
             priority=DEFAULT_TASK_PRIORITY,
         )
     if force_update or character.is_update_section_stale(
-        Character.UPDATE_SECTION_CONTRACTS
+        Character.UpdateSection.CONTRACTS
     ):
         update_character_contracts.apply_async(
             kwargs={"character_pk": character.pk},
             priority=DEFAULT_TASK_PRIORITY,
         )
     if force_update or character.is_update_section_stale(
-        Character.UPDATE_SECTION_ASSETS
+        Character.UpdateSection.ASSETS
     ):
         update_character_assets.apply_async(
             kwargs={"character_pk": character.pk},
             priority=DEFAULT_TASK_PRIORITY,
         )
     if force_update or character.is_update_section_stale(
-        Character.UPDATE_SECTION_WALLET_JOURNAL
+        Character.UpdateSection.WALLET_JOURNAL
     ):
         update_character_wallet_journal.apply_async(
             kwargs={"character_pk": character.pk},
@@ -174,12 +180,14 @@ def update_character_section(self, character_pk: int, section: str) -> None:
     """Task that updates the section of a character"""
     character = Character.objects.get(pk=character_pk)
     character.update_status_set.filter(section=section).delete()
-    logger.info("%s: Updating %s", character, Character.section_display_name(section))
+    logger.info(
+        "%s: Updating %s", character, Character.UpdateSection.display_name(section)
+    )
     _character_update_with_error_logging(
         self,
         character,
         section,
-        getattr(character, Character.section_method_name(section)),
+        getattr(character, Character.UpdateSection.method_name(section)),
     )
     _log_character_update_success(character, section)
 
@@ -197,7 +205,7 @@ def _character_update_with_error_logging(
         logger.error(
             "%s: %s: Error ocurred: %s",
             character,
-            Character.section_display_name(section),
+            Character.UpdateSection.display_name(section),
             error_message,
             exc_info=True,
         )
@@ -215,7 +223,9 @@ def _character_update_with_error_logging(
 def _log_character_update_success(character: Character, section: str):
     """Logs character update success for a section"""
     logger.info(
-        "%s: %s update completed", character, Character.section_display_name(section)
+        "%s: %s update completed",
+        character,
+        Character.UpdateSection.display_name(section),
     )
     CharacterUpdateStatus.objects.update_or_create(
         character=character, section=section, defaults={"is_success": True}
@@ -245,8 +255,10 @@ def update_unresolved_eve_entities(
 def update_character_assets(self, character_pk: int) -> None:
     """Main tasks for updating the character's assets"""
     character = Character.objects.get(pk=character_pk)
-    section = Character.UPDATE_SECTION_ASSETS
-    logger.info("%s: Updating %s", character, Character.section_display_name(section))
+    section = Character.UpdateSection.ASSETS
+    logger.info(
+        "%s: Updating %s", character, Character.UpdateSection.display_name(section)
+    )
     character.update_status_set.filter(section=section).delete()
     asset_list = _character_update_with_error_logging(
         self, character, section, character.assets_build_list_from_esi
@@ -333,7 +345,7 @@ def assets_create_parents(
                 priority=DEFAULT_TASK_PRIORITY,
             )
         else:
-            _log_character_update_success(character, Character.UPDATE_SECTION_ASSETS)
+            _log_character_update_success(character, Character.UpdateSection.ASSETS)
 
 
 @shared_task(**TASK_ESI_KWARGS)
@@ -401,7 +413,7 @@ def assets_create_children(
             priority=DEFAULT_TASK_PRIORITY,
         )
     else:
-        _log_character_update_success(character, Character.UPDATE_SECTION_ASSETS)
+        _log_character_update_success(character, Character.UpdateSection.ASSETS)
         if len(asset_list) > 0:
             logger.warning(
                 "%s: Failed to add %s assets to the tree: %s",
@@ -418,8 +430,10 @@ def assets_create_children(
 def update_character_mails(self, character_pk: int) -> None:
     """Main task for updating mails of a character"""
     character = Character.objects.get(pk=character_pk)
-    section = Character.UPDATE_SECTION_MAILS
-    logger.info("%s: Updating %s", character, Character.section_display_name(section))
+    section = Character.UpdateSection.MAILS
+    logger.info(
+        "%s: Updating %s", character, Character.UpdateSection.display_name(section)
+    )
     character.update_status_set.filter(section=section).delete()
     chain(
         update_character_mailing_lists.si(character.pk),
@@ -434,7 +448,7 @@ def update_character_mails(self, character_pk: int) -> None:
 def update_character_mailing_lists(self, character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
-        self, character, Character.UPDATE_SECTION_MAILS, character.update_mailing_lists
+        self, character, Character.UpdateSection.MAILS, character.update_mailing_lists
     )
 
 
@@ -442,7 +456,7 @@ def update_character_mailing_lists(self, character_pk: int) -> None:
 def update_character_mail_labels(self, character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
-        self, character, Character.UPDATE_SECTION_MAILS, character.update_mail_labels
+        self, character, Character.UpdateSection.MAILS, character.update_mail_labels
     )
 
 
@@ -450,7 +464,7 @@ def update_character_mail_labels(self, character_pk: int) -> None:
 def update_character_mail_headers(self, character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
-        self, character, Character.UPDATE_SECTION_MAILS, character.update_mail_headers
+        self, character, Character.UpdateSection.MAILS, character.update_mail_headers
     )
 
 
@@ -462,7 +476,7 @@ def update_mail_body_esi(self, character_pk: int, mail_pk: int):
     _character_update_with_error_logging(
         self,
         character,
-        Character.UPDATE_SECTION_MAILS,
+        Character.UpdateSection.MAILS,
         character.update_mail_body,
         mail,
     )
@@ -483,7 +497,7 @@ def update_character_mail_bodies(self, character_pk: int) -> None:
             )
 
     # the last task in the chain logs success (if any)
-    _log_character_update_success(character, Character.UPDATE_SECTION_MAILS)
+    _log_character_update_success(character, Character.UpdateSection.MAILS)
 
 
 # special tasks for updating contacts
@@ -493,9 +507,11 @@ def update_character_mail_bodies(self, character_pk: int) -> None:
 def update_character_contacts(character_pk: int) -> None:
     """Main task for updating contacts of a character"""
     character = Character.objects.get(pk=character_pk)
-    section = Character.UPDATE_SECTION_CONTACTS
+    section = Character.UpdateSection.CONTACTS
     character.update_status_set.filter(section=section).delete()
-    logger.info("%s: Updating %s", character, Character.section_display_name(section))
+    logger.info(
+        "%s: Updating %s", character, Character.UpdateSection.display_name(section)
+    )
     chain(
         update_character_contact_labels.si(character.pk),
         update_character_contacts_2.si(character.pk),
@@ -509,7 +525,7 @@ def update_character_contact_labels(self, character_pk: int) -> None:
     _character_update_with_error_logging(
         self,
         character,
-        Character.UPDATE_SECTION_CONTACTS,
+        Character.UpdateSection.CONTACTS,
         character.update_contact_labels,
     )
 
@@ -518,7 +534,7 @@ def update_character_contact_labels(self, character_pk: int) -> None:
 def update_character_contacts_2(self, character_pk: int) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
-        self, character, Character.UPDATE_SECTION_CONTACTS, character.update_contacts
+        self, character, Character.UpdateSection.CONTACTS, character.update_contacts
     )
 
 
@@ -529,9 +545,11 @@ def update_character_contacts_2(self, character_pk: int) -> None:
 def update_character_contracts(character_pk: int) -> None:
     """Main task for updating contracts of a character"""
     character = Character.objects.get(pk=character_pk)
-    section = Character.UPDATE_SECTION_CONTRACTS
+    section = Character.UpdateSection.CONTRACTS
     character.update_status_set.filter(section=section).delete()
-    logger.info("%s: Updating %s", character, Character.section_display_name(section))
+    logger.info(
+        "%s: Updating %s", character, Character.UpdateSection.display_name(section)
+    )
     chain(
         update_character_contract_headers.si(character.pk),
         update_character_contracts_items.si(character.pk),
@@ -546,7 +564,7 @@ def update_character_contract_headers(self, character_pk: int) -> None:
     _character_update_with_error_logging(
         self,
         character,
-        Character.UPDATE_SECTION_CONTRACTS,
+        Character.UpdateSection.CONTRACTS,
         character.update_contract_headers,
     )
 
@@ -625,9 +643,11 @@ def update_contract_bids_esi(self, character_pk: int, contract_pk: int):
 def update_character_wallet_journal(character_pk: int) -> None:
     """Main task for updating wallet journal of a character"""
     character = Character.objects.get(pk=character_pk)
-    section = Character.UPDATE_SECTION_WALLET_JOURNAL
+    section = Character.UpdateSection.WALLET_JOURNAL
     character.update_status_set.filter(section=section).delete()
-    logger.info("%s: Updating %s", character, Character.section_display_name(section))
+    logger.info(
+        "%s: Updating %s", character, Character.UpdateSection.display_name(section)
+    )
     chain(
         update_character_wallet_journal_entries.si(character.pk),
         update_unresolved_eve_entities.si(character.pk, section, last_in_chain=True),
@@ -640,7 +660,7 @@ def update_character_wallet_journal_entries(self, character_pk: int) -> None:
     _character_update_with_error_logging(
         self,
         character,
-        Character.UPDATE_SECTION_WALLET_JOURNAL,
+        Character.UpdateSection.WALLET_JOURNAL,
         character.update_wallet_journal,
     )
 
@@ -666,7 +686,7 @@ def update_market_prices(self):
 )
 def update_structure_esi(self, id: int, token_pk: int):
     """Updates a structure object from ESI
-    and retries later if the ESI error limit for structures has been reached
+    and retries later if the ESI error limit has already been reached
     """
     try:
         token = Token.objects.get(pk=token_pk)
@@ -675,19 +695,47 @@ def update_structure_esi(self, id: int, token_pk: int):
             f"Location #{id}: Requested token with pk {token_pk} does not exist"
         )
 
-    esi_status = fetch_esi_status()
-    if not esi_status.is_online:
-        logger.warning("ESI appears to be offline. Trying again in 30 minutes.")
-        raise self.retry(countdown=30 * 60 + int(random.uniform(1, 20)))
-
-    if esi_status.is_error_limit_exceeded:
-        retry_in = esi_status.error_limit_reset_w_jitter()
+    try:
+        Location.objects.structure_update_or_create_esi(id, token)
+    except EsiOffline:
         logger.warning(
-            "Location %s: ESI error limit threshold reached. "
+            "Location #%s: ESI appears to be offline. Trying again in 30 minutes.", id
+        )
+        raise self.retry(countdown=30 * 60 + int(random.uniform(1, 20)))
+    except EsiErrorLimitExceeded as ex:
+        logger.warning(
+            "Location #%s: ESI error limit threshold reached. "
             "Trying again in %s seconds",
             id,
-            retry_in,
+            ex.retry_in,
         )
-        raise self.retry(countdown=retry_in)
+        raise self.retry(countdown=ex.retry_in)
 
-    Location.objects.structure_update_or_create_esi(id, token)
+
+@shared_task(
+    **{**TASK_ESI_KWARGS},
+    **{
+        "base": QueueOnce,
+        "once": {"keys": ["id"], "graceful": True},
+        "max_retries": None,
+    },
+)
+def update_mail_entity_esi(self, id: int, category: str = None):
+    """Updates a mail entity object from ESI
+    and retries later if the ESI error limit has already been reached
+    """
+    try:
+        MailEntity.objects.update_or_create_esi(id=id, category=category)
+    except EsiOffline:
+        logger.warning(
+            "MailEntity #%s: ESI appears to be offline. Trying again in 30 minutes.", id
+        )
+        raise self.retry(countdown=30 * 60 + int(random.uniform(1, 20)))
+    except EsiErrorLimitExceeded as ex:
+        logger.warning(
+            "MailEntity #%s: ESI error limit threshold reached. "
+            "Trying again in %s seconds",
+            id,
+            ex.retry_in,
+        )
+        raise self.retry(countdown=ex.retry_in)

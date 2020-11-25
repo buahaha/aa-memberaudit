@@ -14,8 +14,8 @@ from ..models import (
     CharacterContractItem,
     CharacterMail,
     CharacterMailLabel,
-    CharacterMailRecipient,
     Location,
+    MailEntity,
 )
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
@@ -232,20 +232,22 @@ class TestUICharacterViewer(WebTest):
         label = CharacterMailLabel.objects.create(
             character=self.character, label_id=42, name="Dummy"
         )
+        sender_1002, _ = MailEntity.objects.update_or_create_from_eve_entity_id(id=1002)
         mail = CharacterMail.objects.create(
             character=self.character,
             mail_id=7001,
-            from_entity=EveEntity.objects.get(id=1002),
+            sender=sender_1002,
             subject="Dummy 1",
             body=body_text,
             timestamp=now(),
         )
-        CharacterMailRecipient.objects.create(
-            mail=mail, eve_entity=EveEntity.objects.get(id=1001)
+        recipient_1001, _ = MailEntity.objects.update_or_create_from_eve_entity_id(
+            id=1001
         )
-        CharacterMailRecipient.objects.create(
-            mail=mail, eve_entity=EveEntity.objects.get(id=1003)
+        recipient_1003, _ = MailEntity.objects.update_or_create_from_eve_entity_id(
+            id=1003
         )
+        mail.recipients.add(recipient_1001, recipient_1003)
         mail.labels.add(label)
 
         # open character viewer

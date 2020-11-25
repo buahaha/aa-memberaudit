@@ -25,10 +25,10 @@
 
                 {% if mailing_lists %}
                     <hr>
-                    {% for item in mailing_lists|dictsort:"name_plus_2.lower" %}
+                    {% for item in mailing_lists|dictsort:"name_plus.lower" %}
                         <li role="presentation" class="pillMailLabel" data-list-id="{{ item.list_id }}">
                             <a href="#" onclick="return false;">
-                                {{ item.name_plus_2 }}
+                                {{ item.name_plus }}
                                 {% if item.unread_count %}
                                     <span class="badge">{{ item.unread_count }}</span>
                                 {% endif %}

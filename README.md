@@ -15,6 +15,7 @@ An app for auditing members on Alliance Auth
 - [Updating](#updating)
 - [Permissions](#permissions)
 - [Settings](#settings)
+- [Management Commands](#management-commands)
 - [Change Log](CHANGELOG.md)
 
 ## Overview
@@ -239,3 +240,21 @@ Name | Description | Default
 `MEMBERAUDIT_UPDATE_STALE_RING_1`| Minutes after which sections belonging to ring 1 are considered stale: location, online status | `60`
 `MEMBERAUDIT_UPDATE_STALE_RING_2`| Minutes after which sections belonging to ring 2 are considered stale: all except those in ring 1 & 3 | `240`
 `MEMBERAUDIT_UPDATE_STALE_RING_3`| Minutes after which sections belonging to ring 3 are considered stale: assets | `480`
+
+## Management Commands
+
+The following management commands are available to perform administrative tasks:
+
+### memberaudit_load_eve
+
+Pre-loads data required for this app from ESI to improve app performance.
+
+### memberaudit_reset_all_characters
+
+This command deletes all locally stored character data, but maintains character skeletons, so they can be reloaded again from ESI.
+
+> **Warning**<br>Make sure to stop all supervisors before using this command.
+
+### memberaudit_update_all_characters
+
+Start the process of force updating all characters from ESI.

@@ -37,6 +37,7 @@ from .models import (
     CharacterMail,
     Doctrine,
     Location,
+    MailEntity,
     accessible_users,
 )
 from .utils import (
@@ -339,16 +340,29 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         main = "-"
 
     # mailing lists
-    mailing_lists = list(
-        character.mailing_lists.all_with_name_plus()
-        .annotate(
-            unread_count=Count(
-                "charactermailrecipient",
-                filter=Q(charactermailrecipient__mail__is_read=False),
+    mailing_lists_qs = (
+        MailEntity.objects.filter(
+            Q(category=MailEntity.Category.MAILING_LIST)
+            & (
+                Q(recipient_mails__character=character)
+                | Q(sender_mails__character=character)
             )
         )
-        .values("list_id", "name_plus_2", "unread_count")
+        .distinct()
+        .annotate(
+            unread_count=Count(
+                "recipient_mails", filter=Q(recipient_mails__is_read=False)
+            )
+        )
     )
+    mailing_lists = [
+        {
+            "list_id": obj.id,
+            "name_plus": obj.name_plus,
+            "unread_count": obj.unread_count,
+        }
+        for obj in mailing_lists_qs
+    ]
 
     # mail labels
     mail_labels = list(
@@ -1078,7 +1092,9 @@ def character_jump_clones_data(
 def _character_mail_headers_data(request, character, mail_headers_qs) -> JsonResponse:
     mails_data = list()
     try:
-        for mail in mail_headers_qs.select_related("from_entity", "from_mailing_list"):
+        for mail in mail_headers_qs.select_related("sender").prefetch_related(
+            "recipients"
+        ):
             mail_ajax_url = reverse(
                 "memberaudit:character_mail_data", args=[character.pk, mail.pk]
             )
@@ -1095,16 +1111,9 @@ def _character_mail_headers_data(request, character, mail_headers_qs) -> JsonRes
             mails_data.append(
                 {
                     "mail_id": mail.mail_id,
-                    "from": mail.from_name,
+                    "from": mail.sender.name_plus,
                     "to": ", ".join(
-                        sorted(
-                            [
-                                str(obj)
-                                for obj in mail.recipients.select_related(
-                                    "eve_entity", "mailing_list"
-                                )
-                            ]
-                        )
+                        sorted([obj.name_plus for obj in mail.recipients.all()])
                     ),
                     "subject": mail.subject,
                     "sent": mail.timestamp.isoformat(),
@@ -1139,7 +1148,7 @@ def character_mail_headers_by_label_data(
 def character_mail_headers_by_list_data(
     request, character_pk: int, character: Character, list_id: int
 ) -> JsonResponse:
-    mail_headers_qs = character.mails.filter(recipients__mailing_list__list_id=list_id)
+    mail_headers_qs = character.mails.filter(recipients__id=list_id)
     return _character_mail_headers_data(request, character, mail_headers_qs)
 
 
@@ -1150,26 +1159,32 @@ def character_mail_data(
     request, character_pk: int, character: Character, mail_pk: int
 ) -> JsonResponse:
     try:
-        mail = character.mails.get(pk=mail_pk)
+        mail = (
+            character.mails.select_related("sender")
+            .prefetch_related("recipients")
+            .get(pk=mail_pk)
+        )
     except CharacterMail.DoesNotExist:
         error_msg = f"Mail with pk {mail_pk} not found for character {character}"
         logger.warning(error_msg)
         return HttpResponseNotFound(error_msg)
 
+    recipients = sorted(
+        [
+            {
+                "name": obj.name_plus,
+                "link": create_link_html(obj.external_url(), obj.name_plus),
+            }
+            for obj in mail.recipients.all()
+        ],
+        key=lambda k: k["name"],
+    )
+
     data = {
         "mail_id": mail.mail_id,
         "labels": list(mail.labels.values_list("label_id", flat=True)),
-        "from": mail.from_name,
-        "to": ", ".join(
-            sorted(
-                [
-                    str(obj)
-                    for obj in mail.recipients.select_related(
-                        "eve_entity", "mailing_list"
-                    )
-                ]
-            )
-        ),
+        "from": create_link_html(mail.sender.external_url(), mail.sender.name_plus),
+        "to": ", ".join([obj["link"] for obj in recipients]),
         "subject": mail.subject,
         "sent": mail.timestamp.isoformat(),
         "body": mail.body_html if mail.body != "" else "(no data yet)",
@@ -1550,7 +1565,7 @@ def doctrines_report_data(request) -> JsonResponse:
             "character_ownership__character",
         )
         .prefetch_related("doctrine_ships")
-        .filter(character_ownership__user__in=accessible_users(request.user))
+        .filter(character_ownership__user__in=list(accessible_users(request.user)))
     )
 
     my_select_related = "ship", "ship__ship_type"

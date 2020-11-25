@@ -158,6 +158,29 @@ def users_with_permission(permission: Permission) -> models.QuerySet:
     return users_qs
 
 
+class EsiStatusException(Exception):
+    """EsiStatus base exception"""
+
+    def __init__(self, message):
+        self.message = message
+
+
+class EsiOffline(EsiStatusException):
+    """ESI is offline"""
+
+    def __init__(self):
+        super().__init__("ESI appears to be offline")
+
+
+class EsiErrorLimitExceeded(EsiStatusException):
+    """ESI error limit exceeded"""
+
+    def __init__(self, retry_in: float) -> None:
+        retry_in = float(retry_in)
+        super().__init__("The ESI error limit has been exceeded.")
+        self.retry_in = retry_in  # seconds until next error window
+
+
 class EsiStatus:
     """Current status of ESI (immutable)"""
 
@@ -210,6 +233,15 @@ class EsiStatus:
                 max_jitter = self.MAX_JITTER
 
             return self.error_limit_reset + int(random.uniform(1, max_jitter))
+
+    def raise_for_status(self):
+        """will raise an exception derived from EsiStatusException
+        if and only if conditions are met."""
+        if not self.is_online:
+            raise EsiOffline()
+
+        if self.is_error_limit_exceeded:
+            raise EsiErrorLimitExceeded(retry_in=self.error_limit_reset_w_jitter())
 
 
 def fetch_esi_status() -> EsiStatus:

@@ -129,10 +129,10 @@ class CharacterAdmin(admin.ModelAdmin):
 
     def _missing_updates(self, obj):
         existing = set(obj.update_status_set.values_list("section", flat=True))
-        all_sections = {x[0] for x in Character.UPDATE_SECTION_CHOICES}
+        all_sections = set(Character.UpdateSection.values)
         missing = all_sections.difference(existing)
         if missing:
-            return sorted([Character.section_display_name(x) for x in missing])
+            return sorted([Character.UpdateSection.display_name(x) for x in missing])
 
         return None
 
@@ -162,31 +162,31 @@ class CharacterAdmin(admin.ModelAdmin):
     )
 
     def update_location(self, request, queryset):
-        section = Character.UPDATE_SECTION_LOCATION
+        section = Character.UpdateSection.LOCATION
         for obj in queryset:
             tasks.update_character_section.delay(character_pk=obj.pk, section=section)
             self.message_user(
                 request,
-                f"Started updating {Character.section_display_name(section)} for character: {obj}. ",
+                f"Started updating {Character.UpdateSection.display_name(section)} for character: {obj}. ",
             )
 
     update_location.short_description = (
-        f"Update {Character.section_display_name(Character.UPDATE_SECTION_LOCATION)} "
+        f"Update {Character.UpdateSection.display_name(Character.UpdateSection.LOCATION)} "
         "for selected characters from EVE server"
     )
 
     def update_online_status(self, request, queryset):
-        section = Character.UPDATE_SECTION_ONLINE_STATUS
+        section = Character.UpdateSection.ONLINE_STATUS
         for obj in queryset:
             tasks.update_character_section.delay(character_pk=obj.pk, section=section)
             self.message_user(
                 request,
-                f"Started updating {Character.section_display_name(section)} for character: {obj}. ",
+                f"Started updating {Character.UpdateSection.display_name(section)} for character: {obj}. ",
             )
 
     update_online_status.short_description = (
         "Update "
-        f"{Character.section_display_name(Character.UPDATE_SECTION_ONLINE_STATUS)} "
+        f"{Character.UpdateSection.display_name(Character.UpdateSection.ONLINE_STATUS)} "
         "for selected characters from EVE server"
     )
 
