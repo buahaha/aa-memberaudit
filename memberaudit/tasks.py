@@ -11,21 +11,17 @@ from esi.models import Token
 from eveuniverse.core.esitools import is_esi_online
 from eveuniverse.models import EveEntity, EveMarketPrice
 
-from django.db import transaction
 from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
 
 from . import __title__
 from .app_settings import (
-    MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
     MEMBERAUDIT_TASKS_TIME_LIMIT,
-    MEMBERAUDIT_TASKS_MAX_ASSETS_PER_PASS,
     MEMBERAUDIT_UPDATE_STALE_RING_2,
 )
 from .helpers import EsiOffline, EsiErrorLimitExceeded
 from .models import (
     Character,
-    CharacterAsset,
     CharacterContract,
     CharacterMail,
     CharacterUpdateStatus,
@@ -118,7 +114,7 @@ def update_character(character_pk: int, force_update=False) -> bool:
     )
     sections = all_sections.difference(
         {
-            Character.UpdateSection.ASSETS,
+            # Character.UpdateSection.ASSETS,
             Character.UpdateSection.MAILS,
             Character.UpdateSection.CONTACTS,
             Character.UpdateSection.CONTRACTS,
@@ -154,13 +150,7 @@ def update_character(character_pk: int, force_update=False) -> bool:
             kwargs={"character_pk": character.pk},
             priority=DEFAULT_TASK_PRIORITY,
         )
-    if force_update or character.is_update_section_stale(
-        Character.UpdateSection.ASSETS
-    ):
-        update_character_assets.apply_async(
-            kwargs={"character_pk": character.pk},
-            priority=DEFAULT_TASK_PRIORITY,
-        )
+
     if force_update or character.is_update_section_stale(
         Character.UpdateSection.WALLET_JOURNAL
     ):
@@ -246,181 +236,6 @@ def update_unresolved_eve_entities(
     )
     if last_in_chain:
         _log_character_update_success(character, section)
-
-
-# Special tasks for updating assets
-
-
-@shared_task(**TASK_ESI_KWARGS)
-def update_character_assets(self, character_pk: int) -> None:
-    """Main tasks for updating the character's assets"""
-    character = Character.objects.get(pk=character_pk)
-    section = Character.UpdateSection.ASSETS
-    logger.info(
-        "%s: Updating %s", character, Character.UpdateSection.display_name(section)
-    )
-    character.update_status_set.filter(section=section).delete()
-    asset_list = _character_update_with_error_logging(
-        self, character, section, character.assets_build_list_from_esi
-    )
-    logger.info("%s: Recreating asset tree for %s assets", character, len(asset_list))
-    # TODO: Add update section logging for assets_create_parents
-    character.assets.all().delete()
-    assets_create_parents.apply_async(
-        kwargs={"character_pk": character.pk, "asset_list": asset_list},
-        priority=DEFAULT_TASK_PRIORITY,
-    )
-
-
-@shared_task(**TASK_ESI_KWARGS)
-def assets_create_parents(
-    self, character_pk: int, asset_list: dict, round: int = 1
-) -> None:
-    """creates the parent assets from given asset_list
-
-    Parent assets are assets attached directly to a Location object (e.g. station)
-
-    This task will recursively call itself until all possible parent assets
-    from the asset list have been created.
-    Then call another task to create child assets.
-    """
-    character = Character.objects.get(pk=character_pk)
-    logger.info("%s: Creating parent assets - pass %s", character, round)
-
-    # for debug
-    # character._store_list_to_disk(asset_list, f"parent_asset_list_{round}")
-
-    new_assets = list()
-    with transaction.atomic():
-        location_ids = set(Location.objects.values_list("id", flat=True))
-        parent_asset_ids = {
-            item_id
-            for item_id, asset_info in asset_list.items()
-            if asset_info.get("location_id")
-            and asset_info["location_id"] in location_ids
-        }
-        for item_id in parent_asset_ids:
-            item = asset_list[item_id]
-            new_assets.append(
-                CharacterAsset(
-                    character=character,
-                    item_id=item_id,
-                    location_id=item["location_id"],
-                    eve_type_id=item.get("type_id"),
-                    name=item.get("name"),
-                    is_blueprint_copy=item.get("is_blueprint_copy"),
-                    is_singleton=item.get("is_singleton"),
-                    location_flag=item.get("location_flag"),
-                    quantity=item.get("quantity"),
-                )
-            )
-            asset_list.pop(item_id)
-            if len(new_assets) >= MEMBERAUDIT_TASKS_MAX_ASSETS_PER_PASS:
-                break
-
-        logger.info("%s: Writing %s parent assets", character, len(new_assets))
-        # TODO: `ignore_conflicts=True` needed as workaround to compensate for
-        # occasional duplicate FK constraint errors. Needs to be investigated
-        CharacterAsset.objects.bulk_create(
-            new_assets,
-            batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
-            ignore_conflicts=True,
-        )
-
-    if len(parent_asset_ids) > len(new_assets):
-        # there are more parent assets to create
-        assets_create_parents.apply_async(
-            kwargs={
-                "character_pk": character.pk,
-                "asset_list": asset_list,
-                "round": round + 1,
-            },
-            priority=DEFAULT_TASK_PRIORITY,
-        )
-    else:
-        # all parent assets created
-        if asset_list:
-            assets_create_children.apply_async(
-                kwargs={"character_pk": character.pk, "asset_list": asset_list},
-                priority=DEFAULT_TASK_PRIORITY,
-            )
-        else:
-            _log_character_update_success(character, Character.UpdateSection.ASSETS)
-
-
-@shared_task(**TASK_ESI_KWARGS)
-def assets_create_children(
-    self, character_pk: int, asset_list: dict, round: int = 1
-) -> None:
-    """Created child assets from given asset list
-
-    Child assets are assets located within other assets (aka containers)
-
-    This task will recursively call itself until all possible assets from the
-    asset list are included into the asset tree
-    """
-    character = Character.objects.get(pk=character_pk)
-    logger.info("%s: Creating child assets - pass %s", character, round)
-
-    # for debug
-    # character._store_list_to_disk(asset_list, f"child_asset_list_{round}")
-
-    new_assets = list()
-    with transaction.atomic():
-        parent_asset_ids = set(character.assets.values_list("item_id", flat=True))
-        child_asset_ids = {
-            item_id
-            for item_id, item in asset_list.items()
-            if item.get("location_id") and item["location_id"] in parent_asset_ids
-        }
-        for item_id in child_asset_ids:
-            item = asset_list[item_id]
-            new_assets.append(
-                CharacterAsset(
-                    character=character,
-                    item_id=item_id,
-                    parent=character.assets.get(item_id=item["location_id"]),
-                    eve_type_id=item.get("type_id"),
-                    name=item.get("name"),
-                    is_blueprint_copy=item.get("is_blueprint_copy"),
-                    is_singleton=item.get("is_singleton"),
-                    location_flag=item.get("location_flag"),
-                    quantity=item.get("quantity"),
-                )
-            )
-            asset_list.pop(item_id)
-            if len(new_assets) >= MEMBERAUDIT_TASKS_MAX_ASSETS_PER_PASS:
-                break
-
-        if new_assets:
-            logger.info("%s: Writing %s child assets", character, len(new_assets))
-            # TODO: `ignore_conflicts=True` needed as workaround to compensate for
-            # occasional duplicate FK constraint errors. Needs to be investigated
-            CharacterAsset.objects.bulk_create(
-                new_assets,
-                batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
-                ignore_conflicts=True,
-            )
-
-    if new_assets and asset_list:
-        # there are more child assets to create
-        assets_create_children.apply_async(
-            kwargs={
-                "character_pk": character.pk,
-                "asset_list": asset_list,
-                "round": round + 1,
-            },
-            priority=DEFAULT_TASK_PRIORITY,
-        )
-    else:
-        _log_character_update_success(character, Character.UpdateSection.ASSETS)
-        if len(asset_list) > 0:
-            logger.warning(
-                "%s: Failed to add %s assets to the tree: %s",
-                character,
-                len(asset_list),
-                asset_list.keys(),
-            )
 
 
 # Special tasks for updating mail section

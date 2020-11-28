@@ -406,6 +406,174 @@ class TestCharacterUpdateBase(TestCase):
         cls.structure_1 = Location.objects.get(id=1000000000001)
 
 
+@patch(MODELS_PATH + ".esi")
+class TestUpdateCharacterAssets(TestCharacterUpdateBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+
+    def test_update_assets_1(self, mock_esi):
+        """can create assets from scratch"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_assets()
+        self.assertSetEqual(
+            set(self.character_1001.assets.values_list("item_id", flat=True)),
+            {
+                1100000000001,
+                1100000000002,
+                1100000000003,
+                1100000000004,
+                1100000000005,
+                1100000000006,
+                1100000000007,
+                1100000000008,
+            },
+        )
+
+        asset = self.character_1001.assets.get(item_id=1100000000001)
+        self.assertTrue(asset.is_blueprint_copy)
+        self.assertTrue(asset.is_singleton)
+        self.assertEqual(asset.location_flag, "Hangar")
+        self.assertEqual(asset.location_id, 60003760)
+        self.assertEqual(asset.quantity, 1)
+        self.assertEqual(asset.eve_type, EveType.objects.get(id=20185))
+        self.assertEqual(asset.name, "Parent Item 1")
+
+        asset = self.character_1001.assets.get(item_id=1100000000002)
+        self.assertFalse(asset.is_blueprint_copy)
+        self.assertTrue(asset.is_singleton)
+        self.assertEqual(asset.location_flag, "???")
+        self.assertEqual(asset.parent.item_id, 1100000000001)
+        self.assertEqual(asset.quantity, 1)
+        self.assertEqual(asset.eve_type, EveType.objects.get(id=19540))
+        self.assertEqual(asset.name, "Leaf Item 2")
+
+        asset = self.character_1001.assets.get(item_id=1100000000003)
+        self.assertEqual(asset.parent.item_id, 1100000000001)
+        self.assertEqual(asset.eve_type, EveType.objects.get(id=23))
+
+        asset = self.character_1001.assets.get(item_id=1100000000004)
+        self.assertEqual(asset.parent.item_id, 1100000000003)
+        self.assertEqual(asset.eve_type, EveType.objects.get(id=19553))
+
+        asset = self.character_1001.assets.get(item_id=1100000000005)
+        self.assertEqual(asset.location, self.structure_1)
+        self.assertEqual(asset.eve_type, EveType.objects.get(id=20185))
+
+        asset = self.character_1001.assets.get(item_id=1100000000006)
+        self.assertEqual(asset.parent.item_id, 1100000000005)
+        self.assertEqual(asset.eve_type, EveType.objects.get(id=19540))
+
+        asset = self.character_1001.assets.get(item_id=1100000000007)
+        self.assertEqual(asset.location_id, 30000142)
+        self.assertEqual(asset.name, "")
+        self.assertEqual(asset.eve_type, EveType.objects.get(id=19540))
+
+        asset = self.character_1001.assets.get(item_id=1100000000008)
+        self.assertEqual(asset.location_id, 1000000000001)
+
+    def test_update_assets_2(self, mock_esi):
+        """can remove obsolete assets"""
+        mock_esi.client = esi_client_stub
+        CharacterAsset.objects.create(
+            character=self.character_1001,
+            item_id=1100000000666,
+            location=self.jita_44,
+            eve_type=EveType.objects.get(id=20185),
+            is_singleton=False,
+            name="Trucker",
+            quantity=1,
+        )
+
+        self.character_1001.update_assets()
+        self.assertSetEqual(
+            set(self.character_1001.assets.values_list("item_id", flat=True)),
+            {
+                1100000000001,
+                1100000000002,
+                1100000000003,
+                1100000000004,
+                1100000000005,
+                1100000000006,
+                1100000000007,
+                1100000000008,
+            },
+        )
+
+    def test_update_assets_3(self, mock_esi):
+        """can update existing assets"""
+        mock_esi.client = esi_client_stub
+        CharacterAsset.objects.create(
+            character=self.character_1001,
+            item_id=1100000000001,
+            location=self.jita_44,
+            eve_type=EveType.objects.get(id=20185),
+            is_singleton=True,
+            name="Parent Item 1",
+            quantity=10,
+        )
+
+        self.character_1001.update_assets()
+        self.assertSetEqual(
+            set(self.character_1001.assets.values_list("item_id", flat=True)),
+            {
+                1100000000001,
+                1100000000002,
+                1100000000003,
+                1100000000004,
+                1100000000005,
+                1100000000006,
+                1100000000007,
+                1100000000008,
+            },
+        )
+
+        asset = self.character_1001.assets.get(item_id=1100000000001)
+        self.assertTrue(asset.is_singleton)
+        self.assertEqual(asset.location_id, 60003760)
+        self.assertEqual(asset.quantity, 1)
+        self.assertEqual(asset.eve_type, EveType.objects.get(id=20185))
+        self.assertEqual(asset.name, "Parent Item 1")
+
+    def test_update_assets_4(self, mock_esi):
+        """assets moved to different locations are kept"""
+        mock_esi.client = esi_client_stub
+        parent_asset = CharacterAsset.objects.create(
+            character=self.character_1001,
+            item_id=1100000000666,
+            location=self.jita_44,
+            eve_type=EveType.objects.get(id=20185),
+            is_singleton=True,
+            name="Obsolete Container",
+            quantity=1,
+        )
+        CharacterAsset.objects.create(
+            character=self.character_1001,
+            item_id=1100000000002,
+            parent=parent_asset,
+            eve_type=EveType.objects.get(id=19540),
+            is_singleton=True,
+            is_blueprint_copy=False,
+            quantity=1,
+        )
+
+        self.character_1001.update_assets()
+        self.assertSetEqual(
+            set(self.character_1001.assets.values_list("item_id", flat=True)),
+            {
+                1100000000001,
+                1100000000002,
+                1100000000003,
+                1100000000004,
+                1100000000005,
+                1100000000006,
+                1100000000007,
+                1100000000008,
+            },
+        )
+
+
 @override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(MODELS_PATH + ".esi")
 class TestCharacterUpdateContacts(TestCharacterUpdateBase):
