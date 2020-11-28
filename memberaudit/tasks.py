@@ -114,7 +114,7 @@ def update_character(character_pk: int, force_update=False) -> bool:
     )
     sections = all_sections.difference(
         {
-            # Character.UpdateSection.ASSETS,
+            Character.UpdateSection.ASSETS,
             Character.UpdateSection.MAILS,
             Character.UpdateSection.CONTACTS,
             Character.UpdateSection.CONTRACTS,
@@ -155,6 +155,14 @@ def update_character(character_pk: int, force_update=False) -> bool:
         Character.UpdateSection.WALLET_JOURNAL
     ):
         update_character_wallet_journal.apply_async(
+            kwargs={"character_pk": character.pk},
+            priority=DEFAULT_TASK_PRIORITY,
+        )
+
+    if force_update or character.is_update_section_stale(
+        Character.UpdateSection.ASSETS
+    ):
+        update_character_assets.apply_async(
             kwargs={"character_pk": character.pk},
             priority=DEFAULT_TASK_PRIORITY,
         )
@@ -236,6 +244,67 @@ def update_unresolved_eve_entities(
     )
     if last_in_chain:
         _log_character_update_success(character, section)
+
+
+# Special tasks for updating assets
+
+
+@shared_task(**TASK_DEFAULT_KWARGS)
+def update_character_assets(character_pk: int) -> None:
+    """Main tasks for updating the character's assets"""
+    character = Character.objects.get(pk=character_pk)
+    logger.info(
+        "%s: Updating %s",
+        character,
+        Character.UpdateSection.display_name(Character.UpdateSection.ASSETS),
+    )
+    character.update_status_set.filter(section=Character.UpdateSection.ASSETS).delete()
+    chain(
+        assets_build_list_from_esi.s(character.pk),
+        assets_preload_objects.s(character.pk),
+        assets_build_tree.s(character.pk),
+    ).apply_async(priority=DEFAULT_TASK_PRIORITY)
+
+
+@shared_task(**TASK_ESI_KWARGS)
+def assets_build_list_from_esi(self, character_pk: int) -> dict:
+    """Building asset list"""
+    character = Character.objects.get(pk=character_pk)
+    asset_list = _character_update_with_error_logging(
+        self,
+        character,
+        Character.UpdateSection.ASSETS,
+        character.assets_build_list_from_esi,
+    )
+    return asset_list
+
+
+@shared_task(**TASK_ESI_KWARGS)
+def assets_preload_objects(self, asset_list: dict, character_pk: int) -> dict:
+    """Task for preloading asset objects"""
+    character = Character.objects.get(pk=character_pk)
+    _character_update_with_error_logging(
+        self,
+        character,
+        Character.UpdateSection.ASSETS,
+        character.assets_preload_objects,
+        asset_list,
+    )
+    return asset_list
+
+
+@shared_task(**TASK_ESI_KWARGS)
+def assets_build_tree(self, asset_list: dict, character_pk: int) -> None:
+    """Building the asset tree"""
+    character = Character.objects.get(pk=character_pk)
+    _character_update_with_error_logging(
+        self,
+        character,
+        Character.UpdateSection.ASSETS,
+        character.assets_build_tree,
+        asset_list,
+    )
+    _log_character_update_success(character, Character.UpdateSection.ASSETS)
 
 
 # Special tasks for updating mail section

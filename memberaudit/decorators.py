@@ -3,6 +3,12 @@ from functools import wraps
 
 from django.http import HttpResponseForbidden, HttpResponseNotFound
 
+from allianceauth.services.hooks import get_extension_logger
+from . import __title__
+from .utils import LoggerAddTag
+
+logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+
 
 def fetch_character_if_allowed(*args_select_related):
     """Asserts the current user has access to the character
@@ -53,11 +59,17 @@ def fetch_token_for_character(scopes=None):
     Otherwise will use all scopes defined for this character.
     """
 
-    def decorator(view_func):
-        @wraps(view_func)
+    def decorator(func):
+        @wraps(func)
         def _wrapped_view(character, *args, **kwargs):
             token = character.fetch_token(scopes)
-            return view_func(character, token, *args, **kwargs)
+            logger.debug(
+                "%s: Using token %s for `%s`",
+                token.character_name,
+                token.pk,
+                func.__name__,
+            )
+            return func(character, token, *args, **kwargs)
 
         return _wrapped_view
 

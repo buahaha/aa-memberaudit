@@ -194,7 +194,12 @@ class LocationManager(models.Manager):
                 structure_id=id, token=token.valid_access_token()
             ).results()
         except (HTTPUnauthorized, HTTPForbidden) as http_error:
-            logger.warn("%s: No access to this structure: %s", id, http_error)
+            logger.warn(
+                "%s: No access to structure #%s: %s",
+                token.character_name,
+                id,
+                http_error,
+            )
             location, created = self.get_or_create(id=id)
         else:
             location, created = self._structure_update_or_create_dict(

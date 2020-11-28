@@ -34,12 +34,6 @@ MEMBERAUDIT_MAX_MAILS = clean_setting("MEMBERAUDIT_MAX_MAILS", 250)
 # Global timeout for tasks in seconds to reduce task accumulation during outages
 MEMBERAUDIT_TASKS_TIME_LIMIT = clean_setting("MEMBERAUDIT_TASKS_TIME_LIMIT", 7200)
 
-# Technical parameter defining the maximum number of asset items processed in each pass
-# when updating character assets.
-# A higher value reduces duration, but also increases task queue congestion
-MEMBERAUDIT_TASKS_MAX_ASSETS_PER_PASS = clean_setting(
-    "MEMBERAUDIT_TASKS_MAX_ASSETS_PER_PASS", 250
-)
 
 # Character sections are updated on different schedules, called rings.
 # Ring 1 is the quickest, Ring 3 is the slowest
