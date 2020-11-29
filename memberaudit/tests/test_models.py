@@ -1258,6 +1258,21 @@ class TestCharacterUpdateSkills(TestCharacterUpdateBase):
         skill.refresh_from_db()
         self.assertEqual(skill.active_skill_level, 4)
 
+    def test_update_skills_5(self, mock_esi):
+        """when ESI info has not changed and update forced, then update local data"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.reset_update_section(Character.UpdateSection.SKILLS)
+        self.character_1001.update_skills()
+        skill = self.character_1001.skills.get(eve_type_id=24311)
+        skill.active_skill_level = 4
+        skill.save()
+
+        self.character_1001.update_skills(force_update=True)
+
+        skill = self.character_1001.skills.get(eve_type_id=24311)
+        self.assertEqual(skill.active_skill_level, 3)
+
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(MODELS_PATH + ".esi")

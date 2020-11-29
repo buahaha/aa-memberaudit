@@ -59,7 +59,7 @@ class CharacterAdmin(admin.ModelAdmin):
         "created_at",
         "_last_update_at",
         "_last_update_ok",
-        "_missing_updates",
+        "_missing_sections",
     )
     list_display_links = (
         "_character_pic",
@@ -127,7 +127,7 @@ class CharacterAdmin(admin.ModelAdmin):
 
     _last_update_ok.boolean = True
 
-    def _missing_updates(self, obj):
+    def _missing_sections(self, obj):
         existing = set(obj.update_status_set.values_list("section", flat=True))
         all_sections = set(Character.UpdateSection.values)
         missing = all_sections.difference(existing)
@@ -152,7 +152,7 @@ class CharacterAdmin(admin.ModelAdmin):
 
     def update_assets(self, request, queryset):
         for obj in queryset:
-            tasks.update_character_assets.delay(character_pk=obj.pk)
+            tasks.update_character_assets.delay(character_pk=obj.pk, force_update=True)
             self.message_user(
                 request, f"Started updating assets for character: {obj}. "
             )

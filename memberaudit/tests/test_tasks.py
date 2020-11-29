@@ -314,6 +314,34 @@ class TestUpdateCharacterAssets(TestCase):
             status.last_error_message, "HTTPInternalServerError: 500 Test exception"
         )
 
+    def test_update_assets_9(self, mock_esi):
+        """when info from ESI has not change, then don't re-create asset tree"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.reset_update_section(Character.UpdateSection.ASSETS)
+        update_character_assets(self.character_1001.pk)
+        asset = self.character_1001.assets.get(item_id=1100000000001)
+        asset.name = "New Name"
+        asset.save()
+        update_character_assets(self.character_1001.pk)
+
+        asset = self.character_1001.assets.get(item_id=1100000000001)
+        self.assertEqual(asset.name, "New Name")
+
+    def test_update_assets_10(self, mock_esi):
+        """when info from ESI has not change and update is forced, then re-create asset tree"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.reset_update_section(Character.UpdateSection.ASSETS)
+        update_character_assets(self.character_1001.pk)
+        asset = self.character_1001.assets.get(item_id=1100000000001)
+        asset.name = "New Name"
+        asset.save()
+        update_character_assets(self.character_1001.pk, force_update=True)
+
+        asset = self.character_1001.assets.get(item_id=1100000000001)
+        self.assertEqual(asset.name, "Parent Item 1")
+
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(MODELS_PATH + ".esi")
@@ -550,7 +578,7 @@ class TestUpdateCharacter(TestCase):
 
         self.assertFalse(update_character_mails.apply_async.called)
 
-    @patch(TASKS_PATH + ".Character.update_skills")
+    @patch(TASKS_PATH + ".Character.update_skills", spec=True)
     def test_do_not_update_current_section_3(self, mock_update_skills, mock_esi):
         """When generic section has recently been updated and force_update is called
         then update again

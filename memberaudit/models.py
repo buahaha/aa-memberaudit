@@ -497,10 +497,12 @@ class Character(models.Model):
         return token
 
     @fetch_token_for_character("esi-assets.read_assets.v1")
-    def assets_build_list_from_esi(self, token: Token) -> list:
+    def assets_build_list_from_esi(
+        self, token: Token, force_update=False
+    ) -> Optional[list]:
         """fetches assets from ESI and preloads related objects from ESI
 
-        returns the asset_list
+        returns the asset_list or None if no update is required
         """
         logger.info("%s: Fetching assets from ESI", self)
         asset_list = esi.client.Assets.get_characters_character_id_assets(
@@ -527,7 +529,17 @@ class Character(models.Model):
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(assets_flat, "asset_list")
 
-        return list(assets_flat.values())
+        new_asset_list = list(assets_flat.values())
+        if force_update or self.has_section_changed(
+            section=Character.UpdateSection.ASSETS, content=new_asset_list
+        ):
+            self.update_section_content_hash(
+                section=Character.UpdateSection.ASSETS, content=new_asset_list
+            )
+            return new_asset_list
+        else:
+            logger.info("%s: Assets did not change", self)
+            return None
 
     @fetch_token_for_character("esi-universe.read_structures.v1")
     def assets_preload_objects(self, token: Token, asset_list: list) -> None:
@@ -1662,14 +1674,14 @@ class Character(models.Model):
                 logger.info("%s: Skill queue is empty", self)
 
     @fetch_token_for_character("esi-skills.read_skills.v1")
-    def update_skills(self, token):
-        self._update_skills(token)
+    def update_skills(self, token, force_update: bool = False):
+        self._update_skills(token, force_update)
         self.update_doctrines()
 
-    def _update_skills(self, token):
+    def _update_skills(self, token, force_update):
         """update the character's skill"""
         skills_list = self._fetch_skills_from_esi(token)
-        if self.has_section_changed(
+        if force_update or self.has_section_changed(
             section=self.UpdateSection.SKILLS, content=skills_list
         ):
             with transaction.atomic():

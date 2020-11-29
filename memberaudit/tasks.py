@@ -1,4 +1,5 @@
 import random
+from typing import Optional
 
 from celery import shared_task, chain
 
@@ -127,6 +128,7 @@ def update_character(character_pk: int, force_update=False) -> bool:
                 kwargs={
                     "character_pk": character.pk,
                     "section": section,
+                    "force_update": force_update,
                 },
                 priority=DEFAULT_TASK_PRIORITY,
             )
@@ -163,7 +165,7 @@ def update_character(character_pk: int, force_update=False) -> bool:
         Character.UpdateSection.ASSETS
     ):
         update_character_assets.apply_async(
-            kwargs={"character_pk": character.pk},
+            kwargs={"character_pk": character.pk, "force_update": force_update},
             priority=DEFAULT_TASK_PRIORITY,
         )
 
@@ -174,19 +176,23 @@ def update_character(character_pk: int, force_update=False) -> bool:
 
 
 @shared_task(**{**TASK_ESI_KWARGS}, **{"base": QueueOnce})
-def update_character_section(self, character_pk: int, section: str) -> None:
+def update_character_section(
+    self, character_pk: int, section: str, force_update: bool = False
+) -> None:
     """Task that updates the section of a character"""
     character = Character.objects.get(pk=character_pk)
     character.reset_update_section(section=section)
     logger.info(
         "%s: Updating %s", character, Character.UpdateSection.display_name(section)
     )
-    _character_update_with_error_logging(
-        self,
-        character,
-        section,
-        getattr(character, Character.UpdateSection.method_name(section)),
-    )
+    update_method = getattr(character, Character.UpdateSection.method_name(section))
+    args = [self, character, section, update_method]
+    if hasattr(update_method, "force_update"):
+        kwargs = {"force_update": force_update}
+    else:
+        kwargs = {}
+
+    _character_update_with_error_logging(*args, **kwargs)
     _log_character_update_success(character, section)
 
 
@@ -226,7 +232,9 @@ def _log_character_update_success(character: Character, section: str):
         Character.UpdateSection.display_name(section),
     )
     CharacterUpdateStatus.objects.update_or_create(
-        character=character, section=section, defaults={"is_success": True}
+        character=character,
+        section=section,
+        defaults={"is_success": True, "last_error_message": ""},
     )
 
 
@@ -250,7 +258,7 @@ def update_unresolved_eve_entities(
 
 
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_character_assets(character_pk: int) -> None:
+def update_character_assets(character_pk: int, force_update=False) -> None:
     """Main tasks for updating the character's assets"""
     character = Character.objects.get(pk=character_pk)
     logger.info(
@@ -260,14 +268,14 @@ def update_character_assets(character_pk: int) -> None:
     )
     character.reset_update_section(section=Character.UpdateSection.ASSETS)
     chain(
-        assets_build_list_from_esi.s(character.pk),
+        assets_build_list_from_esi.s(character.pk, force_update),
         assets_preload_objects.s(character.pk),
         assets_build_tree.s(character.pk),
     ).apply_async(priority=DEFAULT_TASK_PRIORITY)
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def assets_build_list_from_esi(self, character_pk: int) -> dict:
+def assets_build_list_from_esi(self, character_pk: int, force_update=False) -> dict:
     """Building asset list"""
     character = Character.objects.get(pk=character_pk)
     asset_list = _character_update_with_error_logging(
@@ -275,13 +283,17 @@ def assets_build_list_from_esi(self, character_pk: int) -> dict:
         character,
         Character.UpdateSection.ASSETS,
         character.assets_build_list_from_esi,
+        force_update,
     )
     return asset_list
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def assets_preload_objects(self, asset_list: dict, character_pk: int) -> dict:
+def assets_preload_objects(self, asset_list: dict, character_pk: int) -> Optional[dict]:
     """Task for preloading asset objects"""
+    if asset_list is None:
+        return None
+
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
         self,
@@ -297,13 +309,15 @@ def assets_preload_objects(self, asset_list: dict, character_pk: int) -> dict:
 def assets_build_tree(self, asset_list: dict, character_pk: int) -> None:
     """Building the asset tree"""
     character = Character.objects.get(pk=character_pk)
-    _character_update_with_error_logging(
-        self,
-        character,
-        Character.UpdateSection.ASSETS,
-        character.assets_build_tree,
-        asset_list,
-    )
+    if asset_list is not None:
+        _character_update_with_error_logging(
+            self,
+            character,
+            Character.UpdateSection.ASSETS,
+            character.assets_build_tree,
+            asset_list,
+        )
+
     _log_character_update_success(character, Character.UpdateSection.ASSETS)
 
 
