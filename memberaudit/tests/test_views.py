@@ -1445,6 +1445,34 @@ class TestComplianceReportData(TestCase):
         self.assertEqual(result_1002["total_chars"], 2)
         self.assertEqual(result_1002["unregistered_chars"], 1)
 
+    def test_user_without_main(self):
+        user = AuthUtils.create_user("Donald Duck")
+        user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.basic_access", user
+        )
+        user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.reports_access", user
+        )
+        user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_everything", user
+        )
+        request = self.factory.get(reverse("memberaudit:compliance_report_data"))
+        request.user = user
+        response = compliance_report_data(request)
+        self.assertEqual(response.status_code, 200)
+        result = json_response_to_python_dict(response)
+        self.assertSetEqual(
+            set(result.keys()),
+            {
+                self.character_1001.character_ownership.user.pk,
+                self.character_1002.character_ownership.user.pk,
+                self.character_1003.character_ownership.user.pk,
+                self.character_1101.character_ownership.user.pk,
+                self.character_1102.character_ownership.user.pk,
+                user.pk,
+            },
+        )
+
 
 class TestDoctrineReportData(TestCase):
     @classmethod

@@ -1453,20 +1453,23 @@ def compliance_report_data(request) -> JsonResponse:
 
     user_data = list()
     for user in users_and_character_counts:
-        try:
+        if user.profile.main_character:
             main_character = user.profile.main_character
-        except AttributeError:
-            continue
+            main_name = main_character.character_name
+            main_html = create_icon_plus_name_html(
+                main_character.portrait_url(),
+                main_character.character_name,
+                avatar=True,
+            )
+            corporation_name = main_character.corporation_name
+            organization_html = create_main_organization_html(main_character)
+            alliance_name = (
+                main_character.alliance_name if main_character.alliance_name else ""
+            )
+        else:
+            main_html = main_name = user.username
+            alliance_name = organization_html = corporation_name = ""
 
-        main_html = create_icon_plus_name_html(
-            main_character.portrait_url(),
-            main_character.character_name,
-            avatar=True,
-        )
-        organization_html = create_main_organization_html(main_character)
-        alliance_name = (
-            main_character.alliance_name if main_character.alliance_name else ""
-        )
         is_registered = user.unregistered_chars < user.total_chars
         is_compliant = user.unregistered_chars == 0
         user_data.append(
@@ -1474,13 +1477,13 @@ def compliance_report_data(request) -> JsonResponse:
                 "id": user.pk,
                 "main": {
                     "display": main_html,
-                    "sort": main_character.character_name,
+                    "sort": main_name,
                 },
                 "organization": {
                     "display": organization_html,
-                    "sort": main_character.corporation_name,
+                    "sort": corporation_name,
                 },
-                "corporation_name": main_character.corporation_name,
+                "corporation_name": corporation_name,
                 "alliance_name": alliance_name,
                 "total_chars": user.total_chars,
                 "unregistered_chars": user.unregistered_chars,
