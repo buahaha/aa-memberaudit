@@ -177,7 +177,7 @@ def update_character(character_pk: int, force_update=False) -> bool:
 def update_character_section(self, character_pk: int, section: str) -> None:
     """Task that updates the section of a character"""
     character = Character.objects.get(pk=character_pk)
-    character.update_status_set.filter(section=section).delete()
+    character.reset_update_section(section=section)
     logger.info(
         "%s: Updating %s", character, Character.UpdateSection.display_name(section)
     )
@@ -212,7 +212,7 @@ def _character_update_with_error_logging(
             section=section,
             defaults={
                 "is_success": False,
-                "error_message": error_message,
+                "last_error_message": error_message,
             },
         )
         raise ex
@@ -258,7 +258,7 @@ def update_character_assets(character_pk: int) -> None:
         character,
         Character.UpdateSection.display_name(Character.UpdateSection.ASSETS),
     )
-    character.update_status_set.filter(section=Character.UpdateSection.ASSETS).delete()
+    character.reset_update_section(section=Character.UpdateSection.ASSETS)
     chain(
         assets_build_list_from_esi.s(character.pk),
         assets_preload_objects.s(character.pk),
@@ -318,7 +318,7 @@ def update_character_mails(self, character_pk: int) -> None:
     logger.info(
         "%s: Updating %s", character, Character.UpdateSection.display_name(section)
     )
-    character.update_status_set.filter(section=section).delete()
+    character.reset_update_section(section=section)
     chain(
         update_character_mailing_lists.si(character.pk),
         update_character_mail_labels.si(character.pk),
@@ -392,7 +392,7 @@ def update_character_contacts(character_pk: int) -> None:
     """Main task for updating contacts of a character"""
     character = Character.objects.get(pk=character_pk)
     section = Character.UpdateSection.CONTACTS
-    character.update_status_set.filter(section=section).delete()
+    character.reset_update_section(section=section)
     logger.info(
         "%s: Updating %s", character, Character.UpdateSection.display_name(section)
     )
@@ -430,7 +430,7 @@ def update_character_contracts(character_pk: int) -> None:
     """Main task for updating contracts of a character"""
     character = Character.objects.get(pk=character_pk)
     section = Character.UpdateSection.CONTRACTS
-    character.update_status_set.filter(section=section).delete()
+    character.reset_update_section(section=section)
     logger.info(
         "%s: Updating %s", character, Character.UpdateSection.display_name(section)
     )
@@ -528,7 +528,7 @@ def update_character_wallet_journal(character_pk: int) -> None:
     """Main task for updating wallet journal of a character"""
     character = Character.objects.get(pk=character_pk)
     section = Character.UpdateSection.WALLET_JOURNAL
-    character.update_status_set.filter(section=section).delete()
+    character.reset_update_section(section=section)
     logger.info(
         "%s: Updating %s", character, Character.UpdateSection.display_name(section)
     )

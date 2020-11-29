@@ -257,7 +257,7 @@ class TestUpdateCharacterAssets(TestCase):
             section=Character.UpdateSection.ASSETS
         )
         self.assertTrue(status.is_success)
-        self.assertFalse(status.error_message)
+        self.assertFalse(status.last_error_message)
 
     def test_update_assets_6(self, mock_esi):
         """when update failed then report the error"""
@@ -273,7 +273,7 @@ class TestUpdateCharacterAssets(TestCase):
         )
         self.assertFalse(status.is_success)
         self.assertEqual(
-            status.error_message, "HTTPInternalServerError: 500 Test exception"
+            status.last_error_message, "HTTPInternalServerError: 500 Test exception"
         )
 
     def test_update_assets_7(self, mock_esi):
@@ -292,7 +292,7 @@ class TestUpdateCharacterAssets(TestCase):
         )
         self.assertFalse(status.is_success)
         self.assertEqual(
-            status.error_message, "HTTPInternalServerError: 500 Test exception"
+            status.last_error_message, "HTTPInternalServerError: 500 Test exception"
         )
 
     def test_update_assets_8(self, mock_esi):
@@ -311,7 +311,7 @@ class TestUpdateCharacterAssets(TestCase):
         )
         self.assertFalse(status.is_success)
         self.assertEqual(
-            status.error_message, "HTTPInternalServerError: 500 Test exception"
+            status.last_error_message, "HTTPInternalServerError: 500 Test exception"
         )
 
 
@@ -336,7 +336,7 @@ class TestUpdateCharacterMails(TestCase):
             section=Character.UpdateSection.MAILS
         )
         self.assertTrue(status.is_success)
-        self.assertFalse(status.error_message)
+        self.assertFalse(status.last_error_message)
 
     def test_detect_error(self, mock_esi):
         """when update failed then report the error"""
@@ -352,7 +352,7 @@ class TestUpdateCharacterMails(TestCase):
             )
             self.assertFalse(status.is_success)
             self.assertEqual(
-                status.error_message, "HTTPInternalServerError: 500 Test exception"
+                status.last_error_message, "HTTPInternalServerError: 500 Test exception"
             )
         else:
             self.assertTrue(False)  # Hack to ensure the test fails when it gets here
@@ -379,7 +379,7 @@ class TestUpdateCharacterContacts(TestCase):
             section=Character.UpdateSection.CONTACTS
         )
         self.assertTrue(status.is_success)
-        self.assertFalse(status.error_message)
+        self.assertFalse(status.last_error_message)
 
     def test_detect_error(self, mock_esi):
         """when update failed then report the error"""
@@ -395,7 +395,7 @@ class TestUpdateCharacterContacts(TestCase):
             )
             self.assertFalse(status.is_success)
             self.assertEqual(
-                status.error_message, "HTTPInternalServerError: 500 Test exception"
+                status.last_error_message, "HTTPInternalServerError: 500 Test exception"
             )
         else:
             self.assertTrue(False)  # Hack to ensure the test fails when it gets here
@@ -423,7 +423,7 @@ class TestUpdateCharacterContracts(TestCase):
             section=Character.UpdateSection.CONTRACTS
         )
         self.assertTrue(status.is_success)
-        self.assertFalse(status.error_message)
+        self.assertFalse(status.last_error_message)
 
     def test_detect_error(self, mock_esi):
         """when update failed then report the error"""
@@ -439,7 +439,7 @@ class TestUpdateCharacterContracts(TestCase):
             )
             self.assertFalse(status.is_success)
             self.assertEqual(
-                status.error_message, "HTTPInternalServerError: 500 Test exception"
+                status.last_error_message, "HTTPInternalServerError: 500 Test exception"
             )
         else:
             self.assertTrue(False)  # Hack to ensure the test fails when it gets here
@@ -466,7 +466,7 @@ class TestUpdateCharacterWalletJournal(TestCase):
             section=Character.UpdateSection.WALLET_JOURNAL
         )
         self.assertTrue(status.is_success)
-        self.assertFalse(status.error_message)
+        self.assertFalse(status.last_error_message)
 
     def test_detect_error(self, mock_esi):
         """when update failed then report the error"""
@@ -482,7 +482,7 @@ class TestUpdateCharacterWalletJournal(TestCase):
             )
             self.assertFalse(status.is_success)
             self.assertEqual(
-                status.error_message, "HTTPInternalServerError: 500 Test exception"
+                status.last_error_message, "HTTPInternalServerError: 500 Test exception"
             )
         else:
             self.assertTrue(False)  # Hack to ensure the test fails when it gets here
@@ -519,7 +519,7 @@ class TestUpdateCharacter(TestCase):
         )
         self.assertFalse(status.is_success)
         self.assertEqual(
-            status.error_message, "HTTPInternalServerError: 500 Test exception"
+            status.last_error_message, "HTTPInternalServerError: 500 Test exception"
         )
 
     @patch(TASKS_PATH + ".Character.update_skills")

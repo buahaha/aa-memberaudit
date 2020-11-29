@@ -1,9 +1,10 @@
 from copy import copy
 import datetime as dt
 from collections import namedtuple
+import hashlib
 import json
 import os
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from django.contrib.auth.models import User, Permission
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
@@ -415,6 +416,37 @@ class Character(models.Model):
 
         deadline = now() - self.update_section_time_until_stale(section)
         return last_updated < deadline
+
+    def has_section_changed(self, section: str, content: str) -> bool:
+        """returns False if the content hash for this section has not changed, else True"""
+        try:
+            section = self.update_status_set.get(section=section)
+        except CharacterUpdateStatus.DoesNotExist:
+            return True
+        else:
+            return section.has_changed(content)
+
+    def update_section_content_hash(self, section: str, content: str) -> bool:
+        try:
+            section = self.update_status_set.get(section=section)
+        except CharacterUpdateStatus.DoesNotExist:
+            section, _ = CharacterUpdateStatus.objects.get_or_create(
+                character=self, section=section
+            )
+
+        section.update_content_hash(content)
+
+    def reset_update_section(self, section: str) -> "CharacterUpdateStatus":
+        """resets status of given update section and returns it"""
+        try:
+            section = self.update_status_set.get(section=section)
+        except CharacterUpdateStatus.DoesNotExist:
+            section, _ = CharacterUpdateStatus.objects.get_or_create(
+                character=self, section=section
+            )
+
+        section.reset()
+        return section
 
     def _preload_all_locations(self, token: Token, incoming_ids: set) -> list:
         """loads location objects specified by given set
@@ -1637,31 +1669,43 @@ class Character(models.Model):
     def _update_skills(self, token):
         """update the character's skill"""
         skills_list = self._fetch_skills_from_esi(token)
-        with transaction.atomic():
-            incoming_ids = set(skills_list.keys())
-            existing_ids = set(self.skills.values_list("eve_type_id", flat=True))
-            obsolete_ids = existing_ids.difference(incoming_ids)
-            if obsolete_ids:
-                logger.info("%s: Removing %s obsolete skills", self, len(obsolete_ids))
-                self.skills.filter(eve_type_id__in=obsolete_ids).delete()
-
-            create_ids = None
-            update_ids = None
-            if skills_list:
-                create_ids = incoming_ids.difference(existing_ids)
-                if create_ids:
-                    self._create_new_skills(
-                        skills_list=skills_list, create_ids=create_ids
+        if self.has_section_changed(
+            section=self.UpdateSection.SKILLS, content=skills_list
+        ):
+            with transaction.atomic():
+                incoming_ids = set(skills_list.keys())
+                existing_ids = set(self.skills.values_list("eve_type_id", flat=True))
+                obsolete_ids = existing_ids.difference(incoming_ids)
+                if obsolete_ids:
+                    logger.info(
+                        "%s: Removing %s obsolete skills", self, len(obsolete_ids)
                     )
+                    self.skills.filter(eve_type_id__in=obsolete_ids).delete()
 
-                update_ids = incoming_ids.difference(create_ids)
-                if update_ids:
-                    self._update_existing_skills(
-                        skills_list=skills_list, update_ids=update_ids
-                    )
+                create_ids = None
+                update_ids = None
+                if skills_list:
+                    create_ids = incoming_ids.difference(existing_ids)
+                    if create_ids:
+                        self._create_new_skills(
+                            skills_list=skills_list, create_ids=create_ids
+                        )
 
-            if not obsolete_ids and not create_ids and not update_ids:
-                logger.info("%s: Skills have not changed", self)
+                    update_ids = incoming_ids.difference(create_ids)
+                    if update_ids:
+                        self._update_existing_skills(
+                            skills_list=skills_list, update_ids=update_ids
+                        )
+
+                if not obsolete_ids and not create_ids and not update_ids:
+                    logger.info("%s: Skills have not changed", self)
+
+            self.update_section_content_hash(
+                section=self.UpdateSection.SKILLS, content=skills_list
+            )
+
+        else:
+            logger.info("%s: Skills have not changed", self)
 
     def _fetch_skills_from_esi(self, token: Token) -> dict:
         logger.info("%s: Fetching skills from ESI", self)
@@ -2715,8 +2759,9 @@ class CharacterUpdateStatus(models.Model):
     section = models.CharField(
         max_length=64, choices=Character.UpdateSection.choices, db_index=True
     )
-    is_success = models.BooleanField(db_index=True)
-    error_message = models.TextField()
+    is_success = models.BooleanField(db_index=True, null=True, default=None)
+    content_hash = models.CharField(max_length=32, default="")
+    last_error_message = models.TextField()
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -2730,6 +2775,24 @@ class CharacterUpdateStatus(models.Model):
 
     def __str__(self) -> str:
         return f"{self.character}-{self.section}"
+
+    def has_changed(self, content: Any) -> bool:
+        new_content_hash = self._calculate_hash(content)
+        return new_content_hash != self.content_hash
+
+    def update_content_hash(self, content: Any):
+        self.content_hash = self._calculate_hash(content)
+        self.save()
+
+    def reset(self) -> None:
+        """resets this update status"""
+        self.is_success = None
+        self.last_error_message = ""
+        self.save()
+
+    @staticmethod
+    def _calculate_hash(content: Any) -> str:
+        return hashlib.md5(json.dumps(content).encode("utf-8")).hexdigest()
 
 
 class CharacterWalletBalance(models.Model):

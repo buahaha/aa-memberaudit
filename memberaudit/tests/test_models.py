@@ -1,4 +1,6 @@
 import datetime as dt
+import json
+import hashlib
 from unittest.mock import patch, Mock
 
 from django.core.cache import cache
@@ -64,6 +66,116 @@ class TestCharacterUpdateSection(NoSocketsTestCase):
 
         result = Character.UpdateSection.method_name(Character.UpdateSection.MAILS)
         self.assertEqual(result, "update_mails")
+
+
+class TestCharacterUpdateStatus(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_entities()
+        cls.character_1001 = create_memberaudit_character(1001)
+        cls.content = {"alpha": 1, "bravo": 2}
+
+    def test_reset(self):
+        status = CharacterUpdateStatus.objects.create(
+            character=self.character_1001,
+            section=Character.UpdateSection.ASSETS,
+            is_success=True,
+            last_error_message="abc",
+        )
+        status.reset()
+        status.refresh_from_db()
+
+        self.assertIsNone(status.is_success)
+        self.assertEqual(status.last_error_message, "")
+
+    def test_has_changed_1(self):
+        """When hash is different, then return True"""
+        status = CharacterUpdateStatus.objects.create(
+            character=self.character_1001,
+            section=Character.UpdateSection.ASSETS,
+            is_success=True,
+            content_hash="abc",
+        )
+        self.assertTrue(status.has_changed(self.content))
+
+    def test_has_changed_2(self):
+        """When no hash exists, then return True"""
+        status = CharacterUpdateStatus.objects.create(
+            character=self.character_1001,
+            section=Character.UpdateSection.ASSETS,
+            is_success=True,
+            content_hash="",
+        )
+        self.assertTrue(status.has_changed(self.content))
+
+    def test_has_changed_3(self):
+        """When hash is equal, then return False"""
+        status = CharacterUpdateStatus.objects.create(
+            character=self.character_1001,
+            section=Character.UpdateSection.ASSETS,
+            is_success=True,
+            content_hash=hashlib.md5(
+                json.dumps(self.content).encode("utf-8")
+            ).hexdigest(),
+        )
+        self.assertFalse(status.has_changed(self.content))
+
+
+class TestCharacterUpdateSectionMethods(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_entities()
+        cls.character_1001 = create_memberaudit_character(1001)
+        cls.section = Character.UpdateSection.ASSETS
+        cls.content = {"alpha": 1, "bravo": 2}
+
+    def test_reset_1(self):
+        """when section exists, reset it"""
+        CharacterUpdateStatus.objects.create(
+            character=self.character_1001,
+            section=self.section,
+            is_success=False,
+            last_error_message="abc",
+        )
+
+        section = self.character_1001.reset_update_section(self.section)
+
+        self.assertIsNone(section.is_success)
+        self.assertEqual(section.last_error_message, "")
+
+    def test_reset_2(self):
+        """when section does not exist, then create it"""
+        section = self.character_1001.reset_update_section(self.section)
+
+        self.assertIsNone(section.is_success)
+        self.assertEqual(section.last_error_message, "")
+
+    def test_has_changed_1(self):
+        """When section exists, then return result from had_changed"""
+        section = CharacterUpdateStatus.objects.create(
+            character=self.character_1001,
+            section=self.section,
+            is_success=True,
+            content_hash=hashlib.md5(
+                json.dumps(self.content).encode("utf-8")
+            ).hexdigest(),
+        )
+        self.assertEqual(
+            self.character_1001.has_section_changed(
+                section=self.section, content=self.content
+            ),
+            section.has_changed(self.content),
+        )
+
+    def test_has_changed_2(self):
+        """When section does not exist, then return True"""
+        self.assertTrue(
+            self.character_1001.has_section_changed(
+                section=self.section, content=self.content
+            )
+        )
 
 
 @patch(MODELS_PATH + ".MEMBERAUDIT_UPDATE_STALE_RING_3", 640)
@@ -1132,6 +1244,19 @@ class TestCharacterUpdateSkills(TestCharacterUpdateBase):
             set(self.character_1001.skills.values_list("eve_type_id", flat=True)),
             {24311, 24312},
         )
+
+    def test_update_skills_4(self, mock_esi):
+        """when ESI info has not changed, then do not update local data"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.reset_update_section(Character.UpdateSection.SKILLS)
+        self.character_1001.update_skills()
+        skill = self.character_1001.skills.get(eve_type_id=24311)
+        skill.active_skill_level = 4
+        skill.save()
+        self.character_1001.update_skills()
+        skill.refresh_from_db()
+        self.assertEqual(skill.active_skill_level, 4)
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
