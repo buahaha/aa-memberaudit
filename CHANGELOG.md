@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [1.0.0a9] - 2020-11-30
+
+### Changed
+
+- Reduce update load by enabling skipping of updates when data has not changed
+
 ## [1.0.0a8] - 2020-11-28
 
 ### Fixed
