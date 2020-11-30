@@ -511,6 +511,8 @@ class TestCharacterUpdateBase(TestCase):
         load_locations()
         cls.character_1001 = create_memberaudit_character(1001)
         cls.character_1002 = create_memberaudit_character(1002)
+        cls.corporation_2001 = EveEntity.objects.get(id=2001)
+        cls.corporation_2002 = EveEntity.objects.get(id=2002)
         cls.token = cls.character_1001.character_ownership.user.token_set.first()
         cls.jita = EveSolarSystem.objects.get(id=30000142)
         cls.jita_44 = Location.objects.get(id=60003760)
@@ -893,6 +895,36 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
         bid = obj.bids.get(bid_id=2)
         self.assertEqual(float(bid.amount), 21_000_000)
 
+    def test_update_contracts_7(self, mock_esi):
+        """when contract list from ESI has not changed, then skip update"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_contract_headers()
+        obj = self.character_1001.contracts.get(contract_id=100000001)
+        obj.status = CharacterContract.STATUS_FINISHED
+        obj.save()
+
+        self.character_1001.update_contract_headers()
+
+        obj = self.character_1001.contracts.get(contract_id=100000001)
+        self.assertEqual(obj.status, CharacterContract.STATUS_FINISHED)
+
+    def test_update_contracts_8(self, mock_esi):
+        """
+        when contract list from ESI has not changed and update is forced, then update
+        """
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_contract_headers()
+        obj = self.character_1001.contracts.get(contract_id=100000001)
+        obj.status = CharacterContract.STATUS_FINISHED
+        obj.save()
+
+        self.character_1001.update_contract_headers(force_update=True)
+
+        obj = self.character_1001.contracts.get(contract_id=100000001)
+        self.assertEqual(obj.status, CharacterContract.STATUS_IN_PROGRESS)
+
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(MODELS_PATH + ".esi")
@@ -925,6 +957,34 @@ class TestCharacterUpdateJumpClones(TestCharacterUpdateBase):
         obj = self.character_1002.jump_clones.get(jump_clone_id=12345)
         self.assertEqual(obj.location, self.jita_44)
         self.assertEqual(obj.implants.count(), 0)
+
+    def test_skip_update_1(self, mock_esi):
+        """when ESI data has not changed, then skip update"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_jump_clones()
+        obj = self.character_1001.jump_clones.get(jump_clone_id=12345)
+        obj.location = self.structure_1
+        obj.save()
+
+        self.character_1001.update_jump_clones()
+
+        obj = self.character_1001.jump_clones.get(jump_clone_id=12345)
+        self.assertEqual(obj.location, self.structure_1)
+
+    def test_skip_update_2(self, mock_esi):
+        """when ESI data has not changed and update is forced, then do update"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_jump_clones()
+        obj = self.character_1001.jump_clones.get(jump_clone_id=12345)
+        obj.location = self.structure_1
+        obj.save()
+
+        self.character_1001.update_jump_clones(force_update=True)
+
+        obj = self.character_1001.jump_clones.get(jump_clone_id=12345)
+        self.assertEqual(obj.location, self.jita_44)
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
@@ -1225,14 +1285,14 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertTrue(mock_eve_xml_to_html.called)
 
 
-@override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(MODELS_PATH + ".esi")
 class TestCharacterUpdateSkillQueue(TestCharacterUpdateBase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
 
-    def test_update_skill_queue(self, mock_esi):
+    def test_create(self, mock_esi):
+        """can create skill queue from scratch"""
         mock_esi.client = esi_client_stub
 
         self.character_1001.update_skill_queue()
@@ -1242,7 +1302,6 @@ class TestCharacterUpdateSkillQueue(TestCharacterUpdateBase):
         self.assertEqual(entry.eve_type, EveType.objects.get(id=24311))
         self.assertEqual(entry.finish_date, parse_datetime("2016-06-29T10:47:00Z"))
         self.assertEqual(entry.finished_level, 3)
-        self.assertEqual(entry.queue_position, 0)
         self.assertEqual(entry.start_date, parse_datetime("2016-06-29T10:46:00Z"))
 
         entry = self.character_1001.skillqueue.get(queue_position=1)
@@ -1251,7 +1310,6 @@ class TestCharacterUpdateSkillQueue(TestCharacterUpdateBase):
         self.assertEqual(entry.finished_level, 4)
         self.assertEqual(entry.level_end_sp, 1000)
         self.assertEqual(entry.level_start_sp, 100)
-        self.assertEqual(entry.queue_position, 1)
         self.assertEqual(entry.start_date, parse_datetime("2016-06-29T10:47:00Z"))
         self.assertEqual(entry.training_start_sp, 50)
 
@@ -1259,8 +1317,53 @@ class TestCharacterUpdateSkillQueue(TestCharacterUpdateBase):
         self.assertEqual(entry.eve_type, EveType.objects.get(id=24312))
         self.assertEqual(entry.finished_level, 5)
 
+    def test_update_1(self, mock_esi):
+        """can update existing skill queue"""
+        mock_esi.client = esi_client_stub
+        self.character_1001.skillqueue.create(
+            queue_position=0,
+            eve_type=EveType.objects.get(id=24311),
+            finish_date=now() + dt.timedelta(days=1),
+            finished_level=4,
+            start_date=now() - dt.timedelta(days=1),
+        )
 
-@override_settings(CELERY_ALWAYS_EAGER=True)
+        self.character_1001.update_skill_queue()
+        self.assertEqual(self.character_1001.skillqueue.count(), 3)
+
+        entry = self.character_1001.skillqueue.get(queue_position=0)
+        self.assertEqual(entry.eve_type, EveType.objects.get(id=24311))
+        self.assertEqual(entry.finish_date, parse_datetime("2016-06-29T10:47:00Z"))
+        self.assertEqual(entry.finished_level, 3)
+        self.assertEqual(entry.start_date, parse_datetime("2016-06-29T10:46:00Z"))
+
+    def test_skip_update_1(self, mock_esi):
+        """when ESI data has not changed, then skip update"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_skill_queue()
+        entry = self.character_1001.skillqueue.get(queue_position=0)
+        entry.finished_level = 4
+        entry.save()
+
+        self.character_1001.update_skill_queue()
+        entry = self.character_1001.skillqueue.get(queue_position=0)
+        self.assertEqual(entry.finished_level, 4)
+
+    def test_skip_update_2(self, mock_esi):
+        """when ESI data has not changed and update is forced, then do update"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_skill_queue()
+        entry = self.character_1001.skillqueue.get(queue_position=0)
+        entry.finished_level = 4
+        entry.save()
+
+        self.character_1001.update_skill_queue(force_update=True)
+        entry = self.character_1001.skillqueue.get(queue_position=0)
+        self.assertEqual(entry.finished_level, 3)
+
+
 @patch(MODELS_PATH + ".esi")
 class TestCharacterUpdateSkills(TestCharacterUpdateBase):
     @classmethod
@@ -1462,16 +1565,15 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
         self.assertEqual(obj.second_party.id, 1002)
 
 
-@override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODELS_PATH + ".is_esi_online", lambda: True)
+@patch(MODELS_PATH + ".eve_xml_to_html")
 @patch(MODELS_PATH + ".esi")
-class TestCharacterUpdateOther(TestCharacterUpdateBase):
+class TestCharacterUpdateCharacterDetails(TestCharacterUpdateBase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
 
-    @patch(MODELS_PATH + ".eve_xml_to_html")
-    def test_update_character_details(self, mock_eve_xml_to_html, mock_esi):
+    def test_create(self, mock_esi, mock_eve_xml_to_html):
+        """can create from scratch"""
         mock_esi.client = esi_client_stub
         mock_eve_xml_to_html.side_effect = lambda x: eve_xml_to_html(x)
 
@@ -1480,8 +1582,8 @@ class TestCharacterUpdateOther(TestCharacterUpdateBase):
         self.assertEqual(
             self.character_1001.details.birthday, parse_datetime("2015-03-24T11:37:00Z")
         )
-        self.assertEqual(self.character_1001.details.eve_bloodline.id, 1)
-        self.assertEqual(self.character_1001.details.corporation.id, 2001)
+        self.assertEqual(self.character_1001.details.eve_bloodline_id, 1)
+        self.assertEqual(self.character_1001.details.corporation, self.corporation_2001)
         self.assertEqual(self.character_1001.details.description, "Scio me nihil scire")
         self.assertEqual(
             self.character_1001.details.gender, CharacterDetails.GENDER_MALE
@@ -1493,20 +1595,242 @@ class TestCharacterUpdateOther(TestCharacterUpdateBase):
         )
         self.assertTrue(mock_eve_xml_to_html.called)
 
-    def test_update_corporation_history(self, mock_esi):
+    def test_update(self, mock_esi, mock_eve_xml_to_html):
+        """can update existing data"""
+        mock_esi.client = esi_client_stub
+        mock_eve_xml_to_html.side_effect = lambda x: eve_xml_to_html(x)
+        CharacterDetails.objects.create(
+            character=self.character_1001,
+            birthday=now(),
+            corporation=self.corporation_2002,
+            description="Change me",
+            eve_bloodline_id=1,
+            eve_race_id=1,
+            name="Change me also",
+        )
+
+        self.character_1001.update_character_details()
+        self.character_1001.details.refresh_from_db()
+        self.assertEqual(self.character_1001.details.eve_ancestry_id, 11)
+        self.assertEqual(
+            self.character_1001.details.birthday, parse_datetime("2015-03-24T11:37:00Z")
+        )
+        self.assertEqual(self.character_1001.details.eve_bloodline_id, 1)
+        self.assertEqual(self.character_1001.details.corporation, self.corporation_2001)
+        self.assertEqual(self.character_1001.details.description, "Scio me nihil scire")
+        self.assertEqual(
+            self.character_1001.details.gender, CharacterDetails.GENDER_MALE
+        )
+        self.assertEqual(self.character_1001.details.name, "Bruce Wayne")
+        self.assertEqual(self.character_1001.details.eve_race.id, 1)
+        self.assertEqual(
+            self.character_1001.details.title, "All round pretty awesome guy"
+        )
+        self.assertTrue(mock_eve_xml_to_html.called)
+
+    def test_skip_update_1(self, mock_esi, mock_eve_xml_to_html):
+        """when data from ESI has not changed, then skip update"""
+        mock_esi.client = esi_client_stub
+        mock_eve_xml_to_html.side_effect = lambda x: eve_xml_to_html(x)
+
+        self.character_1001.update_character_details()
+        self.character_1001.details.name = "John Doe"
+        self.character_1001.details.save()
+
+        self.character_1001.update_character_details()
+        self.character_1001.details.refresh_from_db()
+        self.assertEqual(self.character_1001.details.name, "John Doe")
+
+    def test_skip_update_2(self, mock_esi, mock_eve_xml_to_html):
+        """when data from ESI has not changed and update is forced, then do update"""
+        mock_esi.client = esi_client_stub
+        mock_eve_xml_to_html.side_effect = lambda x: eve_xml_to_html(x)
+
+        self.character_1001.update_character_details()
+        self.character_1001.details.name = "John Doe"
+        self.character_1001.details.save()
+
+        self.character_1001.update_character_details(force_update=True)
+        self.character_1001.details.refresh_from_db()
+        self.assertEqual(self.character_1001.details.name, "Bruce Wayne")
+
+
+@patch(MODELS_PATH + ".esi")
+class TestCharacterUpdateCorporationHistory(TestCharacterUpdateBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+
+    def test_create(self, mock_esi):
+        """can create corporation history from scratch"""
         mock_esi.client = esi_client_stub
         self.character_1001.update_corporation_history()
         self.assertEqual(self.character_1001.corporation_history.count(), 2)
 
         obj = self.character_1001.corporation_history.get(record_id=500)
-        self.assertEqual(obj.corporation.id, 2001)
+        self.assertEqual(obj.corporation, self.corporation_2001)
         self.assertTrue(obj.is_deleted)
         self.assertEqual(obj.start_date, parse_datetime("2016-06-26T20:00:00Z"))
 
         obj = self.character_1001.corporation_history.get(record_id=501)
-        self.assertEqual(obj.corporation.id, 2002)
+        self.assertEqual(obj.corporation, self.corporation_2002)
         self.assertFalse(obj.is_deleted)
         self.assertEqual(obj.start_date, parse_datetime("2016-07-26T20:00:00Z"))
+
+    def test_update_1(self, mock_esi):
+        """can update existing corporation history"""
+        mock_esi.client = esi_client_stub
+        self.character_1001.corporation_history.create(
+            record_id=500, corporation=self.corporation_2002, start_date=now()
+        )
+
+        self.character_1001.update_corporation_history()
+        self.assertEqual(self.character_1001.corporation_history.count(), 2)
+
+        obj = self.character_1001.corporation_history.get(record_id=500)
+        self.assertEqual(obj.corporation, self.corporation_2001)
+        self.assertTrue(obj.is_deleted)
+        self.assertEqual(obj.start_date, parse_datetime("2016-06-26T20:00:00Z"))
+
+    def test_update_2(self, mock_esi):
+        """when data from ESI has not changed, then skip update"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_corporation_history()
+        obj = self.character_1001.corporation_history.get(record_id=500)
+        obj.corporation = self.corporation_2002
+        obj.save()
+
+        self.character_1001.update_corporation_history()
+        obj = self.character_1001.corporation_history.get(record_id=500)
+        self.assertEqual(obj.corporation, self.corporation_2002)
+
+    def test_update_3(self, mock_esi):
+        """when data from ESI has not changed and update is forced, then do update"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_corporation_history()
+        obj = self.character_1001.corporation_history.get(record_id=500)
+        obj.corporation = self.corporation_2002
+        obj.save()
+
+        self.character_1001.update_corporation_history(force_update=True)
+
+        obj = self.character_1001.corporation_history.get(record_id=500)
+        self.assertEqual(obj.corporation, self.corporation_2001)
+
+
+@patch(MODELS_PATH + ".esi")
+class TestCharacterUpdateImplants(TestCharacterUpdateBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+
+    def test_update_implants_1(self, mock_esi):
+        """can create implants from scratch"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_implants()
+        self.assertEqual(self.character_1001.implants.count(), 3)
+        self.assertSetEqual(
+            set(self.character_1001.implants.values_list("eve_type_id", flat=True)),
+            {19540, 19551, 19553},
+        )
+
+    def test_update_implants_2(self, mock_esi):
+        """can deal with no implants returned from ESI"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1002.update_implants()
+        self.assertEqual(self.character_1002.implants.count(), 0)
+
+    def test_update_implants_3(self, mock_esi):
+        """when data from ESI has not changed, then skip update"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_implants()
+        self.character_1001.implants.get(eve_type_id=19540).delete()
+
+        self.character_1001.update_implants()
+        self.assertFalse(
+            self.character_1001.implants.filter(eve_type_id=19540).exists()
+        )
+
+    def test_update_implants_4(self, mock_esi):
+        """when data from ESI has not changed and update is forced, then do update"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_implants()
+        self.character_1001.implants.get(eve_type_id=19540).delete()
+
+        self.character_1001.update_implants(force_update=True)
+        self.assertTrue(self.character_1001.implants.filter(eve_type_id=19540).exists())
+
+
+@patch(MODELS_PATH + ".esi")
+class TestCharacterUpdateLoyalty(TestCharacterUpdateBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+
+    def test_create(self, mock_esi):
+        """can create from scratch"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_loyalty()
+        self.assertEqual(self.character_1001.loyalty_entries.count(), 1)
+
+        obj = self.character_1001.loyalty_entries.get(corporation_id=2002)
+        self.assertEqual(obj.loyalty_points, 100)
+
+    def test_update(self, mock_esi):
+        """can update existing loyalty"""
+        mock_esi.client = esi_client_stub
+        self.character_1001.loyalty_entries.create(
+            corporation=self.corporation_2001, loyalty_points=200
+        )
+
+        self.character_1001.update_loyalty()
+        self.assertEqual(self.character_1001.loyalty_entries.count(), 1)
+
+        obj = self.character_1001.loyalty_entries.get(corporation=self.corporation_2002)
+        self.assertEqual(obj.loyalty_points, 100)
+
+    def test_skip_update_1(self, mock_esi):
+        """when data from ESI has not changed, then skip update"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_loyalty()
+        obj = self.character_1001.loyalty_entries.get(corporation=self.corporation_2002)
+        obj.loyalty_points = 200
+        obj.save()
+        self.character_1001.update_loyalty()
+
+        obj = self.character_1001.loyalty_entries.get(corporation=self.corporation_2002)
+        self.assertEqual(obj.loyalty_points, 200)
+
+    def test_skip_update_2(self, mock_esi):
+        """when data from ESI has not changed and update is forced, then do update"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_loyalty()
+        obj = self.character_1001.loyalty_entries.get(corporation=self.corporation_2002)
+        obj.loyalty_points = 200
+        obj.save()
+
+        self.character_1001.update_loyalty(force_update=True)
+
+        obj = self.character_1001.loyalty_entries.get(corporation=self.corporation_2002)
+        self.assertEqual(obj.loyalty_points, 100)
+
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODELS_PATH + ".is_esi_online", lambda: True)
+@patch(MODELS_PATH + ".esi")
+class TestCharacterUpdateOther(TestCharacterUpdateBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
 
     def test_update_location_1(self, mock_esi):
         mock_esi.client = esi_client_stub
@@ -1535,31 +1859,6 @@ class TestCharacterUpdateOther(TestCharacterUpdateBase):
             parse_datetime("2017-01-02T04:05:06Z"),
         )
         self.assertEqual(self.character_1001.online_status.logins, 9001)
-
-    def test_update_loyalty(self, mock_esi):
-        mock_esi.client = esi_client_stub
-
-        self.character_1001.update_loyalty()
-        self.assertEqual(self.character_1001.loyalty_entries.count(), 1)
-
-        obj = self.character_1001.loyalty_entries.get(corporation_id=2002)
-        self.assertEqual(obj.loyalty_points, 100)
-
-    def test_update_implants_1(self, mock_esi):
-        mock_esi.client = esi_client_stub
-
-        self.character_1001.update_implants()
-        self.assertEqual(self.character_1001.implants.count(), 3)
-        self.assertSetEqual(
-            set(self.character_1001.implants.values_list("eve_type_id", flat=True)),
-            {19540, 19551, 19553},
-        )
-
-    def test_update_implants_2(self, mock_esi):
-        mock_esi.client = esi_client_stub
-
-        self.character_1002.update_implants()
-        self.assertEqual(self.character_1002.implants.count(), 0)
 
     def test_fetch_location_station(self, mock_esi):
         mock_esi.client = esi_client_stub

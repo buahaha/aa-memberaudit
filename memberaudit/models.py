@@ -641,7 +641,7 @@ class Character(models.Model):
                 list(assets_flat.keys()),
             )
 
-    def update_character_details(self):
+    def update_character_details(self, force_update: bool = False):
         """syncs the character details for the given character"""
         logger.info("%s: Fetching character details from ESI", self)
         details = esi.client.Character.get_characters_character_id(
@@ -650,45 +650,56 @@ class Character(models.Model):
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(details, "character_details")
 
-        description = (
-            details.get("description", "") if details.get("description") else ""
-        )
-        if description:
-            eve_xml_to_html(description)  # resolve names early
+        if force_update or self.has_section_changed(
+            section=self.UpdateSection.CHARACTER_DETAILS, content=details
+        ):
+            description = (
+                details.get("description", "") if details.get("description") else ""
+            )
+            if description:
+                eve_xml_to_html(description)  # resolve names early
 
-        gender = (
-            CharacterDetails.GENDER_MALE
-            if details.get("gender") == "male"
-            else CharacterDetails.GENDER_FEMALE
-        )
-        CharacterDetails.objects.update_or_create(
-            character=self,
-            defaults={
-                "alliance": get_or_create_or_none("alliance_id", details, EveEntity),
-                "birthday": details.get("birthday"),
-                "eve_ancestry": get_or_create_esi_or_none(
-                    "ancestry_id", details, EveAncestry
-                ),
-                "eve_bloodline": get_or_create_esi_or_none(
-                    "bloodline_id", details, EveBloodline
-                ),
-                "eve_faction": get_or_create_esi_or_none(
-                    "faction_id", details, EveFaction
-                ),
-                "eve_race": get_or_create_esi_or_none("race_id", details, EveRace),
-                "corporation": get_or_create_or_none(
-                    "corporation_id", details, EveEntity
-                ),
-                "description": description,
-                "gender": gender,
-                "name": details.get("name", ""),
-                "security_status": details.get("security_status"),
-                "title": details.get("title", "") if details.get("title") else "",
-            },
-        )
-        EveEntity.objects.bulk_update_new_esi()
+            gender = (
+                CharacterDetails.GENDER_MALE
+                if details.get("gender") == "male"
+                else CharacterDetails.GENDER_FEMALE
+            )
+            CharacterDetails.objects.update_or_create(
+                character=self,
+                defaults={
+                    "alliance": get_or_create_or_none(
+                        "alliance_id", details, EveEntity
+                    ),
+                    "birthday": details.get("birthday"),
+                    "eve_ancestry": get_or_create_esi_or_none(
+                        "ancestry_id", details, EveAncestry
+                    ),
+                    "eve_bloodline": get_or_create_esi_or_none(
+                        "bloodline_id", details, EveBloodline
+                    ),
+                    "eve_faction": get_or_create_esi_or_none(
+                        "faction_id", details, EveFaction
+                    ),
+                    "eve_race": get_or_create_esi_or_none("race_id", details, EveRace),
+                    "corporation": get_or_create_or_none(
+                        "corporation_id", details, EveEntity
+                    ),
+                    "description": description,
+                    "gender": gender,
+                    "name": details.get("name", ""),
+                    "security_status": details.get("security_status"),
+                    "title": details.get("title", "") if details.get("title") else "",
+                },
+            )
+            EveEntity.objects.bulk_update_new_esi()
+            self.update_section_content_hash(
+                section=self.UpdateSection.CHARACTER_DETAILS, content=details
+            )
 
-    def update_corporation_history(self):
+        else:
+            logger.info("%s: Character details have not changed", self)
+
+    def update_corporation_history(self, force_update: bool = False):
         """syncs the character's corporation history"""
         logger.info("%s: Fetching corporation history from ESI", self)
         history = esi.client.Character.get_characters_character_id_corporationhistory(
@@ -697,30 +708,42 @@ class Character(models.Model):
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(history, "corporation_history")
 
-        entries = [
-            CharacterCorporationHistory(
-                character=self,
-                record_id=row.get("record_id"),
-                corporation=get_or_create_or_none("corporation_id", row, EveEntity),
-                is_deleted=row.get("is_deleted"),
-                start_date=row.get("start_date"),
-            )
-            for row in history
-        ]
-        with transaction.atomic():
-            self.corporation_history.all().delete()
-            if entries:
-                logger.info(
-                    "%s: Creating %s entries for corporation history",
-                    self,
-                    len(entries),
-                )
-                CharacterCorporationHistory.objects.bulk_create(entries)
-            else:
-                logger.info("%s: Corporation history is empty", self)
+        if force_update or self.has_section_changed(
+            section=self.UpdateSection.CORPORATION_HISTORY, content=history
+        ):
+            with transaction.atomic():
+                self.corporation_history.all().delete()
+                entries = [
+                    CharacterCorporationHistory(
+                        character=self,
+                        record_id=row.get("record_id"),
+                        corporation=get_or_create_or_none(
+                            "corporation_id", row, EveEntity
+                        ),
+                        is_deleted=row.get("is_deleted"),
+                        start_date=row.get("start_date"),
+                    )
+                    for row in history
+                ]
+                if entries:
+                    logger.info(
+                        "%s: Creating %s entries for corporation history",
+                        self,
+                        len(entries),
+                    )
+                    CharacterCorporationHistory.objects.bulk_create(entries)
+                else:
+                    logger.info("%s: Corporation history is empty", self)
 
-        if entries:
-            EveEntity.objects.bulk_update_new_esi()
+            if entries:
+                EveEntity.objects.bulk_update_new_esi()
+
+            self.update_section_content_hash(
+                section=self.UpdateSection.CORPORATION_HISTORY, content=history
+            )
+
+        else:
+            logger.info("%s: Corporation history has not changed", self)
 
     @fetch_token_for_character("esi-characters.read_contacts.v1")
     def update_contact_labels(self, token: Token):
@@ -885,36 +908,50 @@ class Character(models.Model):
         )
 
     @fetch_token_for_character("esi-contracts.read_character_contracts.v1")
-    def update_contract_headers(self, token: Token):
+    def update_contract_headers(self, token: Token, force_update: bool = False):
         """update the character's contract headers"""
 
         contracts_list = self._fetch_contracts_from_esi(token)
         if not contracts_list:
             logger.info("%s: No contracts received from ESI", self)
 
-        existing_ids = set(self.contracts.values_list("contract_id", flat=True))
-        incoming_location_ids = {
-            obj["start_location_id"]
-            for contract_id, obj in contracts_list.items()
-            if contract_id not in existing_ids
-        }
-        incoming_location_ids |= {x["end_location_id"] for x in contracts_list.values()}
-        self._preload_all_locations(token=token, incoming_ids=incoming_location_ids)
-        with transaction.atomic():
-            incoming_ids = set(contracts_list.keys())
+        if force_update or self.has_section_changed(
+            section=self.UpdateSection.CONTRACTS, content=contracts_list
+        ):
             existing_ids = set(self.contracts.values_list("contract_id", flat=True))
+            incoming_location_ids = {
+                obj["start_location_id"]
+                for contract_id, obj in contracts_list.items()
+                if contract_id not in existing_ids
+            }
+            incoming_location_ids |= {
+                obj["end_location_id"] for obj in contracts_list.values()
+            }
+            self._preload_all_locations(token=token, incoming_ids=incoming_location_ids)
+            with transaction.atomic():
+                incoming_ids = set(contracts_list.keys())
+                existing_ids = set(self.contracts.values_list("contract_id", flat=True))
 
-            create_ids = incoming_ids.difference(existing_ids)
-            if create_ids:
-                self._create_new_contracts(
-                    contracts_list=contracts_list, contract_ids=create_ids, token=token
-                )
+                create_ids = incoming_ids.difference(existing_ids)
+                if create_ids:
+                    self._create_new_contracts(
+                        contracts_list=contracts_list,
+                        contract_ids=create_ids,
+                        token=token,
+                    )
 
-            update_ids = incoming_ids.difference(create_ids)
-            if update_ids:
-                self._update_existing_contracts(
-                    contracts_list=contracts_list, contract_ids=update_ids
-                )
+                update_ids = incoming_ids.difference(create_ids)
+                if update_ids:
+                    self._update_existing_contracts(
+                        contracts_list=contracts_list, contract_ids=update_ids
+                    )
+
+            self.update_section_content_hash(
+                section=self.UpdateSection.CONTRACTS, content=contracts_list
+            )
+
+        else:
+            logger.info("%s: Contracts have not changed", self)
 
     def _fetch_contracts_from_esi(self, token) -> dict:
         logger.info("%s: Fetching contracts from ESI", self)
@@ -1179,7 +1216,7 @@ class Character(models.Model):
                     doctrine_ships_by_ship_id[ship.id].insufficient_skills.add(*skills)
 
     @fetch_token_for_character("esi-clones.read_implants.v1")
-    def update_implants(self, token):
+    def update_implants(self, token: Token, force_update: bool = False):
         """update the character's implants"""
         logger.info("%s: Fetching implants from ESI", self)
         implants_data = esi.client.Clones.get_characters_character_id_implants(
@@ -1189,21 +1226,33 @@ class Character(models.Model):
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(implants_data, "implants")
 
-        with transaction.atomic():
-            self.implants.all().delete()
-            if implants_data:
-                implants = list()
-                for eve_type_id in implants_data:
-                    eve_type, _ = EveType.objects.get_or_create_esi(id=eve_type_id)
-                    implants.append(CharacterImplant(character=self, eve_type=eve_type))
+        if force_update or self.has_section_changed(
+            section=self.UpdateSection.IMPLANTS, content=implants_data
+        ):
+            with transaction.atomic():
+                self.implants.all().delete()
+                if implants_data:
+                    implants = list()
+                    for eve_type_id in implants_data:
+                        eve_type, _ = EveType.objects.get_or_create_esi(id=eve_type_id)
+                        implants.append(
+                            CharacterImplant(character=self, eve_type=eve_type)
+                        )
 
-                logger.info("%s: Storing %s implants", self, len(implants))
-                CharacterImplant.objects.bulk_create(
-                    implants, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-                )
+                    logger.info("%s: Storing %s implants", self, len(implants))
+                    CharacterImplant.objects.bulk_create(
+                        implants, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
+                    )
 
-            else:
-                logger.info("%s: No implants", self)
+                else:
+                    logger.info("%s: No implants", self)
+
+            self.update_section_content_hash(
+                section=self.UpdateSection.IMPLANTS, content=implants_data
+            )
+
+        else:
+            logger.info("%s: Implants have not changed", self)
 
     def update_location(self):
         """update the location for the given character"""
@@ -1218,7 +1267,7 @@ class Character(models.Model):
             )
 
     @fetch_token_for_character("esi-characters.read_loyalty.v1")
-    def update_loyalty(self, token):
+    def update_loyalty(self, token: Token, force_update: bool = False):
         """syncs the character's loyalty entries"""
         logger.info("%s: Fetching loyalty entries from ESI", self)
         loyalty_entries = esi.client.Loyalty.get_characters_character_id_loyalty_points(
@@ -1228,29 +1277,38 @@ class Character(models.Model):
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(loyalty_entries, "loyalty")
 
-        with transaction.atomic():
-            self.loyalty_entries.all().delete()
-            new_entries = [
-                CharacterLoyaltyEntry(
-                    character=self,
-                    corporation=get_or_create_or_none(
-                        "corporation_id", entry, EveEntity
-                    ),
-                    loyalty_points=entry.get("loyalty_points"),
+        if force_update or self.has_section_changed(
+            section=self.UpdateSection.LOYALTY, content=loyalty_entries
+        ):
+            with transaction.atomic():
+                self.loyalty_entries.all().delete()
+                new_entries = [
+                    CharacterLoyaltyEntry(
+                        character=self,
+                        corporation=get_or_create_or_none(
+                            "corporation_id", entry, EveEntity
+                        ),
+                        loyalty_points=entry.get("loyalty_points"),
+                    )
+                    for entry in loyalty_entries
+                    if "corporation_id" in entry and "loyalty_points" in entry
+                ]
+                CharacterLoyaltyEntry.objects.bulk_create(
+                    new_entries, MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
                 )
-                for entry in loyalty_entries
-                if "corporation_id" in entry and "loyalty_points" in entry
-            ]
-            CharacterLoyaltyEntry.objects.bulk_create(
-                new_entries, MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-            )
 
-        EveEntity.objects.bulk_update_new_esi()
+            self.update_section_content_hash(
+                section=self.UpdateSection.LOYALTY, content=loyalty_entries
+            )
+            EveEntity.objects.bulk_update_new_esi()
+
+        else:
+            logger.info("%s: Loyalty entries have not changed", self)
 
     @fetch_token_for_character(
         ["esi-clones.read_clones.v1", "esi-universe.read_structures.v1"]
     )
-    def update_jump_clones(self, token: Token):
+    def update_jump_clones(self, token: Token, force_update: bool = False):
         """updates the character's jump clones"""
         logger.info("%s: Fetching jump clones from ESI", self)
         jump_clones_info = esi.client.Clones.get_characters_character_id_clones(
@@ -1260,54 +1318,64 @@ class Character(models.Model):
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(jump_clones_info, "jump_clones")
 
-        # fetch locations ahead of transaction
-        if jump_clones_info.get("jump_clones"):
-            incoming_location_ids = {
-                record["location_id"]
-                for record in jump_clones_info["jump_clones"]
-                if "location_id" in record
-            }
-            self._preload_all_locations(token, incoming_location_ids)
+        if force_update or self.has_section_changed(
+            section=self.UpdateSection.JUMP_CLONES, content=jump_clones_info
+        ):
+            # fetch locations ahead of transaction
+            if jump_clones_info.get("jump_clones"):
+                incoming_location_ids = {
+                    record["location_id"]
+                    for record in jump_clones_info["jump_clones"]
+                    if "location_id" in record
+                }
+                self._preload_all_locations(token, incoming_location_ids)
 
-        with transaction.atomic():
-            self.jump_clones.all().delete()
-            if not jump_clones_info.get("jump_clones"):
-                logger.info("%s: No jump clones", self)
-                return
+            with transaction.atomic():
+                self.jump_clones.all().delete()
+                if not jump_clones_info.get("jump_clones"):
+                    logger.info("%s: No jump clones", self)
+                    return
 
-            jump_clones_list = jump_clones_info.get("jump_clones")
-            logger.info("%s: Storing %s jump clones", self, len(jump_clones_list))
-            jump_clones = [
-                CharacterJumpClone(
-                    character=self,
-                    jump_clone_id=record.get("jump_clone_id"),
-                    location=get_or_none("location_id", record, Location),
-                    name=record.get("name") if record.get("name") else "",
+                jump_clones_list = jump_clones_info.get("jump_clones")
+                logger.info("%s: Storing %s jump clones", self, len(jump_clones_list))
+                jump_clones = [
+                    CharacterJumpClone(
+                        character=self,
+                        jump_clone_id=record.get("jump_clone_id"),
+                        location=get_or_none("location_id", record, Location),
+                        name=record.get("name") if record.get("name") else "",
+                    )
+                    for record in jump_clones_list
+                ]
+                CharacterJumpClone.objects.bulk_create(
+                    jump_clones,
+                    batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
                 )
-                for record in jump_clones_list
-            ]
-            CharacterJumpClone.objects.bulk_create(
-                jump_clones,
-                batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
-            )
-            implants = list()
-            for jump_clone_info in jump_clones_list:
-                if jump_clone_info.get("implants"):
-                    for implant in jump_clone_info["implants"]:
-                        eve_type, _ = EveType.objects.get_or_create_esi(id=implant)
-                        jump_clone = self.jump_clones.get(
-                            jump_clone_id=jump_clone_info.get("jump_clone_id")
-                        )
-                        implants.append(
-                            CharacterJumpCloneImplant(
-                                jump_clone=jump_clone, eve_type=eve_type
+                implants = list()
+                for jump_clone_info in jump_clones_list:
+                    if jump_clone_info.get("implants"):
+                        for implant in jump_clone_info["implants"]:
+                            eve_type, _ = EveType.objects.get_or_create_esi(id=implant)
+                            jump_clone = self.jump_clones.get(
+                                jump_clone_id=jump_clone_info.get("jump_clone_id")
                             )
-                        )
+                            implants.append(
+                                CharacterJumpCloneImplant(
+                                    jump_clone=jump_clone, eve_type=eve_type
+                                )
+                            )
 
-            CharacterJumpCloneImplant.objects.bulk_create(
-                implants,
-                batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
+                CharacterJumpCloneImplant.objects.bulk_create(
+                    implants,
+                    batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
+                )
+
+            self.update_section_content_hash(
+                section=self.UpdateSection.JUMP_CLONES, content=jump_clones_info
             )
+
+        else:
+            logger.info("%s: Jump clones have not changed", self)
 
     @fetch_token_for_character("esi-mail.read_mail.v1")
     def update_mailing_lists(self, token: Token):
@@ -1656,7 +1724,7 @@ class Character(models.Model):
         )
 
     @fetch_token_for_character("esi-skills.read_skillqueue.v1")
-    def update_skill_queue(self, token):
+    def update_skill_queue(self, token: Token, force_update: bool = False):
         """update the character's skill queue"""
         logger.info("%s: Fetching skill queue from ESI", self)
         skillqueue = esi.client.Skills.get_characters_character_id_skillqueue(
@@ -1666,34 +1734,48 @@ class Character(models.Model):
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(skillqueue, "skill_queue")
 
-        # TODO: Replace delete + create with create + update
-        with transaction.atomic():
-            self.skillqueue.all().delete()
-            if skillqueue:
-                entries = [
-                    CharacterSkillqueueEntry(
-                        character=self,
-                        eve_type=get_or_create_esi_or_none("skill_id", entry, EveType),
-                        finish_date=entry.get("finish_date"),
-                        finished_level=entry.get("finished_level"),
-                        level_end_sp=entry.get("level_end_sp"),
-                        level_start_sp=entry.get("level_start_sp"),
-                        queue_position=entry.get("queue_position"),
-                        start_date=entry.get("start_date"),
-                        training_start_sp=entry.get("training_start_sp"),
-                    )
-                    for entry in skillqueue
-                ]
-            else:
-                entries = list()
+        if force_update or self.has_section_changed(
+            section=self.UpdateSection.SKILL_QUEUE, content=skillqueue
+        ):
+            # TODO: Replace delete + create with create + update
+            with transaction.atomic():
+                self.skillqueue.all().delete()
+                if skillqueue:
+                    entries = [
+                        CharacterSkillqueueEntry(
+                            character=self,
+                            eve_type=get_or_create_esi_or_none(
+                                "skill_id", entry, EveType
+                            ),
+                            finish_date=entry.get("finish_date"),
+                            finished_level=entry.get("finished_level"),
+                            level_end_sp=entry.get("level_end_sp"),
+                            level_start_sp=entry.get("level_start_sp"),
+                            queue_position=entry.get("queue_position"),
+                            start_date=entry.get("start_date"),
+                            training_start_sp=entry.get("training_start_sp"),
+                        )
+                        for entry in skillqueue
+                    ]
+                else:
+                    entries = list()
 
-            if entries:
-                logger.info("%s: Writing skill queue of size %s", self, len(entries))
-                CharacterSkillqueueEntry.objects.bulk_create(
-                    entries, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-                )
-            else:
-                logger.info("%s: Skill queue is empty", self)
+                if entries:
+                    logger.info(
+                        "%s: Writing skill queue of size %s", self, len(entries)
+                    )
+                    CharacterSkillqueueEntry.objects.bulk_create(
+                        entries, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
+                    )
+                else:
+                    logger.info("%s: Skill queue is empty", self)
+
+            self.update_section_content_hash(
+                section=self.UpdateSection.SKILL_QUEUE, content=skillqueue
+            )
+
+        else:
+            logger.info("%s: Skill queue has not changed", self)
 
     @fetch_token_for_character("esi-skills.read_skills.v1")
     def update_skills(self, token, force_update: bool = False):

@@ -142,14 +142,14 @@ def update_character(character_pk: int, force_update: bool = False) -> bool:
         Character.UpdateSection.CONTACTS
     ):
         update_character_contacts.apply_async(
-            kwargs={"character_pk": character.pk},
+            kwargs={"character_pk": character.pk, "force_update": force_update},
             priority=DEFAULT_TASK_PRIORITY,
         )
     if force_update or character.is_update_section_stale(
         Character.UpdateSection.CONTRACTS
     ):
         update_character_contracts.apply_async(
-            kwargs={"character_pk": character.pk},
+            kwargs={"character_pk": character.pk, "force_update": force_update},
             priority=DEFAULT_TASK_PRIORITY,
         )
 
@@ -453,7 +453,7 @@ def update_character_contacts_2(
 
 
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_character_contracts(character_pk: int) -> None:
+def update_character_contracts(character_pk: int, force_update: bool = False) -> None:
     """Main task for updating contracts of a character"""
     character = Character.objects.get(pk=character_pk)
     section = Character.UpdateSection.CONTRACTS
@@ -462,7 +462,7 @@ def update_character_contracts(character_pk: int) -> None:
         "%s: Updating %s", character, Character.UpdateSection.display_name(section)
     )
     chain(
-        update_character_contract_headers.si(character.pk),
+        update_character_contract_headers.si(character.pk, force_update=force_update),
         update_character_contracts_items.si(character.pk),
         update_character_contracts_bids.si(character.pk),
         update_unresolved_eve_entities.si(character.pk, section, last_in_chain=True),
@@ -470,18 +470,21 @@ def update_character_contracts(character_pk: int) -> None:
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_contract_headers(self, character_pk: int) -> None:
+def update_character_contract_headers(
+    self, character_pk: int, force_update: bool = False
+) -> bool:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
         self,
         character,
         Character.UpdateSection.CONTRACTS,
         character.update_contract_headers,
+        force_update=force_update,
     )
 
 
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_character_contracts_items(character_pk: int) -> None:
+def update_character_contracts_items(character_pk: int):
     """Update items for all contracts of a character"""
     character = Character.objects.get(pk=character_pk)
     contract_pks = set(
@@ -516,7 +519,7 @@ def update_contract_items_esi(self, character_pk: int, contract_pk: int):
 
 
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_character_contracts_bids(character_pk: int) -> None:
+def update_character_contracts_bids(character_pk: int):
     """Update bids for all contracts of a character"""
     character = Character.objects.get(pk=character_pk)
     contract_pks = set(
