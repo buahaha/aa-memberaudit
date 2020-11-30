@@ -8,6 +8,9 @@ from bravado.exception import (
     HTTPGatewayTimeout,
     HTTPServiceUnavailable,
 )
+
+from django.utils.timezone import now
+
 from esi.models import Token
 from eveuniverse.core.esitools import is_esi_online
 from eveuniverse.models import EveEntity, EveMarketPrice
@@ -135,7 +138,7 @@ def update_character(character_pk: int, force_update: bool = False) -> bool:
 
     if force_update or character.is_update_section_stale(Character.UpdateSection.MAILS):
         update_character_mails.apply_async(
-            kwargs={"character_pk": character.pk},
+            kwargs={"character_pk": character.pk, "force_update": force_update},
             priority=DEFAULT_TASK_PRIORITY,
         )
     if force_update or character.is_update_section_stale(
@@ -234,7 +237,7 @@ def _log_character_update_success(character: Character, section: str):
     CharacterUpdateStatus.objects.update_or_create(
         character=character,
         section=section,
-        defaults={"is_success": True, "last_error_message": ""},
+        defaults={"is_success": True, "last_error_message": "", "finished_at": now()},
     )
 
 
@@ -336,27 +339,39 @@ def update_character_mails(self, character_pk: int, force_update: bool = False) 
     )
     character.reset_update_section(section=section)
     chain(
-        update_character_mailing_lists.si(character.pk),
-        update_character_mail_labels.si(character.pk),
-        update_character_mail_headers.si(character.pk),
+        update_character_mailing_lists.si(character.pk, force_update=force_update),
+        update_character_mail_labels.si(character.pk, force_update=force_update),
+        update_character_mail_headers.si(character.pk, force_update=force_update),
         update_character_mail_bodies.si(character.pk),
         update_unresolved_eve_entities.si(character.pk, section),
     ).apply_async(priority=DEFAULT_TASK_PRIORITY)
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_mailing_lists(self, character_pk: int) -> None:
+def update_character_mailing_lists(
+    self, character_pk: int, force_update: bool = False
+) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
-        self, character, Character.UpdateSection.MAILS, character.update_mailing_lists
+        self,
+        character,
+        Character.UpdateSection.MAILS,
+        character.update_mailing_lists,
+        force_update=force_update,
     )
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_mail_labels(self, character_pk: int) -> None:
+def update_character_mail_labels(
+    self, character_pk: int, force_update: bool = False
+) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
-        self, character, Character.UpdateSection.MAILS, character.update_mail_labels
+        self,
+        character,
+        Character.UpdateSection.MAILS,
+        character.update_mail_labels,
+        force_update=force_update,
     )
 
 
@@ -370,6 +385,7 @@ def update_character_mail_headers(
         character,
         Character.UpdateSection.MAILS,
         character.update_mail_headers,
+        force_update=force_update,
     )
 
 
@@ -418,20 +434,23 @@ def update_character_contacts(character_pk: int, force_update: bool = False) -> 
         "%s: Updating %s", character, Character.UpdateSection.display_name(section)
     )
     chain(
-        update_character_contact_labels.si(character.pk),
+        update_character_contact_labels.si(character.pk, force_update=force_update),
         update_character_contacts_2.si(character.pk, force_update=force_update),
         update_unresolved_eve_entities.si(character.pk, section, last_in_chain=True),
     ).apply_async(priority=DEFAULT_TASK_PRIORITY)
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_contact_labels(self, character_pk: int) -> None:
+def update_character_contact_labels(
+    self, character_pk: int, force_update: bool = False
+) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
         self,
         character,
         Character.UpdateSection.CONTACTS,
         character.update_contact_labels,
+        force_update=force_update,
     )
 
 

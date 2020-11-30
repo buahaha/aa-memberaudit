@@ -248,12 +248,12 @@ The following management commands are available to perform administrative tasks:
 
 Pre-loads data required for this app from ESI to improve app performance.
 
-### memberaudit_reset_all_characters
+### memberaudit_reset_characters
 
 This command deletes all locally stored character data, but maintains character skeletons, so they can be reloaded again from ESI.
 
 > **Warning**<br>Make sure to stop all supervisors before using this command.
 
-### memberaudit_update_all_characters
+### memberaudit_update_characters
 
 Start the process of force updating all characters from ESI.

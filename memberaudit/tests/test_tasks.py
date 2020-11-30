@@ -4,6 +4,7 @@ from bravado.exception import HTTPInternalServerError
 from celery.exceptions import Retry as CeleryRetry
 
 from django.test import TestCase, override_settings
+from django.utils.timezone import now
 
 from esi.models import Token
 from eveuniverse.models import EveSolarSystem, EveType
@@ -527,23 +528,25 @@ class TestUpdateCharacter(TestCase):
         load_locations()
 
     def setUp(self) -> None:
-        self.character = create_memberaudit_character(1001)
+        self.character_1001 = create_memberaudit_character(1001)
 
     def test_normal(self, mock_esi):
+        """can update from scratch"""
         mock_esi.client = esi_client_stub
 
-        result = update_character(self.character.pk)
+        result = update_character(self.character_1001.pk)
         self.assertTrue(result)
-        self.assertTrue(self.character.is_update_status_ok())
+        self.assertTrue(self.character_1001.is_update_status_ok())
 
     def test_report_error(self, mock_esi):
         mock_esi.client = esi_client_error_stub
 
-        update_character(self.character.pk)
-        self.assertFalse(self.character.is_update_status_ok())
+        update_character(self.character_1001.pk)
+        self.assertFalse(self.character_1001.is_update_status_ok())
 
-        status = self.character.update_status_set.get(
-            character=self.character, section=Character.UpdateSection.CHARACTER_DETAILS
+        status = self.character_1001.update_status_set.get(
+            character=self.character_1001,
+            section=Character.UpdateSection.CHARACTER_DETAILS,
         )
         self.assertFalse(status.is_success)
         self.assertEqual(
@@ -555,12 +558,13 @@ class TestUpdateCharacter(TestCase):
         """When generic section has recently been updated, then do not update again"""
         mock_esi.client = esi_client_stub
         CharacterUpdateStatus.objects.create(
-            character=self.character,
+            character=self.character_1001,
             section=Character.UpdateSection.SKILLS,
             is_success=True,
+            finished_at=now(),
         )
 
-        update_character(self.character.pk)
+        update_character(self.character_1001.pk)
 
         self.assertFalse(mock_update_skills.called)
 
@@ -569,12 +573,13 @@ class TestUpdateCharacter(TestCase):
         """When special section has recently been updated, then do not update again"""
         mock_esi.client = esi_client_stub
         CharacterUpdateStatus.objects.create(
-            character=self.character,
+            character=self.character_1001,
             section=Character.UpdateSection.MAILS,
             is_success=True,
+            finished_at=now(),
         )
 
-        update_character(self.character.pk)
+        update_character(self.character_1001.pk)
 
         self.assertFalse(update_character_mails.apply_async.called)
 
@@ -585,12 +590,13 @@ class TestUpdateCharacter(TestCase):
         """
         mock_esi.client = esi_client_stub
         CharacterUpdateStatus.objects.create(
-            character=self.character,
+            character=self.character_1001,
             section=Character.UpdateSection.SKILLS,
             is_success=True,
+            finished_at=now(),
         )
 
-        update_character(self.character.pk, force_update=True)
+        update_character(self.character_1001.pk, force_update=True)
 
         self.assertTrue(mock_update_skills.called)
 
@@ -599,13 +605,22 @@ class TestUpdateCharacter(TestCase):
         mock_esi.client = esi_client_stub
         for section in Character.UpdateSection.values:
             CharacterUpdateStatus.objects.create(
-                character=self.character,
+                character=self.character_1001,
                 section=section,
                 is_success=True,
+                finished_at=now(),
             )
 
-        result = update_character(self.character.pk)
+        result = update_character(self.character_1001.pk)
         self.assertFalse(result)
+
+    def test_update_forced(self, mock_esi):
+        """Can do forced update"""
+        mock_esi.client = esi_client_stub
+
+        result = update_character(self.character_1001.pk, force_update=True)
+        self.assertTrue(result)
+        self.assertTrue(self.character_1001.is_update_status_ok())
 
 
 @patch(MODELS_PATH + ".esi")

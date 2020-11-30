@@ -95,7 +95,7 @@ class TestCharacterUpdateStatus(NoSocketsTestCase):
             character=self.character_1001,
             section=Character.UpdateSection.ASSETS,
             is_success=True,
-            content_hash="abc",
+            content_hash_1="abc",
         )
         self.assertTrue(status.has_changed(self.content))
 
@@ -105,21 +105,45 @@ class TestCharacterUpdateStatus(NoSocketsTestCase):
             character=self.character_1001,
             section=Character.UpdateSection.ASSETS,
             is_success=True,
-            content_hash="",
+            content_hash_1="",
         )
         self.assertTrue(status.has_changed(self.content))
 
-    def test_has_changed_3(self):
+    def test_has_changed_3a(self):
         """When hash is equal, then return False"""
         status = CharacterUpdateStatus.objects.create(
             character=self.character_1001,
             section=Character.UpdateSection.ASSETS,
             is_success=True,
-            content_hash=hashlib.md5(
+            content_hash_1=hashlib.md5(
                 json.dumps(self.content).encode("utf-8")
             ).hexdigest(),
         )
         self.assertFalse(status.has_changed(self.content))
+
+    def test_has_changed_3b(self):
+        """When hash is equal, then return False"""
+        status = CharacterUpdateStatus.objects.create(
+            character=self.character_1001,
+            section=Character.UpdateSection.ASSETS,
+            is_success=True,
+            content_hash_2=hashlib.md5(
+                json.dumps(self.content).encode("utf-8")
+            ).hexdigest(),
+        )
+        self.assertFalse(status.has_changed(content=self.content, hash_num=2))
+
+    def test_has_changed_3c(self):
+        """When hash is equal, then return False"""
+        status = CharacterUpdateStatus.objects.create(
+            character=self.character_1001,
+            section=Character.UpdateSection.ASSETS,
+            is_success=True,
+            content_hash_3=hashlib.md5(
+                json.dumps(self.content).encode("utf-8")
+            ).hexdigest(),
+        )
+        self.assertFalse(status.has_changed(content=self.content, hash_num=3))
 
 
 class TestCharacterUpdateSectionMethods(NoSocketsTestCase):
@@ -152,13 +176,13 @@ class TestCharacterUpdateSectionMethods(NoSocketsTestCase):
         self.assertIsNone(section.is_success)
         self.assertEqual(section.last_error_message, "")
 
-    def test_has_changed_1(self):
-        """When section exists, then return result from had_changed"""
+    def test_has_changed_1a(self):
+        """When section exists, then return result from has_changed"""
         section = CharacterUpdateStatus.objects.create(
             character=self.character_1001,
             section=self.section,
             is_success=True,
-            content_hash=hashlib.md5(
+            content_hash_1=hashlib.md5(
                 json.dumps(self.content).encode("utf-8")
             ).hexdigest(),
         )
@@ -167,6 +191,40 @@ class TestCharacterUpdateSectionMethods(NoSocketsTestCase):
                 section=self.section, content=self.content
             ),
             section.has_changed(self.content),
+        )
+
+    def test_has_changed_1b(self):
+        """When section exists, then return result from has_changed"""
+        section = CharacterUpdateStatus.objects.create(
+            character=self.character_1001,
+            section=self.section,
+            is_success=True,
+            content_hash_2=hashlib.md5(
+                json.dumps(self.content).encode("utf-8")
+            ).hexdigest(),
+        )
+        self.assertEqual(
+            self.character_1001.has_section_changed(
+                section=self.section, content=self.content, hash_num=2
+            ),
+            section.has_changed(self.content, hash_num=2),
+        )
+
+    def test_has_changed_1c(self):
+        """When section exists, then return result from has_changed"""
+        section = CharacterUpdateStatus.objects.create(
+            character=self.character_1001,
+            section=self.section,
+            is_success=True,
+            content_hash_3=hashlib.md5(
+                json.dumps(self.content).encode("utf-8")
+            ).hexdigest(),
+        )
+        self.assertEqual(
+            self.character_1001.has_section_changed(
+                section=self.section, content=self.content, hash_num=3
+            ),
+            section.has_changed(self.content, hash_num=3),
         )
 
     def test_has_changed_2(self):
@@ -192,7 +250,10 @@ class TestCharacterIsUpdateSectionStale(NoSocketsTestCase):
     def test_recently_updated_successfully(self):
         """When section has been recently updated successfully then return False"""
         CharacterUpdateStatus.objects.create(
-            character=self.character, section=self.section, is_success=True
+            character=self.character,
+            section=self.section,
+            is_success=True,
+            finished_at=now(),
         )
         self.assertFalse(self.character.is_update_section_stale(self.section))
 
@@ -564,6 +625,36 @@ class TestCharacterUpdateContacts(TestCharacterUpdateBase):
             {x.label_id for x in self.character_1001.contact_labels.all()}, {1, 2}
         )
 
+        label = self.character_1001.contact_labels.get(label_id=1)
+        self.assertEqual(label.name, "friend")
+
+    def test_update_contact_labels_4(self, mock_esi):
+        """when data from ESI has not changed, then skip update"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_contact_labels()
+        label = self.character_1001.contact_labels.get(label_id=1)
+        label.name = "foe"
+        label.save()
+
+        self.character_1001.update_contact_labels()
+
+        self.assertEqual(self.character_1001.contact_labels.count(), 2)
+        label = self.character_1001.contact_labels.get(label_id=1)
+        self.assertEqual(label.name, "foe")
+
+    def test_update_contact_labels_5(self, mock_esi):
+        """when data from ESI has not changed and update is forced, then do update"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_contact_labels()
+        label = self.character_1001.contact_labels.get(label_id=1)
+        label.name = "foe"
+        label.save()
+
+        self.character_1001.update_contact_labels(force_update=True)
+
+        self.assertEqual(self.character_1001.contact_labels.count(), 2)
         label = self.character_1001.contact_labels.get(label_id=1)
         self.assertEqual(label.name, "friend")
 
@@ -1038,6 +1129,32 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         obj = MailEntity.objects.get(id=9001)
         self.assertEqual(obj.name, "Dummy 1")
 
+    def test_update_mailing_lists_4(self, mock_esi):
+        """when data from ESI has not changed, then skip update"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_mailing_lists()
+        obj = MailEntity.objects.get(id=9001)
+        obj.name = "Extravaganza"
+        obj.save()
+
+        self.character_1001.update_mailing_lists()
+        obj = MailEntity.objects.get(id=9001)
+        self.assertEqual(obj.name, "Extravaganza")
+
+    def test_update_mailing_lists_5(self, mock_esi):
+        """when data from ESI has not changed and update is forced, then do update"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_mailing_lists()
+        obj = MailEntity.objects.get(id=9001)
+        obj.name = "Extravaganza"
+        obj.save()
+
+        self.character_1001.update_mailing_lists(force_update=True)
+        obj = MailEntity.objects.get(id=9001)
+        self.assertEqual(obj.name, "Dummy 1")
+
     def test_update_mail_labels_1(self, mock_esi):
         """can create from scratch"""
         mock_esi.client = esi_client_stub
@@ -1096,6 +1213,34 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertEqual(obj.name, "PINK")
         self.assertEqual(obj.unread_count, 4)
         self.assertEqual(obj.color, "#660066")
+
+    def test_update_mail_labels_4(self, mock_esi):
+        """when data from ESI has not changed, then skip update"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_mail_labels()
+        obj = self.character_1001.mail_labels.get(label_id=3)
+        obj.name = "MAGENTA"
+        obj.save()
+
+        self.character_1001.update_mail_labels()
+
+        obj = self.character_1001.mail_labels.get(label_id=3)
+        self.assertEqual(obj.name, "MAGENTA")
+
+    def test_update_mail_labels_5(self, mock_esi):
+        """when data from ESI has not changed and update is forced, then do update"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_mail_labels()
+        obj = self.character_1001.mail_labels.get(label_id=3)
+        obj.name = "MAGENTA"
+        obj.save()
+
+        self.character_1001.update_mail_labels(force_update=True)
+
+        obj = self.character_1001.mail_labels.get(label_id=3)
+        self.assertEqual(obj.name, "PINK")
 
     @staticmethod
     def stub_eve_entity_get_or_create_esi(id, *args, **kwargs):

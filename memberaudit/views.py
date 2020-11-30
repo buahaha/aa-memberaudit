@@ -422,9 +422,9 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
     # last updates
     try:
         last_updates = {
-            obj["section"]: obj["updated_at"]
+            obj["section"]: obj["finished_at"]
             for obj in character.update_status_set.filter(is_success=True).values(
-                "section", "updated_at"
+                "section", "finished_at"
             )
         }
     except ObjectDoesNotExist:

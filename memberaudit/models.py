@@ -404,7 +404,7 @@ class Character(models.Model):
         try:
             return self.update_status_set.get(
                 section=section, is_success=True
-            ).updated_at
+            ).finished_at
         except (CharacterUpdateStatus.DoesNotExist, ObjectDoesNotExist, AttributeError):
             return None
 
@@ -417,16 +417,20 @@ class Character(models.Model):
         deadline = now() - self.update_section_time_until_stale(section)
         return last_updated < deadline
 
-    def has_section_changed(self, section: str, content: str) -> bool:
+    def has_section_changed(
+        self, section: str, content: str, hash_num: int = 1
+    ) -> bool:
         """returns False if the content hash for this section has not changed, else True"""
         try:
             section = self.update_status_set.get(section=section)
         except CharacterUpdateStatus.DoesNotExist:
             return True
         else:
-            return section.has_changed(content)
+            return section.has_changed(content=content, hash_num=hash_num)
 
-    def update_section_content_hash(self, section: str, content: str) -> bool:
+    def update_section_content_hash(
+        self, section: str, content: str, hash_num: int = 1
+    ) -> bool:
         try:
             section = self.update_status_set.get(section=section)
         except CharacterUpdateStatus.DoesNotExist:
@@ -434,7 +438,7 @@ class Character(models.Model):
                 character=self, section=section
             )
 
-        section.update_content_hash(content)
+        section.update_content_hash(content=content, hash_num=hash_num)
 
     def reset_update_section(self, section: str) -> "CharacterUpdateStatus":
         """resets status of given update section and returns it"""
@@ -746,7 +750,7 @@ class Character(models.Model):
             logger.info("%s: Corporation history has not changed", self)
 
     @fetch_token_for_character("esi-characters.read_contacts.v1")
-    def update_contact_labels(self, token: Token):
+    def update_contact_labels(self, token: Token, force_update: bool = False):
         logger.info("%s: Fetching contact labels from ESI", self)
         labels = esi.client.Contacts.get_characters_character_id_contacts_labels(
             character_id=self.character_ownership.character.character_id,
@@ -755,31 +759,47 @@ class Character(models.Model):
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(labels, "contact_labels")
 
-        # TODO: replace with bulk methods to optimize
-        with transaction.atomic():
-            if labels:
-                incoming_ids = {x["label_id"] for x in labels}
-            else:
-                incoming_ids = set()
+        if force_update or self.has_section_changed(
+            section=self.UpdateSection.CONTACTS, content=labels, hash_num=2
+        ):
+            # TODO: replace with bulk methods to optimize
+            with transaction.atomic():
+                if labels:
+                    incoming_ids = {x["label_id"] for x in labels}
+                else:
+                    incoming_ids = set()
 
-            existing_ids = set(self.contact_labels.values_list("label_id", flat=True))
-            obsolete_ids = existing_ids.difference(incoming_ids)
-            if obsolete_ids:
-                logger.info("%s: Removing %s obsolete skills", self, len(obsolete_ids))
-                self.contact_labels.filter(label_id__in=obsolete_ids).delete()
-
-            if incoming_ids:
-                logger.info("%s: Storing %s contact labels", self, len(incoming_ids))
-                for label in labels:
-                    CharacterContactLabel.objects.update_or_create(
-                        character=self,
-                        label_id=label.get("label_id"),
-                        defaults={
-                            "name": label.get("label_name"),
-                        },
+                existing_ids = set(
+                    self.contact_labels.values_list("label_id", flat=True)
+                )
+                obsolete_ids = existing_ids.difference(incoming_ids)
+                if obsolete_ids:
+                    logger.info(
+                        "%s: Removing %s obsolete skills", self, len(obsolete_ids)
                     )
-            else:
-                logger.info("%s: No contact labels", self)
+                    self.contact_labels.filter(label_id__in=obsolete_ids).delete()
+
+                if incoming_ids:
+                    logger.info(
+                        "%s: Storing %s contact labels", self, len(incoming_ids)
+                    )
+                    for label in labels:
+                        CharacterContactLabel.objects.update_or_create(
+                            character=self,
+                            label_id=label.get("label_id"),
+                            defaults={
+                                "name": label.get("label_name"),
+                            },
+                        )
+                else:
+                    logger.info("%s: No contact labels", self)
+
+            self.update_section_content_hash(
+                section=self.UpdateSection.CONTACTS, content=labels, hash_num=2
+            )
+
+        else:
+            logger.info("%s: Contact labels have not changed", self)
 
     @fetch_token_for_character("esi-characters.read_contacts.v1")
     def update_contacts(self, token: Token, force_update: bool = False):
@@ -1378,7 +1398,7 @@ class Character(models.Model):
             logger.info("%s: Jump clones have not changed", self)
 
     @fetch_token_for_character("esi-mail.read_mail.v1")
-    def update_mailing_lists(self, token: Token):
+    def update_mailing_lists(self, token: Token, force_update: bool = False):
         """update mailing lists with input from given character
 
         Note: Obsolete mailing lists must not be removed,
@@ -1409,44 +1429,63 @@ class Character(models.Model):
             logger.info("%s: No new mailing lists", self)
             return
 
-        with transaction.atomic():
-            logger.info("%s: Updating %s mailing lists", self, len(incoming_ids))
-            for list_id, mailing_list in mailing_lists.items():
-                MailEntity.objects.update_or_create(
-                    id=list_id,
-                    defaults={
-                        "category": MailEntity.Category.MAILING_LIST,
-                        "name": mailing_list.get("name"),
-                    },
-                )
+        if force_update or self.has_section_changed(
+            section=self.UpdateSection.MAILS, content=mailing_lists, hash_num=2
+        ):
+            with transaction.atomic():
+                logger.info("%s: Updating %s mailing lists", self, len(incoming_ids))
+                for list_id, mailing_list in mailing_lists.items():
+                    MailEntity.objects.update_or_create(
+                        id=list_id,
+                        defaults={
+                            "category": MailEntity.Category.MAILING_LIST,
+                            "name": mailing_list.get("name"),
+                        },
+                    )
+            self.update_section_content_hash(
+                section=self.UpdateSection.MAILS, content=mailing_lists, hash_num=2
+            )
+
+        else:
+            logger.info("%s: Mailng lists have not changed", self)
 
     @fetch_token_for_character("esi-mail.read_mail.v1")
-    def update_mail_labels(self, token: Token):
+    def update_mail_labels(self, token: Token, force_update: bool = False):
         """update the mail lables for the given character"""
         mail_labels_list = self._fetch_mail_labels_from_esi(token)
         if not mail_labels_list:
             logger.info("%s: No mail labels", self)
             return
 
-        logger.info("%s: Storing %s mail labels", self, len(mail_labels_list))
-        with transaction.atomic():
-            incoming_ids = set(mail_labels_list.keys())
-            existing_ids = set(self.mail_labels.values_list("label_id", flat=True))
-            obsolete_ids = existing_ids.difference(incoming_ids)
-            if obsolete_ids:
-                self.mail_labels.filter(label_id__in=obsolete_ids).delete()
+        if force_update or self.has_section_changed(
+            section=self.UpdateSection.MAILS, content=mail_labels_list, hash_num=3
+        ):
+            logger.info("%s: Storing %s mail labels", self, len(mail_labels_list))
+            with transaction.atomic():
+                incoming_ids = set(mail_labels_list.keys())
+                existing_ids = set(self.mail_labels.values_list("label_id", flat=True))
+                obsolete_ids = existing_ids.difference(incoming_ids)
+                if obsolete_ids:
+                    self.mail_labels.filter(label_id__in=obsolete_ids).delete()
 
-            create_ids = incoming_ids.difference(existing_ids)
-            if create_ids:
-                self._create_new_mail_labels(
-                    mail_labels_list=mail_labels_list, label_ids=create_ids
-                )
+                create_ids = incoming_ids.difference(existing_ids)
+                if create_ids:
+                    self._create_new_mail_labels(
+                        mail_labels_list=mail_labels_list, label_ids=create_ids
+                    )
 
-            update_ids = incoming_ids.difference(create_ids)
-            if update_ids:
-                self._update_existing_mail_labels(
-                    mail_labels_list=mail_labels_list, label_ids=update_ids
-                )
+                update_ids = incoming_ids.difference(create_ids)
+                if update_ids:
+                    self._update_existing_mail_labels(
+                        mail_labels_list=mail_labels_list, label_ids=update_ids
+                    )
+
+            self.update_section_content_hash(
+                section=self.UpdateSection.MAILS, content=mail_labels_list, hash_num=3
+            )
+
+        else:
+            logger.info("%s: Mail labels have not changed", self)
 
     def _fetch_mail_labels_from_esi(self, token) -> dict:
         logger.info("%s: Fetching mail labels from ESI", self)
@@ -2876,9 +2915,12 @@ class CharacterUpdateStatus(models.Model):
         max_length=64, choices=Character.UpdateSection.choices, db_index=True
     )
     is_success = models.BooleanField(db_index=True, null=True, default=None)
-    content_hash = models.CharField(max_length=32, default="")
+    content_hash_1 = models.CharField(max_length=32, default="")
+    content_hash_2 = models.CharField(max_length=32, default="")
+    content_hash_3 = models.CharField(max_length=32, default="")
     last_error_message = models.TextField()
-    updated_at = models.DateTimeField(auto_now=True)
+    started_at = models.DateTimeField(null=True, default=None)
+    finished_at = models.DateTimeField(null=True, default=None)
 
     class Meta:
         default_permissions = ()
@@ -2892,18 +2934,36 @@ class CharacterUpdateStatus(models.Model):
     def __str__(self) -> str:
         return f"{self.character}-{self.section}"
 
-    def has_changed(self, content: Any) -> bool:
-        new_content_hash = self._calculate_hash(content)
-        return new_content_hash != self.content_hash
+    def has_changed(self, content: Any, hash_num: int = 1) -> bool:
+        """returns True if given content is not the same as previous one, else False"""
+        new_hash = self._calculate_hash(content)
+        if hash_num == 2:
+            content_hash = self.content_hash_2
+        elif hash_num == 3:
+            content_hash = self.content_hash_3
+        else:
+            content_hash = self.content_hash_1
 
-    def update_content_hash(self, content: Any):
-        self.content_hash = self._calculate_hash(content)
+        return new_hash != content_hash
+
+    def update_content_hash(self, content: Any, hash_num: int = 1):
+        new_hash = self._calculate_hash(content)
+        self.content_hash = new_hash
+        if hash_num == 2:
+            self.content_hash_2 = new_hash
+        elif hash_num == 3:
+            self.content_hash_3 = new_hash
+        else:
+            self.content_hash_1 = new_hash
+
         self.save()
 
     def reset(self) -> None:
         """resets this update status"""
         self.is_success = None
         self.last_error_message = ""
+        self.started_at = now()
+        self.finished_at = None
         self.save()
 
     @staticmethod

@@ -33,7 +33,13 @@ class UpdateStatusOkFilter(admin.SimpleListFilter):
 
 class SyncStatusAdminInline(admin.TabularInline):
     model = CharacterUpdateStatus
-    fields = ("section", "is_success", "last_error_message")
+    fields = (
+        "section",
+        "is_success",
+        "last_error_message",
+        "started_at",
+        "finished_at",
+    )
 
     def has_add_permission(self, request, obj=None):
         return False
@@ -122,8 +128,8 @@ class CharacterAdmin(admin.ModelAdmin):
         return obj.is_update_status_ok()
 
     def _last_update_at(self, obj):
-        latest_obj = obj.update_status_set.latest("updated_at")
-        return latest_obj.updated_at
+        latest_obj = obj.update_status_set.latest("finished_at")
+        return latest_obj.finished_at
 
     _last_update_ok.boolean = True
 

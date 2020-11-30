@@ -52,7 +52,7 @@ class Command(BaseCommand):
 
         user_input = get_input("Are you sure you want to proceed? (Y/n)?")
         if user_input == "Y":
-            logger.info("Running command reset_all_characters for %s characters.")
+            logger.info("Running command reset_characters for %s characters.")
             self.stdout.write(
                 self.style.SUCCESS("Character data reset has been started!")
             )
