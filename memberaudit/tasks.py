@@ -409,7 +409,7 @@ def update_character_mail_bodies(self, character_pk: int) -> None:
 
 
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_character_contacts(character_pk: int) -> None:
+def update_character_contacts(character_pk: int, force_update: bool = False) -> None:
     """Main task for updating contacts of a character"""
     character = Character.objects.get(pk=character_pk)
     section = Character.UpdateSection.CONTACTS
@@ -419,7 +419,7 @@ def update_character_contacts(character_pk: int) -> None:
     )
     chain(
         update_character_contact_labels.si(character.pk),
-        update_character_contacts_2.si(character.pk),
+        update_character_contacts_2.si(character.pk, force_update=force_update),
         update_unresolved_eve_entities.si(character.pk, section, last_in_chain=True),
     ).apply_async(priority=DEFAULT_TASK_PRIORITY)
 
@@ -436,10 +436,16 @@ def update_character_contact_labels(self, character_pk: int) -> None:
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_contacts_2(self, character_pk: int) -> None:
+def update_character_contacts_2(
+    self, character_pk: int, force_update: bool = False
+) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
-        self, character, Character.UpdateSection.CONTACTS, character.update_contacts
+        self,
+        character,
+        Character.UpdateSection.CONTACTS,
+        character.update_contacts,
+        force_update=force_update,
     )
 
 

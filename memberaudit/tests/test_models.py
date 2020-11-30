@@ -641,6 +641,46 @@ class TestCharacterUpdateContacts(TestCharacterUpdateBase):
         self.assertEqual(obj.standing, -10)
         self.assertEqual({x.label_id for x in obj.labels.all()}, {2})
 
+    def test_update_contacts_4(self, mock_esi):
+        """when ESI data has not changed, then skip update"""
+        mock_esi.client = esi_client_stub
+        CharacterContactLabel.objects.create(
+            character=self.character_1001, label_id=1, name="friend"
+        )
+        CharacterContactLabel.objects.create(
+            character=self.character_1001, label_id=2, name="pirate"
+        )
+
+        self.character_1001.update_contacts()
+        obj = self.character_1001.contacts.get(eve_entity_id=1101)
+        obj.is_watched = False
+        obj.save()
+
+        self.character_1001.update_contacts()
+
+        obj = self.character_1001.contacts.get(eve_entity_id=1101)
+        self.assertFalse(obj.is_watched)
+
+    def test_update_contacts_5(self, mock_esi):
+        """when ESI data has not changed and update is forced, then update"""
+        mock_esi.client = esi_client_stub
+        CharacterContactLabel.objects.create(
+            character=self.character_1001, label_id=1, name="friend"
+        )
+        CharacterContactLabel.objects.create(
+            character=self.character_1001, label_id=2, name="pirate"
+        )
+
+        self.character_1001.update_contacts()
+        obj = self.character_1001.contacts.get(eve_entity_id=1101)
+        obj.is_watched = False
+        obj.save()
+
+        self.character_1001.update_contacts(force_update=True)
+
+        obj = self.character_1001.contacts.get(eve_entity_id=1101)
+        self.assertTrue(obj.is_watched)
+
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(MODELS_PATH + ".esi")

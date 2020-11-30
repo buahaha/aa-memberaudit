@@ -759,7 +759,7 @@ class Character(models.Model):
                 logger.info("%s: No contact labels", self)
 
     @fetch_token_for_character("esi-characters.read_contacts.v1")
-    def update_contacts(self, token):
+    def update_contacts(self, token: Token, force_update: bool = False):
         logger.info("%s: Fetching contacts from ESI", self)
         contacts_data = esi.client.Contacts.get_characters_character_id_contacts(
             character_id=self.character_ownership.character.character_id,
@@ -773,30 +773,42 @@ class Character(models.Model):
         else:
             contacts_list = dict()
 
-        with transaction.atomic():
-            incoming_ids = set(contacts_list.keys())
-            existing_ids = set(self.contacts.values_list("eve_entity_id", flat=True))
-            obsolete_ids = existing_ids.difference(incoming_ids)
-            if obsolete_ids:
-                logger.info(
-                    "%s: Removing %s obsolete contacts", self, len(obsolete_ids)
+        if force_update or self.has_section_changed(
+            section=self.UpdateSection.CONTACTS, content=contacts_list
+        ):
+            with transaction.atomic():
+                incoming_ids = set(contacts_list.keys())
+                existing_ids = set(
+                    self.contacts.values_list("eve_entity_id", flat=True)
                 )
-                self.contacts.filter(eve_entity_id__in=obsolete_ids).delete()
+                obsolete_ids = existing_ids.difference(incoming_ids)
+                if obsolete_ids:
+                    logger.info(
+                        "%s: Removing %s obsolete contacts", self, len(obsolete_ids)
+                    )
+                    self.contacts.filter(eve_entity_id__in=obsolete_ids).delete()
 
-            create_ids = incoming_ids.difference(existing_ids)
-            if create_ids:
-                self._create_new_contacts(
-                    contacts_list=contacts_list, contact_ids=create_ids
-                )
+                create_ids = incoming_ids.difference(existing_ids)
+                if create_ids:
+                    self._create_new_contacts(
+                        contacts_list=contacts_list, contact_ids=create_ids
+                    )
 
-            update_ids = incoming_ids.difference(create_ids)
-            if update_ids:
-                self._update_existing_contacts(
-                    contacts_list=contacts_list, contact_ids=update_ids
-                )
+                update_ids = incoming_ids.difference(create_ids)
+                if update_ids:
+                    self._update_existing_contacts(
+                        contacts_list=contacts_list, contact_ids=update_ids
+                    )
 
-            if not obsolete_ids and not create_ids and not update_ids:
-                logger.info("%s: Contacts have not changed", self)
+                if not obsolete_ids and not create_ids and not update_ids:
+                    logger.info("%s: Contacts have not changed", self)
+
+            self.update_section_content_hash(
+                section=self.UpdateSection.CONTACTS, content=contacts_list
+            )
+
+        else:
+            logger.info("%s: Contacts have not changed", self)
 
     def _create_new_contacts(self, contacts_list: dict, contact_ids: list):
         logger.info("%s: Storing %s new contacts", self, len(contact_ids))
