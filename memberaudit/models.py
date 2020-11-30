@@ -1425,25 +1425,35 @@ class Character(models.Model):
         )
 
     @fetch_token_for_character("esi-mail.read_mail.v1")
-    def update_mail_headers(self, token: Token):
+    def update_mail_headers(self, token: Token, force_update: bool = False):
         mail_headers = self._fetch_mail_headers(token)
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(mail_headers, "mail_headers")
 
-        self._preload_mail_senders(mail_headers)
-        with transaction.atomic():
-            incoming_ids = set(mail_headers.keys())
-            existing_ids = set(self.mails.values_list("mail_id", flat=True))
-            create_ids = incoming_ids.difference(existing_ids)
-            if create_ids:
-                self._create_mail_headers(mail_headers, create_ids)
+        if force_update or self.has_section_changed(
+            section=self.UpdateSection.MAILS, content=mail_headers
+        ):
+            self._preload_mail_senders(mail_headers)
+            with transaction.atomic():
+                incoming_ids = set(mail_headers.keys())
+                existing_ids = set(self.mails.values_list("mail_id", flat=True))
+                create_ids = incoming_ids.difference(existing_ids)
+                if create_ids:
+                    self._create_mail_headers(mail_headers, create_ids)
 
-            update_ids = incoming_ids.difference(create_ids)
-            if update_ids:
-                self._update_mail_headers(mail_headers, update_ids)
+                update_ids = incoming_ids.difference(create_ids)
+                if update_ids:
+                    self._update_mail_headers(mail_headers, update_ids)
 
-            if not create_ids and not update_ids:
-                logger.info("%s: No mails", self)
+                if not create_ids and not update_ids:
+                    logger.info("%s: No mails", self)
+
+            self.update_section_content_hash(
+                section=self.UpdateSection.MAILS, content=mail_headers
+            )
+
+        else:
+            logger.info("%s: Mails have not changed", self)
 
     def _fetch_mail_headers(self, token) -> list:
         last_mail_id = None
@@ -2804,7 +2814,9 @@ class CharacterUpdateStatus(models.Model):
 
     @staticmethod
     def _calculate_hash(content: Any) -> str:
-        return hashlib.md5(json.dumps(content).encode("utf-8")).hexdigest()
+        return hashlib.md5(
+            json.dumps(content, cls=DjangoJSONEncoder).encode("utf-8")
+        ).hexdigest()
 
 
 class CharacterWalletBalance(models.Model):

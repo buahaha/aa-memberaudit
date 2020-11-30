@@ -1091,6 +1091,50 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertTrue(obj.recipients.filter(id=9001).exists())
         self.assertSetEqual(set(obj.labels.values_list("label_id", flat=True)), {3})
 
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
+    def test_update_mail_headers_3(
+        self, mock_eve_entity, mock_fetch_esi_status, mock_esi
+    ):
+        """when ESI data is unchanged, then skip update"""
+        mock_esi.client = esi_client_stub
+        mock_eve_entity.side_effect = self.stub_eve_entity_get_or_create_esi
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
+
+        self.character_1001.update_mailing_lists()
+        self.character_1001.update_mail_labels()
+        self.character_1001.update_mail_headers()
+        obj = self.character_1001.mails.get(mail_id=1)
+        obj.is_read = False
+        obj.save()
+
+        self.character_1001.update_mail_headers()
+
+        obj = self.character_1001.mails.get(mail_id=1)
+        self.assertFalse(obj.is_read)
+
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
+    def test_update_mail_headers_4(
+        self, mock_eve_entity, mock_fetch_esi_status, mock_esi
+    ):
+        """when ESI data is unchanged and update forced, then do update"""
+        mock_esi.client = esi_client_stub
+        mock_eve_entity.side_effect = self.stub_eve_entity_get_or_create_esi
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
+
+        self.character_1001.update_mailing_lists()
+        self.character_1001.update_mail_labels()
+        self.character_1001.update_mail_headers()
+        obj = self.character_1001.mails.get(mail_id=1)
+        obj.is_read = False
+        obj.save()
+
+        self.character_1001.update_mail_headers(force_update=True)
+
+        obj = self.character_1001.mails.get(mail_id=1)
+        self.assertTrue(obj.is_read)
+
     def test_update_mail_body_1(self, mock_esi):
         """can update mail body"""
         mock_esi.client = esi_client_stub

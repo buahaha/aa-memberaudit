@@ -72,7 +72,7 @@ def run_regular_updates() -> None:
 
 
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_all_characters(force_update=False) -> None:
+def update_all_characters(force_update: bool = False) -> None:
     """Start the update of all registered characters
 
     Args:
@@ -89,7 +89,7 @@ def update_all_characters(force_update=False) -> None:
 
 
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_character(character_pk: int, force_update=False) -> bool:
+def update_character(character_pk: int, force_update: bool = False) -> bool:
     """Start respective update tasks for all stale sections of a character
 
     Args:
@@ -258,7 +258,7 @@ def update_unresolved_eve_entities(
 
 
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_character_assets(character_pk: int, force_update=False) -> None:
+def update_character_assets(character_pk: int, force_update: bool = False) -> None:
     """Main tasks for updating the character's assets"""
     character = Character.objects.get(pk=character_pk)
     logger.info(
@@ -275,7 +275,9 @@ def update_character_assets(character_pk: int, force_update=False) -> None:
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def assets_build_list_from_esi(self, character_pk: int, force_update=False) -> dict:
+def assets_build_list_from_esi(
+    self, character_pk: int, force_update: bool = False
+) -> dict:
     """Building asset list"""
     character = Character.objects.get(pk=character_pk)
     asset_list = _character_update_with_error_logging(
@@ -325,7 +327,7 @@ def assets_build_tree(self, asset_list: dict, character_pk: int) -> None:
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_mails(self, character_pk: int) -> None:
+def update_character_mails(self, character_pk: int, force_update: bool = False) -> None:
     """Main task for updating mails of a character"""
     character = Character.objects.get(pk=character_pk)
     section = Character.UpdateSection.MAILS
@@ -359,10 +361,15 @@ def update_character_mail_labels(self, character_pk: int) -> None:
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_mail_headers(self, character_pk: int) -> None:
+def update_character_mail_headers(
+    self, character_pk: int, force_update: bool = False
+) -> None:
     character = Character.objects.get(pk=character_pk)
     _character_update_with_error_logging(
-        self, character, Character.UpdateSection.MAILS, character.update_mail_headers
+        self,
+        character,
+        Character.UpdateSection.MAILS,
+        character.update_mail_headers,
     )
 
 
