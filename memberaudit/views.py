@@ -451,6 +451,9 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         "last_updates": last_updates,
         "character_assets_total": character_assets_total,
         "has_implants": has_implants,
+        "is_assets_updating": character.is_section_updating(
+            Character.UpdateSection.ASSETS
+        ),
     }
     return render(
         request,

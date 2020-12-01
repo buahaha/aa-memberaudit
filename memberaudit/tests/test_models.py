@@ -145,6 +145,33 @@ class TestCharacterUpdateStatus(NoSocketsTestCase):
         )
         self.assertFalse(status.has_changed(content=self.content, hash_num=3))
 
+    def test_is_updating_1(self):
+        """When started_at exist and finished_at does not exist, return True"""
+        status = CharacterUpdateStatus.objects.create(
+            character=self.character_1001,
+            section=Character.UpdateSection.ASSETS,
+            started_at=now(),
+        )
+        self.assertTrue(status.is_updating)
+
+    def test_is_updating_2(self):
+        """When started_at and finished_at does not exist, return False"""
+        status = CharacterUpdateStatus.objects.create(
+            character=self.character_1001,
+            section=Character.UpdateSection.ASSETS,
+            started_at=now(),
+            finished_at=now(),
+        )
+        self.assertFalse(status.is_updating)
+
+    def test_is_updating_3(self):
+        """When started_at and finished_at both do not exist, return False"""
+        status = CharacterUpdateStatus.objects.create(
+            character=self.character_1001,
+            section=Character.UpdateSection.ASSETS,
+        )
+        self.assertFalse(status.is_updating)
+
 
 class TestCharacterUpdateSectionMethods(NoSocketsTestCase):
     @classmethod
@@ -234,6 +261,20 @@ class TestCharacterUpdateSectionMethods(NoSocketsTestCase):
                 section=self.section, content=self.content
             )
         )
+
+    def test_is_updating_1(self):
+        """When section exists, then return result from is_updating"""
+        section = CharacterUpdateStatus.objects.create(
+            character=self.character_1001, section=self.section, started_at=now()
+        )
+        self.assertEqual(
+            self.character_1001.is_section_updating(section=self.section),
+            section.is_updating,
+        )
+
+    def test_is_updating_2(self):
+        """When section does not exist, then return False"""
+        self.assertTrue(self.character_1001.is_section_updating(section=self.section))
 
 
 @patch(MODELS_PATH + ".MEMBERAUDIT_UPDATE_STALE_RING_3", 640)

@@ -2,7 +2,12 @@
 
 <!-- Nav tabs -->
 <ul class="nav nav-tabs" role="tablist">
-    <li role="presentation"><a href="#assets" aria-controls="assets" role="tab" data-toggle="tab">{% translate 'Assets' %}</a></li>
+    <li role="presentation">
+        <a href="#assets" aria-controls="assets" role="tab" data-toggle="tab">
+            {% translate 'Assets' %}
+            {% if is_assets_updating %}&nbsp;<i class="fas fa-exclamation-circle" title="{% translate 'Update in progress...' %}"></i>{% endif %}
+        </a>
+    </li>
     <li role="presentation"><a href="#bio" aria-controls="bio" role="tab" data-toggle="tab">{% translate 'Bio' %}</a></li>
     <li role="presentation"><a href="#clones" aria-controls="clones" role="tab" data-toggle="tab">{% translate 'Clones' %}</a></li>
     <li role="presentation"><a href="#contacts" aria-controls="contacts" role="tab" data-toggle="tab">{% translate 'Contacts' %}</a></li>

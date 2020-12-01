@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [1.0.0a10] - 2020-12-01
+
+### Changed
+
+- Further improvement of the asset update process ([#56](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/56))
+
 ## [1.0.0a9] - 2020-11-30
 
 ### Changed

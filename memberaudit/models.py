@@ -451,6 +451,15 @@ class Character(models.Model):
         section.reset()
         return section
 
+    def is_section_updating(self, section: str) -> bool:
+        """returns True if section is currently updating, or does not exist, else False"""
+        try:
+            section = self.update_status_set.get(section=section)
+        except CharacterUpdateStatus.DoesNotExist:
+            return True
+
+        return section.is_updating
+
     def _preload_all_locations(self, token: Token, incoming_ids: set) -> list:
         """loads location objects specified by given set
 
@@ -2853,6 +2862,13 @@ class CharacterUpdateStatus(models.Model):
     def __str__(self) -> str:
         return f"{self.character}-{self.section}"
 
+    @property
+    def is_updating(self) -> bool:
+        if not self.started_at and not self.finished_at:
+            return False
+        else:
+            return self.started_at is not None and self.finished_at is None
+
     def has_changed(self, content: Any, hash_num: int = 1) -> bool:
         """returns True if given content is not the same as previous one, else False"""
         new_hash = self._calculate_hash(content)
@@ -2877,6 +2893,12 @@ class CharacterUpdateStatus(models.Model):
 
         self.save()
 
+    @staticmethod
+    def _calculate_hash(content: Any) -> str:
+        return hashlib.md5(
+            json.dumps(content, cls=DjangoJSONEncoder).encode("utf-8")
+        ).hexdigest()
+
     def reset(self) -> None:
         """resets this update status"""
         self.is_success = None
@@ -2884,12 +2906,6 @@ class CharacterUpdateStatus(models.Model):
         self.started_at = now()
         self.finished_at = None
         self.save()
-
-    @staticmethod
-    def _calculate_hash(content: Any) -> str:
-        return hashlib.md5(
-            json.dumps(content, cls=DjangoJSONEncoder).encode("utf-8")
-        ).hexdigest()
 
 
 class CharacterWalletBalance(models.Model):
