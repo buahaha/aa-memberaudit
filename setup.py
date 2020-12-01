@@ -41,7 +41,7 @@ setup(
     python_requires="~=3.6",
     install_requires=[
         "allianceauth>=2.8.0",
-        "django-esi>=2",
+        "django-esi>=2.0.4",
         "django-eveuniverse>=0.6.1",
         "humanize",
         "requests",
