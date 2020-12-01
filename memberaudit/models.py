@@ -1,4 +1,3 @@
-from copy import copy
 import datetime as dt
 from collections import namedtuple
 import hashlib
@@ -564,86 +563,6 @@ class Character(models.Model):
             if "location_id" in x and x["location_id"] not in assets_flat
         }
         self._preload_all_locations(token=token, incoming_ids=incoming_location_ids)
-
-    def assets_build_tree(self, asset_list: list) -> None:
-        logger.info("%s: Recreating asset tree for %s assets", self, len(asset_list))
-        assets_flat = {int(x["item_id"]): x for x in asset_list}
-        with transaction.atomic():
-            # remove old asset tree
-            self.assets.all().delete()
-
-            # create parent assets
-            logger.info("%s: Creating parent assets", self)
-            location_ids = set(Location.objects.values_list("id", flat=True))
-            parent_asset_ids = set()
-            new_assets = list()
-            for item_id, asset_info in copy(assets_flat).items():
-                location_id = asset_info.get("location_id")
-                if location_id and location_id in location_ids:
-                    new_assets.append(
-                        CharacterAsset(
-                            character=self,
-                            item_id=item_id,
-                            location_id=location_id,
-                            eve_type_id=asset_info.get("type_id"),
-                            name=asset_info.get("name"),
-                            is_blueprint_copy=asset_info.get("is_blueprint_copy"),
-                            is_singleton=asset_info.get("is_singleton"),
-                            location_flag=asset_info.get("location_flag"),
-                            quantity=asset_info.get("quantity"),
-                        )
-                    )
-                    assets_flat.pop(item_id)
-                    parent_asset_ids.add(item_id)
-
-            logger.info("%s: Writing %s parent assets", self, len(new_assets))
-            CharacterAsset.objects.bulk_create(
-                new_assets, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-            )
-
-            # create child assets
-            round = 0
-            while True:
-                round += 1
-                logger.info("%s: Creating child assets - pass %s", self, round)
-                new_assets = list()
-                for item_id, asset_info in copy(assets_flat).items():
-                    location_id = asset_info.get("location_id")
-                    if location_id and location_id in parent_asset_ids:
-                        new_assets.append(
-                            CharacterAsset(
-                                character=self,
-                                item_id=item_id,
-                                parent=self.assets.get(item_id=location_id),
-                                eve_type_id=asset_info.get("type_id"),
-                                name=asset_info.get("name"),
-                                is_blueprint_copy=asset_info.get("is_blueprint_copy"),
-                                is_singleton=asset_info.get("is_singleton"),
-                                location_flag=asset_info.get("location_flag"),
-                                quantity=asset_info.get("quantity"),
-                            )
-                        )
-                        assets_flat.pop(item_id)
-
-                if new_assets:
-                    logger.info("%s: Writing %s child assets", self, len(new_assets))
-                    CharacterAsset.objects.bulk_create(
-                        new_assets, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-                    )
-                    parent_asset_ids = parent_asset_ids.union(
-                        {obj.item_id for obj in new_assets}
-                    )
-
-                if not new_assets or not assets_flat:
-                    break
-
-        if len(assets_flat) > 0:
-            logger.warning(
-                "%s: Failed to add %s assets to the tree: %s",
-                self,
-                len(assets_flat),
-                list(assets_flat.keys()),
-            )
 
     def update_character_details(self, force_update: bool = False):
         """syncs the character details for the given character"""
