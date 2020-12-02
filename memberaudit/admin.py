@@ -75,18 +75,16 @@ class CharacterAdmin(admin.ModelAdmin):
         UpdateStatusOkFilter,
         "created_at",
         "character_ownership__user__profile__state",
+        "character_ownership__user__profile__main_character__corporation_name",
+        "character_ownership__user__profile__main_character__alliance_name",
     )
     list_select_related = (
-        "character_ownership",
         "character_ownership__user",
         "character_ownership__user__profile__main_character",
         "character_ownership__character",
     )
     ordering = ("-created_at",)
-    search_fields = [
-        "character_ownership__character__character_name",
-        "character_ownership__user__username",
-    ]
+    search_fields = ["character_ownership__character__character_name"]
 
     def _character_pic(self, obj):
         character = obj.character_ownership.character
@@ -99,7 +97,7 @@ class CharacterAdmin(admin.ModelAdmin):
     def _character(self, obj):
         return obj.character_ownership.character
 
-    _character.admin_order_field = "character_ownership__character"
+    _character.admin_order_field = "character_ownership__character__character_name"
 
     def _main(self, obj):
         try:
@@ -123,6 +121,10 @@ class CharacterAdmin(admin.ModelAdmin):
             )
         except AttributeError:
             return None
+
+    _organization.admin_order_field = (
+        "character_ownership__user__profile__main_character__corporation_name"
+    )
 
     def _last_update_ok(self, obj):
         return obj.is_update_status_ok()
