@@ -113,6 +113,7 @@ class General(models.Model):
             ),
             ("finder_access", "Can access character finder feature"),
             ("reports_access", "Can access reports feature"),
+            ("characters_access", "Can view characters owned by others"),
             ("view_shared_characters", "Can view shared characters"),
             ("view_same_corporation", "Can view corporation characters"),
             ("view_same_alliance", "Can view alliance characters"),
@@ -345,26 +346,29 @@ class Character(models.Model):
         return self.character_ownership.user == user
 
     def user_has_access(self, user: User) -> bool:
-        """Returns True if given user has permission to view this character"""
+        """Returns True if given user has permission to access this character
+        in the character viewer
+        """
         if self.character_ownership.user == user:
-            return True
-        elif user.has_perm("memberaudit.view_everything"):
-            return True
-        elif (
-            user.has_perm("memberaudit.view_same_alliance")
-            and user.profile.main_character.alliance_id
-            and user.profile.main_character.alliance_id
-            == self.character_ownership.user.profile.main_character.alliance_id
-        ):
-            return True
-        elif (
-            user.has_perm("memberaudit.view_same_corporation")
-            and user.profile.main_character.corporation_id
-            == self.character_ownership.user.profile.main_character.corporation_id
-        ):
             return True
         elif user.has_perm("memberaudit.view_shared_characters") and self.is_shared:
             return True
+        elif user.has_perm("memberaudit.characters_access"):
+            if user.has_perm("memberaudit.view_everything"):
+                return True
+            elif (
+                user.has_perm("memberaudit.view_same_alliance")
+                and user.profile.main_character.alliance_id
+                and user.profile.main_character.alliance_id
+                == self.character_ownership.user.profile.main_character.alliance_id
+            ):
+                return True
+            elif (
+                user.has_perm("memberaudit.view_same_corporation")
+                and user.profile.main_character.corporation_id
+                == self.character_ownership.user.profile.main_character.corporation_id
+            ):
+                return True
 
         return False
 

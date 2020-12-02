@@ -1,4 +1,4 @@
-default_app_config = "memberaudit.apps.MemberauditConfig"
+default_app_config = "memberaudit.apps.MemberAuditConfig"
 
-__version__ = "1.0.0a10"
+__version__ = "1.0.0a11"
 __title__ = "Member Audit"

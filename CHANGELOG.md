@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [1.0.0a11] - 2020-12-02
+
+### Changed
+
+- Access to other characters require new permission (except for shared characters) ([#49](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/49))
+
 ## [1.0.0a10] - 2020-12-01
 
 ### Changed

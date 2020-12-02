@@ -405,14 +405,20 @@ class CharacterManager(models.Manager):
         ).count()
 
     def user_has_access(self, user: User) -> models.QuerySet:
-        if user.has_perm("memberaudit.view_everything"):
+        """Returns list of characters the given user has permission
+        to access via character viewer
+        """
+        if user.has_perm("memberaudit.view_everything") and user.has_perm(
+            "memberaudit.characters_access"
+        ):
             qs = self.all()
         else:
             qs = self.select_related(
                 "character_ownership__user",
             ).filter(character_ownership__user=user)
             if (
-                user.has_perm("memberaudit.view_same_alliance")
+                user.has_perm("memberaudit.characters_access")
+                and user.has_perm("memberaudit.view_same_alliance")
                 and user.profile.main_character.alliance_id
             ):
                 qs = qs | self.select_related(
@@ -420,7 +426,9 @@ class CharacterManager(models.Manager):
                 ).filter(
                     character_ownership__user__profile__main_character__alliance_id=user.profile.main_character.alliance_id
                 )
-            elif user.has_perm("memberaudit.view_same_corporation"):
+            elif user.has_perm("memberaudit.characters_access") and user.has_perm(
+                "memberaudit.view_same_corporation"
+            ):
                 qs = qs | self.select_related(
                     "character_ownership__user__profile__main_character"
                 ).filter(

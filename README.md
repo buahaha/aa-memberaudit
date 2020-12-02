@@ -201,26 +201,45 @@ Finally restart your AA supervisor services.
 
 ## Permissions
 
+### Overview
+
 For this app there are two types of permissions:
 
 - Feature permissions give access to a feature
 - Scope permissions give access to scope
 
-To define a role you will mostly need at least one permission from each type. For example for the recruiter role you will want `finder_access`, that gives access to the character finder tool, and `view_shared_characters, so that the recruiter can see all shared characters.
+To define a role you will mostly need at least one permission from each type. For example for the recruiter role you will want `finder_access`, that gives access to the character finder tool, and `view_shared_characters`, so that the recruiter can see all shared characters.
 
 The exception is the basic role, `basic_access`, that every user needs just to access the app. It does not require any additional scope roles, so a normal user just needs that role to be able to register his characters.
 
+### Permission list
+
 Name | Description | Type
 -- | -- | --
-`basic_access`| Can access this app and register and view his characters | Feature
+`basic_access`| Can access this app and register and view own characters | Feature
 `finder_access`| Can access character finder features for accessing characters from others | Feature
 `reports_access`| Can access reports features for seeing reports and analytics. | Feature
-`view_shared_characters`| Can view characters that have been marked as shared | Scope
-`view_same_corporation`| Can view characters and data of his main's corporation | Scope
-`view_same_alliance`| Can view characters and data of his main's alliance | Scope
-`view_everything`| Can view all characters and data. This scope role is equivalent with superuser access. Use it with care. | Scope
+`characters_access`| Can access characters owned by others. | Feature
+`view_shared_characters`| All characters, which have been marked as shared & can access these characters | Feature & Scope
+`view_same_corporation`| All mains - incl. their alts -  of the same corporation | Scope
+`view_same_alliance`| All mains - incl. their alts -  of the same alliance | Scope
+`view_everything`| All characters registered with Member Audit | Scope
 
-Note that all relevant permissions are under the sub-category "general".
+> **Hint**<br>All permissions can be found under the category "memberaudit | general".
+
+### Example Roles
+
+To further illustrate how the permission system works, see the following list showing which permissions are needed to define common roles:
+
+Role | Description | Permissions
+-- | -- | --
+Normal user | Can use this app and register and access own characters | `basic_access`
+Recruiter | Can access shared characters | `basic_access`<br>`finder_access`<br>`view_shared_characters`
+Corporation Leadership | Can access reports for his corporation members (but can not access the characters) | `basic_access`<br>`reports_access`<br>`view_same_corporation`
+Corp Leadership & Recruiter | Can access shared characters | `basic_access`<br>`finder_access`<br>`view_shared_characters`<br>`reports_access`<br>`view_same_corporation`
+Alliance Auditor | Can search for and access all characters of his alliance  | `basic_access`<br>`finder_access`<br>`characters_access`<br>`view_same_alliance`
+
+> **Note**<br>Naturally, superusers will have access to everything, without requiring permissions to be assigned.
 
 ## Settings
 
