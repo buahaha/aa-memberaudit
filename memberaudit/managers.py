@@ -3,7 +3,7 @@ from typing import Dict, Iterable, Tuple
 
 from django.contrib.auth.models import User
 from django.db import models
-from django.db.models import F, ExpressionWrapper, When, Case, Value
+from django.db.models import F, ExpressionWrapper, When, Case, Value, Max, Min, Avg
 from django.utils.timezone import now
 
 from bravado.exception import HTTPUnauthorized, HTTPForbidden
@@ -504,3 +504,97 @@ class CharacterMailLabelManager(models.Manager):
         """Returns all label objects as dict by label_id"""
         label_pks = self.values_list("pk", flat=True)
         return {label.label_id: label for label in self.in_bulk(label_pks).values()}
+
+
+class CharacterUpdateStatusManager(models.Manager):
+    def calculate_statistics(self) -> dict:
+        """calculates statistics from the last update run and returns it"""
+        from .models import Character
+
+        duration_expression = ExpressionWrapper(
+            F("finished_at") - F("started_at"),
+            output_field=models.fields.DurationField(),
+        )
+        qs_base = self.filter(
+            is_success=True, started_at__isnull=False, finished_at__isnull=False
+        ).annotate(duration=duration_expression)
+        results = dict()
+        if self.count() > 0:
+
+            # per ring
+            for ring in [1, 2, 3]:
+                sections = Character.sections_in_ring(ring)
+
+                # calc totals
+                qs = qs_base.filter(section__in=sections)
+                try:
+                    duration = round(
+                        (
+                            qs.order_by("finished_at").last().finished_at
+                            - qs.order_by("started_at").first().started_at
+                        ).total_seconds(),
+                        2,
+                    )
+                except (KeyError, AttributeError):
+                    duration = None
+
+                results[f"ring_{ring}"] = {
+                    "total": duration,
+                    "max": {},
+                    "sections": {},
+                }
+
+                # add longest running section w/ character
+                try:
+                    obj = qs.order_by("-duration").first()
+                    section_name = str(obj.section)
+                    character_name = str(obj.character)
+                    duration = round(obj.duration.total_seconds(), 2)
+                except (KeyError, AttributeError):
+                    section_name = None
+                    character_name = None
+                    duration = None
+
+                results[f"ring_{ring}"]["max"] = {
+                    "section": section_name,
+                    "character": character_name,
+                    "duration": duration,
+                }
+
+                # calc section stats
+                for section in sections:
+                    try:
+                        section_max = round(
+                            qs_base.filter(section=section)
+                            .aggregate(Max("duration"))["duration__max"]
+                            .total_seconds(),
+                            2,
+                        )
+                        section_avg = round(
+                            qs_base.filter(section=section)
+                            .aggregate(Avg("duration"))["duration__avg"]
+                            .total_seconds(),
+                            2,
+                        )
+                        section_min = round(
+                            qs_base.filter(section=section)
+                            .aggregate(Min("duration"))["duration__min"]
+                            .total_seconds(),
+                            2,
+                        )
+                    except (KeyError, AttributeError):
+                        section_max = (None,)
+                        section_avg = None
+                        section_min = None
+
+                    results[f"ring_{ring}"]["sections"].update(
+                        {
+                            str(section): {
+                                "max": section_max,
+                                "avg": section_avg,
+                                "min": section_min,
+                            }
+                        }
+                    )
+
+        return results

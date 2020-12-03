@@ -54,6 +54,7 @@ from .managers import (
     CharacterContractItemManager,
     CharacterMailLabelManager,
     CharacterManager,
+    CharacterUpdateStatusManager,
     LocationManager,
     MailEntityManager,
 )
@@ -401,6 +402,15 @@ class Character(models.Model):
             minutes = MEMBERAUDIT_UPDATE_STALE_RING_3
 
         return dt.timedelta(minutes=minutes)
+
+    @classmethod
+    def sections_in_ring(cls, ring: int) -> set:
+        """returns set of sections for given ring"""
+        return {
+            section
+            for section, ring_num in cls.UPDATE_SECTION_RINGS_MAP.items()
+            if ring_num == ring
+        }
 
     def update_section_last_update(self, section: str) -> dt.datetime:
         """Datetime of last successful update or None"""
@@ -2853,6 +2863,8 @@ class CharacterUpdateStatus(models.Model):
     last_error_message = models.TextField()
     started_at = models.DateTimeField(null=True, default=None)
     finished_at = models.DateTimeField(null=True, default=None)
+
+    objects = CharacterUpdateStatusManager()
 
     class Meta:
         default_permissions = ()

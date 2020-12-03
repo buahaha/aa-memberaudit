@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [1.0.0a12] - 2020-12-03
+
+### Added
+
+- Ability to get measured durations of update process for system tuning
+
+### Fixed
+
+- Sorting order of characters on admin site
+
 ## [1.0.0a11] - 2020-12-02
 
 ### Changed

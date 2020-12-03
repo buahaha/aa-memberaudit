@@ -24,9 +24,15 @@ MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD = clean_setting(
     "MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD", 25
 )
 
+
 # Hours after a existing location (e.g. structure) becomes stale and gets updated
 # e.g. for name changes of structures
 MEMBERAUDIT_LOCATION_STALE_HOURS = clean_setting("MEMBERAUDIT_LOCATION_STALE_HOURS", 24)
+
+# When set True will log the update stats at the start of every run
+# The update stats include the measures durations from the last run per round and section
+MEMBERAUDIT_LOG_UPDATE_STATS = clean_setting("MEMBERAUDIT_LOG_UPDATE_STATS", False)
+
 
 # Maximum amount of mails fetched from ESI for each character
 MEMBERAUDIT_MAX_MAILS = clean_setting("MEMBERAUDIT_MAX_MAILS", 250)

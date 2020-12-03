@@ -22,6 +22,7 @@ from allianceauth.services.tasks import QueueOnce
 from . import __title__
 from .app_settings import (
     MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
+    MEMBERAUDIT_LOG_UPDATE_STATS,
     MEMBERAUDIT_TASKS_MAX_ASSETS_PER_PASS,
     MEMBERAUDIT_TASKS_TIME_LIMIT,
     MEMBERAUDIT_UPDATE_STALE_RING_2,
@@ -85,6 +86,10 @@ def update_all_characters(force_update: bool = False) -> None:
     Args:
     - force_update: When set to True will always update regardless of stale status
     """
+    if MEMBERAUDIT_LOG_UPDATE_STATS:
+        stats = CharacterUpdateStatus.objects.calculate_statistics()
+        logger.info(f"Update statistics: {stats}")
+
     for character in Character.objects.all():
         update_character.apply_async(
             kwargs={"character_pk": character.pk, "force_update": force_update},

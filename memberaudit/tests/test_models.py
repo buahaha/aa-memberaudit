@@ -3305,3 +3305,52 @@ class TestMailEntityManagerAsync(TestCase):
         self.assertEqual(obj.name, "Bruce Wayne")
 
         self.assertFalse(mock_fetch_esi_status.called)  # was esi error status checked
+
+
+class TestCharacterUpdateStatusManager(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_entities()
+        cls.character_1001 = create_memberaudit_character(1001)
+
+    def test_calculate_stats_1(self):
+        """Can handle no data"""
+        try:
+            CharacterUpdateStatus.objects.calculate_statistics()
+        except Exception as ex:
+            self.fail(f"Unexpected exception {ex} occurred")
+
+    def test_calculate_stats_2(self):
+        """normal calculation"""
+        my_now = now()
+        CharacterUpdateStatus.objects.create(
+            character=self.character_1001,
+            section=Character.UpdateSection.CONTACTS,
+            is_success=True,
+            started_at=my_now - dt.timedelta(seconds=30),
+            finished_at=my_now,
+        )
+        CharacterUpdateStatus.objects.create(
+            character=self.character_1001,
+            section=Character.UpdateSection.SKILLS,
+            is_success=True,
+            started_at=my_now,
+            finished_at=my_now + dt.timedelta(seconds=30),
+        )
+        CharacterUpdateStatus.objects.create(
+            character=self.character_1001,
+            section=Character.UpdateSection.ASSETS,
+            is_success=True,
+            started_at=my_now,
+            finished_at=my_now + dt.timedelta(seconds=90),
+        )
+        stats = CharacterUpdateStatus.objects.calculate_statistics()
+
+        # round duration is calculated as total duration
+        # from start of first to end of last section
+        self.assertEqual(stats["ring_2"]["total"], 60)
+
+        # can identify longest section with character
+        self.assertEqual(stats["ring_3"]["max"]["section"], "assets")
+        self.assertEqual(stats["ring_3"]["max"]["duration"], 90)
