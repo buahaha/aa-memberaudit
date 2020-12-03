@@ -332,6 +332,10 @@ def assets_create_parents(
     Then call another task to create child assets.
     """
     character = Character.objects.get(pk=character_pk)
+    if asset_list is None:
+        _log_character_update_success(character, Character.UpdateSection.ASSETS)
+        return
+
     logger.info("%s: Creating parent assets - pass %s", character, round)
 
     assets_flat = {int(x["item_id"]): x for x in asset_list}

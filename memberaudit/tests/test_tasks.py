@@ -330,6 +330,11 @@ class TestUpdateCharacterAssets(TestCase):
         asset = self.character_1001.assets.get(item_id=1100000000001)
         self.assertEqual(asset.name, "New Name")
 
+        status = self.character_1001.update_status_set.get(
+            section=Character.UpdateSection.ASSETS
+        )
+        self.assertTrue(status.is_success)
+
     def test_update_assets_10(self, mock_esi):
         """when info from ESI has not change and update is forced, then re-create asset tree"""
         mock_esi.client = esi_client_stub
@@ -343,6 +348,11 @@ class TestUpdateCharacterAssets(TestCase):
 
         asset = self.character_1001.assets.get(item_id=1100000000001)
         self.assertEqual(asset.name, "Parent Item 1")
+
+        status = self.character_1001.update_status_set.get(
+            section=Character.UpdateSection.ASSETS
+        )
+        self.assertTrue(status.is_success)
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
