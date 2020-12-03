@@ -416,8 +416,11 @@ class Character(models.Model):
         """Datetime of last successful update or None"""
         try:
             return self.update_status_set.get(
-                section=section, is_success=True
-            ).finished_at
+                section=section,
+                is_success=True,
+                started_at__isnull=False,
+                finished_at__isnull=False,
+            ).started_at
         except (CharacterUpdateStatus.DoesNotExist, ObjectDoesNotExist, AttributeError):
             return None
 

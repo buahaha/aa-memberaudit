@@ -1,3 +1,4 @@
+import datetime as dt
 from unittest.mock import patch
 
 from bravado.exception import HTTPInternalServerError
@@ -561,6 +562,7 @@ class TestUpdateCharacter(TestCase):
             character=self.character_1001,
             section=Character.UpdateSection.SKILLS,
             is_success=True,
+            started_at=now() - dt.timedelta(seconds=30),
             finished_at=now(),
         )
 
@@ -576,6 +578,7 @@ class TestUpdateCharacter(TestCase):
             character=self.character_1001,
             section=Character.UpdateSection.MAILS,
             is_success=True,
+            started_at=now() - dt.timedelta(seconds=30),
             finished_at=now(),
         )
 
@@ -593,6 +596,7 @@ class TestUpdateCharacter(TestCase):
             character=self.character_1001,
             section=Character.UpdateSection.SKILLS,
             is_success=True,
+            started_at=now() - dt.timedelta(seconds=30),
             finished_at=now(),
         )
 
@@ -608,6 +612,7 @@ class TestUpdateCharacter(TestCase):
                 character=self.character_1001,
                 section=section,
                 is_success=True,
+                started_at=now() - dt.timedelta(seconds=30),
                 finished_at=now(),
             )
 

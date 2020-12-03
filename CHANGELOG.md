@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [1.0.0a13] - 2020-12-03
+
+### Fix
+
+- Stale identification not fully aligned with periodic update tasks
+
 ## [1.0.0a12] - 2020-12-03
 
 ### Added

@@ -294,6 +294,7 @@ class TestCharacterIsUpdateSectionStale(NoSocketsTestCase):
             character=self.character,
             section=self.section,
             is_success=True,
+            started_at=now() - dt.timedelta(seconds=30),
             finished_at=now(),
         )
         self.assertFalse(self.character.is_update_section_stale(self.section))
