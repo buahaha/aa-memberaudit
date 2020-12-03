@@ -528,38 +528,35 @@ class CharacterUpdateStatusManager(models.Manager):
                 # calc totals
                 qs = qs_base.filter(section__in=sections)
                 try:
-                    duration = round(
-                        (
-                            qs.order_by("finished_at").last().finished_at
-                            - qs.order_by("started_at").first().started_at
-                        ).total_seconds(),
-                        2,
-                    )
+                    first = qs.order_by("started_at").first()
+                    last = qs.order_by("finished_at").last()
+                    started_at = first.started_at
+                    finshed_at = last.finished_at
+                    duration = round((finshed_at - started_at).total_seconds(), 2)
                 except (KeyError, AttributeError):
+                    first = None
+                    last = None
                     duration = None
+                    started_at = None
+                    finshed_at = None
 
                 results[f"ring_{ring}"] = {
-                    "total": duration,
+                    "total": {
+                        "duration": duration,
+                        "started_at": started_at,
+                        "finshed_at": finshed_at,
+                    },
                     "max": {},
                     "sections": {},
                 }
 
                 # add longest running section w/ character
-                try:
-                    obj = qs.order_by("-duration").first()
-                    section_name = str(obj.section)
-                    character_name = str(obj.character)
-                    duration = round(obj.duration.total_seconds(), 2)
-                except (KeyError, AttributeError):
-                    section_name = None
-                    character_name = None
-                    duration = None
+                obj = qs.order_by("-duration").first()
+                results[f"ring_{ring}"]["max"] = self._info_from_obj(obj)
 
-                results[f"ring_{ring}"]["max"] = {
-                    "section": section_name,
-                    "character": character_name,
-                    "duration": duration,
-                }
+                # add first and last section
+                results[f"ring_{ring}"]["first"] = self._info_from_obj(first)
+                results[f"ring_{ring}"]["last"] = self._info_from_obj(last)
 
                 # calc section stats
                 for section in sections:
@@ -598,3 +595,20 @@ class CharacterUpdateStatusManager(models.Manager):
                     )
 
         return results
+
+    @staticmethod
+    def _info_from_obj(obj) -> dict:
+        try:
+            section_name = str(obj.section)
+            character_name = str(obj.character)
+            duration = round(obj.duration.total_seconds(), 2)
+        except (KeyError, AttributeError):
+            section_name = None
+            character_name = None
+            duration = None
+
+        return {
+            "section": section_name,
+            "character": character_name,
+            "duration": duration,
+        }

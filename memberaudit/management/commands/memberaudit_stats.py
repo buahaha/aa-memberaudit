@@ -1,6 +1,7 @@
 import json
 import logging
 from django.core.management.base import BaseCommand
+from django.core.serializers.json import DjangoJSONEncoder
 
 from ... import __title__
 from ...models import CharacterUpdateStatus
@@ -15,6 +16,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         stats = CharacterUpdateStatus.objects.calculate_statistics()
         stats_out = json.dumps(
-            {"update_statistics": stats}, sort_keys=True, indent=4, ensure_ascii=False
+            {"update_statistics": stats},
+            sort_keys=True,
+            indent=4,
+            ensure_ascii=False,
+            cls=DjangoJSONEncoder,
         )
         self.stdout.write(stats_out)

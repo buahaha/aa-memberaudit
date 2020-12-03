@@ -3336,7 +3336,7 @@ class TestCharacterUpdateStatusManager(TestCase):
             character=self.character_1001,
             section=Character.UpdateSection.SKILLS,
             is_success=True,
-            started_at=my_now,
+            started_at=my_now + dt.timedelta(seconds=10),
             finished_at=my_now + dt.timedelta(seconds=30),
         )
         CharacterUpdateStatus.objects.create(
@@ -3350,8 +3350,10 @@ class TestCharacterUpdateStatusManager(TestCase):
 
         # round duration is calculated as total duration
         # from start of first to end of last section
-        self.assertEqual(stats["ring_2"]["total"], 60)
+        self.assertEqual(stats["ring_2"]["total"]["duration"], 60)
 
         # can identify longest section with character
+        self.assertEqual(stats["ring_2"]["first"]["section"], "contacts")
+        self.assertEqual(stats["ring_2"]["last"]["section"], "skills")
         self.assertEqual(stats["ring_3"]["max"]["section"], "assets")
         self.assertEqual(stats["ring_3"]["max"]["duration"], 90)
