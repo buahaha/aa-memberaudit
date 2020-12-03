@@ -22,6 +22,12 @@ class Command(BaseCommand):
             action="store_true",
             help="Also start reloading",
         )
+        parser.add_argument(
+            "--noinput",
+            "--no-input",
+            action="store_true",
+            help="Do NOT prompt the user for input of any kind.",
+        )
 
     def handle(self, *args, **options):
         self.stdout.write("Member Audit - Reset all characters")
@@ -50,7 +56,23 @@ class Command(BaseCommand):
         self.stdout.write("- Doctrines will stay intact.")
         self.stdout.write()
 
-        user_input = get_input("Are you sure you want to proceed? (Y/n)?")
+        character_ids = set(
+            Token.objects.all()
+            .require_scopes(Character.get_esi_scopes())
+            .require_valid()
+            .values_list("character_id", flat=True)
+        )
+        character_ownerships = CharacterOwnership.objects.filter(
+            character__character_id__in=character_ids
+        )
+        if not options["noinput"]:
+            user_input = get_input(
+                "Are you sure you want to proceed{}? (Y/n)?".format(
+                    f" for {character_ownerships.count()} character(s)"
+                )
+            )
+        else:
+            user_input = "Y"
         if user_input == "Y":
             logger.info("Running command reset_characters for %s characters.")
             self.stdout.write(
@@ -63,16 +85,10 @@ class Command(BaseCommand):
             self.stdout.write("Deleting MailEntities...")
             MailEntity.objects.all().delete()
 
-            character_ids = set(
-                Token.objects.all()
-                .require_scopes(Character.get_esi_scopes())
-                .require_valid()
-                .values_list("character_id", flat=True)
+            self.stdout.write(
+                f"Recreating {character_ownerships.count()} characters ..."
             )
-            self.stdout.write(f"Recreating {len(character_ids)} characters ...")
-            for character_ownership in CharacterOwnership.objects.filter(
-                character__character_id__in=character_ids
-            ):
+            for character_ownership in character_ownerships:
                 Character.objects.create(character_ownership=character_ownership)
 
             if options["reload"]:
