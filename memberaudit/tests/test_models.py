@@ -1272,6 +1272,10 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertSetEqual(
             set(MailEntity.objects.values_list("id", flat=True)), {9001, 9002}
         )
+        self.assertSetEqual(
+            set(self.character_1001.mailing_lists.values_list("id", flat=True)),
+            {9001, 9002},
+        )
 
         obj = MailEntity.objects.get(id=9001)
         self.assertEqual(obj.name, "Dummy 1")
@@ -1291,6 +1295,10 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertSetEqual(
             set(MailEntity.objects.values_list("id", flat=True)), {9001, 9002, 5}
         )
+        self.assertSetEqual(
+            set(self.character_1001.mailing_lists.values_list("id", flat=True)),
+            {9001, 9002},
+        )
 
     def test_update_mailing_lists_3(self, mock_esi):
         """updates existing mailing lists"""
@@ -1304,6 +1312,10 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertSetEqual(
             set(MailEntity.objects.values_list("id", flat=True)), {9001, 9002}
         )
+        self.assertSetEqual(
+            set(self.character_1001.mailing_lists.values_list("id", flat=True)),
+            {9001, 9002},
+        )
         obj = MailEntity.objects.get(id=9001)
         self.assertEqual(obj.name, "Dummy 1")
 
@@ -1315,10 +1327,14 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         obj = MailEntity.objects.get(id=9001)
         obj.name = "Extravaganza"
         obj.save()
+        self.character_1001.mailing_lists.clear()
 
         self.character_1001.update_mailing_lists()
         obj = MailEntity.objects.get(id=9001)
         self.assertEqual(obj.name, "Extravaganza")
+        self.assertSetEqual(
+            set(self.character_1001.mailing_lists.values_list("id", flat=True)), set()
+        )
 
     def test_update_mailing_lists_5(self, mock_esi):
         """when data from ESI has not changed and update is forced, then do update"""

@@ -37,7 +37,6 @@ from .models import (
     CharacterMail,
     Doctrine,
     Location,
-    MailEntity,
     accessible_users,
 )
 from .utils import (
@@ -340,20 +339,8 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         main = "-"
 
     # mailing lists
-    mailing_lists_qs = (
-        MailEntity.objects.filter(
-            Q(category=MailEntity.Category.MAILING_LIST)
-            & (
-                Q(recipient_mails__character=character)
-                | Q(sender_mails__character=character)
-            )
-        )
-        .distinct()
-        .annotate(
-            unread_count=Count(
-                "recipient_mails", filter=Q(recipient_mails__is_read=False)
-            )
-        )
+    mailing_lists_qs = character.mailing_lists.all().annotate(
+        unread_count=Count("recipient_mails", filter=Q(recipient_mails__is_read=False))
     )
     mailing_lists = [
         {

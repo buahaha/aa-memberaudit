@@ -316,6 +316,7 @@ class Character(models.Model):
         default=False,
         help_text="Shared characters can be viewed by recruiters",
     )
+    mailing_lists = models.ManyToManyField("MailEntity", related_name="characters")
 
     objects = CharacterManager()
 
@@ -1373,14 +1374,19 @@ class Character(models.Model):
         ):
             with transaction.atomic():
                 logger.info("%s: Updating %s mailing lists", self, len(incoming_ids))
+                new_mailing_lists = list()
                 for list_id, mailing_list in mailing_lists.items():
-                    MailEntity.objects.update_or_create(
+                    mailing_list_obj, _ = MailEntity.objects.update_or_create(
                         id=list_id,
                         defaults={
                             "category": MailEntity.Category.MAILING_LIST,
                             "name": mailing_list.get("name"),
                         },
                     )
+                    new_mailing_lists.append(mailing_list_obj)
+
+                self.mailing_lists.set(new_mailing_lists, clear=True)
+
             self.update_section_content_hash(
                 section=self.UpdateSection.MAILS, content=mailing_lists, hash_num=2
             )

@@ -265,6 +265,8 @@ Name | Description | Default
 
 The following management commands are available to perform administrative tasks:
 
+> **Hint**:<br>Run any command with `--help` to see all options
+
 ### memberaudit_load_eve
 
 Pre-loads data required for this app from ESI to improve app performance.

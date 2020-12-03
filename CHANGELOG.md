@@ -13,6 +13,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [1.0.0a14] - 2020-12-04
+
+### Change
+
+- Former mailing lists  ([#57](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/57))
+- More options for management commands
+
+### Fix
+
+- Asset update fails to report success when there was no change
+
 ## [1.0.0a13] - 2020-12-03
 
 ### Fix
