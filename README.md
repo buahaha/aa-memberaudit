@@ -1,7 +1,5 @@
 # aa-memberaudit
 
-**!! This app is in development and not ready yet for production. !!**
-
 An app for auditing members on Alliance Auth
 
 ![release](https://img.shields.io/pypi/v/aa-memberaudit?label=release) ![python](https://img.shields.io/pypi/pyversions/aa-memberaudit) ![django](https://img.shields.io/pypi/djversions/aa-memberaudit?label=django) ![pipeline](https://gitlab.com/ErikKalkoken/aa-memberaudit/badges/master/pipeline.svg) ![coverage](https://gitlab.com/ErikKalkoken/aa-memberaudit/badges/master/coverage.svg) ![license](https://img.shields.io/badge/license-MIT-green) ![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)
@@ -16,6 +14,7 @@ An app for auditing members on Alliance Auth
 - [Permissions](#permissions)
 - [Settings](#settings)
 - [Management Commands](#management-commands)
+- [Authors](#authors)
 - [Change Log](CHANGELOG.md)
 
 ## Overview
@@ -80,7 +79,7 @@ Make sure you are in the virtual environment (venv) of your Alliance Auth instal
 pip install aa-memberaudit
 ```
 
-### Step 2 - Configure settings
+### Step 2a - Configure Auth settings
 
 Configure your Auth settings (`local.py`) as follows:
 
@@ -95,6 +94,29 @@ CELERYBEAT_SCHEDULE['memberaudit_run_regular_updates'] = {
 ```
 
 - Optional: Add additional settings if you want to change any defaults. See [Settings](#settings) for the full list.
+
+### Step 2b - Configure celery settings
+
+To remove clutter from your log file we recommend to change the default log message for successful tasks, so that results are no longer shown in the log.
+
+For that make the following changes to your `celery.py`:
+
+Add a new import at the top:
+
+```python
+from celery.app import trace
+```
+
+Add these lines the bottom of the file for the new log config:
+
+```python
+# Remove result from default log message on task success
+trace.LOG_SUCCESS = "Task %(name)s[%(id)s] succeeded in %(runtime)ss"
+```
+
+> **Hint**<br>This change is recommended, but not strickly required to run Member Audit.
+
+> **Note**<br>If accepted this change may also become part of the standard Auth configuration. See also this [merge request](https://gitlab.com/allianceauth/allianceauth/-/merge_requests/1273/diffs).
 
 ### Step 3 - Finalize App installation
 
@@ -284,3 +306,11 @@ This command returns current statistics as JSON, i.e. current update statistics.
 ### memberaudit_update_characters
 
 Start the process of force updating all characters from ESI.
+
+## Authors
+
+The main contributors are:
+
+- Erik Kalkoken
+- Rebecca Claire Murphy, aka Myrhea
+- Peter Pfeufer, aka Rounon Dax
