@@ -13,7 +13,6 @@ from django.db import transaction
 from django.utils.timezone import now
 
 from esi.models import Token
-from eveuniverse.core.esitools import is_esi_online
 from eveuniverse.models import EveEntity, EveMarketPrice
 
 from allianceauth.services.hooks import get_extension_logger
@@ -27,7 +26,7 @@ from .app_settings import (
     MEMBERAUDIT_TASKS_TIME_LIMIT,
     MEMBERAUDIT_UPDATE_STALE_RING_2,
 )
-from .helpers import EsiOffline, EsiErrorLimitExceeded
+from .helpers import EsiOffline, EsiErrorLimitExceeded, fetch_esi_status
 from .models import (
     Character,
     CharacterAsset,
@@ -69,8 +68,8 @@ TASK_ESI_KWARGS = {
 @shared_task(**TASK_DEFAULT_KWARGS)
 def run_regular_updates() -> None:
     """Main task to be run on a regular basis to keep everyting updated and running"""
-    if not is_esi_online():
-        logger.info(
+    if not fetch_esi_status().is_online:
+        logger.warning(
             "ESI is currently offline. Can not start ESI related tasks. Aborting"
         )
         return
@@ -121,6 +120,13 @@ def update_character(character_pk: int, force_update: bool = False) -> bool:
     if not needs_update:
         logger.info("%s: No update required", character)
         return False
+
+    if not fetch_esi_status().is_online:
+        logger.warning(
+            "%s: ESI is currently offline. Can not start ESI related tasks. Aborting",
+            character,
+        )
+        return
 
     logger.info(
         "%s: Starting %s character update", character, "forced" if force_update else ""
@@ -231,6 +237,7 @@ def _character_update_with_error_logging(
             defaults={
                 "is_success": False,
                 "last_error_message": error_message,
+                "finished_at": now(),
             },
         )
         raise ex

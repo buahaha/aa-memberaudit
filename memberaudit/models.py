@@ -412,26 +412,20 @@ class Character(models.Model):
             if ring_num == ring
         }
 
-    def update_section_last_update(self, section: str) -> dt.datetime:
-        """Datetime of last successful update or None"""
+    def is_update_section_stale(self, section: str) -> bool:
+        """returns True if the give update section is stale, else False"""
         try:
-            return self.update_status_set.get(
+            update_status = self.update_status_set.get(
                 section=section,
                 is_success=True,
                 started_at__isnull=False,
                 finished_at__isnull=False,
-            ).started_at
+            )
         except (CharacterUpdateStatus.DoesNotExist, ObjectDoesNotExist, AttributeError):
-            return None
-
-    def is_update_section_stale(self, section: str) -> bool:
-        """returns True if the give update section is stale, else False"""
-        last_updated = self.update_section_last_update(section)
-        if not last_updated:
             return True
 
         deadline = now() - self.update_section_time_until_stale(section)
-        return last_updated < deadline
+        return update_status.started_at < deadline
 
     def has_section_changed(
         self, section: str, content: str, hash_num: int = 1

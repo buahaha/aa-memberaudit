@@ -11,7 +11,7 @@ from esi.models import Token
 from eveuniverse.models import EveSolarSystem, EveType
 
 from . import create_memberaudit_character
-from ..helpers import EsiOffline, EsiErrorLimitExceeded
+from ..helpers import EsiOffline, EsiErrorLimitExceeded, EsiStatus
 from ..models import Character, CharacterUpdateStatus, Location, CharacterAsset
 from ..tasks import (
     run_regular_updates,
@@ -41,7 +41,7 @@ TASKS_PATH = "memberaudit.tasks"
 @patch(TASKS_PATH + ".update_all_characters")
 @patch(TASKS_PATH + ".update_market_prices")
 class TestRegularUpdates(TestCase):
-    @patch(TASKS_PATH + ".is_esi_online", lambda: True)
+    @patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 99, 60))
     def test_normal(
         self,
         mock_update_market_prices,
@@ -52,7 +52,7 @@ class TestRegularUpdates(TestCase):
         self.assertTrue(mock_update_market_prices.apply_async.called)
         self.assertTrue(mock_update_all_characters.apply_async.called)
 
-    @patch(TASKS_PATH + ".is_esi_online", lambda: False)
+    @patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(False, 99, 60))
     def test_esi_down(
         self,
         mock_update_market_prices,
@@ -528,6 +528,7 @@ class TestUpdateCharacterWalletJournal(TestCase):
             self.assertTrue(False)  # Hack to ensure the test fails when it gets here
 
 
+@patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 99, 60))
 @patch(MODELS_PATH + ".esi")
 @override_settings(CELERY_ALWAYS_EAGER=True)
 class TestUpdateCharacter(TestCase):
@@ -563,6 +564,7 @@ class TestUpdateCharacter(TestCase):
         self.assertEqual(
             status.last_error_message, "HTTPInternalServerError: 500 Test exception"
         )
+        self.assertTrue(status.finished_at)
 
     @patch(TASKS_PATH + ".Character.update_skills")
     def test_do_not_update_current_section_1(self, mock_update_skills, mock_esi):
