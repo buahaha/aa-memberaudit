@@ -137,6 +137,8 @@ def update_character(character_pk: int, force_update: bool = False) -> bool:
             Character.UpdateSection.MAILS,
             Character.UpdateSection.CONTACTS,
             Character.UpdateSection.CONTRACTS,
+            Character.UpdateSection.DOCTRINES,
+            Character.UpdateSection.SKILLS,
             Character.UpdateSection.WALLET_JOURNAL,
         }
     )
@@ -187,6 +189,20 @@ def update_character(character_pk: int, force_update: bool = False) -> bool:
             priority=DEFAULT_TASK_PRIORITY,
         )
 
+    if (
+        force_update
+        or character.is_update_section_stale(Character.UpdateSection.SKILLS)
+        or character.is_update_section_stale(Character.UpdateSection.DOCTRINES)
+    ):
+        chain(
+            update_character_section.si(
+                character.pk, Character.UpdateSection.SKILLS, force_update
+            ),
+            update_character_section.si(
+                character.pk, Character.UpdateSection.DOCTRINES, force_update
+            ),
+        ).apply_async(priority=DEFAULT_TASK_PRIORITY)
+
     return True
 
 
@@ -195,7 +211,7 @@ def update_character(character_pk: int, force_update: bool = False) -> bool:
 
 @shared_task(**{**TASK_ESI_KWARGS}, **{"base": QueueOnce})
 def update_character_section(
-    self, character_pk: int, section: str, force_update: bool = False
+    self, character_pk: int, section: str, force_update: bool = False, **kwargs
 ) -> None:
     """Task that updates the section of a character"""
     character = Character.objects.get(pk=character_pk)
@@ -205,10 +221,11 @@ def update_character_section(
     )
     update_method = getattr(character, Character.UpdateSection.method_name(section))
     args = [self, character, section, update_method]
-    if hasattr(update_method, "force_update"):
-        kwargs = {"force_update": force_update}
-    else:
+    if not kwargs:
         kwargs = {}
+
+    if hasattr(update_method, "force_update"):
+        kwargs["force_update"] = force_update
 
     _character_update_with_error_logging(*args, **kwargs)
     _log_character_update_success(character, section)
@@ -832,3 +849,23 @@ def update_mail_entity_esi(self, id: int, category: str = None):
             ex.retry_in,
         )
         raise self.retry(countdown=ex.retry_in)
+
+
+@shared_task(**TASK_DEFAULT_KWARGS)
+def update_characters_doctrines(force_update: bool = False) -> None:
+    """Start the update of doctrines for all registered characters
+
+    Args:
+    - force_update: When set to True will always update regardless of stale status
+    """
+    section = Character.UpdateSection.DOCTRINES
+    for character in Character.objects.all():
+        if force_update or character.is_update_section_stale(section):
+            update_character_section.apply_async(
+                kwargs={
+                    "character_pk": character.pk,
+                    "section": section,
+                    "force_update": force_update,
+                },
+                priority=DEFAULT_TASK_PRIORITY,
+            )

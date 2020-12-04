@@ -1131,11 +1131,11 @@ class Character(models.Model):
         """Checks if character can fly doctrine ships
         and updates results in database
         """
-        character_skills = {
-            obj["eve_type_id"]: obj["active_skill_level"]
-            for obj in self.skills.values("eve_type_id", "active_skill_level")
-        }
         with transaction.atomic():
+            character_skills = {
+                obj["eve_type_id"]: obj["active_skill_level"]
+                for obj in self.skills.values("eve_type_id", "active_skill_level")
+            }
             self.doctrine_ships.all().delete()
 
             # create empty new objects
@@ -1763,10 +1763,6 @@ class Character(models.Model):
 
     @fetch_token_for_character("esi-skills.read_skills.v1")
     def update_skills(self, token, force_update: bool = False):
-        self._update_skills(token, force_update)
-        self.update_doctrines()
-
-    def _update_skills(self, token, force_update):
         """update the character's skill"""
         skills_list = self._fetch_skills_from_esi(token)
         if force_update or self.has_section_changed(

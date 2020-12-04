@@ -19,6 +19,7 @@ from ..tasks import (
     update_character,
     update_structure_esi,
     update_character_assets,
+    update_characters_doctrines,
     update_character_mails,
     update_character_contacts,
     update_character_contracts,
@@ -553,7 +554,9 @@ class TestUpdateCharacter(TestCase):
     def test_report_error(self, mock_esi):
         mock_esi.client = esi_client_error_stub
 
-        update_character(self.character_1001.pk)
+        with self.assertRaises(OSError):  # raised when skills/doctrines chains breaks
+            update_character(self.character_1001.pk)
+
         self.assertFalse(self.character_1001.is_update_status_ok())
 
         status = self.character_1001.update_status_set.get(
@@ -566,13 +569,13 @@ class TestUpdateCharacter(TestCase):
         )
         self.assertTrue(status.finished_at)
 
-    @patch(TASKS_PATH + ".Character.update_skills")
-    def test_do_not_update_current_section_1(self, mock_update_skills, mock_esi):
+    @patch(TASKS_PATH + ".Character.update_loyalty")
+    def test_do_not_update_current_section_1(self, update_loyalty, mock_esi):
         """When generic section has recently been updated, then do not update again"""
         mock_esi.client = esi_client_stub
         CharacterUpdateStatus.objects.create(
             character=self.character_1001,
-            section=Character.UpdateSection.SKILLS,
+            section=Character.UpdateSection.LOYALTY,
             is_success=True,
             started_at=now() - dt.timedelta(seconds=30),
             finished_at=now(),
@@ -580,7 +583,7 @@ class TestUpdateCharacter(TestCase):
 
         update_character(self.character_1001.pk)
 
-        self.assertFalse(mock_update_skills.called)
+        self.assertFalse(update_loyalty.called)
 
     @patch(TASKS_PATH + ".update_character_mails")
     def test_do_not_update_current_section_2(self, update_character_mails, mock_esi):
@@ -722,3 +725,19 @@ class TestUpdateMailEntityEsi(TestCase):
 
         with self.assertRaises(CeleryRetry):
             update_mail_entity_esi(1001)
+
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+class TestUpdateCharactersDoctrines(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_entities()
+
+    def setUp(self) -> None:
+        self.character_1001 = create_memberaudit_character(1001)
+
+    @patch(MODELS_PATH + ".Character.update_doctrines")
+    def test_normal(self, mock_update_doctrines):
+        update_characters_doctrines()
+        self.assertTrue(mock_update_doctrines.called)

@@ -301,3 +301,13 @@ class DoctrineShipAdmin(admin.ModelAdmin):
                 .order_by("name")
             )
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        obj.user = request.user
+        super().save_model(request, obj, form, change)
+        tasks.update_characters_doctrines.delay(force_update=True)
+
+    def delete_model(self, request, obj):
+        obj.user = request.user
+        super().delete_model(request, obj)
+        tasks.update_characters_doctrines.delay(force_update=True)
