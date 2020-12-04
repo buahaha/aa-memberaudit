@@ -850,7 +850,7 @@ def _character_contract_items_data(
 def character_doctrines_data(
     request, character_pk: int, character: Character
 ) -> JsonResponse:
-    def create_data_row(doctrine_name) -> dict:
+    def create_data_row(ship_check, doctrine_name) -> dict:
         url = (
             ship_check.ship.ship_type.icon_url(DEFAULT_ICON_SIZE)
             if ship_check.ship.ship_type
@@ -884,7 +884,7 @@ def character_doctrines_data(
             ]
             can_fly = not bool(insufficient_skills_2)
             if not ship_check.ship.doctrines.exists():
-                data.append(create_data_row(NO_DOCTRINE_NAME))
+                data.append(create_data_row(ship_check, NO_DOCTRINE_NAME))
             else:
                 for doctrine in ship_check.ship.doctrines.all():
                     doctrine_name = (
@@ -892,7 +892,7 @@ def character_doctrines_data(
                         if doctrine.is_active
                         else doctrine.name + " [Not active]"
                     )
-                    data.append(create_data_row(doctrine_name))
+                    data.append(create_data_row(ship_check, doctrine_name))
 
     except ObjectDoesNotExist:
         pass

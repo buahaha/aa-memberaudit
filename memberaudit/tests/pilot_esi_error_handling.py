@@ -4,9 +4,7 @@ This is a standalone scripts that creates invalid structure ids
 in order to test the ESI error rate limit handling for structures
 """
 
-from datetime import timedelta
 import inspect
-import json
 import os
 import sys
 
@@ -14,11 +12,8 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 myauth_dir = os.path.dirname(os.path.dirname(os.path.dirname(currentdir))) + "/myauth"
 sys.path.insert(0, myauth_dir)
 
-
 import django
-from django.db import transaction
 from django.apps import apps
-from django.utils.timezone import now
 
 # init and setup django project
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "myauth.settings.local")

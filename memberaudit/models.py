@@ -1951,7 +1951,7 @@ class Character(models.Model):
     @fetch_token_for_character(
         ["esi-location.read_location.v1", "esi-universe.read_structures.v1"]
     )
-    def fetch_location(self, token) -> Optional[dict]:
+    def fetch_location(self, token: Token) -> Optional[dict]:
         logger.info("%s: Fetching location from ESI", self)
         if not is_esi_online():
             return None, None
@@ -2902,7 +2902,6 @@ class CharacterUpdateStatus(models.Model):
 
     def update_content_hash(self, content: Any, hash_num: int = 1):
         new_hash = self._calculate_hash(content)
-        self.content_hash = new_hash
         if hash_num == 2:
             self.content_hash_2 = new_hash
         elif hash_num == 3:

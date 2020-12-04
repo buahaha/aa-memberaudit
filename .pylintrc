@@ -10,4 +10,4 @@ good-names=i,j,k,x,f,ex
 max-line-length=100
 
 [MESSAGES CONTROL]
-disable=R,C
+disable=R,C,E5142

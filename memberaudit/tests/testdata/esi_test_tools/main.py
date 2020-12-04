@@ -14,12 +14,12 @@ class BravadoResponseStub:
     """Stub for IncomingResponse in bravado, e.g. for HTTPError exceptions"""
 
     def __init__(
-        self, status_code, reason="", text="", headers=dict(), raw_bytes=None
+        self, status_code, reason="", text="", headers=None, raw_bytes=None
     ) -> None:
         self.reason = reason
         self.status_code = status_code
         self.text = text
-        self.headers = headers
+        self.headers = headers if headers else dict()
         self.raw_bytes = raw_bytes
 
     def __str__(self):

@@ -90,9 +90,7 @@ class LocationManager(models.Manager):
         """updates or creates location object with data fetched from ESI asynchronous"""
         return self._update_or_create_esi(id=id, token=token, update_async=True)
 
-    def update_or_create_esi(
-        self, id: int, token: Token, update_async: bool = True
-    ) -> Tuple[models.Model, bool]:
+    def update_or_create_esi(self, id: int, token: Token) -> Tuple[models.Model, bool]:
         """updates or creates location object with data fetched from ESI synchronous
 
         The preferred method to use is: `update_or_create_esi_async()`,

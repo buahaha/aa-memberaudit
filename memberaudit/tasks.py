@@ -328,7 +328,7 @@ def assets_preload_objects(self, asset_list: dict, character_pk: int) -> Optiona
 
 @shared_task(**TASK_ESI_KWARGS)
 def assets_create_parents(
-    self, asset_list: list, character_pk: int, round: int = 1
+    self, asset_list: list, character_pk: int, cycle: int = 1
 ) -> None:
     """creates the parent assets from given asset_list
 
@@ -343,12 +343,12 @@ def assets_create_parents(
         _log_character_update_success(character, Character.UpdateSection.ASSETS)
         return
 
-    logger.info("%s: Creating parent assets - pass %s", character, round)
+    logger.info("%s: Creating parent assets - pass %s", character, cycle)
 
     assets_flat = {int(x["item_id"]): x for x in asset_list}
     new_assets = list()
     with transaction.atomic():
-        if round == 1:
+        if cycle == 1:
             character.assets.all().delete()
 
         location_ids = set(Location.objects.values_list("id", flat=True))
@@ -392,7 +392,7 @@ def assets_create_parents(
             kwargs={
                 "asset_list": list(assets_flat.values()),
                 "character_pk": character.pk,
-                "round": round + 1,
+                "cycle": cycle + 1,
             },
             priority=DEFAULT_TASK_PRIORITY,
         )
@@ -412,7 +412,7 @@ def assets_create_parents(
 
 @shared_task(**TASK_ESI_KWARGS)
 def assets_create_children(
-    self, asset_list: dict, character_pk: int, round: int = 1
+    self, asset_list: dict, character_pk: int, cycle: int = 1
 ) -> None:
     """Created child assets from given asset list
 
@@ -422,10 +422,10 @@ def assets_create_children(
     asset list are included into the asset tree
     """
     character = Character.objects.get(pk=character_pk)
-    logger.info("%s: Creating child assets - pass %s", character, round)
+    logger.info("%s: Creating child assets - pass %s", character, cycle)
 
     # for debug
-    # character._store_list_to_disk(asset_list, f"child_asset_list_{round}")
+    # character._store_list_to_disk(asset_list, f"child_asset_list_{cycle}")
 
     new_assets = list()
     assets_flat = {int(x["item_id"]): x for x in asset_list}
@@ -471,7 +471,7 @@ def assets_create_children(
             kwargs={
                 "asset_list": list(assets_flat.values()),
                 "character_pk": character.pk,
-                "round": round + 1,
+                "cycle": cycle + 1,
             },
             priority=DEFAULT_TASK_PRIORITY,
         )
@@ -783,18 +783,18 @@ def update_structure_esi(self, id: int, token_pk: int):
     """
     try:
         token = Token.objects.get(pk=token_pk)
-    except Token.DoesNotExist:
+    except Token.DoesNotExist as ex:
         raise Token.DoesNotExist(
             f"Location #{id}: Requested token with pk {token_pk} does not exist"
-        )
+        ) from ex
 
     try:
         Location.objects.structure_update_or_create_esi(id, token)
-    except EsiOffline:
+    except EsiOffline as ex:
         logger.warning(
             "Location #%s: ESI appears to be offline. Trying again in 30 minutes.", id
         )
-        raise self.retry(countdown=30 * 60 + int(random.uniform(1, 20)))
+        raise self.retry(countdown=30 * 60 + int(random.uniform(1, 20))) from ex
     except EsiErrorLimitExceeded as ex:
         logger.warning(
             "Location #%s: ESI error limit threshold reached. "
@@ -802,7 +802,7 @@ def update_structure_esi(self, id: int, token_pk: int):
             id,
             ex.retry_in,
         )
-        raise self.retry(countdown=ex.retry_in)
+        raise self.retry(countdown=ex.retry_in) from ex
 
 
 @shared_task(
@@ -819,11 +819,11 @@ def update_mail_entity_esi(self, id: int, category: str = None):
     """
     try:
         MailEntity.objects.update_or_create_esi(id=id, category=category)
-    except EsiOffline:
+    except EsiOffline as ex:
         logger.warning(
             "MailEntity #%s: ESI appears to be offline. Trying again in 30 minutes.", id
         )
-        raise self.retry(countdown=30 * 60 + int(random.uniform(1, 20)))
+        raise self.retry(countdown=30 * 60 + int(random.uniform(1, 20))) from ex
     except EsiErrorLimitExceeded as ex:
         logger.warning(
             "MailEntity #%s: ESI error limit threshold reached. "

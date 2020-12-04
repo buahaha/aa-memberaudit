@@ -129,7 +129,7 @@ def add_character_to_user_2(
 
     if disconnect_signals:
         AuthUtils.disconnect_signals()
-    character = EveCharacter.update_or_create(
+    character = EveCharacter.objects.update_or_create(
         character_id=character_id, defaults=defaults
     )
     CharacterOwnership.objects.create(
