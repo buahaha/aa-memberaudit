@@ -3,7 +3,7 @@ from allianceauth import hooks
 
 from . import urls
 from .models import Character
-from .app_settings import MEMBERAUDIT_APP_NAME
+from .app_settings import MEMBERAUDIT_APP_NAME, MEMBERAUDIT_BASE_URL
 
 
 class MemberauditMenuItem(MenuItemHook):
@@ -36,4 +36,6 @@ def register_menu():
 
 @hooks.register("url_hook")
 def register_urls():
-    return UrlHook(urls, "memberaudit", r"^memberaudit/")
+    return UrlHook(
+        urls, "memberaudit", r"^{base_url}/".format(base_url=MEMBERAUDIT_BASE_URL)
+    )
