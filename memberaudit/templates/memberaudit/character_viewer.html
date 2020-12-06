@@ -29,7 +29,7 @@
                             {% include 'memberaudit/partials/character_viewer/tabs/character_bio.html' %}
                             {% include 'memberaudit/partials/character_viewer/tabs/contracts.html' %}
                             {% include 'memberaudit/partials/character_viewer/tabs/corporation_history.html' %}
-                            {% include 'memberaudit/partials/character_viewer/tabs/doctrines.html' %}
+                            {% include 'memberaudit/partials/character_viewer/tabs/skill_sets.html' %}
                             {% include 'memberaudit/partials/character_viewer/tabs/implants.html' %}
                             {% include 'memberaudit/partials/character_viewer/tabs/jump_clones.html' %}
                             {% include 'memberaudit/partials/character_viewer/tabs/loyalty.html' %}
@@ -70,9 +70,15 @@
         }
 
         function bool_to_icon(value) {
-            return value === true
-                ? '<i class="fas fa-check boolean-icon-true"></i>'
-                : '<i class="fas fa-times boolean-icon-false"></i>';
+            if (value === true) {
+                return '<i class="fas fa-check boolean-icon-true"></i>';
+            }
+            else if (value === false) {
+                return '<i class="fas fa-times boolean-icon-false"></i>';
+            }
+            else {
+                return '<i class="far fa-question-circle"></i>';
+            }
         }
 
         function setCookie(cname, cvalue, exhours) {
@@ -334,54 +340,6 @@
             /* Corporation History */
             $('#div_corporation_history').load("{% url 'memberaudit:character_corporation_history' character.pk %}")
 
-            /* Doctrines */
-            $('#tab_doctrines').DataTable({
-                ajax: {
-                    url: "{% url 'memberaudit:character_doctrines_data' character.pk %}",
-                    dataSrc: '',
-                    cache: false
-                },
-                columns: [
-                    { data: 'doctrine' },
-                    { data: 'ship' },
-                    {
-                        data: 'can_fly',
-                        render: function ( data, type, row, meta ) {
-                            if (type === 'display') {
-                                return bool_to_icon(data)
-                            }
-                            else {
-                                return data;
-                            }
-                        }
-                    },
-                    { data: 'insufficient_skills' },
-                    { data: 'can_fly_str' }
-                ],
-                order: [[0, "asc"], [1, "asc"]],
-                rowGroup: {
-                    dataSrc: 'doctrine',
-                    className: 'table-group'
-                },
-                columnDefs: [
-                    { "visible": false, "targets": [0, 4] },
-                    { "orderable": false, "targets": [ 3 ] }
-
-                ],
-                filterDropDown: {
-                    columns: [
-                        {
-                            idx: 0
-                        },
-                        {
-                            idx: 4,
-                            title: "{% translate 'Can Fly?' %}"
-                        }
-                    ],
-                    autoSize: false,
-                    bootstrap: true
-                }
-            });
 
             /* Clones */
             $('#tab_jump_clones').DataTable({
@@ -562,6 +520,63 @@
                 info: false
             });
 
+            /* Skill Sets */
+            $('#tab_skill_sets').DataTable({
+                ajax: {
+                    url: "{% url 'memberaudit:character_skill_sets_data' character.pk %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    { data: 'group' },
+                    { data: 'skill_set' },
+                    {
+                        data: 'has_required',
+                        render: function ( data, type, row, meta ) {
+                            if (type === 'display') {
+                                return bool_to_icon(data)
+                            }
+                            else {
+                                return data;
+                            }
+                        }
+                    },
+                    { data: 'failed_required_skills' },
+                    { data: 'failed_recommended_skills' },
+
+                    /* hidden columns */
+                    { data: 'has_required_str' },
+                    { data: 'is_doctrine_str' }
+                ],
+                order: [[0, "asc"], [1, "asc"]],
+                rowGroup: {
+                    dataSrc: 'group',
+                    className: 'table-group'
+                },
+                columnDefs: [
+                    { "visible": false, "targets": [ 0, 5, 6 ] },
+                    { "orderable": false, "targets": [ 3 ] }
+
+                ],
+                filterDropDown: {
+                    columns: [
+                        {
+                            idx: 0,
+                            title: "{% translate 'Group' %}"
+                        },
+                        {
+                            idx: 5,
+                            title: "{% translate 'Required Skills?' %}"
+                        },
+                        {
+                            idx: 6,
+                            title: "{% translate 'Doctrine?' %}"
+                        }
+                    ],
+                    autoSize: false,
+                    bootstrap: true
+                }
+            });
 
             /* Skills */
             $('#tab_skills').DataTable({

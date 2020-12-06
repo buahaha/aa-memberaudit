@@ -137,7 +137,7 @@ def update_character(character_pk: int, force_update: bool = False) -> bool:
             Character.UpdateSection.MAILS,
             Character.UpdateSection.CONTACTS,
             Character.UpdateSection.CONTRACTS,
-            Character.UpdateSection.DOCTRINES,
+            Character.UpdateSection.SKILL_SETS,
             Character.UpdateSection.SKILLS,
             Character.UpdateSection.WALLET_JOURNAL,
         }
@@ -192,14 +192,14 @@ def update_character(character_pk: int, force_update: bool = False) -> bool:
     if (
         force_update
         or character.is_update_section_stale(Character.UpdateSection.SKILLS)
-        or character.is_update_section_stale(Character.UpdateSection.DOCTRINES)
+        or character.is_update_section_stale(Character.UpdateSection.SKILL_SETS)
     ):
         chain(
             update_character_section.si(
                 character.pk, Character.UpdateSection.SKILLS, force_update
             ),
             update_character_section.si(
-                character.pk, Character.UpdateSection.DOCTRINES, force_update
+                character.pk, Character.UpdateSection.SKILL_SETS, force_update
             ),
         ).apply_async(priority=DEFAULT_TASK_PRIORITY)
 
@@ -852,13 +852,13 @@ def update_mail_entity_esi(self, id: int, category: str = None):
 
 
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_characters_doctrines(force_update: bool = False) -> None:
-    """Start the update of doctrines for all registered characters
+def update_characters_skill_checks(force_update: bool = False) -> None:
+    """Start the update of skill checks for all registered characters
 
     Args:
     - force_update: When set to True will always update regardless of stale status
     """
-    section = Character.UpdateSection.DOCTRINES
+    section = Character.UpdateSection.SKILL_SETS
     for character in Character.objects.all():
         if force_update or character.is_update_section_stale(section):
             update_character_section.apply_async(

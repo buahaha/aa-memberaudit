@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.core.exceptions import ValidationError
+from django.forms.models import BaseInlineFormSet
 from django.utils.html import format_html
 
 from eveuniverse.models import EveType
@@ -7,10 +9,10 @@ from .constants import EVE_CATEGORY_ID_SKILL
 from .models import (
     Character,
     CharacterUpdateStatus,
-    Doctrine,
-    DoctrineShip,
-    DoctrineShipSkill,
     Location,
+    SkillSetGroup,
+    SkillSet,
+    SkillSetSkill,
 )
 from . import tasks
 
@@ -253,18 +255,51 @@ class LocationAdmin(admin.ModelAdmin):
         return False
 
 
-@admin.register(Doctrine)
-class DoctrineAdmin(admin.ModelAdmin):
-    list_display = ("name", "_ships", "is_active")
+@admin.register(SkillSetGroup)
+class SkillSetGroupAdmin(admin.ModelAdmin):
+    list_display = ("name", "_skill_sets", "is_doctrine", "is_active")
     ordering = ["name"]
-    filter_horizontal = ("ships",)
+    filter_horizontal = ("skill_sets",)
 
-    def _ships(self, obj):
-        return [x.name for x in obj.ships.all().order_by("name")]
+    def _skill_sets(self, obj):
+        return [x.name for x in obj.skill_sets.all().order_by("name")]
 
 
-class DoctrineMinimumSkillAdminInline(admin.TabularInline):
-    model = DoctrineShipSkill
+class MinValidatedInlineMixIn:
+    validate_min = True
+
+    def get_formset(self, *args, **kwargs):
+        return super().get_formset(validate_min=self.validate_min, *args, **kwargs)
+
+
+class SkillSetSkillAdminFormSet(BaseInlineFormSet):
+    def clean(self):
+        super().clean()
+        for form in self.forms:
+            try:
+                data = self.cleaned_data
+            except AttributeError:
+                pass
+            else:
+                for row in data:
+                    if (
+                        row
+                        and row.get("DELETE") is False
+                        and not row.get("required_level")
+                        and not row.get("recommended_level")
+                    ):
+                        eve_type = row.get("eve_type")
+                        raise ValidationError(
+                            f"Skill '{eve_type.name}' must have a level."
+                        )
+
+
+class SkillSetSkillAdminInline(MinValidatedInlineMixIn, admin.TabularInline):
+    model = SkillSetSkill
+    verbose_name = "skill"
+    verbose_name_plural = "skills"
+    min_num = 1
+    formset = SkillSetSkillAdminFormSet
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "eve_type":
@@ -276,22 +311,32 @@ class DoctrineMinimumSkillAdminInline(admin.TabularInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
-@admin.register(DoctrineShip)
-class DoctrineShipAdmin(admin.ModelAdmin):
-    list_display = ("name", "ship_type", "_skills", "_doctrines", "is_visible")
+@admin.register(SkillSet)
+class SkillSetAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "ship_type",
+        "_skills",
+        "_groups",
+        "is_visible",
+    )
     ordering = ["name"]
 
     def _skills(self, obj):
         return [
-            f"{x.eve_type.name} {x.level}"
+            "{} {} {}".format(
+                x.eve_type.name,
+                x.required_level if x.required_level else "",
+                f"[{x.recommended_level}]" if x.recommended_level else "",
+            )
             for x in obj.skills.all().order_by("eve_type__name")
         ]
 
-    def _doctrines(self, obj) -> list:
-        doctrines = [f"{x.name}" for x in obj.doctrines.all().order_by("name")]
-        return doctrines if doctrines else None
+    def _groups(self, obj) -> list:
+        groups = [f"{x.name}" for x in obj.groups.all().order_by("name")]
+        return groups if groups else None
 
-    inlines = (DoctrineMinimumSkillAdminInline,)
+    inlines = (SkillSetSkillAdminInline,)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "ship_type":
@@ -305,9 +350,9 @@ class DoctrineShipAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         obj.user = request.user
         super().save_model(request, obj, form, change)
-        tasks.update_characters_doctrines.delay(force_update=True)
+        tasks.update_characters_skill_checks.delay(force_update=True)
 
     def delete_model(self, request, obj):
         obj.user = request.user
         super().delete_model(request, obj)
-        tasks.update_characters_doctrines.delay(force_update=True)
+        tasks.update_characters_skill_checks.delay(force_update=True)

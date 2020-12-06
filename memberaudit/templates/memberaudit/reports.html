@@ -13,7 +13,7 @@
                 <!-- Tab panes -->
                 <div class="tab-content">
                     {% include 'memberaudit/partials/reports/tabs/compliance.html' %}
-                    {% include 'memberaudit/partials/reports/tabs/doctrines.html' %}
+                    {% include 'memberaudit/partials/reports/tabs/skill_sets.html' %}
                 </div>
             </div>
 
@@ -94,36 +94,38 @@
                 }
             });
 
-            $('#tab_doctrines').DataTable({
+            $('#tab_skill_sets').DataTable({
                 ajax: {
-                    url: "{% url 'memberaudit:doctrines_report_data' %}",
+                    url: "{% url 'memberaudit:skill_sets_report_data' %}",
                     dataSrc: '',
                     cache: false
                 },
                 columns: [
-                    { data: 'doctrine' },
+                    { data: 'group' },
                     { data: 'main_html' },
                     { data: 'organization_html' },
                     { data: 'character_html' },
-                    { data: 'can_fly' },
+                    { data: 'has_required' },
 
                     /* hidden columns */
                     { data: 'alliance' },
                     { data: 'corporation' },
-                    { data: 'can_fly_str' },
+                    { data: 'has_required_str' },
+                    { data: 'is_doctrine_str' },
                 ],
                 order: [[0, "asc"], [1, "asc"], [3, "asc"]],
                 rowGroup: {
-                    dataSrc: 'doctrine',
+                    dataSrc: 'group',
                     className: 'table-group'
                 },
                 columnDefs: [
-                    { "visible": false, "targets": [0, 5, 6, 7] }
+                    { "visible": false, "targets": [0, 5, 6, 7, 8] }
                 ],
                 filterDropDown: {
                     columns: [
                         {
-                            idx: 0
+                            idx: 0,
+                            title: "{% translate 'Groups' %}"
                         },
                         {
                             idx: 5,
@@ -135,7 +137,11 @@
                         },
                         {
                             idx: 7,
-                            title: "{% translate 'Can Fly?' %}"
+                            title: "{% translate 'Required Skills?' %}"
+                        },
+                        {
+                            idx: 8,
+                            title: "{% translate 'Doctrine?' %}"
                         }
                     ],
                     autoSize: false,

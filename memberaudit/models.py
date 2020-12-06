@@ -1,5 +1,4 @@
 import datetime as dt
-from collections import namedtuple
 import hashlib
 import json
 import os
@@ -60,10 +59,6 @@ from .managers import (
 )
 from .providers import esi
 from .utils import LoggerAddTag, chunks
-
-CharacterDoctrineResult = namedtuple(
-    "CharacterDoctrineResult", ["doctrine", "ship", "insufficient_skills"]
-)
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -159,6 +154,7 @@ class Location(models.Model):
         default=None,
         null=True,
         blank=True,
+        related_name="+",
     )
     eve_type = models.ForeignKey(
         EveType,
@@ -166,6 +162,7 @@ class Location(models.Model):
         default=None,
         null=True,
         blank=True,
+        related_name="+",
     )
     owner = models.ForeignKey(
         EveEntity,
@@ -173,6 +170,7 @@ class Location(models.Model):
         default=None,
         null=True,
         blank=True,
+        related_name="+",
         help_text="corporation this station or structure belongs to",
     )
     updated_at = models.DateTimeField(auto_now=True)
@@ -247,7 +245,6 @@ class Character(models.Model):
         CONTACTS = "contacts", _("contacts")
         CONTRACTS = "contracts", _("contracts")
         CORPORATION_HISTORY = "corporation_history", _("corporation history")
-        DOCTRINES = "doctrines", _("doctrines")
         IMPLANTS = "implants", _("implants")
         JUMP_CLONES = "jump_clones", _("jump clones")
         LOCATION = "location", _("location")
@@ -256,6 +253,7 @@ class Character(models.Model):
         ONLINE_STATUS = "online_status", _("online status")
         SKILLS = "skills", _("skills")
         SKILL_QUEUE = "skill_queue", _("skill queue")
+        SKILL_SETS = "skill_sets", _("skill sets")
         WALLET_BALLANCE = "wallet_balance", _("wallet balance")
         WALLET_JOURNAL = "wallet_journal", _("wallet journal")
 
@@ -290,7 +288,7 @@ class Character(models.Model):
         UpdateSection.CONTACTS: 2,
         UpdateSection.CONTRACTS: 2,
         UpdateSection.CORPORATION_HISTORY: 2,
-        UpdateSection.DOCTRINES: 2,
+        UpdateSection.SKILL_SETS: 2,
         UpdateSection.IMPLANTS: 2,
         UpdateSection.JUMP_CLONES: 2,
         UpdateSection.LOCATION: 1,
@@ -1127,54 +1125,6 @@ class Character(models.Model):
                 bids, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
             )
 
-    def update_doctrines(self):
-        """Checks if character can fly doctrine ships
-        and updates results in database
-        """
-        with transaction.atomic():
-            character_skills = {
-                obj["eve_type_id"]: obj["active_skill_level"]
-                for obj in self.skills.values("eve_type_id", "active_skill_level")
-            }
-            self.doctrine_ships.all().delete()
-
-            # create empty new objects
-            doctrine_ships_qs = DoctrineShip.objects.prefetch_related(
-                "skills", "skills__eve_type"
-            ).all()
-            doctrine_ships_count = doctrine_ships_qs.count()
-            if doctrine_ships_count == 0:
-                logger.info("%s: No doctrine ships defined", self)
-                return
-
-            logger.info("%s: Checking %s doctrine ships", self, doctrine_ships_count)
-            doctrine_ships = [
-                CharacterDoctrineShipCheck(character=self, ship=ship)
-                for ship in doctrine_ships_qs
-            ]
-            CharacterDoctrineShipCheck.objects.bulk_create(
-                doctrine_ships, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-            )
-
-            # add insufficient skills to objects if any
-            obj_pks = list(self.doctrine_ships.values_list("pk", flat=True))
-            doctrine_ships = self.doctrine_ships.in_bulk(obj_pks)
-            doctrine_ships_by_ship_id = {
-                obj.ship_id: obj for obj in doctrine_ships.values()
-            }
-            for ship in doctrine_ships_qs:
-                skills = list()
-                for skill in ship.skills.all():
-                    eve_type_id = skill.eve_type_id
-                    if (
-                        eve_type_id not in character_skills
-                        or character_skills[eve_type_id] < skill.level
-                    ):
-                        skills.append(skill)
-
-                if skills:
-                    doctrine_ships_by_ship_id[ship.id].insufficient_skills.add(*skills)
-
     @fetch_token_for_character("esi-clones.read_implants.v1")
     def update_implants(self, token: Token, force_update: bool = False):
         """update the character's implants"""
@@ -1761,6 +1711,75 @@ class Character(models.Model):
         else:
             logger.info("%s: Skill queue has not changed", self)
 
+    def update_skill_sets(self):
+        """Checks if character has the skills needed for skill sets
+        and updates results in database
+        """
+        with transaction.atomic():
+            character_skills = {
+                obj["eve_type_id"]: obj["active_skill_level"]
+                for obj in self.skills.values("eve_type_id", "active_skill_level")
+            }
+            self.skill_set_checks.all().delete()
+            skill_sets_qs = SkillSet.objects.prefetch_related(
+                "skills", "skills__eve_type"
+            ).all()
+            skill_sets_count = skill_sets_qs.count()
+            if skill_sets_count == 0:
+                logger.info("%s: No skill sets defined", self)
+                return
+
+            logger.info("%s: Checking %s skill sets", self, skill_sets_count)
+            skill_set_checks = [
+                CharacterSkillSetCheck(character=self, skill_set=skill_set)
+                for skill_set in skill_sets_qs
+            ]
+            CharacterSkillSetCheck.objects.bulk_create(
+                skill_set_checks, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
+            )
+
+            # add failed recommended / required skills to objects if any
+            obj_pks = list(self.skill_set_checks.values_list("pk", flat=True))
+            skill_set_checks = self.skill_set_checks.in_bulk(obj_pks)
+            checks_by_skill_set_id = {
+                obj.skill_set_id: obj for obj in skill_set_checks.values()
+            }
+
+            # required skills
+            for skill_set in skill_sets_qs:
+                failed_skills = self._identify_failed_skills(
+                    skill_set, character_skills, "required"
+                )
+                if failed_skills:
+                    checks_by_skill_set_id[skill_set.id].failed_required_skills.add(
+                        *failed_skills
+                    )
+
+            # required skills
+            for skill_set in skill_sets_qs:
+                failed_skills = self._identify_failed_skills(
+                    skill_set, character_skills, "recommended"
+                )
+                if failed_skills:
+                    checks_by_skill_set_id[skill_set.id].failed_recommended_skills.add(
+                        *failed_skills
+                    )
+
+    @staticmethod
+    def _identify_failed_skills(
+        skill_set: "SkillSet", character_skills: dict, level_name: str
+    ) -> list:
+        failed_skills = list()
+        kwargs = {f"{level_name}_level__isnull": False}
+        for skill in skill_set.skills.filter(**kwargs):
+            eve_type_id = skill.eve_type_id
+            if eve_type_id not in character_skills or character_skills[
+                eve_type_id
+            ] < getattr(skill, f"{level_name}_level"):
+                failed_skills.append(skill)
+
+        return failed_skills
+
     @fetch_token_for_character("esi-skills.read_skills.v1")
     def update_skills(self, token, force_update: bool = False):
         """update the character's skill"""
@@ -2052,7 +2071,7 @@ class CharacterAsset(models.Model):
         related_name="children",
     )
 
-    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
+    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE, related_name="+")
     is_blueprint_copy = models.BooleanField(default=None, null=True, db_index=True)
     is_singleton = models.BooleanField()
     location_flag = models.CharField(max_length=NAMES_MAX_LENGTH)
@@ -2085,22 +2104,6 @@ class CharacterAsset(models.Model):
     def group_display(self) -> str:
         """group of this asset to be displayed to user"""
         return self.eve_type.name if self.name else self.eve_type.eve_group.name
-
-
-"""
-class CharacterAssetPosition(models.Model):
-   # Location of an asset
-
-    asset = models.OneToOneField(
-        CharacterAsset,
-        on_delete=models.CASCADE,
-        primary_key=True,
-        related_name="position",
-    )
-    x = models.FloatField()
-    y = models.FloatField()
-    z = models.FloatField()
-"""
 
 
 class CharacterContactLabel(models.Model):
@@ -2137,7 +2140,9 @@ class CharacterContact(models.Model):
     character = models.ForeignKey(
         Character, on_delete=models.CASCADE, related_name="contacts"
     )
-    eve_entity = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
+    eve_entity = models.ForeignKey(
+        EveEntity, on_delete=models.CASCADE, related_name="+"
+    )
 
     is_blocked = models.BooleanField(default=None, null=True)
     is_watched = models.BooleanField(default=None, null=True)
@@ -2261,7 +2266,7 @@ class CharacterContract(models.Model):
         on_delete=models.CASCADE,
         default=None,
         null=True,
-        related_name="acceptor_character_contracts",
+        related_name="+",
         help_text="Who will accept the contract if character",
     )
     acceptor_corporation = models.ForeignKey(
@@ -2269,7 +2274,7 @@ class CharacterContract(models.Model):
         on_delete=models.CASCADE,
         default=None,
         null=True,
-        related_name="acceptor_corporation_contracts",
+        related_name="+",
         help_text="corporation of acceptor",
     )
     assignee = models.ForeignKey(
@@ -2277,7 +2282,7 @@ class CharacterContract(models.Model):
         on_delete=models.CASCADE,
         default=None,
         null=True,
-        related_name="assignee_character_contracts",
+        related_name="+",
         help_text="To whom the contract is assigned, can be a corporation or a character",
     )
     availability = models.CharField(
@@ -2312,13 +2317,9 @@ class CharacterContract(models.Model):
     )
     for_corporation = models.BooleanField()
     issuer_corporation = models.ForeignKey(
-        EveEntity,
-        on_delete=models.CASCADE,
-        related_name="issuer_corporation_contracts",
+        EveEntity, on_delete=models.CASCADE, related_name="+"
     )
-    issuer = models.ForeignKey(
-        EveEntity, on_delete=models.CASCADE, related_name="issuer_character_contracts"
-    )
+    issuer = models.ForeignKey(EveEntity, on_delete=models.CASCADE, related_name="+")
     price = models.DecimalField(
         max_digits=CURRENCY_MAX_DIGITS,
         decimal_places=CURRENCY_MAX_DECIMALS,
@@ -2414,7 +2415,7 @@ class CharacterContractBid(models.Model):
     bid_id = models.PositiveIntegerField(db_index=True)
 
     amount = models.FloatField()
-    bidder = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
+    bidder = models.ForeignKey(EveEntity, on_delete=models.CASCADE, related_name="+")
     date_bid = models.DateTimeField()
 
     class Meta:
@@ -2434,7 +2435,7 @@ class CharacterContractItem(models.Model):
     is_singleton = models.BooleanField()
     quantity = models.PositiveIntegerField()
     raw_quantity = models.IntegerField(default=None, null=True)
-    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
+    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE, related_name="+")
 
     objects = CharacterContractItemManager()
 
@@ -2455,7 +2456,9 @@ class CharacterCorporationHistory(models.Model):
     )
     record_id = models.PositiveIntegerField(db_index=True)
 
-    corporation = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
+    corporation = models.ForeignKey(
+        EveEntity, on_delete=models.CASCADE, related_name="+"
+    )
     is_deleted = models.BooleanField(null=True, default=None, db_index=True)
     start_date = models.DateTimeField(db_index=True)
 
@@ -2496,21 +2499,31 @@ class CharacterDetails(models.Model):
         default=None,
         null=True,
         blank=True,
-        related_name="owner_alliances",
+        related_name="+",
     )
     birthday = models.DateTimeField()
     corporation = models.ForeignKey(
-        EveEntity, on_delete=models.CASCADE, related_name="owner_corporations"
+        EveEntity, on_delete=models.CASCADE, related_name="+"
     )
     description = models.TextField()
     eve_ancestry = models.ForeignKey(
-        EveAncestry, on_delete=models.SET_DEFAULT, default=None, null=True
+        EveAncestry,
+        on_delete=models.SET_DEFAULT,
+        default=None,
+        null=True,
+        related_name="+",
     )
-    eve_bloodline = models.ForeignKey(EveBloodline, on_delete=models.CASCADE)
+    eve_bloodline = models.ForeignKey(
+        EveBloodline, on_delete=models.CASCADE, related_name="+"
+    )
     eve_faction = models.ForeignKey(
-        EveFaction, on_delete=models.SET_DEFAULT, default=None, null=True
+        EveFaction,
+        on_delete=models.SET_DEFAULT,
+        default=None,
+        null=True,
+        related_name="+",
     )
-    eve_race = models.ForeignKey(EveRace, on_delete=models.CASCADE)
+    eve_race = models.ForeignKey(EveRace, on_delete=models.CASCADE, related_name="+")
     gender = models.CharField(max_length=1, choices=GENDER_CHOICES)
     name = models.CharField(max_length=NAMES_MAX_LENGTH)
     security_status = models.FloatField(default=None, null=True)
@@ -2528,40 +2541,13 @@ class CharacterDetails(models.Model):
         return eve_xml_to_html(self.description)
 
 
-class CharacterDoctrineShipCheck(models.Model):
-    """Whether this character can fly this doctrine ship"""
-
-    character = models.ForeignKey(
-        Character, on_delete=models.CASCADE, related_name="doctrine_ships"
-    )
-    ship = models.ForeignKey("DoctrineShip", on_delete=models.CASCADE)
-
-    insufficient_skills = models.ManyToManyField("DoctrineShipSkill")
-
-    class Meta:
-        default_permissions = ()
-        constraints = [
-            models.UniqueConstraint(
-                fields=["character", "ship"],
-                name="functional_pk_characterdoctrineshipcheck",
-            )
-        ]
-
-    def __str__(self) -> str:
-        return f"{self.character}-{self.ship}"
-
-    @property
-    def can_fly(self) -> bool:
-        return self.insufficient_skills.count() == 0
-
-
 class CharacterImplant(models.Model):
     """Implant of a character"""
 
     character = models.ForeignKey(
         Character, on_delete=models.CASCADE, related_name="implants"
     )
-    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
+    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE, related_name="+")
 
     class Meta:
         default_permissions = ()
@@ -2583,7 +2569,9 @@ class CharacterLocation(models.Model):
         Character, on_delete=models.CASCADE, primary_key=True, related_name="location"
     )
 
-    eve_solar_system = models.ForeignKey(EveSolarSystem, on_delete=models.CASCADE)
+    eve_solar_system = models.ForeignKey(
+        EveSolarSystem, on_delete=models.CASCADE, related_name="+"
+    )
     location = models.ForeignKey(
         Location, on_delete=models.SET_DEFAULT, default=None, null=True
     )
@@ -2603,7 +2591,9 @@ class CharacterLoyaltyEntry(models.Model):
         on_delete=models.CASCADE,
         related_name="loyalty_entries",
     )
-    corporation = models.ForeignKey(EveEntity, on_delete=models.CASCADE)
+    corporation = models.ForeignKey(
+        EveEntity, on_delete=models.CASCADE, related_name="+"
+    )
 
     loyalty_points = models.PositiveIntegerField()
 
@@ -2650,7 +2640,7 @@ class CharacterJumpCloneImplant(models.Model):
     jump_clone = models.ForeignKey(
         CharacterJumpClone, on_delete=models.CASCADE, related_name="implants"
     )
-    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
+    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE, related_name="+")
 
     class Meta:
         default_permissions = ()
@@ -2769,7 +2759,7 @@ class CharacterSkill(models.Model):
     character = models.ForeignKey(
         Character, on_delete=models.CASCADE, related_name="skills"
     )
-    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
+    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE, related_name="+")
 
     active_skill_level = models.PositiveIntegerField(
         validators=[MinValueValidator(1), MaxValueValidator(5)]
@@ -2823,7 +2813,7 @@ class CharacterSkillqueueEntry(models.Model):
     )
     level_end_sp = models.PositiveIntegerField(default=None, null=True)
     level_start_sp = models.PositiveIntegerField(default=None, null=True)
-    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
+    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE, related_name="+")
     start_date = models.DateTimeField(default=None, null=True)
     training_start_sp = models.PositiveIntegerField(default=None, null=True)
 
@@ -2843,6 +2833,36 @@ class CharacterSkillqueueEntry(models.Model):
     def is_active(self) -> bool:
         """Returns true when this skill is currently being trained"""
         return self.finish_date and self.queue_position == 0
+
+
+class CharacterSkillSetCheck(models.Model):
+    character = models.ForeignKey(
+        Character, on_delete=models.CASCADE, related_name="skill_set_checks"
+    )
+    skill_set = models.ForeignKey("SkillSet", on_delete=models.CASCADE)
+
+    failed_required_skills = models.ManyToManyField(
+        "SkillSetSkill", related_name="failed_required_skill_set_checks"
+    )
+    failed_recommended_skills = models.ManyToManyField(
+        "SkillSetSkill", related_name="failed_recommended_skill_set_checks"
+    )
+
+    class Meta:
+        default_permissions = ()
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "skill_set"],
+                name="functional_pk_characterskillsetcheck",
+            )
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.character}-{self.skill_set}"
+
+    @property
+    def can_fly(self) -> bool:
+        return self.failed_required_skills.count() == 0
 
 
 class CharacterUpdateStatus(models.Model):
@@ -3010,7 +3030,7 @@ class CharacterWalletJournalEntry(models.Model):
         default=None,
         null=True,
         blank=True,
-        related_name="wallet_journal_entry_first_party_set",
+        related_name="+",
     )
     reason = models.TextField()
     ref_type = models.CharField(max_length=64)
@@ -3020,7 +3040,7 @@ class CharacterWalletJournalEntry(models.Model):
         default=None,
         null=True,
         blank=True,
-        related_name="wallet_journal_entry_second_party_set",
+        related_name="+",
     )
     tax = models.DecimalField(
         max_digits=CURRENCY_MAX_DIGITS,
@@ -3035,7 +3055,7 @@ class CharacterWalletJournalEntry(models.Model):
         default=None,
         null=True,
         blank=True,
-        related_name="wallet_journal_entry_tax_receiver_set",
+        related_name="+",
     )
 
     class Meta:
@@ -3059,32 +3079,47 @@ class CharacterWalletJournalEntry(models.Model):
         return cls.CONTEXT_ID_TYPE_UNDEFINED
 
 
-class Doctrine(models.Model):
-    """A doctrine"""
+class SkillSetGroup(models.Model):
+    """A group of SkillSets, e.g. for defining a doctrine"""
 
     name = models.CharField(max_length=NAMES_MAX_LENGTH, unique=True)
     description = models.TextField(blank=True)
-    ships = models.ManyToManyField(
-        "DoctrineShip", related_name="doctrines", verbose_name="doctrine ships"
+    skill_sets = models.ManyToManyField("SkillSet", related_name="groups")
+    is_doctrine = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text=(
+            "This enables a skill set group to show up correctly in doctrine reports"
+        ),
     )
     is_active = models.BooleanField(
-        default=True, db_index=True, help_text="Whether this doctrine is in active use"
+        default=True,
+        db_index=True,
+        help_text="Whether this skill set group is in active use",
     )
 
     def __str__(self) -> str:
         return str(self.name)
 
+    @property
+    def name_plus(self) -> str:
+        return "{}{}".format(_("Doctrine: ") if self.is_doctrine else "", self.name)
 
-class DoctrineShip(models.Model):
-    """A ship for doctrines"""
+
+class SkillSet(models.Model):
+    """A set of required and recommended skills needed to perform
+    a particular task like flying a doctrine ships
+    """
 
     name = models.CharField(max_length=NAMES_MAX_LENGTH, unique=True)
+    description = models.TextField(blank=True)
     ship_type = models.ForeignKey(
         EveType,
         on_delete=models.SET_DEFAULT,
         default=None,
         null=True,
         blank=True,
+        related_name="+",
         help_text=(
             "Ship type is used for visual presentation only. "
             "All skill requirements must be explicitly defined."
@@ -3094,8 +3129,8 @@ class DoctrineShip(models.Model):
         default=True,
         db_index=True,
         help_text=(
-            "Non visible doctrine ships are not shown to users "
-            "on their character sheet and used for reporting only."
+            "Non visible skill sets are not shown to users "
+            "on their character sheet and used for audit purposes only."
         ),
     )
 
@@ -3103,31 +3138,39 @@ class DoctrineShip(models.Model):
         return str(self.name)
 
 
-class DoctrineShipSkill(models.Model):
-    """A required skill for a doctrine"""
+class SkillSetSkill(models.Model):
+    # A specific skill within a skill set
 
-    ship = models.ForeignKey(
-        DoctrineShip, on_delete=models.CASCADE, related_name="skills"
+    skill_set = models.ForeignKey(
+        SkillSet, on_delete=models.CASCADE, related_name="skills"
     )
     eve_type = models.ForeignKey(
-        EveType, on_delete=models.CASCADE, verbose_name="skill"
+        EveType, on_delete=models.CASCADE, verbose_name="skill", related_name="+"
     )
 
-    level = models.PositiveIntegerField(
+    required_level = models.PositiveIntegerField(
+        default=None,
+        null=True,
+        blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(5)],
-        help_text="Minimum required skill level",
+    )
+    recommended_level = models.PositiveIntegerField(
+        default=None,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
     )
 
     class Meta:
         constraints = [
             models.UniqueConstraint(
-                fields=["ship", "eve_type"],
-                name="functional_pk_doctrineskill",
+                fields=["skill_set", "eve_type"],
+                name="functional_pk_skillsetskill",
             )
         ]
 
     def __str__(self) -> str:
-        return f"{self.ship}-{self.eve_type}"
+        return f"{self.skill_set}-{self.eve_type}"
 
 
 class MailEntity(models.Model):

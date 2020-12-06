@@ -19,7 +19,7 @@ from ..tasks import (
     update_character,
     update_structure_esi,
     update_character_assets,
-    update_characters_doctrines,
+    update_characters_skill_checks,
     update_character_mails,
     update_character_contacts,
     update_character_contracts,
@@ -737,7 +737,7 @@ class TestUpdateCharactersDoctrines(TestCase):
     def setUp(self) -> None:
         self.character_1001 = create_memberaudit_character(1001)
 
-    @patch(MODELS_PATH + ".Character.update_doctrines")
-    def test_normal(self, mock_update_doctrines):
-        update_characters_doctrines()
-        self.assertTrue(mock_update_doctrines.called)
+    @patch(MODELS_PATH + ".Character.update_skill_sets")
+    def test_normal(self, mock_update_skill_sets):
+        update_characters_skill_checks()
+        self.assertTrue(mock_update_skill_sets.called)

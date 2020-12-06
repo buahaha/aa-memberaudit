@@ -30,7 +30,7 @@ if not apps.is_installed("memberaudit"):
     raise RuntimeError("The app memberaudit is not installed")
 
 from eveuniverse.models import EveType
-from memberaudit.models import Doctrine, DoctrineShip, DoctrineShipSkill
+from memberaudit.models import SkillSetGroup, SkillSet, SkillSetSkill
 
 
 def get_or_create_esi_or_none(EveModel, id) -> object:
@@ -41,80 +41,82 @@ def get_or_create_esi_or_none(EveModel, id) -> object:
 print("Generating test doctrines...")
 
 
-doctrine, _ = Doctrine.objects.get_or_create(
-    name="Test Doctrine Subcaps",
+doctrine, _ = SkillSetGroup.objects.update_or_create(
+    name="Test SkillSetGroup Subcaps",
+    is_doctrine=True,
     defaults={"description": "Generated doctrine for testing"},
 )
-doctrine.ships.clear()
-machariel, _ = DoctrineShip.objects.get_or_create(
+doctrine.skill_sets.clear()
+machariel, _ = SkillSet.objects.update_or_create(
     name="Machariel", defaults={"ship_type": get_or_create_esi_or_none(EveType, 17738)}
 )
-doctrine.ships.add(machariel)
-DoctrineShipSkill.objects.get_or_create(
-    ship=machariel,
+doctrine.skill_sets.add(machariel)
+SkillSetSkill.objects.update_or_create(
+    skill_set=machariel,
     eve_type=get_or_create_esi_or_none(EveType, 3336),  # Gallente Battleship
-    defaults={"level": 3},
+    defaults={"required_level": 3, "recommended_level": 4},
 )
-DoctrineShipSkill.objects.get_or_create(
-    ship=machariel,
+SkillSetSkill.objects.update_or_create(
+    skill_set=machariel,
     eve_type=get_or_create_esi_or_none(EveType, 3337),  # Minmatar Battleship
-    defaults={"level": 3},
+    defaults={"required_level": 3, "recommended_level": 4},
 )
-DoctrineShipSkill.objects.get_or_create(
-    ship=machariel,
+SkillSetSkill.objects.update_or_create(
+    skill_set=machariel,
     eve_type=get_or_create_esi_or_none(
         EveType, 12209
     ),  # Large Autocannon Specialization
-    defaults={"level": 3},
+    defaults={"required_level": 3, "recommended_level": 5},
 )
-guardian, _ = DoctrineShip.objects.get_or_create(
+guardian, _ = SkillSet.objects.update_or_create(
     name="Guardian", defaults={"ship_type": get_or_create_esi_or_none(EveType, 11987)}
 )
-doctrine.ships.add(guardian)
-DoctrineShipSkill.objects.get_or_create(
-    ship=guardian,
+doctrine.skill_sets.add(guardian)
+SkillSetSkill.objects.update_or_create(
+    skill_set=guardian,
     eve_type=get_or_create_esi_or_none(EveType, 12096),  # Logistics Cruisers
-    defaults={"level": 5},
+    defaults={"required_level": 5},
 )
-DoctrineShipSkill.objects.get_or_create(
-    ship=guardian,
+SkillSetSkill.objects.update_or_create(
+    skill_set=guardian,
     eve_type=get_or_create_esi_or_none(EveType, 3335),  # Amarr Cruiser
-    defaults={"level": 5},
+    defaults={"required_level": 5},
 )
-DoctrineShipSkill.objects.get_or_create(
-    ship=guardian,
+SkillSetSkill.objects.update_or_create(
+    skill_set=guardian,
     eve_type=get_or_create_esi_or_none(EveType, 16069),  # Remote Armor Repair Systems
-    defaults={"level": 3},
+    defaults={"required_level": 3, "recommended_level": 5},
 )
-DoctrineShipSkill.objects.get_or_create(
-    ship=guardian,
+SkillSetSkill.objects.update_or_create(
+    skill_set=guardian,
     eve_type=get_or_create_esi_or_none(EveType, 16069),  # Capacitor Emission Systems
-    defaults={"level": 3},
+    defaults={"required_level": 3, "recommended_level": 5},
 )
 
-doctrine, _ = Doctrine.objects.get_or_create(
-    name="Test Doctrine Caps",
+doctrine, _ = SkillSetGroup.objects.update_or_create(
+    name="Test SkillSetGroup Caps",
+    is_doctrine=True,
     defaults={"description": "Generated doctrine for testing"},
 )
-doctrine.ships.clear()
-archon, _ = DoctrineShip.objects.get_or_create(
+doctrine.skill_sets.clear()
+archon, _ = SkillSet.objects.update_or_create(
     name="Archon", defaults={"ship_type": get_or_create_esi_or_none(EveType, 23757)}
 )
-doctrine.ships.add(archon)
-DoctrineShipSkill.objects.get_or_create(
-    ship=archon,
+doctrine.skill_sets.add(archon)
+SkillSetSkill.objects.update_or_create(
+    skill_set=archon,
     eve_type=get_or_create_esi_or_none(EveType, 24311),  # Amarr Carrier
-    defaults={"level": 3},
+    defaults={"required_level": 3},
 )
-DoctrineShipSkill.objects.get_or_create(
-    ship=archon,
+SkillSetSkill.objects.update_or_create(
+    skill_set=archon,
     eve_type=get_or_create_esi_or_none(EveType, 20533),  # Capital Ships
-    defaults={"level": 3},
+    defaults={"required_level": 3},
 )
-DoctrineShipSkill.objects.get_or_create(
-    ship=archon,
+SkillSetSkill.objects.update_or_create(
+    skill_set=archon,
     eve_type=get_or_create_esi_or_none(EveType, 21611),  # Jump Drive Calibration
-    defaults={"level": 5},
+    defaults={"required_level": 4, "recommended_level": 5},
 )
 
 print("Completed.")

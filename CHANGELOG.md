@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [1.0.0a15] - 2020-12-06
+
+### Change
+
+- Re-designed doctrines to the much broader concept of skill sets ([#58](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/58))
+
 ## [1.0.0a14] - 2020-12-04
 
 ### Change

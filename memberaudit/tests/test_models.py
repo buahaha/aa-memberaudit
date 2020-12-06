@@ -38,9 +38,9 @@ from ..models import (
     CharacterSkillqueueEntry,
     CharacterUpdateStatus,
     CharacterWalletJournalEntry,
-    Doctrine,
-    DoctrineShip,
-    DoctrineShipSkill,
+    SkillSetGroup,
+    SkillSet,
+    SkillSetSkill,
     Location,
     MailEntity,
 )
@@ -2214,7 +2214,7 @@ class TestCharacterUpdateOther(TestCharacterUpdateBase):
         self.assertEqual(result[1], self.structure_1)
 
 
-class TestCharacterCanFlyDoctrines(NoSocketsTestCase):
+class TestCharacterUpdateSkillSets(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
@@ -2240,18 +2240,22 @@ class TestCharacterCanFlyDoctrines(NoSocketsTestCase):
             skillpoints_in_skill=10,
             trained_skill_level=5,
         )
-        ship = DoctrineShip.objects.create(name="Ship 1")
-        DoctrineShipSkill.objects.create(ship=ship, eve_type=self.skill_type_1, level=5)
-        DoctrineShipSkill.objects.create(ship=ship, eve_type=self.skill_type_2, level=3)
-        doctrine = Doctrine.objects.create(name="Dummy")
-        doctrine.ships.add(ship)
+        skill_set = SkillSet.objects.create(name="Ship 1")
+        SkillSetSkill.objects.create(
+            skill_set=skill_set, eve_type=self.skill_type_1, required_level=5
+        )
+        SkillSetSkill.objects.create(
+            skill_set=skill_set, eve_type=self.skill_type_2, required_level=3
+        )
+        skill_set_group = SkillSetGroup.objects.create(name="Dummy")
+        skill_set_group.skill_sets.add(skill_set)
 
-        self.character.update_doctrines()
+        self.character.update_skill_sets()
 
-        self.assertEqual(self.character.doctrine_ships.count(), 1)
-        first = self.character.doctrine_ships.first()
-        self.assertEqual(first.ship.pk, ship.pk)
-        self.assertEqual(first.insufficient_skills.count(), 0)
+        self.assertEqual(self.character.skill_set_checks.count(), 1)
+        first = self.character.skill_set_checks.first()
+        self.assertEqual(first.skill_set.pk, skill_set.pk)
+        self.assertEqual(first.failed_required_skills.count(), 0)
 
     def test_one_skill_below(self):
         CharacterSkill.objects.create(
@@ -2268,21 +2272,23 @@ class TestCharacterCanFlyDoctrines(NoSocketsTestCase):
             skillpoints_in_skill=10,
             trained_skill_level=5,
         )
-        ship = DoctrineShip.objects.create(name="Ship 1")
-        DoctrineShipSkill.objects.create(ship=ship, eve_type=self.skill_type_1, level=5)
-        skill_2 = DoctrineShipSkill.objects.create(
-            ship=ship, eve_type=self.skill_type_2, level=3
+        skill_set = SkillSet.objects.create(name="Ship 1")
+        SkillSetSkill.objects.create(
+            skill_set=skill_set, eve_type=self.skill_type_1, required_level=5
         )
-        doctrine = Doctrine.objects.create(name="Dummy")
-        doctrine.ships.add(ship)
+        skill_2 = SkillSetSkill.objects.create(
+            skill_set=skill_set, eve_type=self.skill_type_2, required_level=3
+        )
+        skill_set_group = SkillSetGroup.objects.create(name="Dummy")
+        skill_set_group.skill_sets.add(skill_set)
 
-        self.character.update_doctrines()
+        self.character.update_skill_sets()
 
-        self.assertEqual(self.character.doctrine_ships.count(), 1)
-        first = self.character.doctrine_ships.first()
-        self.assertEqual(first.ship.pk, ship.pk)
+        self.assertEqual(self.character.skill_set_checks.count(), 1)
+        first = self.character.skill_set_checks.first()
+        self.assertEqual(first.skill_set.pk, skill_set.pk)
         self.assertEqual(
-            {obj.pk for obj in first.insufficient_skills.all()}, {skill_2.pk}
+            {obj.pk for obj in first.failed_required_skills.all()}, {skill_2.pk}
         )
 
     def test_misses_one_skill(self):
@@ -2293,60 +2299,111 @@ class TestCharacterCanFlyDoctrines(NoSocketsTestCase):
             skillpoints_in_skill=10,
             trained_skill_level=5,
         )
-        ship = DoctrineShip.objects.create(name="Ship 1")
-        DoctrineShipSkill.objects.create(ship=ship, eve_type=self.skill_type_1, level=5)
-        skill_2 = DoctrineShipSkill.objects.create(
-            ship=ship, eve_type=self.skill_type_2, level=3
+        skill_set = SkillSet.objects.create(name="Ship 1")
+        SkillSetSkill.objects.create(
+            skill_set=skill_set, eve_type=self.skill_type_1, required_level=5
         )
-        doctrine = Doctrine.objects.create(name="Dummy")
-        doctrine.ships.add(ship)
+        skill_2 = SkillSetSkill.objects.create(
+            skill_set=skill_set, eve_type=self.skill_type_2, required_level=3
+        )
+        skill_set_group = SkillSetGroup.objects.create(name="Dummy")
+        skill_set_group.skill_sets.add(skill_set)
 
-        self.character.update_doctrines()
+        self.character.update_skill_sets()
 
-        self.assertEqual(self.character.doctrine_ships.count(), 1)
-        first = self.character.doctrine_ships.first()
-        self.assertEqual(first.ship.pk, ship.pk)
+        self.assertEqual(self.character.skill_set_checks.count(), 1)
+        first = self.character.skill_set_checks.first()
+        self.assertEqual(first.skill_set.pk, skill_set.pk)
         self.assertEqual(
-            {obj.pk for obj in first.insufficient_skills.all()}, {skill_2.pk}
+            {obj.pk for obj in first.failed_required_skills.all()}, {skill_2.pk}
+        )
+
+    def test_passed_required_and_misses_recommendend_skill(self):
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=self.skill_type_1,
+            active_skill_level=4,
+            skillpoints_in_skill=10,
+            trained_skill_level=4,
+        )
+        skill_set = SkillSet.objects.create(name="Ship 1")
+        skill_1 = SkillSetSkill.objects.create(
+            skill_set=skill_set,
+            eve_type=self.skill_type_1,
+            required_level=3,
+            recommended_level=5,
+        )
+        self.character.update_skill_sets()
+
+        self.assertEqual(self.character.skill_set_checks.count(), 1)
+        first = self.character.skill_set_checks.first()
+        self.assertEqual(first.skill_set.pk, skill_set.pk)
+        self.assertEqual({obj.pk for obj in first.failed_required_skills.all()}, set())
+        self.assertEqual(
+            {obj.pk for obj in first.failed_recommended_skills.all()}, {skill_1.pk}
+        )
+
+    def test_misses_recommendend_skill_only(self):
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=self.skill_type_1,
+            active_skill_level=4,
+            skillpoints_in_skill=10,
+            trained_skill_level=4,
+        )
+        skill_set = SkillSet.objects.create(name="Ship 1")
+        skill_1 = SkillSetSkill.objects.create(
+            skill_set=skill_set,
+            eve_type=self.skill_type_1,
+            recommended_level=5,
+        )
+        self.character.update_skill_sets()
+
+        self.assertEqual(self.character.skill_set_checks.count(), 1)
+        first = self.character.skill_set_checks.first()
+        self.assertEqual(first.skill_set.pk, skill_set.pk)
+        self.assertEqual({obj.pk for obj in first.failed_required_skills.all()}, set())
+        self.assertEqual(
+            {obj.pk for obj in first.failed_recommended_skills.all()}, {skill_1.pk}
         )
 
     def test_misses_all_skills(self):
-        ship = DoctrineShip.objects.create(name="Ship 1")
-        skill_1 = DoctrineShipSkill.objects.create(
-            ship=ship, eve_type=self.skill_type_1, level=5
+        skill_set = SkillSet.objects.create(name="Ship 1")
+        skill_1 = SkillSetSkill.objects.create(
+            skill_set=skill_set, eve_type=self.skill_type_1, required_level=5
         )
-        skill_2 = DoctrineShipSkill.objects.create(
-            ship=ship, eve_type=self.skill_type_2, level=3
+        skill_2 = SkillSetSkill.objects.create(
+            skill_set=skill_set, eve_type=self.skill_type_2, required_level=3
         )
-        doctrine = Doctrine.objects.create(name="Dummy")
-        doctrine.ships.add(ship)
+        skill_set_group = SkillSetGroup.objects.create(name="Dummy")
+        skill_set_group.skill_sets.add(skill_set)
 
-        self.character.update_doctrines()
+        self.character.update_skill_sets()
 
-        self.assertEqual(self.character.doctrine_ships.count(), 1)
-        first = self.character.doctrine_ships.first()
-        self.assertEqual(first.ship.pk, ship.pk)
+        self.assertEqual(self.character.skill_set_checks.count(), 1)
+        first = self.character.skill_set_checks.first()
+        self.assertEqual(first.skill_set.pk, skill_set.pk)
         self.assertEqual(
-            {obj.pk for obj in first.insufficient_skills.all()},
+            {obj.pk for obj in first.failed_required_skills.all()},
             {skill_1.pk, skill_2.pk},
         )
 
     def test_does_not_require_doctrine_definition(self):
-        ship = DoctrineShip.objects.create(name="Ship 1")
-        skill_1 = DoctrineShipSkill.objects.create(
-            ship=ship, eve_type=self.skill_type_1, level=5
+        skill_set = SkillSet.objects.create(name="Ship 1")
+        skill_1 = SkillSetSkill.objects.create(
+            skill_set=skill_set, eve_type=self.skill_type_1, required_level=5
         )
-        skill_2 = DoctrineShipSkill.objects.create(
-            ship=ship, eve_type=self.skill_type_2, level=3
+        skill_2 = SkillSetSkill.objects.create(
+            skill_set=skill_set, eve_type=self.skill_type_2, required_level=3
         )
 
-        self.character.update_doctrines()
+        self.character.update_skill_sets()
 
-        self.assertEqual(self.character.doctrine_ships.count(), 1)
-        first = self.character.doctrine_ships.first()
-        self.assertEqual(first.ship.pk, ship.pk)
+        self.assertEqual(self.character.skill_set_checks.count(), 1)
+        first = self.character.skill_set_checks.first()
+        self.assertEqual(first.skill_set.pk, skill_set.pk)
         self.assertEqual(
-            {obj.pk for obj in first.insufficient_skills.all()},
+            {obj.pk for obj in first.failed_required_skills.all()},
             {skill_1.pk, skill_2.pk},
         )
 

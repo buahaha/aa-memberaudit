@@ -40,9 +40,9 @@ from ..models import (
     CharacterSkill,
     CharacterSkillqueueEntry,
     CharacterWalletJournalEntry,
-    Doctrine,
-    DoctrineShip,
-    DoctrineShipSkill,
+    SkillSetGroup,
+    SkillSet,
+    SkillSetSkill,
     Location,
     MailEntity,
 )
@@ -60,7 +60,7 @@ from ..views import (
     character_contract_items_included_data,
     character_contract_items_requested_data,
     character_corporation_history,
-    character_doctrines_data,
+    character_skill_sets_data,
     character_implants_data,
     character_jump_clones_data,
     character_loyalty_data,
@@ -72,7 +72,7 @@ from ..views import (
     character_wallet_journal_data,
     character_finder_data,
     compliance_report_data,
-    doctrines_report_data,
+    skill_sets_report_data,
     remove_character,
     share_character,
     unshare_character,
@@ -767,13 +767,13 @@ class TestViewsOther(TestViewsBase):
         self.assertEqual(row["is_blocked"], False)
         self.assertEqual(row["level"], "Excellent Standing")
 
-    def test_doctrines_data(self):
+    def test_skill_sets_data(self):
         CharacterSkill.objects.create(
             character=self.character,
             eve_type=self.skill_type_1,
-            active_skill_level=5,
+            active_skill_level=4,
             skillpoints_in_skill=10,
-            trained_skill_level=5,
+            trained_skill_level=4,
         )
         CharacterSkill.objects.create(
             character=self.character,
@@ -783,67 +783,71 @@ class TestViewsOther(TestViewsBase):
             trained_skill_level=5,
         )
 
-        doctrine_1 = Doctrine.objects.create(name="Alpha")
-        doctrine_2 = Doctrine.objects.create(name="Bravo")
+        doctrine_1 = SkillSetGroup.objects.create(name="Alpha")
+        doctrine_2 = SkillSetGroup.objects.create(name="Bravo", is_doctrine=True)
 
         # can fly ship 1
-        ship_1 = DoctrineShip.objects.create(name="Ship 1")
-        DoctrineShipSkill.objects.create(
-            ship=ship_1, eve_type=self.skill_type_1, level=3
+        ship_1 = SkillSet.objects.create(name="Ship 1")
+        SkillSetSkill.objects.create(
+            skill_set=ship_1,
+            eve_type=self.skill_type_1,
+            required_level=3,
+            recommended_level=5,
         )
-        doctrine_1.ships.add(ship_1)
-        doctrine_2.ships.add(ship_1)
+        doctrine_1.skill_sets.add(ship_1)
+        doctrine_2.skill_sets.add(ship_1)
 
         # can not fly ship 2
-        ship_2 = DoctrineShip.objects.create(name="Ship 2")
-        DoctrineShipSkill.objects.create(
-            ship=ship_2, eve_type=self.skill_type_1, level=5
+        ship_2 = SkillSet.objects.create(name="Ship 2")
+        SkillSetSkill.objects.create(
+            skill_set=ship_2, eve_type=self.skill_type_1, required_level=3
         )
-        DoctrineShipSkill.objects.create(
-            ship=ship_2, eve_type=self.skill_type_2, level=3
+        SkillSetSkill.objects.create(
+            skill_set=ship_2, eve_type=self.skill_type_2, required_level=3
         )
-        doctrine_1.ships.add(ship_2)
+        doctrine_1.skill_sets.add(ship_2)
 
-        # can fly ship 3 (No Doctrine)
-        ship_3 = DoctrineShip.objects.create(name="Ship 3")
-        DoctrineShipSkill.objects.create(
-            ship=ship_3, eve_type=self.skill_type_1, level=1
+        # can fly ship 3 (No SkillSetGroup)
+        ship_3 = SkillSet.objects.create(name="Ship 3")
+        SkillSetSkill.objects.create(
+            skill_set=ship_3, eve_type=self.skill_type_1, required_level=1
         )
 
-        self.character.update_doctrines()
+        self.character.update_skill_sets()
 
         request = self.factory.get(
-            reverse("memberaudit:character_doctrines_data", args=[self.character.pk])
+            reverse("memberaudit:character_skill_sets_data", args=[self.character.pk])
         )
         request.user = self.user
-        response = character_doctrines_data(request, self.character.pk)
+        response = character_skill_sets_data(request, self.character.pk)
         self.assertEqual(response.status_code, 200)
         data = json_response_to_python(response)
         self.assertEqual(len(data), 4)
 
         row = data[0]
-        self.assertEqual(row["doctrine"], "(No Doctrine)")
-        self.assertEqual(row["ship_name"], "Ship 3")
-        self.assertTrue(row["can_fly"])
-        self.assertEqual(row["insufficient_skills"], "-")
+        self.assertEqual(row["group"], "(Ungrouped)")
+        self.assertEqual(row["skill_set_name"], "Ship 3")
+        self.assertTrue(row["has_required"])
+        self.assertEqual(row["failed_required_skills"], "-")
 
         row = data[1]
-        self.assertEqual(row["doctrine"], "Alpha")
-        self.assertEqual(row["ship_name"], "Ship 1")
-        self.assertTrue(row["can_fly"])
-        self.assertEqual(row["insufficient_skills"], "-")
+        self.assertEqual(row["group"], "Alpha")
+        self.assertEqual(row["skill_set_name"], "Ship 1")
+        self.assertTrue(row["has_required"])
+        self.assertEqual(row["failed_required_skills"], "-")
+        self.assertIn("Amarr Carrier&nbsp;V", row["failed_recommended_skills"])
 
         row = data[2]
-        self.assertEqual(row["doctrine"], "Alpha")
-        self.assertEqual(row["ship_name"], "Ship 2")
-        self.assertFalse(row["can_fly"])
-        self.assertEqual(row["insufficient_skills"], "Caldari Carrier&nbsp;III")
+        self.assertEqual(row["group"], "Alpha")
+        self.assertEqual(row["skill_set_name"], "Ship 2")
+        self.assertFalse(row["has_required"])
+        self.assertIn("Caldari Carrier&nbsp;III", row["failed_required_skills"])
 
         row = data[3]
-        self.assertEqual(row["doctrine"], "Bravo")
-        self.assertEqual(row["ship_name"], "Ship 1")
-        self.assertTrue(row["can_fly"])
-        self.assertEqual(row["insufficient_skills"], "-")
+        self.assertEqual(row["group"], "Doctrine: Bravo")
+        self.assertEqual(row["skill_set_name"], "Ship 1")
+        self.assertTrue(row["has_required"])
+        self.assertEqual(row["failed_required_skills"], "-")
 
     def test_character_jump_clones_data(self):
         clone_1 = jump_clone = CharacterJumpClone.objects.create(
@@ -1474,7 +1478,7 @@ class TestComplianceReportData(TestCase):
         )
 
 
-class TestDoctrineReportData(TestCase):
+class TestSkillSetReportData(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
@@ -1507,35 +1511,35 @@ class TestDoctrineReportData(TestCase):
         AuthUtils.create_user("John Doe")  # this user should not show up in view
 
     def test_normal(self):
-        def make_data_id(doctrine: Doctrine, character: Character) -> str:
+        def make_data_id(doctrine: SkillSetGroup, character: Character) -> str:
             doctrine_pk = doctrine.pk if doctrine else 0
             return f"{doctrine_pk}_{character.pk}"
 
         # define doctrines
-        ship_1 = DoctrineShip.objects.create(name="Ship 1")
-        DoctrineShipSkill.objects.create(
-            ship=ship_1, eve_type=self.skill_type_1, level=3
+        ship_1 = SkillSet.objects.create(name="Ship 1")
+        SkillSetSkill.objects.create(
+            skill_set=ship_1, eve_type=self.skill_type_1, required_level=3
         )
 
-        ship_2 = DoctrineShip.objects.create(name="Ship 2")
-        DoctrineShipSkill.objects.create(
-            ship=ship_2, eve_type=self.skill_type_1, level=5
+        ship_2 = SkillSet.objects.create(name="Ship 2")
+        SkillSetSkill.objects.create(
+            skill_set=ship_2, eve_type=self.skill_type_1, required_level=5
         )
-        DoctrineShipSkill.objects.create(
-            ship=ship_2, eve_type=self.skill_type_2, level=3
-        )
-
-        ship_3 = DoctrineShip.objects.create(name="Ship 3")
-        DoctrineShipSkill.objects.create(
-            ship=ship_3, eve_type=self.skill_type_1, level=1
+        SkillSetSkill.objects.create(
+            skill_set=ship_2, eve_type=self.skill_type_2, required_level=3
         )
 
-        doctrine_1 = Doctrine.objects.create(name="Alpha")
-        doctrine_1.ships.add(ship_1)
-        doctrine_1.ships.add(ship_2)
+        ship_3 = SkillSet.objects.create(name="Ship 3")
+        SkillSetSkill.objects.create(
+            skill_set=ship_3, eve_type=self.skill_type_1, required_level=1
+        )
 
-        doctrine_2 = Doctrine.objects.create(name="Bravo")
-        doctrine_2.ships.add(ship_1)
+        doctrine_1 = SkillSetGroup.objects.create(name="Alpha")
+        doctrine_1.skill_sets.add(ship_1)
+        doctrine_1.skill_sets.add(ship_2)
+
+        doctrine_2 = SkillSetGroup.objects.create(name="Bravo", is_doctrine=True)
+        doctrine_2.skill_sets.add(ship_1)
 
         # character 1002
         CharacterSkill.objects.create(
@@ -1569,47 +1573,47 @@ class TestDoctrineReportData(TestCase):
             trained_skill_level=5,
         )
 
-        self.character_1001.update_doctrines()
-        self.character_1002.update_doctrines()
-        self.character_1101.update_doctrines()
+        self.character_1001.update_skill_sets()
+        self.character_1002.update_skill_sets()
+        self.character_1101.update_skill_sets()
 
-        request = self.factory.get(reverse("memberaudit:doctrines_report_data"))
+        request = self.factory.get(reverse("memberaudit:skill_sets_report_data"))
         request.user = self.user
-        response = doctrines_report_data(request)
+        response = skill_sets_report_data(request)
 
         self.assertEqual(response.status_code, 200)
         data = json_response_to_python_dict(response)
         self.assertEqual(len(data), 9)
 
         row = data[make_data_id(doctrine_1, self.character_1001)]
-        self.assertEqual(row["doctrine"], "Alpha")
+        self.assertEqual(row["group"], "Alpha")
         self.assertEqual(row["character"], "Bruce Wayne")
         self.assertEqual(row["main"], "Bruce Wayne")
-        self.assertTrue(multi_assert_not_in(["Ship 1", "Ship 2"], row["can_fly"]))
+        self.assertTrue(multi_assert_not_in(["Ship 1", "Ship 2"], row["has_required"]))
 
         row = data[make_data_id(doctrine_1, self.character_1002)]
-        self.assertEqual(row["doctrine"], "Alpha")
+        self.assertEqual(row["group"], "Alpha")
         self.assertEqual(row["character"], "Clark Kent")
         self.assertEqual(row["main"], "Clark Kent")
 
-        self.assertTrue(multi_assert_in(["Ship 1"], row["can_fly"]))
-        self.assertTrue(multi_assert_not_in(["Ship 2", "Ship 3"], row["can_fly"]))
+        self.assertTrue(multi_assert_in(["Ship 1"], row["has_required"]))
+        self.assertTrue(multi_assert_not_in(["Ship 2", "Ship 3"], row["has_required"]))
 
         row = data[make_data_id(doctrine_1, self.character_1101)]
-        self.assertEqual(row["doctrine"], "Alpha")
+        self.assertEqual(row["group"], "Alpha")
         self.assertEqual(row["character"], "Lex Luther")
         self.assertEqual(row["main"], "Clark Kent")
-        self.assertTrue(multi_assert_in(["Ship 1", "Ship 2"], row["can_fly"]))
+        self.assertTrue(multi_assert_in(["Ship 1", "Ship 2"], row["has_required"]))
 
         row = data[make_data_id(doctrine_2, self.character_1101)]
-        self.assertEqual(row["doctrine"], "Bravo")
+        self.assertEqual(row["group"], "Doctrine: Bravo")
         self.assertEqual(row["character"], "Lex Luther")
         self.assertEqual(row["main"], "Clark Kent")
-        self.assertTrue(multi_assert_in(["Ship 1"], row["can_fly"]))
-        self.assertTrue(multi_assert_not_in(["Ship 2"], row["can_fly"]))
+        self.assertTrue(multi_assert_in(["Ship 1"], row["has_required"]))
+        self.assertTrue(multi_assert_not_in(["Ship 2"], row["has_required"]))
 
         row = data[make_data_id(None, self.character_1101)]
-        self.assertEqual(row["doctrine"], "(No Doctrine)")
+        self.assertEqual(row["group"], "(Ungrouped)")
         self.assertEqual(row["character"], "Lex Luther")
         self.assertEqual(row["main"], "Clark Kent")
-        self.assertTrue(multi_assert_in(["Ship 3"], row["can_fly"]))
+        self.assertTrue(multi_assert_in(["Ship 3"], row["has_required"]))

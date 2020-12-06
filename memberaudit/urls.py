@@ -74,9 +74,9 @@ urlpatterns = [
         name="character_corporation_history",
     ),
     path(
-        "character_doctrines_data/<int:character_pk>/",
-        views.character_doctrines_data,
-        name="character_doctrines_data",
+        "character_skill_sets_data/<int:character_pk>/",
+        views.character_skill_sets_data,
+        name="character_skill_sets_data",
     ),
     path(
         "character_implants_data/<int:character_pk>/",
@@ -136,8 +136,8 @@ urlpatterns = [
         name="character_finder_data",
     ),
     path(
-        "doctrines_report_data",
-        views.doctrines_report_data,
-        name="doctrines_report_data",
+        "skill_sets_report_data",
+        views.skill_sets_report_data,
+        name="skill_sets_report_data",
     ),
 ]

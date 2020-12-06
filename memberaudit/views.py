@@ -1,5 +1,6 @@
 import datetime as dt
 import humanize
+from typing import Optional
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required, permission_required
@@ -35,8 +36,8 @@ from .models import (
     CharacterContract,
     CharacterContractItem,
     CharacterMail,
-    Doctrine,
     Location,
+    SkillSetGroup,
     accessible_users,
 )
 from .utils import (
@@ -46,6 +47,7 @@ from .utils import (
     LoggerAddTag,
     messages_plus,
     yesno_str,
+    add_bs_label_html,
 )
 
 from .app_settings import MEMBERAUDIT_APP_NAME
@@ -55,11 +57,21 @@ MY_DATETIME_FORMAT = "Y-M-d H:i"
 DATETIME_FORMAT = "%Y-%b-%d %H:%M"
 MAIL_LABEL_ID_ALL_MAILS = 0
 MAP_SKILL_LEVEL_ARABIC_TO_ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V"}
-NO_DOCTRINE_NAME = gettext_lazy("(No Doctrine)")
+UNGROUPED_SKILL_SET = gettext_lazy("(Ungrouped)")
 DEFAULT_ICON_SIZE = 32
 CHARACTER_VIEWER_DEFAULT_TAB = "mail"
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
+
+
+def yesnonone_str(value: Optional[bool]) -> str:
+    """returns yes/no/none for boolean as string and with localization"""
+    if value is True:
+        return gettext_lazy("yes")
+    elif value is False:
+        return gettext_lazy("no")
+    else:
+        return ""
 
 
 def create_img_html(src: str, classes: list = None, size: int = None) -> str:
@@ -847,63 +859,6 @@ def _character_contract_items_data(
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
-def character_doctrines_data(
-    request, character_pk: int, character: Character
-) -> JsonResponse:
-    def create_data_row(ship_check, doctrine_name) -> dict:
-        url = (
-            ship_check.ship.ship_type.icon_url(DEFAULT_ICON_SIZE)
-            if ship_check.ship.ship_type
-            else ""
-        )
-        ship_icon = f'<img width="24" heigh="24" src="{url}"/>'
-        return {
-            "ship_check_id": ship_check.id,
-            "doctrine": doctrine_name,
-            "ship": ship_icon + "&nbsp;&nbsp;" + ship_check.ship.name,
-            "ship_name": ship_check.ship.name,
-            "can_fly": can_fly,
-            "can_fly_str": yesno_str(can_fly),
-            "insufficient_skills": ", ".join(insufficient_skills_2)
-            if insufficient_skills_2
-            else "-",
-        }
-
-    data = list()
-    try:
-        for ship_check in character.doctrine_ships.filter(ship__is_visible=True):
-            insufficient_skills_1 = sorted(
-                ship_check.insufficient_skills.values("eve_type__name", "level"),
-                key=lambda k: k["eve_type__name"].lower(),
-            )
-            insufficient_skills_2 = [
-                obj["eve_type__name"]
-                + "&nbsp;"
-                + MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[obj["level"]]
-                for obj in insufficient_skills_1
-            ]
-            can_fly = not bool(insufficient_skills_2)
-            if not ship_check.ship.doctrines.exists():
-                data.append(create_data_row(ship_check, NO_DOCTRINE_NAME))
-            else:
-                for doctrine in ship_check.ship.doctrines.all():
-                    doctrine_name = (
-                        doctrine.name
-                        if doctrine.is_active
-                        else doctrine.name + " [Not active]"
-                    )
-                    data.append(create_data_row(ship_check, doctrine_name))
-
-    except ObjectDoesNotExist:
-        pass
-
-    data = sorted(data, key=lambda k: (k["doctrine"].lower(), k["ship_name"].lower()))
-    return JsonResponse(data, safe=False)
-
-
-@login_required
-@permission_required("memberaudit.basic_access")
-@fetch_character_if_allowed()
 def character_corporation_history(
     request, character_pk: int, character: Character
 ) -> HttpResponse:
@@ -1236,6 +1191,95 @@ def character_skillqueue_data(
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
+def character_skill_sets_data(
+    request, character_pk: int, character: Character
+) -> JsonResponse:
+    def create_data_row(check, group) -> dict:
+        if group:
+            group_name = (
+                group.name_plus if group.is_active else group.name + " [Not active]"
+            )
+        else:
+            group_name = UNGROUPED_SKILL_SET
+
+        url = (
+            check.skill_set.ship_type.icon_url(DEFAULT_ICON_SIZE)
+            if check.skill_set.ship_type
+            else ""
+        )
+        ship_icon = f'<img width="24" heigh="24" src="{url}"/>'
+        failed_required_skills = compile_failed_skills(
+            check.failed_required_skills, "required_level"
+        )
+        has_required = (
+            not bool(failed_required_skills)
+            if failed_required_skills is not None
+            else None
+        )
+        failed_recommended_skills = compile_failed_skills(
+            check.failed_recommended_skills, "recommended_level"
+        )
+        has_recommended = (
+            not bool(failed_recommended_skills)
+            if failed_recommended_skills is not None
+            else None
+        )
+
+        return {
+            "id": check.id,
+            "group": group_name,
+            "skill_set": ship_icon + "&nbsp;&nbsp;" + check.skill_set.name,
+            "skill_set_name": check.skill_set.name,
+            "is_doctrine_str": yesnonone_str(group.is_doctrine if group else False),
+            "failed_required_skills": format_failed_skills(failed_required_skills),
+            "has_required": has_required,
+            "has_required_str": yesnonone_str(has_required),
+            "failed_recommended_skills": format_failed_skills(
+                failed_recommended_skills
+            ),
+            "has_recommended": has_recommended,
+            "has_recommended_str": yesnonone_str(has_recommended),
+        }
+
+    def compile_failed_skills(failed_skills, level_name) -> Optional[list]:
+        failed_skills = sorted(
+            failed_skills.values("eve_type__name", level_name),
+            key=lambda k: k["eve_type__name"].lower(),
+        )
+        return [
+            add_bs_label_html(
+                format_html(
+                    "{}&nbsp;{}",
+                    obj["eve_type__name"],
+                    MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[obj[level_name]],
+                ),
+                "default",
+            )
+            for obj in failed_skills
+        ]
+
+    def format_failed_skills(skills) -> str:
+        return " ".join(skills) if skills else "-"
+
+    data = list()
+    try:
+        for check in character.skill_set_checks.filter(skill_set__is_visible=True):
+            if not check.skill_set.groups.exists():
+                data.append(create_data_row(check, None))
+            else:
+                for group in check.skill_set.groups.all():
+                    data.append(create_data_row(check, group))
+
+    except ObjectDoesNotExist:
+        pass
+
+    data = sorted(data, key=lambda k: (k["group"].lower(), k["skill_set_name"].lower()))
+    return JsonResponse(data, safe=False)
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
 def character_skills_data(
     request, character_pk: int, character: Character
 ) -> JsonResponse:
@@ -1489,8 +1533,8 @@ def compliance_report_data(request) -> JsonResponse:
 
 @login_required
 @permission_required("memberaudit.reports_access")
-def doctrines_report_data(request) -> JsonResponse:
-    def create_data_row(doctrine) -> dict:
+def skill_sets_report_data(request) -> JsonResponse:
+    def create_data_row(group) -> dict:
         user = character.character_ownership.user
         auth_character = character.character_ownership.character
         main_character = user.profile.main_character
@@ -1510,7 +1554,7 @@ def doctrines_report_data(request) -> JsonResponse:
             if main_character.alliance_name
             else "",
         )
-        character_viewer_url = "{}?tab=doctrines".format(
+        character_viewer_url = "{}?tab=skill_sets".format(
             reverse("memberaudit:character_viewer", args=[character.pk])
         )
         character_html = create_icon_plus_name_html(
@@ -1519,24 +1563,24 @@ def doctrines_report_data(request) -> JsonResponse:
             avatar=True,
             url=character_viewer_url,
         )
-        doctrine_pk = doctrine.pk if doctrine else 0
-        can_fly = [
+        group_pk = group.pk if group else 0
+        has_required = [
             create_icon_plus_name_html(
-                obj.ship.ship_type.icon_url(DEFAULT_ICON_SIZE)
-                if obj.ship.ship_type
+                obj.skill_set.ship_type.icon_url(DEFAULT_ICON_SIZE)
+                if obj.skill_set.ship_type
                 else "",
-                obj.ship.name,
+                obj.skill_set.name,
             )
-            for obj in doctrine_ship_qs
+            for obj in skill_set_qs
         ]
-        can_fly_html = (
-            "<br>".join(can_fly)
-            if can_fly
+        has_required_html = (
+            "<br>".join(has_required)
+            if has_required
             else '<i class="fas fa-times boolean-icon-false"></i>'
         )
         return {
-            "id": f"{doctrine_pk}_{character.pk}",
-            "doctrine": doctrine.name if doctrine else NO_DOCTRINE_NAME,
+            "id": f"{group_pk}_{character.pk}",
+            "group": group.name_plus if group else UNGROUPED_SKILL_SET,
             "main": main_character.character_name,
             "main_html": main_html,
             "organization_html": organization_html,
@@ -1544,8 +1588,9 @@ def doctrines_report_data(request) -> JsonResponse:
             "alliance": main_alliance,
             "character": character.character_ownership.character.character_name,
             "character_html": character_html,
-            "can_fly": can_fly_html,
-            "can_fly_str": yesno_str(bool(can_fly)),
+            "has_required": has_required_html,
+            "has_required_str": yesno_str(bool(has_required)),
+            "is_doctrine_str": yesno_str(group.is_doctrine if group else False),
         }
 
     data = list()
@@ -1557,29 +1602,29 @@ def doctrines_report_data(request) -> JsonResponse:
             "character_ownership__user__profile__main_character",
             "character_ownership__character",
         )
-        .prefetch_related("doctrine_ships")
+        .prefetch_related("skill_set_checks")
         .filter(character_ownership__user__in=list(accessible_users(request.user)))
     )
 
-    my_select_related = "ship", "ship__ship_type"
-    for doctrine in Doctrine.objects.all():
+    my_select_related = "skill_set", "skill_set__ship_type"
+    for group in SkillSetGroup.objects.all():
         for character in character_qs:
-            doctrine_ship_qs = (
-                character.doctrine_ships.select_related(*my_select_related)
-                .filter(ship__doctrines=doctrine, insufficient_skills__isnull=True)
-                .order_by("ship__name")
+            skill_set_qs = (
+                character.skill_set_checks.select_related(*my_select_related)
+                .filter(skill_set__groups=group, failed_required_skills__isnull=True)
+                .order_by("skill_set__name")
             )
-            data.append(create_data_row(doctrine))
+            data.append(create_data_row(group))
 
     for character in character_qs:
         if (
-            character.doctrine_ships.select_related(*my_select_related)
-            .filter(ship__doctrines__isnull=True)
+            character.skill_set_checks.select_related(*my_select_related)
+            .filter(skill_set__groups__isnull=True)
             .exists()
         ):
-            doctrine_ship_qs = character.doctrine_ships.filter(
-                ship__doctrines__isnull=True, insufficient_skills__isnull=True
-            ).order_by("ship__name")
+            skill_set_qs = character.skill_set_checks.filter(
+                skill_set__groups__isnull=True, failed_required_skills__isnull=True
+            ).order_by("skill_set__name")
             data.append(create_data_row(None))
 
     return JsonResponse(data, safe=False)
