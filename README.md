@@ -47,15 +47,18 @@ The page for displaying all details about a character.
 
 ![viewer](https://i.imgur.com/vo1N3kg.jpg)
 
-### Doctrines
+### Skill Sets
 
-This tab on the character view allows you to view what fittings a character can or can't fly. For ships they can't fly, it also shows what skills are missing.
+Skill sets are a way of defining both required and recommended skills for a specific activity or ship.
 
-![doctrines](https://i.imgur.com/ATlExgl.jpg)
+This tab on the character view allows you to view what skill sets a character has. For skill sets they don't have or are missing parts of, it also shows what skills are missing.
 
- Skill requirements can be customized per ship in the administration panel.
+![skill-plans](https://i.imgur.com/cKNy5vz.png)
 
-![doctrine-admin](https://i.imgur.com/nUp7ffV.jpg)
+ Skill requirements can be customized per ship in the administration panel. Recommended skill levels can be added in addition to requirements.
+
+![skill-set-admin](https://i.imgur.com/ef2cCd9.png)
+
 
 ### Character Finder
 
