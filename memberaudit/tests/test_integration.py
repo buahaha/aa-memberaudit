@@ -17,6 +17,7 @@ from ..models import (
     Location,
     MailEntity,
 )
+
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
@@ -110,7 +111,8 @@ class TestUILauncher(WebTest):
         character_1001_links = [
             x["href"]
             for x in launcher.html.find_all("a", href=True)
-            if x["href"] == f"/memberaudit/character_viewer/{character_1001.pk}/"
+            if x["href"]
+            == reverse("memberaudit:character_viewer", args=[character_1001.pk])
         ]
         self.assertGreater(len(character_1001_links), 0)
 

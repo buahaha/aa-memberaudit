@@ -1,3 +1,4 @@
+from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
 from .utils import clean_setting
 
@@ -5,6 +6,8 @@ from .utils import clean_setting
 MEMBERAUDIT_APP_NAME = clean_setting(
     "MEMBERAUDIT_APP_NAME", _("Member Audit"), required_type=str
 )
+
+MEMBERAUDIT_BASE_URL = slugify(MEMBERAUDIT_APP_NAME, allow_unicode=True)
 
 
 # Technical parameter defining the maximum number of objects processed per run
