@@ -21,6 +21,7 @@ from django.utils.timezone import now
 from django.utils.translation import gettext_lazy, gettext
 
 from esi.decorators import token_required
+from eveuniverse.core import eveimageserver
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
@@ -57,9 +58,10 @@ MY_DATETIME_FORMAT = "Y-M-d H:i"
 DATETIME_FORMAT = "%Y-%b-%d %H:%M"
 MAIL_LABEL_ID_ALL_MAILS = 0
 MAP_SKILL_LEVEL_ARABIC_TO_ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V"}
-UNGROUPED_SKILL_SET = gettext_lazy("(Ungrouped)")
+UNGROUPED_SKILL_SET = gettext_lazy("[Ungrouped]")
 DEFAULT_ICON_SIZE = 32
-CHARACTER_VIEWER_DEFAULT_TAB = "mail"
+CHARACTER_VIEWER_DEFAULT_TAB = "mails"
+SKILL_SET_DEFAULT_ICON_TYPE_ID = 3327
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -1205,7 +1207,9 @@ def character_skill_sets_data(
         url = (
             check.skill_set.ship_type.icon_url(DEFAULT_ICON_SIZE)
             if check.skill_set.ship_type
-            else ""
+            else eveimageserver.type_icon_url(
+                SKILL_SET_DEFAULT_ICON_TYPE_ID, size=DEFAULT_ICON_SIZE
+            )
         )
         ship_icon = f'<img width="24" heigh="24" src="{url}"/>'
         failed_required_skills = compile_failed_skills(
@@ -1568,7 +1572,9 @@ def skill_sets_report_data(request) -> JsonResponse:
             create_icon_plus_name_html(
                 obj.skill_set.ship_type.icon_url(DEFAULT_ICON_SIZE)
                 if obj.skill_set.ship_type
-                else "",
+                else eveimageserver.type_icon_url(
+                    SKILL_SET_DEFAULT_ICON_TYPE_ID, size=DEFAULT_ICON_SIZE
+                ),
                 obj.skill_set.name,
             )
             for obj in skill_set_qs

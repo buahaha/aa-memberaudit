@@ -825,7 +825,7 @@ class TestViewsOther(TestViewsBase):
         self.assertEqual(len(data), 4)
 
         row = data[0]
-        self.assertEqual(row["group"], "(Ungrouped)")
+        self.assertEqual(row["group"], "[Ungrouped]")
         self.assertEqual(row["skill_set_name"], "Ship 3")
         self.assertTrue(row["has_required"])
         self.assertEqual(row["failed_required_skills"], "-")
@@ -1613,7 +1613,7 @@ class TestSkillSetReportData(TestCase):
         self.assertTrue(multi_assert_not_in(["Ship 2"], row["has_required"]))
 
         row = data[make_data_id(None, self.character_1101)]
-        self.assertEqual(row["group"], "(Ungrouped)")
+        self.assertEqual(row["group"], "[Ungrouped]")
         self.assertEqual(row["character"], "Lex Luther")
         self.assertEqual(row["main"], "Clark Kent")
         self.assertTrue(multi_assert_in(["Ship 3"], row["has_required"]))
