@@ -27,11 +27,14 @@ def create_memberaudit_character(character_id: int) -> Character:
     return Character.objects.create(character_ownership=character_ownership)
 
 
-def add_auth_character_to_user(user: User, character_id: int) -> CharacterOwnership:
+def add_auth_character_to_user(
+    user: User, character_id: int, scopes=None
+) -> CharacterOwnership:
     auth_character = EveCharacter.objects.get(character_id=character_id)
-    return add_character_to_user(
-        user, auth_character, is_main=False, scopes=Character.get_esi_scopes()
-    )
+    if not scopes:
+        scopes = Character.get_esi_scopes()
+
+    return add_character_to_user(user, auth_character, is_main=False, scopes=scopes)
 
 
 def add_memberaudit_character_to_user(user: User, character_id: int) -> Character:

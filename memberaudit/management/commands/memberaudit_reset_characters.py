@@ -56,19 +56,26 @@ class Command(BaseCommand):
         self.stdout.write("- Doctrines will stay intact.")
         self.stdout.write()
 
-        character_ids = set(
+        tokens = (
             Token.objects.all()
             .require_scopes(Character.get_esi_scopes())
             .require_valid()
-            .values_list("character_id", flat=True)
         )
-        character_ownerships = CharacterOwnership.objects.filter(
-            character__character_id__in=character_ids
-        )
+        character_ownerships = [
+            obj
+            for obj in CharacterOwnership.objects.filter(
+                character__character_id__in=tokens.values_list(
+                    "character_id", flat=True
+                )
+            )
+            if (obj.user_id, obj.character.character_id)
+            in tokens.values_list("user_id", "character_id")
+        ]
+
         if not options["noinput"]:
             user_input = get_input(
                 "Are you sure you want to proceed{}? (Y/n)?".format(
-                    f" for {character_ownerships.count()} character(s)"
+                    f" for {len(character_ownerships)} character(s)"
                 )
             )
         else:
@@ -85,9 +92,7 @@ class Command(BaseCommand):
             self.stdout.write("Deleting MailEntities...")
             MailEntity.objects.all().delete()
 
-            self.stdout.write(
-                f"Recreating {character_ownerships.count()} characters ..."
-            )
+            self.stdout.write(f"Recreating {len(character_ownerships)} characters ...")
             for character_ownership in character_ownerships:
                 Character.objects.create(character_ownership=character_ownership)
 
