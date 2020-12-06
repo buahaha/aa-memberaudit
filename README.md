@@ -55,7 +55,7 @@ This tab on the character view allows you to view what skill sets a character ha
 
 ![skill-plans](https://i.imgur.com/cKNy5vz.png)
 
- Skill requirements can be customized per ship in the administration panel. Recommended skill levels can be added in addition to requirements.
+Requirements can be customized per skill set in the administration panel. Recommended skill levels can be added in addition to requirements.
 
 ![skill-set-admin](https://i.imgur.com/ef2cCd9.png)
 
