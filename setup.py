@@ -18,7 +18,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     license="MIT",
-    description="tbd.",
+    description="An Alliance Auth app that provides full access to Eve characters and related reports for monitoring, vetting and auditing.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://gitlab.com/ErikKalkoken/aa-memberaudit",

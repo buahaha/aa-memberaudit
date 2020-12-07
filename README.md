@@ -1,6 +1,6 @@
 # aa-memberaudit
 
-An app for auditing members on Alliance Auth
+An Alliance Auth app that provides full access to Eve characters and related reports for monitoring, vetting and auditing.
 
 ![release](https://img.shields.io/pypi/v/aa-memberaudit?label=release) ![python](https://img.shields.io/pypi/pyversions/aa-memberaudit) ![django](https://img.shields.io/pypi/djversions/aa-memberaudit?label=django) ![pipeline](https://gitlab.com/ErikKalkoken/aa-memberaudit/badges/master/pipeline.svg) ![coverage](https://gitlab.com/ErikKalkoken/aa-memberaudit/badges/master/coverage.svg) ![license](https://img.shields.io/badge/license-MIT-green) ![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)
 
@@ -8,7 +8,7 @@ An app for auditing members on Alliance Auth
 
 - [Overview](#overview)
 - [Key Features](#key-features)
-- [Screenshots](#screenshots)
+- [Highlights](#highlights)
 - [Installation](#installation)
 - [Updating](#updating)
 - [Permissions](#permissions)
@@ -19,21 +19,45 @@ An app for auditing members on Alliance Auth
 
 ## Overview
 
-Member Audit provides a way for recruiters and alliance leadership to inspect characters' ESI data. It supports generating reports showing whether a given user has registered all their characters with Member Audit and whether they can fly doctrine ships. It also allows users to view all their characters ESI data, and allows for selectively sharing character data with recruiters.
+Member Audit is an app that provides full access to Eve characters and related reports in Alliance Auth.
+
+Users can monitor their own characters, recruiters can view the characters of applicants for vetting and auditors can view the characters of an organization for ensuring compliance and repelling spies.
+
+In addition character based reports gives leadership another valuable tool for managing their respective organization.
 
 ## Key Features
 
 Member Audit adds the following key features to Auth:
 
-- Users can see an overview of all their characters with key information like current location and wallet balance
-- Users can see many details about their characters without having to log into Eve (e.g. wallet, mails, assets, ...)
-- Recruiters can see characters of applicants for vetting
-- Leadership can see characters of their members for auditing (e.g. to check suspicious members)
-- Leadership can see reports and analytics about their members (e.g. which members can fly certain doctrines)
-- Users are assigned to a group automatically based on compliance
-- More features will be added soon
+- Users can see an overview of all their characters with key information like their current location and wallet balance
+- Users can get full access to their characters to monitor them without having to log into Eve (similar to EveMon, but without skill planning).
+- Applicants can temporarily share their characters with recruiters for vetting
+- Leadership can get full access to characters of their members for auditing (e.g. to check suspicious members)
+- Full access to characters currently includes the following information:
+  - Assets
+  - Bio
+  - Contacts
+  - Contracts
+  - Corporation history
+  - Implants
+  - Jump clones
+  - Mails
+  - Loyalty points
+  - Skill queue
+  - Skill sets
+  - Skills
+  - Wallet
 
-## Screenshots
+- Skill Sets are a way of defining skills needed for a specific activity or ship. They allow recruiters and leadership to see at a glance what a character can (e.g. which doctrine ships he/she can fly)
+- Leadership can see reports and analytics about their members
+- Reports currently include:
+  - Compliance: if users have added all their characters
+  - Skill Sets: which character has which skill sets
+
+- Flexible permission system for granting the right level of access for different roles (e.g. corp leadership may only have access to reports about their own corp members)
+- Character data is automatically kept up-to-date with the Eve Online server
+
+## Highlights
 
 ### Character Launcher
 
@@ -58,7 +82,6 @@ This tab on the character view allows you to view what skill sets a character ha
 Requirements can be customized per skill set in the administration panel. Recommended skill levels can be added in addition to requirements.
 
 ![skill-set-admin](https://i.imgur.com/ef2cCd9.png)
-
 
 ### Character Finder
 
@@ -117,7 +140,7 @@ Add these lines the bottom of the file for the new log config:
 trace.LOG_SUCCESS = "Task %(name)s[%(id)s] succeeded in %(runtime)ss"
 ```
 
-> **Hint**<br>This change is recommended, but not strickly required to run Member Audit.
+> **Hint**<br>This change is recommended, but not strictly required to run Member Audit.
 
 > **Note**<br>If accepted this change may also become part of the standard Auth configuration. See also this [merge request](https://gitlab.com/allianceauth/allianceauth/-/merge_requests/1273/diffs).
 
@@ -312,8 +335,8 @@ Start the process of force updating all characters from ESI.
 
 ## Authors
 
-The main contributors are:
+The main authors (in alphabetical order):
 
-- Erik Kalkoken
-- Rebecca Claire Murphy, aka Myrhea
-- Peter Pfeufer, aka Rounon Dax
+- [Erik Kalkoken](https://gitlab.com/ErikKalkoken)
+- [Rebecca Claire Murphy](https://gitlab.com/rcmurphy), aka Myrhea
+- [Peter Pfeufer](https://gitlab.com/ppfeufer), aka Rounon Dax

@@ -1,7 +1,7 @@
 {% extends 'allianceauth/base.html' %}
 
 {% block page_title %}
-    {{ page_title }} - {{ app_title }}
+    {{ page_title|striptags }} - {{ app_title }}
 {% endblock %}
 
 {% block content %}
