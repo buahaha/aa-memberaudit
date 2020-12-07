@@ -1,8 +1,15 @@
-# aa-memberaudit
+# Member Audit
 
-An Alliance Auth app that provides full access to Eve characters and related reports for monitoring, vetting and auditing.
+An Alliance Auth app that provides full access to Eve characters and related reports for auditing, vetting and monitoring.
 
-![release](https://img.shields.io/pypi/v/aa-memberaudit?label=release) ![python](https://img.shields.io/pypi/pyversions/aa-memberaudit) ![django](https://img.shields.io/pypi/djversions/aa-memberaudit?label=django) ![pipeline](https://gitlab.com/ErikKalkoken/aa-memberaudit/badges/master/pipeline.svg) ![coverage](https://gitlab.com/ErikKalkoken/aa-memberaudit/badges/master/coverage.svg) ![license](https://img.shields.io/badge/license-MIT-green) ![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)
+[![release](https://img.shields.io/pypi/v/aa-memberaudit?label=release)](https://pypi.org/project/aa-memberaudit/)
+[![python](https://img.shields.io/pypi/pyversions/aa-memberaudit)](https://pypi.org/project/aa-memberaudit/)
+[![django](https://img.shields.io/pypi/djversions/aa-memberaudit?label=django)](https://pypi.org/project/aa-memberaudit/)
+[![pipeline](https://gitlab.com/ErikKalkoken/aa-memberaudit/badges/master/pipeline.svg)](https://gitlab.com/ErikKalkoken/aa-memberaudit/-/pipelines)
+[![coverage](https://gitlab.com/ErikKalkoken/aa-memberaudit/badges/master/coverage.svg)](https://gitlab.com/ErikKalkoken/aa-memberaudit/-/pipelines)
+[![license](https://img.shields.io/badge/license-MIT-green)](https://gitlab.com/ErikKalkoken/aa-memberaudit/-/blob/master/LICENSE)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 ## Contents
 
@@ -19,9 +26,9 @@ An Alliance Auth app that provides full access to Eve characters and related rep
 
 ## Overview
 
-Member Audit is an app that provides full access to Eve characters and related reports in Alliance Auth.
+Member Audit is an Alliance Auth app that provides full access to Eve characters and related reports.
 
-Users can monitor their own characters, recruiters can view the characters of applicants for vetting and auditors can view the characters of an organization for ensuring compliance and repelling spies.
+Users can monitor their characters, recruiters can vet the characters of applicants and leadership can audit the characters of their members to ensure compliance and find spies.
 
 In addition character based reports gives leadership another valuable tool for managing their respective organization.
 
@@ -30,7 +37,7 @@ In addition character based reports gives leadership another valuable tool for m
 Member Audit adds the following key features to Auth:
 
 - Users can see an overview of all their characters with key information like their current location and wallet balance
-- Users can get full access to their characters to monitor them without having to log into Eve (similar to EveMon, but without skill planning).
+- Users can get full access to their characters to monitor them without having to open the Eve client (similar to the classic Eve ap "EveMon").
 - Applicants can temporarily share their characters with recruiters for vetting
 - Leadership can get full access to characters of their members for auditing (e.g. to check suspicious members)
 - Full access to characters currently includes the following information:
@@ -48,14 +55,13 @@ Member Audit adds the following key features to Auth:
   - Skills
   - Wallet
 
-- Skill Sets are a way of defining skills needed for a specific activity or ship. They allow recruiters and leadership to see at a glance what a character can (e.g. which doctrine ships he/she can fly)
-- Leadership can see reports and analytics about their members
-- Reports currently include:
+- Leadership can define Skill Sets, which are a way of defining skills needed to perform a specific activity or fly a doctrine ship. They allow recruiters and leadership to see at a glance what a character can do (e.g. which doctrine ships he/she can fly)
+- Leadership can see reports and analytics about their members. Those currently include:
   - Compliance: if users have added all their characters
   - Skill Sets: which character has which skill sets
 
-- Flexible permission system for granting the right level of access for different roles (e.g. corp leadership may only have access to reports about their own corp members)
-- Character data is automatically kept up-to-date with the Eve Online server
+- Admins can use the flexible permission system to grant access levels for different roles (e.g. corp leadership may only have access to reports about their own corp members)
+- Admins can customize and configure Member Audit to fit their needs. e.g. change the app's name and define how often which type of data is updated from the Eve server
 
 ## Highlights
 
@@ -248,8 +254,6 @@ python manage.py collectstatic
 Finally restart your AA supervisor services.
 
 ## Permissions
-
-### Overview
 
 For this app there are two types of permissions:
 
