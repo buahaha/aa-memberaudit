@@ -32,6 +32,8 @@ Users can monitor their characters, recruiters can vet the characters of applica
 
 In addition character based reports gives leadership another valuable tool for managing their respective organization.
 
+> **Help wanted**: We are looking for help with translating this app into multiple languages, i.e. Chinese, German and Spanish. If you are interested you can sign up [here](https://www.transifex.com/kalkoken-apps/aa-memberaudit/dashboard/).
+
 ## Key Features
 
 Member Audit adds the following key features to Auth:

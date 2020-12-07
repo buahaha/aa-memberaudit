@@ -1,0 +1,9 @@
+[main]
+host = https://www.transifex.com
+
+[aa-memberaudit.django-po]
+file_filter = memberaudit/locale/<lang>/LC_MESSAGES/django.po
+minimum_perc = 0
+source_file = memberaudit/locale/en/LC_MESSAGES/django.po
+source_lang = en_US
+type = PO
