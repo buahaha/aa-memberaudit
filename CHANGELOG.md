@@ -13,6 +13,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+## [1.0.0b1] - 2020-12-07
+
+### Change
+
+- Updated README for beta release
+
+### Fixed
+
+- Fixed tox issue related to new PIP dependency resolver
+
 ## [1.0.0a15] - 2020-12-06
 
 ### Change
