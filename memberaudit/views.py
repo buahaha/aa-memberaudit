@@ -1504,12 +1504,15 @@ def compliance_report_data(request) -> JsonResponse:
             alliance_name = (
                 main_character.alliance_name if main_character.alliance_name else ""
             )
+
+            is_compliant = user.unregistered_chars == 0
         else:
             main_html = main_name = user.username
             alliance_name = organization_html = corporation_name = ""
+            is_compliant = False
 
         is_registered = user.unregistered_chars < user.total_chars
-        is_compliant = user.unregistered_chars == 0
+
         user_data.append(
             {
                 "id": user.pk,
