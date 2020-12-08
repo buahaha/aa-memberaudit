@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Fixed
 
+- Non existing user are marked as compliant (#59)
+
 ## [1.0.0b1] - 2020-12-07
 
 ### Change
