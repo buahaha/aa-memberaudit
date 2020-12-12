@@ -12,6 +12,38 @@ from django.urls import reverse
 
 from eveuniverse.models import EveSolarSystem, EveType, EveEntity, EveMarketPrice
 
+from memberaudit.views.character_finder import character_finder_data
+from memberaudit.views.character_viewer import (
+    character_asset_container,
+    character_asset_container_data,
+    character_assets_data,
+    character_contacts_data,
+    character_contract_details,
+    character_contract_items_included_data,
+    character_contract_items_requested_data,
+    character_contracts_data,
+    character_corporation_history,
+    character_implants_data,
+    character_jump_clones_data,
+    character_loyalty_data,
+    character_mail_data,
+    character_mail_headers_by_label_data,
+    character_mail_headers_by_list_data,
+    character_skill_sets_data,
+    character_skillqueue_data,
+    character_skills_data,
+    character_viewer,
+    character_wallet_journal_data,
+)
+from memberaudit.views.launcher import (
+    index,
+    launcher,
+    remove_character,
+    share_character,
+    unshare_character,
+)
+from memberaudit.views.reports import compliance_report_data, skill_sets_report_data
+
 from allianceauth.eveonline.models import EveAllianceInfo
 from allianceauth.tests.auth_utils import AuthUtils
 
@@ -47,36 +79,7 @@ from ..models import (
     MailEntity,
 )
 from ..utils import generate_invalid_pk
-from ..views import (
-    index,
-    launcher,
-    character_viewer,
-    character_assets_data,
-    character_asset_container,
-    character_asset_container_data,
-    character_contacts_data,
-    character_contracts_data,
-    character_contract_details,
-    character_contract_items_included_data,
-    character_contract_items_requested_data,
-    character_corporation_history,
-    character_skill_sets_data,
-    character_implants_data,
-    character_jump_clones_data,
-    character_loyalty_data,
-    character_mail_headers_by_label_data,
-    character_mail_headers_by_list_data,
-    character_mail_data,
-    character_skills_data,
-    character_skillqueue_data,
-    character_wallet_journal_data,
-    character_finder_data,
-    compliance_report_data,
-    skill_sets_report_data,
-    remove_character,
-    share_character,
-    unshare_character,
-)
+
 
 MODULE_PATH = "memberaudit.views"
 
