@@ -38,14 +38,16 @@ from memberaudit.utils import (
     create_link_html,
     yesno_str,
 )
-from memberaudit.views.definitions import (
-    DATETIME_FORMAT,
+from memberaudit.views.constants import (
     DEFAULT_ICON_SIZE,
     MAIL_LABEL_ID_ALL_MAILS,
     MAP_SKILL_LEVEL_ARABIC_TO_ROMAN,
     MY_DATETIME_FORMAT,
+    SKILLQUEUE_DATETIME_FORMAT,
     SKILL_SET_DEFAULT_ICON_TYPE_ID,
     UNGROUPED_SKILL_SET,
+)
+from memberaudit.views.utils import (
     add_common_context,
     create_icon_plus_name_html,
     yesnonone_str,
@@ -907,7 +909,7 @@ def character_skillqueue_data(
                     )
                 )
                 finish_date_str = (
-                    f"{row.finish_date.strftime(DATETIME_FORMAT)} "
+                    f"{row.finish_date.strftime(SKILLQUEUE_DATETIME_FORMAT)} "
                     f"({finish_date_humanized})"
                 )
                 finish_date_sort = row.finish_date.isoformat()

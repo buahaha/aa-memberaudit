@@ -16,7 +16,7 @@ from esi.decorators import token_required
 from memberaudit import tasks
 from memberaudit.models import Character
 from memberaudit.utils import messages_plus
-from memberaudit.views.definitions import add_common_context
+from memberaudit.views.utils import add_common_context
 
 
 @login_required

@@ -1,9 +1,8 @@
-from memberaudit.views import (
-    definitions,
+from memberaudit.views import (  # noqa: F401
+    utils,
     launcher,
+    constants,
     character_viewer,
     character_finder,
     reports,
 )
-
-__all__ = [definitions, launcher, character_viewer, character_finder, reports]

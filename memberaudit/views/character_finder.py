@@ -13,7 +13,7 @@ from django.utils.safestring import mark_safe
 from memberaudit.helpers import eve_solar_system_to_html
 from memberaudit.models import Character
 from memberaudit.utils import create_fa_button_html, yesno_str
-from memberaudit.views.definitions import add_common_context, create_icon_plus_name_html
+from memberaudit.views.utils import add_common_context, create_icon_plus_name_html
 
 
 @login_required

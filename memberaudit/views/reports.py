@@ -13,10 +13,12 @@ from eveuniverse.core import eveimageserver
 
 from memberaudit.models import Character, SkillSetGroup, accessible_users
 from memberaudit.utils import yesno_str
-from memberaudit.views.definitions import (
+from memberaudit.views.constants import (
     DEFAULT_ICON_SIZE,
     SKILL_SET_DEFAULT_ICON_TYPE_ID,
     UNGROUPED_SKILL_SET,
+)
+from memberaudit.views.utils import (
     add_common_context,
     create_icon_plus_name_html,
     create_main_organization_html,
