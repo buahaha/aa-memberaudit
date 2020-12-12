@@ -1221,7 +1221,7 @@ class TestMailData(TestCase):
         )
 
 
-@patch(MODULE_PATH + ".messages_plus")
+@patch(MODULE_PATH + ".launcher.messages_plus")
 class TestRemoveCharacter(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
