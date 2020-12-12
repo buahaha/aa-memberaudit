@@ -1,5 +1,3 @@
-# coding=utf-8
-
 """
 common definitions we use in our views
 """
