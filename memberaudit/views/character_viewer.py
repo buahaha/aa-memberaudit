@@ -1,317 +1,61 @@
+# coding=utf-8
+
+"""
+views for character_viewer actions
+"""
+
 import datetime as dt
 import humanize
 from typing import Optional
 
-from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required, permission_required
-from django.db import transaction, models
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Count, F, Max, Q, Sum
-from django.http import (
-    JsonResponse,
-    HttpResponse,
-    HttpResponseNotFound,
-    HttpResponseForbidden,
-)
-from django.shortcuts import render, redirect
+from django.db import models
+from django.http import HttpResponse, HttpResponseNotFound, JsonResponse
+from django.shortcuts import render
 from django.urls import reverse
-from django.utils.timesince import timeuntil
 from django.utils.html import format_html
-from django.utils.safestring import mark_safe
+from django.utils.timesince import timeuntil
 from django.utils.timezone import now
-from django.utils.translation import gettext_lazy, gettext
-
-from esi.decorators import token_required
+from django.utils.translation import gettext
 from eveuniverse.core import eveimageserver
 
-from allianceauth.authentication.models import CharacterOwnership
-from allianceauth.eveonline.models import EveCharacter
-from allianceauth.services.hooks import get_extension_logger
-
-from . import tasks, __title__
-from .constants import EVE_CATEGORY_ID_SHIP
-from .decorators import fetch_character_if_allowed
-from .helpers import eve_solar_system_to_html
-from .models import (
+from memberaudit import __title__
+from memberaudit.constants import EVE_CATEGORY_ID_SHIP
+from memberaudit.decorators import fetch_character_if_allowed
+from memberaudit.helpers import eve_solar_system_to_html
+from memberaudit.models import (
     Character,
     CharacterAsset,
     CharacterContract,
     CharacterContractItem,
     CharacterMail,
     Location,
-    SkillSetGroup,
-    accessible_users,
 )
-from .utils import (
+from memberaudit.utils import (
+    LoggerAddTag,
+    add_bs_label_html,
     add_no_wrap_html,
     create_link_html,
-    create_fa_button_html,
-    LoggerAddTag,
-    messages_plus,
     yesno_str,
-    add_bs_label_html,
+)
+from memberaudit.views.definitions import (
+    DATETIME_FORMAT,
+    DEFAULT_ICON_SIZE,
+    MAIL_LABEL_ID_ALL_MAILS,
+    MAP_SKILL_LEVEL_ARABIC_TO_ROMAN,
+    MY_DATETIME_FORMAT,
+    SKILL_SET_DEFAULT_ICON_TYPE_ID,
+    UNGROUPED_SKILL_SET,
+    add_common_context,
+    create_icon_plus_name_html,
+    yesnonone_str,
 )
 
-from .app_settings import MEMBERAUDIT_APP_NAME
-
-# module constants
-MY_DATETIME_FORMAT = "Y-M-d H:i"
-DATETIME_FORMAT = "%Y-%b-%d %H:%M"
-MAIL_LABEL_ID_ALL_MAILS = 0
-MAP_SKILL_LEVEL_ARABIC_TO_ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V"}
-UNGROUPED_SKILL_SET = gettext_lazy("[Ungrouped]")
-DEFAULT_ICON_SIZE = 32
-CHARACTER_VIEWER_DEFAULT_TAB = "mails"
-SKILL_SET_DEFAULT_ICON_TYPE_ID = 3327
+from allianceauth.services.hooks import get_extension_logger
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
-
-
-def yesnonone_str(value: Optional[bool]) -> str:
-    """returns yes/no/none for boolean as string and with localization"""
-    if value is True:
-        return gettext_lazy("yes")
-    elif value is False:
-        return gettext_lazy("no")
-    else:
-        return ""
-
-
-def create_img_html(src: str, classes: list = None, size: int = None) -> str:
-    classes_str = format_html('class="{}"', (" ".join(classes)) if classes else "")
-    size_html = format_html('width="{}" height="{}"', size, size) if size else ""
-    return format_html('<img {} {} src="{}">', classes_str, size_html, src)
-
-
-def create_icon_plus_name_html(
-    icon_url,
-    name,
-    size: int = DEFAULT_ICON_SIZE,
-    avatar: bool = False,
-    url: str = None,
-    text: str = None,
-) -> str:
-    """create HTML to display an icon next to a name. Can also be a link."""
-    name_html = create_link_html(url, name, new_window=False) if url else name
-    if text:
-        name_html = format_html("{}&nbsp;{}", name_html, text)
-
-    return format_html(
-        "{}&nbsp;&nbsp;&nbsp;{}",
-        create_img_html(
-            icon_url, classes=["ra-avatar", "img-circle"] if avatar else [], size=size
-        ),
-        name_html,
-    )
-
-
-def create_main_organization_html(main_character) -> str:
-    return format_html(
-        "{}{}",
-        main_character.corporation_name,
-        f" [{main_character.alliance_ticker}]" if main_character.alliance_name else "",
-    )
-
-
-def add_common_context(request, context: dict) -> dict:
-    """adds the common context used by all view"""
-    unregistered_count = Character.objects.unregistered_characters_of_user_count(
-        request.user
-    )
-    new_context = {
-        **{
-            "app_title": MEMBERAUDIT_APP_NAME,
-            "unregistered_count": unregistered_count,
-            "MY_DATETIME_FORMAT": MY_DATETIME_FORMAT,
-        },
-        **context,
-    }
-    return new_context
-
-
-@login_required
-@permission_required("memberaudit.basic_access")
-def index(request):
-    return redirect("memberaudit:launcher")
-
-
-#############################
-# Section: Characters
-
-
-@login_required
-@permission_required("memberaudit.basic_access")
-def launcher(request) -> HttpResponse:
-    owned_chars_query = (
-        CharacterOwnership.objects.filter(user=request.user)
-        .select_related(
-            "character",
-            "memberaudit_character",
-            "memberaudit_character__wallet_balance",
-            "memberaudit_character__skillpoints",
-            "memberaudit_character__unread_mail_count",
-        )
-        .order_by()
-    )
-    has_auth_characters = owned_chars_query.count() > 0
-    auth_characters = list()
-    unregistered_chars = list()
-    for character_ownership in owned_chars_query:
-        eve_character = character_ownership.character
-        try:
-            character = character_ownership.memberaudit_character
-        except AttributeError:
-            unregistered_chars.append(eve_character.character_name)
-        else:
-            auth_characters.append(
-                {
-                    "character_id": eve_character.character_id,
-                    "character_name": eve_character.character_name,
-                    "character": character,
-                    "alliance_id": eve_character.alliance_id,
-                    "alliance_name": eve_character.alliance_name,
-                    "corporation_id": eve_character.corporation_id,
-                    "corporation_name": eve_character.corporation_name,
-                }
-            )
-
-    unregistered_chars = sorted(unregistered_chars)
-
-    try:
-        main_character_id = request.user.profile.main_character.character_id
-    except AttributeError:
-        main_character_id = None
-
-    context = {
-        "page_title": "My Characters",
-        "auth_characters": auth_characters,
-        "has_auth_characters": has_auth_characters,
-        "unregistered_chars": unregistered_chars,
-        "has_registered_characters": len(auth_characters) > 0,
-        "main_character_id": main_character_id,
-    }
-
-    """
-    if has_auth_characters:
-        messages_plus.warning(
-            request,
-            format_html(
-                "Please register all your characters. "
-                "You currently have <strong>{}</strong> unregistered characters.",
-                unregistered_chars,
-            ),
-        )
-    """
-    return render(
-        request,
-        "memberaudit/launcher.html",
-        add_common_context(request, context),
-    )
-
-
-@login_required
-@permission_required("memberaudit.basic_access")
-@token_required(scopes=Character.get_esi_scopes())
-def add_character(request, token) -> HttpResponse:
-    token_char = EveCharacter.objects.get(character_id=token.character_id)
-    try:
-        character_ownership = CharacterOwnership.objects.select_related(
-            "character"
-        ).get(user=request.user, character=token_char)
-    except CharacterOwnership.DoesNotExist:
-        messages_plus.error(
-            request,
-            format_html(
-                "You can register your main or alt characters."
-                "However, character <strong>{}</strong> is neither. ",
-                token_char.character_name,
-            ),
-        )
-    else:
-        with transaction.atomic():
-            character, _ = Character.objects.update_or_create(
-                character_ownership=character_ownership
-            )
-
-        tasks.update_character.delay(character_pk=character.pk)
-        messages_plus.success(
-            request,
-            format_html(
-                "<strong>{}</strong> has been registered. "
-                "Note that it can take a minute until all character data is visible.",
-                character.character_ownership.character,
-            ),
-        )
-
-    return redirect("memberaudit:launcher")
-
-
-@login_required
-@permission_required("memberaudit.basic_access")
-def remove_character(request, character_pk: int) -> HttpResponse:
-    try:
-        character = Character.objects.select_related(
-            "character_ownership__user", "character_ownership__character"
-        ).get(pk=character_pk)
-    except Character.DoesNotExist:
-        return HttpResponseNotFound(f"Character with pk {character_pk} not found")
-
-    character_name = character.character_ownership.character.character_name
-    if character.character_ownership.user == request.user:
-        character.delete()
-        messages_plus.success(
-            request,
-            format_html(
-                "Removed character <strong>{}</strong> as requested.", character_name
-            ),
-        )
-    else:
-        return HttpResponseForbidden(
-            f"No permission to remove Character with pk {character_pk}"
-        )
-
-    return redirect("memberaudit:launcher")
-
-
-@login_required
-@permission_required("memberaudit.basic_access")
-def share_character(request, character_pk: int) -> HttpResponse:
-    try:
-        character = Character.objects.select_related(
-            "character_ownership__user", "character_ownership__character"
-        ).get(pk=character_pk)
-    except Character.DoesNotExist:
-        return HttpResponseNotFound(f"Character with pk {character_pk} not found")
-
-    if character.character_ownership.user == request.user:
-        character.is_shared = True
-        character.save()
-    else:
-        return HttpResponseForbidden(
-            f"No permission to remove Character with pk {character_pk}"
-        )
-
-    return redirect("memberaudit:launcher")
-
-
-@login_required
-@permission_required("memberaudit.basic_access")
-def unshare_character(request, character_pk: int) -> HttpResponse:
-    try:
-        character = Character.objects.select_related(
-            "character_ownership__user", "character_ownership__character"
-        ).get(pk=character_pk)
-    except Character.DoesNotExist:
-        return HttpResponseNotFound(f"Character with pk {character_pk} not found")
-
-    if character.character_ownership.user == request.user:
-        character.is_shared = False
-        character.save()
-    else:
-        return HttpResponseForbidden(
-            f"No permission to remove Character with pk {character_pk}"
-        )
-
-    return redirect("memberaudit:launcher")
 
 
 @login_required
@@ -771,36 +515,6 @@ def character_contract_details(
     )
 
 
-@login_required
-@permission_required("memberaudit.basic_access")
-@fetch_character_if_allowed()
-def character_contract_items_included_data(
-    request, character_pk: int, character: Character, contract_pk: int
-) -> JsonResponse:
-    return _character_contract_items_data(
-        request=request,
-        character_pk=character_pk,
-        character=character,
-        contract_pk=contract_pk,
-        is_included=True,
-    )
-
-
-@login_required
-@permission_required("memberaudit.basic_access")
-@fetch_character_if_allowed()
-def character_contract_items_requested_data(
-    request, character_pk: int, character: Character, contract_pk: int
-) -> JsonResponse:
-    return _character_contract_items_data(
-        request=request,
-        character_pk=character_pk,
-        character=character,
-        contract_pk=contract_pk,
-        is_included=False,
-    )
-
-
 def _character_contract_items_data(
     request,
     character_pk: int,
@@ -856,6 +570,36 @@ def _character_contract_items_data(
         )
 
     return JsonResponse(data, safe=False)
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_contract_items_included_data(
+    request, character_pk: int, character: Character, contract_pk: int
+) -> JsonResponse:
+    return _character_contract_items_data(
+        request=request,
+        character_pk=character_pk,
+        character=character,
+        contract_pk=contract_pk,
+        is_included=True,
+    )
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_contract_items_requested_data(
+    request, character_pk: int, character: Character, contract_pk: int
+) -> JsonResponse:
+    return _character_contract_items_data(
+        request=request,
+        character_pk=character_pk,
+        character=character,
+        contract_pk=contract_pk,
+        is_included=False,
+    )
 
 
 @login_required
@@ -1337,303 +1081,3 @@ def character_wallet_journal_data(
         pass
 
     return JsonResponse(wallet_data, safe=False)
-
-
-#############################
-# Section: Character Finder
-
-
-@login_required
-@permission_required("memberaudit.finder_access")
-def character_finder(request) -> HttpResponse:
-    context = {
-        "page_title": "Character Finder",
-    }
-    return render(
-        request,
-        "memberaudit/character_finder.html",
-        add_common_context(request, context),
-    )
-
-
-@login_required
-@permission_required("memberaudit.finder_access")
-def character_finder_data(request) -> JsonResponse:
-    character_list = list()
-    for character in (
-        Character.objects.user_has_access(user=request.user)
-        .select_related(
-            "character_ownership__character",
-            "character_ownership__user",
-            "character_ownership__user__profile__main_character",
-            "character_ownership__user__profile__state",
-        )
-        .prefetch_related(
-            "location",
-            "location__eve_solar_system",
-            "location__eve_solar_system__eve_constellation__eve_region",
-        )
-    ):
-        auth_character = character.character_ownership.character
-        character_viewer_url = reverse(
-            "memberaudit:character_viewer", args=[character.pk]
-        )
-        actions_html = create_fa_button_html(
-            url=character_viewer_url,
-            fa_code="fas fa-search",
-            button_type="primary",
-        )
-        alliance_name = (
-            auth_character.alliance_name if auth_character.alliance_name else ""
-        )
-        character_organization = format_html(
-            "{}<br><em>{}</em>", auth_character.corporation_name, alliance_name
-        )
-        user_profile = character.character_ownership.user.profile
-        try:
-            main_html = create_icon_plus_name_html(
-                user_profile.main_character.portrait_url(),
-                user_profile.main_character.character_name,
-                avatar=True,
-            )
-
-        except AttributeError:
-            main_html = ""
-
-        text = format_html(
-            "{}&nbsp;{}",
-            mark_safe('&nbsp;<i class="fas fa-crown" title="Main character">')
-            if character.is_main
-            else "",
-            mark_safe('&nbsp;<i class="far fa-eye" title="Shared character">')
-            if character.is_shared
-            else "",
-        )
-        character_html = create_icon_plus_name_html(
-            auth_character.portrait_url(),
-            auth_character.character_name,
-            avatar=True,
-            url=character_viewer_url,
-            text=text,
-        )
-
-        try:
-            location_name = (
-                character.location.location.name if character.location.location else ""
-            )
-            solar_system_html = eve_solar_system_to_html(
-                character.location.eve_solar_system
-            )
-            location_html = format_html("{}<br>{}", location_name, solar_system_html)
-            solar_system_name = character.location.eve_solar_system.name
-            region_name = (
-                character.location.eve_solar_system.eve_constellation.eve_region.name
-            )
-        except ObjectDoesNotExist:
-            location_html = ""
-            solar_system_name = ""
-            region_name = ""
-
-        character_list.append(
-            {
-                "character_pk": character.pk,
-                "character": {
-                    "display": character_html,
-                    "sort": auth_character.character_name,
-                },
-                "character_organization": character_organization,
-                "main": main_html,
-                "state_name": user_profile.state.name,
-                "location": location_html,
-                "actions": actions_html,
-                "corporation_name": auth_character.corporation_name,
-                "alliance_name": alliance_name,
-                "solar_system_name": solar_system_name,
-                "region_name": region_name,
-                "main_str": yesno_str(character.is_main),
-            }
-        )
-    return JsonResponse(character_list, safe=False)
-
-
-#############################
-# Section: Reports
-
-
-@login_required
-@permission_required("memberaudit.reports_access")
-def reports(request) -> HttpResponse:
-    context = {
-        "page_title": "Reports",
-    }
-    return render(
-        request,
-        "memberaudit/reports.html",
-        add_common_context(request, context),
-    )
-
-
-@login_required
-@permission_required("memberaudit.reports_access")
-def compliance_report_data(request) -> JsonResponse:
-    users_and_character_counts = (
-        accessible_users(request.user)
-        .annotate(total_chars=Count("character_ownerships__character", distinct=True))
-        .annotate(
-            unregistered_chars=Count(
-                "character_ownerships",
-                filter=Q(character_ownerships__memberaudit_character=None),
-                distinct=True,
-            )
-        )
-        .select_related("profile__main_character")
-    )
-
-    user_data = list()
-    for user in users_and_character_counts:
-        if user.profile.main_character:
-            main_character = user.profile.main_character
-            main_name = main_character.character_name
-            main_html = create_icon_plus_name_html(
-                main_character.portrait_url(),
-                main_character.character_name,
-                avatar=True,
-            )
-            corporation_name = main_character.corporation_name
-            organization_html = create_main_organization_html(main_character)
-            alliance_name = (
-                main_character.alliance_name if main_character.alliance_name else ""
-            )
-
-            is_compliant = user.unregistered_chars == 0
-        else:
-            main_html = main_name = user.username
-            alliance_name = organization_html = corporation_name = ""
-            is_compliant = False
-
-        is_registered = user.unregistered_chars < user.total_chars
-
-        user_data.append(
-            {
-                "id": user.pk,
-                "main": {
-                    "display": main_html,
-                    "sort": main_name,
-                },
-                "organization": {
-                    "display": organization_html,
-                    "sort": corporation_name,
-                },
-                "corporation_name": corporation_name,
-                "alliance_name": alliance_name,
-                "total_chars": user.total_chars,
-                "unregistered_chars": user.unregistered_chars,
-                "is_registered": is_registered,
-                "registered_str": yesno_str(is_registered),
-                "is_compliant": is_compliant,
-                "compliance_str": yesno_str(is_compliant),
-            }
-        )
-
-    return JsonResponse(user_data, safe=False)
-
-
-@login_required
-@permission_required("memberaudit.reports_access")
-def skill_sets_report_data(request) -> JsonResponse:
-    def create_data_row(group) -> dict:
-        user = character.character_ownership.user
-        auth_character = character.character_ownership.character
-        main_character = user.profile.main_character
-        main_html = create_icon_plus_name_html(
-            user.profile.main_character.portrait_url(),
-            main_character.character_name,
-            avatar=True,
-        )
-        main_corporation = main_character.corporation_name
-        main_alliance = (
-            main_character.alliance_name if main_character.alliance_name else ""
-        )
-        organization_html = format_html(
-            "{}{}",
-            main_corporation,
-            f" [{main_character.alliance_ticker}]"
-            if main_character.alliance_name
-            else "",
-        )
-        character_viewer_url = "{}?tab=skill_sets".format(
-            reverse("memberaudit:character_viewer", args=[character.pk])
-        )
-        character_html = create_icon_plus_name_html(
-            auth_character.portrait_url(),
-            auth_character.character_name,
-            avatar=True,
-            url=character_viewer_url,
-        )
-        group_pk = group.pk if group else 0
-        has_required = [
-            create_icon_plus_name_html(
-                obj.skill_set.ship_type.icon_url(DEFAULT_ICON_SIZE)
-                if obj.skill_set.ship_type
-                else eveimageserver.type_icon_url(
-                    SKILL_SET_DEFAULT_ICON_TYPE_ID, size=DEFAULT_ICON_SIZE
-                ),
-                obj.skill_set.name,
-            )
-            for obj in skill_set_qs
-        ]
-        has_required_html = (
-            "<br>".join(has_required)
-            if has_required
-            else '<i class="fas fa-times boolean-icon-false"></i>'
-        )
-        return {
-            "id": f"{group_pk}_{character.pk}",
-            "group": group.name_plus if group else UNGROUPED_SKILL_SET,
-            "main": main_character.character_name,
-            "main_html": main_html,
-            "organization_html": organization_html,
-            "corporation": main_corporation,
-            "alliance": main_alliance,
-            "character": character.character_ownership.character.character_name,
-            "character_html": character_html,
-            "has_required": has_required_html,
-            "has_required_str": yesno_str(bool(has_required)),
-            "is_doctrine_str": yesno_str(group.is_doctrine if group else False),
-        }
-
-    data = list()
-
-    character_qs = (
-        Character.objects.select_related("character_ownership__user")
-        .select_related(
-            "character_ownership__user",
-            "character_ownership__user__profile__main_character",
-            "character_ownership__character",
-        )
-        .prefetch_related("skill_set_checks")
-        .filter(character_ownership__user__in=list(accessible_users(request.user)))
-    )
-
-    my_select_related = "skill_set", "skill_set__ship_type"
-    for group in SkillSetGroup.objects.all():
-        for character in character_qs:
-            skill_set_qs = (
-                character.skill_set_checks.select_related(*my_select_related)
-                .filter(skill_set__groups=group, failed_required_skills__isnull=True)
-                .order_by("skill_set__name")
-            )
-            data.append(create_data_row(group))
-
-    for character in character_qs:
-        if (
-            character.skill_set_checks.select_related(*my_select_related)
-            .filter(skill_set__groups__isnull=True)
-            .exists()
-        ):
-            skill_set_qs = character.skill_set_checks.filter(
-                skill_set__groups__isnull=True, failed_required_skills__isnull=True
-            ).order_by("skill_set__name")
-            data.append(create_data_row(None))
-
-    return JsonResponse(data, safe=False)
