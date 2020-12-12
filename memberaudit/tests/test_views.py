@@ -305,7 +305,7 @@ class TestCharacterContracts(TestViewsBase):
         cls.item_type_1 = EveType.objects.get(id=19540)
         cls.item_type_2 = EveType.objects.get(id=19551)
 
-    @patch(MODULE_PATH + ".now")
+    @patch(MODULE_PATH + ".character_viewer.now")
     def test_character_contracts_data_1(self, mock_now):
         """items exchange single item"""
         date_issued = dt.datetime(2020, 10, 8, 16, 45, tzinfo=pytz.utc)
@@ -368,7 +368,7 @@ class TestCharacterContracts(TestViewsBase):
         response = character_contract_details(request, self.character.pk, contract.pk)
         self.assertEqual(response.status_code, 200)
 
-    @patch(MODULE_PATH + ".now")
+    @patch(MODULE_PATH + ".character_viewer.now")
     def test_character_contracts_data_2(self, mock_now):
         """items exchange multiple item"""
         date_issued = dt.datetime(2020, 10, 8, 16, 45, tzinfo=pytz.utc)
@@ -433,7 +433,7 @@ class TestCharacterContracts(TestViewsBase):
         response = character_contract_details(request, self.character.pk, contract.pk)
         self.assertEqual(response.status_code, 200)
 
-    @patch(MODULE_PATH + ".now")
+    @patch(MODULE_PATH + ".character_viewer.now")
     def test_character_contracts_data_3(self, mock_now):
         """courier contract"""
         date_issued = dt.datetime(2020, 10, 8, 16, 45, tzinfo=pytz.utc)
@@ -501,7 +501,7 @@ class TestCharacterContracts(TestViewsBase):
             "not found for character", response_content_to_str(response.content)
         )
 
-    @patch(MODULE_PATH + ".now")
+    @patch(MODULE_PATH + ".character_viewer.now")
     def test_items_included_data_normal(self, mock_now):
         """items exchange single item"""
         date_issued = dt.datetime(2020, 10, 8, 16, 45, tzinfo=pytz.utc)
@@ -564,7 +564,7 @@ class TestCharacterContracts(TestViewsBase):
         self.assertEqual(obj["total"], 15000000)
         self.assertFalse(obj["is_bpo"])
 
-    @patch(MODULE_PATH + ".now")
+    @patch(MODULE_PATH + ".character_viewer.now")
     def test_items_included_data_bpo(self, mock_now):
         """items exchange single item, which is an BPO"""
         date_issued = dt.datetime(2020, 10, 8, 16, 45, tzinfo=pytz.utc)
@@ -628,7 +628,7 @@ class TestCharacterContracts(TestViewsBase):
         self.assertIsNone(obj["total"])
         self.assertTrue(obj["is_bpo"])
 
-    @patch(MODULE_PATH + ".now")
+    @patch(MODULE_PATH + ".character_viewer.now")
     def test_items_requested_data_normal(self, mock_now):
         """items exchange single item"""
         date_issued = dt.datetime(2020, 10, 8, 16, 45, tzinfo=pytz.utc)
