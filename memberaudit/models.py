@@ -107,6 +107,7 @@ class General(models.Model):
                 "basic_access",
                 "Can access this app and register and view own characters",
             ),
+            ("share_characters", "Can share his characters"),
             ("finder_access", "Can access character finder feature"),
             ("reports_access", "Can access reports feature"),
             ("characters_access", "Can view characters owned by others"),

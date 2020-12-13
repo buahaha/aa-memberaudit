@@ -271,6 +271,7 @@ The exception is the basic role, `basic_access`, that every user needs just to a
 Name | Description | Type
 -- | -- | --
 `basic_access`| Can access this app and register and view own characters | Feature
+`share_characters`| Can share his characters. Note that others need the `view_shared_characters` permission to see them.  | Feature
 `finder_access`| Can access character finder features for accessing characters from others | Feature
 `reports_access`| Can access reports features for seeing reports and analytics. | Feature
 `characters_access`| Can access characters owned by others. | Feature
