@@ -133,11 +133,20 @@ def _link_replace(link_match) -> str:
     return """<a href="javascript:showInvalidError();">"""
 
 
+def is_ascii(s):
+    return all(ord(c) < 128 for c in s)
+
+
 def eve_xml_to_html(xml: str) -> str:
     x = _font_regex.sub(_font_replace, xml)
     x = x.replace("</font>", "</span>")
     x = _link_regex.sub(_link_replace, x)
     # x = strip_tags(x)
+    if is_ascii(x):
+        x = bytes(x, "ascii").decode("unicode-escape")
+        # not sure why we need this, but strings are sometimes wrapped in u'' at this point
+        if x.startswith("u'"):
+            x = x[2:-1]
     return mark_safe(x)
 
 
