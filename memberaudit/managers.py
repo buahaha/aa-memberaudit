@@ -507,7 +507,15 @@ class CharacterMailLabelManager(models.Manager):
 class CharacterUpdateStatusManager(models.Manager):
     def calculate_statistics(self) -> dict:
         """calculates statistics from the last update run and returns it"""
-        from .models import Character
+        from .models import (
+            Character,
+            CharacterAsset,
+            CharacterMail,
+            CharacterContract,
+            CharacterContact,
+            SkillSet,
+            SkillSetGroup,
+        )
 
         duration_expression = ExpressionWrapper(
             F("finished_at") - F("started_at"),
@@ -516,9 +524,8 @@ class CharacterUpdateStatusManager(models.Manager):
         qs_base = self.filter(
             is_success=True, started_at__isnull=False, finished_at__isnull=False
         ).annotate(duration=duration_expression)
-        results = dict()
+        update_stats = dict()
         if self.count() > 0:
-
             # per ring
             for ring in [1, 2, 3]:
                 sections = Character.sections_in_ring(ring)
@@ -538,7 +545,7 @@ class CharacterUpdateStatusManager(models.Manager):
                     started_at = None
                     finshed_at = None
 
-                results[f"ring_{ring}"] = {
+                update_stats[f"ring_{ring}"] = {
                     "total": {
                         "duration": duration,
                         "started_at": started_at,
@@ -550,11 +557,11 @@ class CharacterUpdateStatusManager(models.Manager):
 
                 # add longest running section w/ character
                 obj = qs.order_by("-duration").first()
-                results[f"ring_{ring}"]["max"] = self._info_from_obj(obj)
+                update_stats[f"ring_{ring}"]["max"] = self._info_from_obj(obj)
 
                 # add first and last section
-                results[f"ring_{ring}"]["first"] = self._info_from_obj(first)
-                results[f"ring_{ring}"]["last"] = self._info_from_obj(last)
+                update_stats[f"ring_{ring}"]["first"] = self._info_from_obj(first)
+                update_stats[f"ring_{ring}"]["last"] = self._info_from_obj(last)
 
                 # calc section stats
                 for section in sections:
@@ -582,7 +589,7 @@ class CharacterUpdateStatusManager(models.Manager):
                         section_avg = None
                         section_min = None
 
-                    results[f"ring_{ring}"]["sections"].update(
+                    update_stats[f"ring_{ring}"]["sections"].update(
                         {
                             str(section): {
                                 "max": section_max,
@@ -592,7 +599,23 @@ class CharacterUpdateStatusManager(models.Manager):
                         }
                     )
 
-        return {"update_statistics": results}
+        return {
+            "app_totals": {
+                "users_count": User.objects.filter(
+                    character_ownerships__memberaudit_character__isnull=False
+                )
+                .distinct()
+                .count(),
+                "characters_count": Character.objects.count(),
+                "skill_set_groups_count": SkillSetGroup.objects.count(),
+                "skill_sets_count": SkillSet.objects.count(),
+                "assets_count": CharacterAsset.objects.count(),
+                "mails_count": CharacterMail.objects.count(),
+                "contacts_count": CharacterContact.objects.count(),
+                "contracts_count": CharacterContract.objects.count(),
+            },
+            "update_statistics": update_stats,
+        }
 
     @staticmethod
     def _info_from_obj(obj) -> dict:

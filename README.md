@@ -332,9 +332,9 @@ This command deletes all locally stored character data, but maintains character 
 
 > **Warning**<br>Make sure to stop all supervisors before using this command.
 
-### memberaudit_statistics
+### memberaudit_stats
 
-This command returns current statistics as JSON, i.e. current update statistics.
+This command returns current statistics as JSON, i.e. current update statistics and app totals.
 
 ### memberaudit_update_characters
 

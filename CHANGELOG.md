@@ -15,6 +15,8 @@ The feature for sharing ones characters now requires the new permission `share_c
 
 ### Added
 
+- `App_totals` added to **memberaudit_stats** command
+
 ### Changed
 
 - Only users with the new permission `share_characters` can share their characters. ([#69](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/69))
