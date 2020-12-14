@@ -133,6 +133,17 @@
                 "name": "Bruce Wayne",
                 "race_id": 1,
                 "title": "All round pretty awesome guy"
+            },
+            "1002": {
+                "ancestry_id": 11,
+                "birthday": "2015-03-24T11:37:00Z",
+                "bloodline_id": 1,
+                "corporation_id": 2001,
+                "description": "u'<font size=\"12\" color=\"#bfffffff\">Die Deus lo Vult will dich!<br><br>Wir sind eine kleine, starke Gemeinschaft bestehend aus Industriellen, Entdeckern, K\\xe4mpfern und J\\xe4gern. <br><br>Aktuell bauen wir alles neu auf, daher \\xe4ndern sich manche Dinge, im Kern sind wir aber eins: Ein Team. Jeder hat die gleichen Chancen und M\\xf6glichkeiten, niemand muss sich binden. F\\xfcr uns steht Spa\\xdf im Vordergrund.<br><br>Was wir nicht wollen:<br>Scammer, Piraten und sonstiges kriminelles Gesindel<br><br>Was erwartet wir von Dir?<br>\\xbb Bereitschaft zum VoiceCom (Mumble)<br>\\xbb Freundliche Umgangsformen<br>\\xbb Zuverl\\xe4ssigkeit, Eigeninitiative, Hilfsbereitschaft, Teamf\\xe4higkeit<br>Forenaktivit\\xe4t, zumindest lesenderweise!!<br>\\xbb Spa\\xdf am Spiel und Zeit daf\\xfcr. RL hat aber immer Vorrang!<br><br>Offentlicher Chat:  </font><font size=\"12\" color=\"#ff6868e1\"><a href=\"joinChannel:player_-23694601//None//None\">Deus-lo-Vult</a></font><font size=\"12\" color=\"#bfffffff\"> </font>'",
+                "gender": "male",
+                "name": "Clark Kent",
+                "race_id": 1,
+                "title": "Bio with lots of non-ASCII chars and the u-bug"
             }
         },
         "get_characters_character_id_corporationhistory": {

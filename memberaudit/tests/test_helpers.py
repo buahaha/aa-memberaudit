@@ -80,6 +80,25 @@ class TestHTMLConversion(TestCase):
             )
             self.assertTrue(result.find(dotlan.solar_system_url("Polaris")) != -1)
 
+    def test_convert_bio(self):
+        """can convert a bio includes lots of non-ASCII characters and handle the u-bug"""
+        with patch(
+            "eveuniverse.models.EveEntity.objects.resolve_name",
+            Mock(return_value="An Alliance"),
+        ):
+            result = eve_xml_to_html(
+                load_test_data()
+                .get("Character")
+                .get("get_characters_character_id")
+                .get("1002")
+                .get("description")
+            )
+            self.assertIn(
+                "Zuverlässigkeit, Eigeninitiative, Hilfsbereitschaft, Teamfähigkeit",
+                result,
+            )
+            self.assertNotEqual(result[:2], "u'")
+
 
 class TestUsersWithPermissionQS(TestCase):
     @classmethod
