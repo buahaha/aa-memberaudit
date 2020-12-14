@@ -1028,6 +1028,11 @@ class TestViewsOther(TestViewsBase):
         self.assertSetEqual({x["character_pk"] for x in data}, {self.character.pk})
 
     def test_character_corporation_history(self):
+        """
+        when corp history contains two corporations
+        and one corp is deleted,
+        then both corporation names can be found in the view data
+        """
         date_1 = now() - dt.timedelta(days=60)
         CharacterCorporationHistory.objects.create(
             character=self.character,
@@ -1041,6 +1046,7 @@ class TestViewsOther(TestViewsBase):
             record_id=2,
             corporation=EveEntity.objects.get(id=2001),
             start_date=date_2,
+            is_deleted=True,
         )
         request = self.factory.get(
             reverse(
@@ -1049,7 +1055,12 @@ class TestViewsOther(TestViewsBase):
         )
         request.user = self.user
         response = character_corporation_history(request, self.character.pk)
+
         self.assertEqual(response.status_code, 200)
+        text = response.content.decode("utf-8")
+        self.assertIn(EveEntity.objects.get(id=2101).name, text)
+        self.assertIn(EveEntity.objects.get(id=2001).name, text)
+        self.assertIn("(Closed)", text)
 
     def test_character_character_implants_data(self):
         implant_1 = CharacterImplant.objects.create(

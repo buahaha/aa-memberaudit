@@ -866,11 +866,9 @@ def character_corporation_history(
 ) -> HttpResponse:
     corporation_history = list()
     try:
-        corporation_history_qs = (
-            character.corporation_history.exclude(is_deleted=True)
-            .select_related("corporation")
-            .order_by("start_date")
-        )
+        corporation_history_qs = character.corporation_history.select_related(
+            "corporation"
+        ).order_by("start_date")
     except ObjectDoesNotExist:
         pass
 
@@ -887,6 +885,7 @@ def character_corporation_history(
                     "start_date": entry.start_date,
                     "end_date": now(),
                     "is_last": True,
+                    "is_deleted": entry.is_deleted,
                 }
             )
 
