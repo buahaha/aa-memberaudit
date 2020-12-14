@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-07 21:36+0100\n"
+"POT-Creation-Date: 2020-12-15 00:04+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -24,248 +24,248 @@ msgstr ""
 msgid "Member Audit"
 msgstr ""
 
-#: models.py:243
+#: models.py:244
 msgid "assets"
 msgstr ""
 
-#: models.py:245
+#: models.py:246
 msgid "contacts"
 msgstr ""
 
-#: models.py:246
+#: models.py:247
 msgid "contracts"
 msgstr ""
 
-#: models.py:247
+#: models.py:248
 msgid "corporation history"
 msgstr ""
 
-#: models.py:248
+#: models.py:249
 msgid "implants"
 msgstr ""
 
-#: models.py:249
+#: models.py:250
 msgid "jump clones"
 msgstr ""
 
-#: models.py:250
+#: models.py:251
 msgid "location"
 msgstr ""
 
-#: models.py:251
+#: models.py:252
 msgid "loyalty"
 msgstr ""
 
-#: models.py:252
+#: models.py:253
 msgid "mails"
 msgstr ""
 
-#: models.py:253
+#: models.py:254
 msgid "online status"
 msgstr ""
 
-#: models.py:254
+#: models.py:255
 msgid "skills"
 msgstr ""
 
-#: models.py:255
+#: models.py:256
 msgid "skill queue"
 msgstr ""
 
-#: models.py:256
+#: models.py:257
 msgid "skill sets"
 msgstr ""
 
-#: models.py:257
+#: models.py:258
 msgid "wallet balance"
 msgstr ""
 
-#: models.py:258
+#: models.py:259
 msgid "wallet journal"
 msgstr ""
 
-#: models.py:2134
+#: models.py:2135
 msgid "excellent standing"
 msgstr ""
 
-#: models.py:2135
+#: models.py:2136
 msgid "good standing"
 msgstr ""
 
-#: models.py:2136
+#: models.py:2137
 msgid "neutral standing"
 msgstr ""
 
-#: models.py:2137
+#: models.py:2138
 msgid "bad standing"
 msgstr ""
 
-#: models.py:2138
+#: models.py:2139
 msgid "terrible standing"
 msgstr ""
 
-#: models.py:2190
+#: models.py:2191
 msgid "alliance"
 msgstr ""
 
-#: models.py:2191
+#: models.py:2192
 msgid "corporation"
 msgstr ""
 
-#: models.py:2192
+#: models.py:2193
 msgid "private"
 msgstr ""
 
-#: models.py:2193
+#: models.py:2194
 msgid "public"
 msgstr ""
 
-#: models.py:2213
+#: models.py:2214
 msgid "canceled"
 msgstr ""
 
-#: models.py:2214
+#: models.py:2215
 msgid "deleted"
 msgstr ""
 
-#: models.py:2215
+#: models.py:2216
 msgid "failed"
 msgstr ""
 
-#: models.py:2216
+#: models.py:2217
 msgid "finished"
 msgstr ""
 
-#: models.py:2217
+#: models.py:2218
 msgid "finished contractor"
 msgstr ""
 
-#: models.py:2218
+#: models.py:2219
 msgid "finished issuer"
 msgstr ""
 
-#: models.py:2219
+#: models.py:2220
 msgid "in progress"
 msgstr ""
 
-#: models.py:2220
+#: models.py:2221
 msgid "outstanding"
 msgstr ""
 
-#: models.py:2221
+#: models.py:2222
 msgid "rejected"
 msgstr ""
 
-#: models.py:2222
+#: models.py:2223
 msgid "reversed"
 msgstr ""
 
-#: models.py:2243
+#: models.py:2244
 msgid "auction"
 msgstr ""
 
-#: models.py:2244
+#: models.py:2245
 msgid "courier"
 msgstr ""
 
-#: models.py:2245
+#: models.py:2246
 msgid "item exchange"
 msgstr ""
 
-#: models.py:2246
+#: models.py:2247
 msgid "loan"
 msgstr ""
 
-#: models.py:2247
+#: models.py:2248
 msgid "unknown"
 msgstr ""
 
-#: models.py:2403
+#: models.py:2404
 msgid "[Multiple Items]"
 msgstr ""
 
-#: models.py:2484
+#: models.py:2485
 msgid "male"
 msgstr ""
 
-#: models.py:2485
+#: models.py:2486
 msgid "female"
 msgstr ""
 
-#: models.py:2977
+#: models.py:2978
 msgid "undefined"
 msgstr ""
 
-#: models.py:2978
+#: models.py:2979
 msgid "station ID"
 msgstr ""
 
-#: models.py:2979
+#: models.py:2980
 msgid "market transaction ID"
 msgstr ""
 
-#: models.py:2980
+#: models.py:2981
 msgid "character ID"
 msgstr ""
 
-#: models.py:2981
+#: models.py:2982
 msgid "corporation ID"
 msgstr ""
 
-#: models.py:2982
+#: models.py:2983
 msgid "alliance ID"
 msgstr ""
 
-#: models.py:2983
+#: models.py:2984
 msgid "eve system"
 msgstr ""
 
-#: models.py:2984
+#: models.py:2985
 msgid "industry job ID"
 msgstr ""
 
-#: models.py:2985
+#: models.py:2986
 msgid "contract ID"
 msgstr ""
 
-#: models.py:2986
+#: models.py:2987
 msgid "planet ID"
 msgstr ""
 
-#: models.py:2987
+#: models.py:2988
 msgid "system ID"
 msgstr ""
 
-#: models.py:2988
+#: models.py:2989
 msgid "type ID"
 msgstr ""
 
-#: models.py:3106
+#: models.py:3107
 msgid "Doctrine: "
 msgstr ""
 
-#: models.py:3180 templates/memberaudit/character_finder.html:86
+#: models.py:3181 templates/memberaudit/character_finder.html:86
 #: templates/memberaudit/reports.html:68 templates/memberaudit/reports.html:132
 msgid "Alliance"
 msgstr ""
 
-#: models.py:3181 templates/memberaudit/character_finder.html:18
+#: models.py:3182 templates/memberaudit/character_finder.html:18
 #: templates/memberaudit/partials/reports/tabs/skill_sets.html:12
 msgid "Character"
 msgstr ""
 
-#: models.py:3182 templates/memberaudit/character_finder.html:90
+#: models.py:3183 templates/memberaudit/character_finder.html:90
 #: templates/memberaudit/partials/character_viewer/tabs/corporation_history_2.html:6
 #: templates/memberaudit/partials/character_viewer/tabs/loyalty.html:8
 #: templates/memberaudit/reports.html:72 templates/memberaudit/reports.html:136
 msgid "Corporation"
 msgstr ""
 
-#: models.py:3183
+#: models.py:3184
 msgid "Mailing List"
 msgstr ""
 
-#: models.py:3184
+#: models.py:3185
 msgid "Unknown"
 msgstr ""
 
@@ -368,7 +368,7 @@ msgstr ""
 
 #: templates/memberaudit/launcher.html:73
 #: templates/memberaudit/partials/character_viewer/overview.html:39
-#: templates/memberaudit/partials/character_viewer/tabs/corporation_history_2.html:18
+#: templates/memberaudit/partials/character_viewer/tabs/corporation_history_2.html:21
 msgid "(no data yet)"
 msgstr ""
 
@@ -376,19 +376,19 @@ msgstr ""
 msgid "View this character."
 msgstr ""
 
-#: templates/memberaudit/launcher.html:87
+#: templates/memberaudit/launcher.html:88
 msgid "Disable access to this character for recruiters."
 msgstr ""
 
-#: templates/memberaudit/launcher.html:94
+#: templates/memberaudit/launcher.html:95
 msgid "Enable access to this character for recruiters."
 msgstr ""
 
-#: templates/memberaudit/launcher.html:100
+#: templates/memberaudit/launcher.html:102
 msgid "Remove this character."
 msgstr ""
 
-#: templates/memberaudit/launcher.html:114
+#: templates/memberaudit/launcher.html:116
 msgid "Unregistered character(s):"
 msgstr ""
 
@@ -647,7 +647,11 @@ msgstr ""
 msgid "Info"
 msgstr ""
 
-#: templates/memberaudit/partials/character_viewer/tabs/corporation_history_2.html:12
+#: templates/memberaudit/partials/character_viewer/tabs/corporation_history_2.html:9
+msgid "(Closed)"
+msgstr ""
+
+#: templates/memberaudit/partials/character_viewer/tabs/corporation_history_2.html:15
 msgid "Today"
 msgstr ""
 
@@ -868,6 +872,6 @@ msgstr ""
 msgid "[Ungrouped]"
 msgstr ""
 
-#: views.py:1173
+#: views.py:1172
 msgid "(training not active)"
 msgstr ""

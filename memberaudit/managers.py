@@ -592,7 +592,7 @@ class CharacterUpdateStatusManager(models.Manager):
                         }
                     )
 
-        return results
+        return {"update_statistics": results}
 
     @staticmethod
     def _info_from_obj(obj) -> dict:

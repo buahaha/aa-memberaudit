@@ -6,7 +6,7 @@
         <small class="text-muted">{% translate 'Corporation' %}</small><br>
         <a href="{{ corporation.corporation_name|dotlan_corporation_url }}" target="_blank">{{ corporation.corporation_name }}</a>&nbsp;
         {% if corporation.is_deleted %}
-        &nbsp;(Closed)&nbsp;
+        &nbsp;{% translate '(Closed)' %}&nbsp;
         {% endif %}
         {{ corporation.start_date|date:MY_DATETIME_FORMAT }} to
         {% if not corporation.is_last %}

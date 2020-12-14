@@ -16,7 +16,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         stats = CharacterUpdateStatus.objects.calculate_statistics()
         stats_out = json.dumps(
-            {"update_statistics": stats},
+            stats,
             sort_keys=True,
             indent=4,
             ensure_ascii=False,
