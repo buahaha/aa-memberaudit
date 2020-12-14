@@ -3419,7 +3419,9 @@ class TestCharacterUpdateStatusManager(TestCase):
             started_at=my_now,
             finished_at=my_now + dt.timedelta(seconds=90),
         )
-        stats = CharacterUpdateStatus.objects.calculate_statistics()
+        stats = CharacterUpdateStatus.objects.calculate_statistics()[
+            "update_statistics"
+        ]
 
         # round duration is calculated as total duration
         # from start of first to end of last section
