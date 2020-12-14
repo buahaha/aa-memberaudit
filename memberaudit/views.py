@@ -273,7 +273,7 @@ def remove_character(request, character_pk: int) -> HttpResponse:
 
 
 @login_required
-@permission_required("memberaudit.basic_access")
+@permission_required(["memberaudit.basic_access", "memberaudit.share_characters"])
 def share_character(request, character_pk: int) -> HttpResponse:
     try:
         character = Character.objects.select_related(

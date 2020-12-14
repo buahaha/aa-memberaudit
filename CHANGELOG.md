@@ -7,13 +7,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Update notes
+
+Sharing of characters now requires the new permission `share_characters`. Please make sure to add the new permission accordingly to keep the sharing feature enabled.
+
 ### Added
 
 ### Changed
 
+- Only users with the new permission `share_characters` can share their characters. ([#69](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/69))
+
 ### Fixed
 
-- Non existing user are marked as compliant (#59)
+- Non existing user are marked as compliant ([#59](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/59))
 
 ## [1.0.0b1] - 2020-12-07
 

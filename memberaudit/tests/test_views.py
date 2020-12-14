@@ -1276,9 +1276,15 @@ class TestShareCharacter(TestCase):
     def setUp(self) -> None:
         self.character_1001 = create_memberaudit_character(1001)
         self.user_1001 = self.character_1001.character_ownership.user
+        self.user_1001 = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.share_characters", self.user_1001
+        )
 
         self.character_1002 = create_memberaudit_character(1002)
         self.user_1002 = self.character_1002.character_ownership.user
+        self.user_1002 = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.share_characters", self.user_1002
+        )
 
     def test_normal(self):
         request = self.factory.get(
@@ -1290,7 +1296,38 @@ class TestShareCharacter(TestCase):
         self.assertEqual(response.url, reverse("memberaudit:launcher"))
         self.assertTrue(Character.objects.get(pk=self.character_1001.pk).is_shared)
 
-    def test_no_permission(self):
+    def test_no_permission_1(self):
+        """
+        when user does not have any permissions
+        then redirect to login
+        """
+        user = AuthUtils.create_user("John Doe")
+        request = self.factory.get(
+            reverse("memberaudit:share_character", args=[self.character_1001.pk])
+        )
+        request.user = user
+        response = share_character(request, self.character_1001.pk)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
+
+    def test_no_permission_2(self):
+        """
+        when user does has basic_access only
+        then redirect to login
+        """
+        user = AuthUtils.create_user("John Doe")
+        user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.basic_access", user
+        )
+        request = self.factory.get(
+            reverse("memberaudit:share_character", args=[self.character_1001.pk])
+        )
+        request.user = user
+        response = share_character(request, self.character_1001.pk)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response.url)
+
+    def test_no_permission_3(self):
         request = self.factory.get(
             reverse("memberaudit:share_character", args=[self.character_1001.pk])
         )

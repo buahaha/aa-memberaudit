@@ -8,6 +8,8 @@ from django.utils.timezone import now
 from django_webtest import WebTest
 from eveuniverse.models import EveEntity, EveType
 
+from allianceauth.tests.auth_utils import AuthUtils
+
 from ..models import (
     CharacterAsset,
     CharacterContract,
@@ -115,6 +117,53 @@ class TestUILauncher(WebTest):
             == reverse("memberaudit:character_viewer", args=[character_1001.pk])
         ]
         self.assertGreater(len(character_1001_links), 0)
+
+    def test_share_character_1(self):
+        """
+        when user has share permission
+        then he can share his characters
+        """
+        # setup
+        character_1001 = add_memberaudit_character_to_user(self.user, 1001)
+        self.user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.share_characters", self.user
+        )
+
+        # login & open launcher page
+        self.app.set_user(self.user)
+        launcher = self.app.get(reverse("memberaudit:launcher"))
+        self.assertEqual(launcher.status_code, 200)
+
+        # check for share button
+        character_1001_links = [
+            x["href"]
+            for x in launcher.html.find_all("a", href=True)
+            if x["href"]
+            == reverse("memberaudit:share_character", args=[character_1001.pk])
+        ]
+        self.assertGreater(len(character_1001_links), 0)
+
+    def test_share_character_2(self):
+        """
+        when user does not have share permission
+        then he can not share his characters
+        """
+        # setup
+        character_1001 = add_memberaudit_character_to_user(self.user, 1001)
+
+        # login & open launcher page
+        self.app.set_user(self.user)
+        launcher = self.app.get(reverse("memberaudit:launcher"))
+        self.assertEqual(launcher.status_code, 200)
+
+        # check for share button
+        character_1001_links = [
+            x["href"]
+            for x in launcher.html.find_all("a", href=True)
+            if x["href"]
+            == reverse("memberaudit:share_character", args=[character_1001.pk])
+        ]
+        self.assertEqual(len(character_1001_links), 0)
 
 
 class TestUICharacterViewer(WebTest):

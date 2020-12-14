@@ -105,8 +105,9 @@ class General(models.Model):
         permissions = (
             (
                 "basic_access",
-                "Can access this app and register and view own characters",
+                "Can access this app, register, and view own characters",
             ),
+            ("share_characters", "Can share his/her characters"),
             ("finder_access", "Can access character finder feature"),
             ("reports_access", "Can access reports feature"),
             ("characters_access", "Can view characters owned by others"),
