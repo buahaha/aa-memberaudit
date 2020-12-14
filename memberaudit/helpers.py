@@ -1,3 +1,4 @@
+import ast
 import re
 import random
 from time import sleep
@@ -144,9 +145,10 @@ def eve_xml_to_html(xml: str) -> str:
     # x = strip_tags(x)
     if is_ascii(x):
         x = bytes(x, "ascii").decode("unicode-escape")
-        # not sure why we need this, but strings are sometimes wrapped in u'' at this point
-        if x.startswith("u'"):
-            x = x[2:-1]
+        # temporary fix to address u-bug in ESI endpoint
+        # TODO: remove when ESI bug is fixed
+        if x.startswith("u'") and x.endswith("'"):
+            x = ast.literal_eval(x)
     return mark_safe(x)
 
 
