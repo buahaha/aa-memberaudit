@@ -3,14 +3,26 @@ import json
 import hashlib
 from unittest.mock import patch, Mock
 
+from bravado.exception import (
+    HTTPNotFound,
+    HTTPForbidden,
+    HTTPUnauthorized,
+    HTTPInternalServerError,
+)
+
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now
 
-from bravado.exception import HTTPNotFound, HTTPForbidden, HTTPUnauthorized
-from eveuniverse.models import EveEntity, EveSolarSystem, EveType, EveMarketPrice
+from eveuniverse.models import (
+    EveEntity,
+    EveSolarSystem,
+    EveType,
+    EveMarketPrice,
+    EveAncestry,
+)
 from esi.models import Token
 from esi.errors import TokenError
 
@@ -22,7 +34,7 @@ from . import (
     scope_names_set,
     add_memberaudit_character_to_user,
 )
-from ..helpers import eve_xml_to_html, EsiStatus
+from ..helpers import eve_xml_to_html, EsiStatus, get_or_create_esi_or_none
 from ..models import (
     Character,
     CharacterAsset,
@@ -1992,6 +2004,41 @@ class TestCharacterUpdateCharacterDetails(TestCharacterUpdateBase):
         self.character_1001.update_character_details(force_update=True)
         self.character_1001.details.refresh_from_db()
         self.assertEqual(self.character_1001.details.name, "Bruce Wayne")
+
+    @patch(MODELS_PATH + ".get_or_create_esi_or_none")
+    def test_esi_ancestry_bug(
+        self, mock_get_or_create_esi_or_none, mock_esi, mock_eve_xml_to_html
+    ):
+        """when esi ancestry endpoint returns http error then ignore it and carry on"""
+
+        def my_get_or_create_esi_or_none(prop_name: str, dct: dict, Model: type):
+            if issubclass(Model, EveAncestry):
+                raise HTTPInternalServerError(
+                    response=BravadoResponseStub(500, "Test exception")
+                )
+            return get_or_create_esi_or_none(prop_name=prop_name, dct=dct, Model=Model)
+
+        mock_esi.client = esi_client_stub
+        mock_eve_xml_to_html.side_effect = lambda x: eve_xml_to_html(x)
+        mock_get_or_create_esi_or_none.side_effect = my_get_or_create_esi_or_none
+
+        self.character_1001.update_character_details()
+        self.assertIsNone(self.character_1001.details.eve_ancestry)
+        self.assertEqual(
+            self.character_1001.details.birthday, parse_datetime("2015-03-24T11:37:00Z")
+        )
+        self.assertEqual(self.character_1001.details.eve_bloodline_id, 1)
+        self.assertEqual(self.character_1001.details.corporation, self.corporation_2001)
+        self.assertEqual(self.character_1001.details.description, "Scio me nihil scire")
+        self.assertEqual(
+            self.character_1001.details.gender, CharacterDetails.GENDER_MALE
+        )
+        self.assertEqual(self.character_1001.details.name, "Bruce Wayne")
+        self.assertEqual(self.character_1001.details.eve_race.id, 1)
+        self.assertEqual(
+            self.character_1001.details.title, "All round pretty awesome guy"
+        )
+        self.assertTrue(mock_eve_xml_to_html.called)
 
 
 @patch(MODELS_PATH + ".esi")

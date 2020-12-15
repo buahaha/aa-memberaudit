@@ -4,6 +4,8 @@ import json
 import os
 from typing import Any, List, Optional
 
+from bravado.exception import HTTPInternalServerError
+
 from django.contrib.auth.models import User, Permission
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
@@ -607,6 +609,16 @@ class Character(models.Model):
                 if details.get("gender") == "male"
                 else CharacterDetails.GENDER_FEMALE
             )
+
+            # Workaround because of ESI issue #1264
+            # TODO: Remove once issue is fixed
+            try:
+                eve_ancestry = get_or_create_esi_or_none(
+                    "ancestry_id", details, EveAncestry
+                )
+            except HTTPInternalServerError:
+                eve_ancestry = None
+
             CharacterDetails.objects.update_or_create(
                 character=self,
                 defaults={
@@ -614,9 +626,7 @@ class Character(models.Model):
                         "alliance_id", details, EveEntity
                     ),
                     "birthday": details.get("birthday"),
-                    "eve_ancestry": get_or_create_esi_or_none(
-                        "ancestry_id", details, EveAncestry
-                    ),
+                    "eve_ancestry": eve_ancestry,
                     "eve_bloodline": get_or_create_esi_or_none(
                         "bloodline_id", details, EveBloodline
                     ),
