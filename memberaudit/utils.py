@@ -319,7 +319,7 @@ def dt_eveformat(dt: object) -> str:
     return dt2.isoformat()
 
 
-def add_bs_label_html(text: str, label: str) -> str:
+def add_bs_label_html(text: str, label: str = "default") -> str:
     """create Bootstrap label and return HTML"""
     return format_html('<div class="label label-{}">{}</div>', label, text)
 

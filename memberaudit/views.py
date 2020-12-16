@@ -646,8 +646,14 @@ def character_contacts_data(
             is_watched = contact.is_watched is True
             is_blocked = contact.is_blocked is True
             name = contact.eve_entity.name
+            is_npc = contact.eve_entity.is_npc
+            if is_npc:
+                name_plus = format_html("{} {}", name, add_bs_label_html("NPC", "info"))
+            else:
+                name_plus = name
+
             name_html = create_icon_plus_name_html(
-                contact.eve_entity.icon_url(DEFAULT_ICON_SIZE), name, avatar=True
+                contact.eve_entity.icon_url(DEFAULT_ICON_SIZE), name_plus, avatar=True
             )
             data.append(
                 {
@@ -659,6 +665,7 @@ def character_contacts_data(
                     "is_blocked": is_blocked,
                     "is_watched_str": yesno_str(is_watched),
                     "is_blocked_str": yesno_str(is_blocked),
+                    "is_npc_str": yesno_str(is_npc),
                     "level": contact.standing_level.title(),
                 }
             )

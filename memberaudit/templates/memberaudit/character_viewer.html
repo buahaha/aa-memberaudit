@@ -248,6 +248,7 @@
                     /* hidden */
                     { data: 'is_watched_str' },
                     { data: 'is_blocked_str' },
+                    { data: 'is_npc_str' },
                 ],
                 order: [[3, "desc"], [0, "asc"], [1, "asc"]],
                 rowGroup: {
@@ -256,7 +257,7 @@
                 },
                 columnDefs: [
                     {
-                        "visible": false, "targets": [0, 6, 7]
+                        "visible": false, "targets": [0, 6, 7, 8]
                     },
                     {
                         /* render bools as icon */
@@ -278,6 +279,10 @@
                         },
                         {
                             idx: 2
+                        },
+                        {
+                            idx: 8,
+                            title: "{% translate 'NPC?' %}"
                         },
                         {
                             idx: 6,

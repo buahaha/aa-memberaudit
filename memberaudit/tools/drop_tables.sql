@@ -1,3 +1,4 @@
+-- Deletes all Member Audit tables from the database
 SET FOREIGN_KEY_CHECKS=0;
 DROP TABLE IF EXISTS memberaudit_character;
 DROP TABLE IF EXISTS memberaudit_characterasset;
