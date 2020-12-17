@@ -209,7 +209,7 @@ def update_character(character_pk: int, force_update: bool = False) -> bool:
 # Update sections
 
 
-@shared_task(**{**TASK_ESI_KWARGS}, **{"base": QueueOnce})
+@shared_task(**{**TASK_ESI_KWARGS, **{"base": QueueOnce}})
 def update_character_section(
     self, character_pk: int, section: str, force_update: bool = False, **kwargs
 ) -> None:
@@ -787,11 +787,13 @@ def update_market_prices(self):
 
 
 @shared_task(
-    **{**TASK_ESI_KWARGS},
     **{
-        "base": QueueOnce,
-        "once": {"keys": ["id"], "graceful": True},
-        "max_retries": None,
+        **TASK_ESI_KWARGS,
+        **{
+            "base": QueueOnce,
+            "once": {"keys": ["id"], "graceful": True},
+            "max_retries": None,
+        },
     },
 )
 def update_structure_esi(self, id: int, token_pk: int):
@@ -823,11 +825,13 @@ def update_structure_esi(self, id: int, token_pk: int):
 
 
 @shared_task(
-    **{**TASK_ESI_KWARGS},
     **{
-        "base": QueueOnce,
-        "once": {"keys": ["id"], "graceful": True},
-        "max_retries": None,
+        **TASK_ESI_KWARGS,
+        **{
+            "base": QueueOnce,
+            "once": {"keys": ["id"], "graceful": True},
+            "max_retries": None,
+        },
     },
 )
 def update_mail_entity_esi(self, id: int, category: str = None):
