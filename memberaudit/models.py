@@ -895,6 +895,10 @@ class Character(models.Model):
         if not contracts_list:
             logger.info("%s: No contracts received from ESI", self)
 
+        cutoff_datetime = data_retention_cutoff()
+        if cutoff_datetime:
+            self.contracts.filter(date_expired__lt=cutoff_datetime).delete()
+
         if force_update or self.has_section_changed(
             section=self.UpdateSection.CONTRACTS, content=contracts_list
         ):
@@ -942,8 +946,11 @@ class Character(models.Model):
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(contracts_data, "contracts")
 
+        cutoff_datetime = data_retention_cutoff()
         contracts_list = {
-            obj["contract_id"]: obj for obj in contracts_data if "contract_id" in obj
+            obj["contract_id"]: obj
+            for obj in contracts_data
+            if cutoff_datetime is None or obj.get("date_expired") > cutoff_datetime
         }
         return contracts_list
 
@@ -1466,15 +1473,15 @@ class Character(models.Model):
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(mail_headers, "mail_headers")
 
+        cutoff_datetime = data_retention_cutoff()
+        if cutoff_datetime:
+            self.mails.filter(timestamp__lt=cutoff_datetime).delete()
+
         if force_update or self.has_section_changed(
             section=self.UpdateSection.MAILS, content=mail_headers
         ):
             self._preload_mail_senders(mail_headers)
             with transaction.atomic():
-                cutoff_datetime = data_retention_cutoff()
-                if cutoff_datetime:
-                    self.mails.filter(timestamp__lt=cutoff_datetime).delete()
-
                 incoming_ids = set(mail_headers.keys())
                 existing_ids = set(self.mails.values_list("mail_id", flat=True))
                 create_ids = incoming_ids.difference(existing_ids)
@@ -1518,11 +1525,11 @@ class Character(models.Model):
 
         cutoff_datetime = data_retention_cutoff()
         mail_headers_all_2 = {
-            x["mail_id"]: x
-            for x in mail_headers_all
+            obj["mail_id"]: obj
+            for obj in mail_headers_all
             if cutoff_datetime is None
-            or not x["timestamp"]
-            or x["timestamp"] > cutoff_datetime
+            or not obj.get("timestamp")
+            or obj.get("timestamp") > cutoff_datetime
         }
         logger.info(
             "%s: Received %s mail headers from ESI", self, len(mail_headers_all_2)

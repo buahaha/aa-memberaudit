@@ -988,13 +988,16 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
     def setUpClass(cls) -> None:
         super().setUpClass()
 
-    @override_settings(CELERY_ALWAYS_EAGER=True)
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_contracts_1(self, mock_esi):
         """can create new courier contract"""
         mock_esi.client = esi_client_stub
 
         self.character_1001.update_contract_headers()
-        self.assertEqual(self.character_1001.contracts.count(), 3)
+        self.assertSetEqual(
+            set(self.character_1001.contracts.values_list("contract_id", flat=True)),
+            {100000001, 100000002, 100000003},
+        )
 
         obj = self.character_1001.contracts.get(contract_id=100000001)
         self.assertEqual(obj.contract_type, CharacterContract.TYPE_COURIER)
@@ -1019,6 +1022,7 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
         self.assertEqual(obj.title, "Test 1")
         self.assertEqual(obj.volume, 486000.0)
 
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_contracts_2(self, mock_esi):
         """can create new item exchange contract"""
         mock_esi.client = esi_client_stub
@@ -1047,6 +1051,7 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
         self.assertEqual(item.raw_quantity, -1)
         self.assertEqual(item.eve_type, EveType.objects.get(id=19551))
 
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_contracts_3(self, mock_esi):
         """can create new auction contract"""
         mock_esi.client = esi_client_stub
@@ -1076,6 +1081,7 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
         self.assertEqual(bid.date_bid, parse_datetime("2017-01-01T10:10:10Z"))
         self.assertEqual(bid.bidder, EveEntity.objects.get(id=1101))
 
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_contracts_4(self, mock_esi):
         """old contracts must be kept"""
         mock_esi.client = esi_client_stub
@@ -1100,6 +1106,7 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
         self.character_1001.update_contract_headers()
         self.assertEqual(self.character_1001.contracts.count(), 4)
 
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_contracts_5(self, mock_esi):
         """Existing contracts are updated"""
         mock_esi.client = esi_client_stub
@@ -1149,6 +1156,7 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
         self.assertEqual(obj.title, "Test 1")
         self.assertEqual(obj.volume, 486000.0)
 
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_contracts_6(self, mock_esi):
         """can add new bids to auction contract"""
         mock_esi.client = esi_client_stub
@@ -1192,6 +1200,7 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
         bid = obj.bids.get(bid_id=2)
         self.assertEqual(float(bid.amount), 21_000_000)
 
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_contracts_7(self, mock_esi):
         """when contract list from ESI has not changed, then skip update"""
         mock_esi.client = esi_client_stub
@@ -1206,6 +1215,7 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
         obj = self.character_1001.contracts.get(contract_id=100000001)
         self.assertEqual(obj.status, CharacterContract.STATUS_FINISHED)
 
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_contracts_8(self, mock_esi):
         """
         when contract list from ESI has not changed and update is forced, then update
@@ -1221,6 +1231,56 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
 
         obj = self.character_1001.contracts.get(contract_id=100000001)
         self.assertEqual(obj.status, CharacterContract.STATUS_IN_PROGRESS)
+
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", 10)
+    def test_update_contracts_9(self, mock_esi):
+        """when retention limit is set, then only create contracts younger than limit"""
+        mock_esi.client = esi_client_stub
+
+        with patch(MODELS_PATH + ".now") as mock_now:
+            mock_now.return_value = make_aware(dt.datetime(2019, 10, 21, 1, 15), UTC)
+            self.character_1001.update_contract_headers()
+
+        self.assertSetEqual(
+            set(self.character_1001.contracts.values_list("contract_id", flat=True)),
+            {100000002, 100000003},
+        )
+
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", 15)
+    def test_update_contracts_10(self, mock_esi):
+        """when retention limit is set,
+        then remove existing contracts older than limit
+        """
+        mock_esi.client = esi_client_stub
+        CharacterContract.objects.create(
+            character=self.character_1001,
+            contract_id=100000004,
+            availability=CharacterContract.AVAILABILITY_PERSONAL,
+            contract_type=CharacterContract.TYPE_COURIER,
+            assignee=EveEntity.objects.get(id=2101),
+            date_issued=parse_datetime("2019-09-02T13:15:21Z"),
+            date_expired=parse_datetime("2019-09-09T13:15:21Z"),
+            for_corporation=False,
+            issuer=EveEntity.objects.get(id=1001),
+            issuer_corporation=EveEntity.objects.get(id=2001),
+            status=CharacterContract.STATUS_OUTSTANDING,
+            start_location=self.jita_44,
+            end_location=self.structure_1,
+            title="This contract is too old",
+            collateral=550000000,
+            reward=500000000,
+            volume=486000,
+            days_to_complete=3,
+        )
+
+        with patch(MODELS_PATH + ".now") as mock_now:
+            mock_now.return_value = make_aware(dt.datetime(2019, 10, 21, 1, 15), UTC)
+            self.character_1001.update_contract_headers()
+
+        self.assertSetEqual(
+            set(self.character_1001.contracts.values_list("contract_id", flat=True)),
+            {100000001, 100000002, 100000003},
+        )
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
