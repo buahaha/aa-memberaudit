@@ -446,7 +446,7 @@
                         }
                     ],
                     "subject": "Mail 1",
-                    "timestamp": "2015-09-30T16:07:00Z"
+                    "timestamp": "2015-09-05T16:07:00Z"
                 },
                 {
                     "from": 9001,
@@ -461,7 +461,7 @@
                         }
                     ],
                     "subject": "Mail 2",
-                    "timestamp": "2015-09-30T18:07:00Z"
+                    "timestamp": "2015-09-10T18:07:00Z"
                 },
                 {
                     "from": 1002,
@@ -476,7 +476,7 @@
                         }
                     ],
                     "subject": "Unknown mailing list recipient",
-                    "timestamp": "2015-09-30T18:07:00Z"
+                    "timestamp": "2015-09-20T12:07:00Z"
                 }
             ],
             "1002": [

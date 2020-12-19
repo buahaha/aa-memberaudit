@@ -1,3 +1,9 @@
+"""
+Utility functions meant to be used in many apps
+
+Version 1.0.0
+"""
+
 import socket
 from datetime import datetime, timedelta
 import json
@@ -157,16 +163,18 @@ def clean_setting(
 ) -> Any:
     """cleans the input for a custom setting
 
-    Will use `default_value` if settings does not exit or has the wrong type
-    or is outside define boundaries (for int only)
+    Will use default_value if setting is not defined.
+    Will use minimum or maximum value if respective boundary is exceeded.
 
-    Need to define `required_type` if `default_value` is `None`
+    Args:
+    - `default_value`: value to use if setting is not defined
+    - `min_value`: minimum allowed value (0 assumed for int)
+    - `max_value`: maximum value value
+    - `required_type`: Mandatory if `default_value` is `None`,
+    otherwise derived from default_value
 
-    Will assume `min_value` of 0 for int (can be overriden)
-
-    `None` allowed as value
-
-    Returns cleaned value for setting
+    Returns:
+    - cleaned value for setting
     """
     if default_value is None and not required_type:
         raise ValueError("You must specify a required_type for None defaults")
@@ -174,8 +182,14 @@ def clean_setting(
     if not required_type:
         required_type = type(default_value)
 
-    if min_value is None and required_type == int:
+    if min_value is None and issubclass(required_type, int):
         min_value = 0
+
+    if issubclass(required_type, int) and default_value is not None:
+        if min_value is not None and default_value < min_value:
+            raise ValueError("default_value can not be below min_value")
+        if max_value is not None and default_value > max_value:
+            raise ValueError("default_value can not be above max_value")
 
     if not hasattr(settings, name):
         cleaned_value = default_value
@@ -188,6 +202,26 @@ def clean_setting(
             and (choices is None or dirty_value in choices)
         ):
             cleaned_value = dirty_value
+        elif (
+            isinstance(dirty_value, required_type)
+            and min_value is not None
+            and dirty_value < min_value
+        ):
+            logger.warn(
+                "You setting for {} it not valid. Please correct it. "
+                "Using minimum value for now: {}".format(name, min_value)
+            )
+            cleaned_value = min_value
+        elif (
+            isinstance(dirty_value, required_type)
+            and max_value is not None
+            and dirty_value > max_value
+        ):
+            logger.warn(
+                "You setting for {} it not valid. Please correct it. "
+                "Using maximum value for now: {}".format(name, max_value)
+            )
+            cleaned_value = max_value
         else:
             logger.warn(
                 "You setting for {} it not valid. Please correct it. "
@@ -219,6 +253,13 @@ def set_test_logger(logger_name: str, name: str) -> object:
     my_logger.addHandler(f_handler)
     my_logger.propagate = False
     return my_logger
+
+
+def datetime_round_hour(obj) -> datetime:
+    """Rounds to nearest hour"""
+    return obj.replace(second=0, microsecond=0, minute=0, hour=obj.hour) + timedelta(
+        hours=obj.minute // 30
+    )
 
 
 def timeuntil_str(duration: timedelta) -> str:

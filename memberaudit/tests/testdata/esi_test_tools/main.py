@@ -58,7 +58,10 @@ EsiEndpoint_T = namedtuple(
 
 
 def EsiEndpoint(
-    category: str, method: str, primary_key: str = None, needs_token: bool = False
+    category: str,
+    method: str,
+    primary_key: str = None,
+    needs_token: bool = False,
 ) -> EsiEndpoint_T:
     return EsiEndpoint_T(category, method, primary_key, needs_token)
 
@@ -67,10 +70,7 @@ class _EsiRoute:
     def __init__(
         self, endpoint: EsiEndpoint_T, testdata: dict, http_error: bool = False
     ) -> None:
-        self._category = endpoint.category
-        self._method = endpoint.method
-        self._primary_key = endpoint.primary_key
-        self._needs_token = endpoint.needs_token
+        self._endpoint = endpoint
         self._testdata = testdata
         self._http_error = http_error
 
@@ -81,57 +81,59 @@ class _EsiRoute:
             )
 
         pk_value = None
-        if self._primary_key:
-            if isinstance(self._primary_key, tuple):
-                for pk in self._primary_key:
+        if self._endpoint.primary_key:
+            if isinstance(self._endpoint.primary_key, tuple):
+                for pk in self._endpoint.primary_key:
                     if pk not in kwargs:
                         raise ValueError(
-                            f"{self._category}.{self._method}: Missing primary key: {pk}"
+                            f"{self._endpoint.category}.{self._endpoint.method}: Missing primary key: {pk}"
                         )
 
-            elif self._primary_key not in kwargs:
+            elif self._endpoint.primary_key not in kwargs:
                 raise ValueError(
-                    f"{self._category}.{self._method}: Missing primary key: "
-                    f"{self._primary_key}"
+                    f"{self._endpoint.category}.{self._endpoint.method}: Missing primary key: "
+                    f"{self._endpoint.primary_key}"
                 )
-        if self._needs_token:
+        if self._endpoint.needs_token:
             if "token" not in kwargs:
                 raise ValueError(
-                    f"{self._category}.{self._method} "
-                    f"with pk = {self._primary_key}: Missing token"
+                    f"{self._endpoint.category}.{self._endpoint.method} "
+                    f"with pk = {self._endpoint.primary_key}: Missing token"
                 )
             elif not isinstance(kwargs.get("token"), str):
                 raise TypeError(
-                    f"{self._category}.{self._method} "
-                    f"with pk = {self._primary_key}: Token is not a string"
+                    f"{self._endpoint.category}.{self._endpoint.method} "
+                    f"with pk = {self._endpoint.primary_key}: Token is not a string"
                 )
         try:
-            if self._primary_key:
+            if self._endpoint.primary_key:
 
-                if isinstance(self._primary_key, tuple):
-                    pk_value_1 = str(kwargs[self._primary_key[0]])
-                    pk_value_2 = str(kwargs[self._primary_key[1]])
+                if isinstance(self._endpoint.primary_key, tuple):
+                    pk_value_1 = str(kwargs[self._endpoint.primary_key[0]])
+                    pk_value_2 = str(kwargs[self._endpoint.primary_key[1]])
                     result = self._convert_values(
-                        self._testdata[self._category][self._method][pk_value_1][
-                            pk_value_2
-                        ]
+                        self._testdata[self._endpoint.category][self._endpoint.method][
+                            pk_value_1
+                        ][pk_value_2]
                     )
                 else:
-                    pk_value = str(kwargs[self._primary_key])
+                    pk_value = str(kwargs[self._endpoint.primary_key])
                     result = self._convert_values(
-                        self._testdata[self._category][self._method][pk_value]
+                        self._testdata[self._endpoint.category][self._endpoint.method][
+                            pk_value
+                        ]
                     )
             else:
                 result = self._convert_values(
-                    self._testdata[self._category][self._method]
+                    self._testdata[self._endpoint.category][self._endpoint.method]
                 )
 
         except KeyError:
             raise HTTPNotFound(
                 response=BravadoResponseStub(
                     404,
-                    f"{self._category}.{self._method}: No test data for "
-                    f"{self._primary_key} = {pk_value}",
+                    f"{self._endpoint.category}.{self._endpoint.method}: No test data for "
+                    f"{self._endpoint.primary_key} = {pk_value}",
                 ),
             ) from None
 
@@ -139,15 +141,22 @@ class _EsiRoute:
 
     @staticmethod
     def _convert_values(data) -> Any:
-        if isinstance(data, dict):
-            for k, v in data.items():
-                if isinstance(v, str):
-                    try:
-                        dt = parse_datetime(v)
-                        if dt:
-                            data[k] = dt
-                    except ValueError:
-                        pass
+        def convert_dict(item):
+            if isinstance(item, dict):
+                for k, v in item.items():
+                    if isinstance(v, str):
+                        try:
+                            dt = parse_datetime(v)
+                            if dt:
+                                item[k] = dt
+                        except ValueError:
+                            pass
+
+        if isinstance(data, list):
+            for row in data:
+                convert_dict(row)
+        else:
+            convert_dict(data)
 
         return data
 

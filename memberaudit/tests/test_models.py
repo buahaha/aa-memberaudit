@@ -9,12 +9,13 @@ from bravado.exception import (
     HTTPUnauthorized,
     HTTPInternalServerError,
 )
+from pytz import UTC
 
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from django.utils.dateparse import parse_datetime
-from django.utils.timezone import now
+from django.utils.timezone import now, make_aware
 
 from eveuniverse.models import (
     EveEntity,
@@ -36,6 +37,7 @@ from . import (
 )
 from ..helpers import eve_xml_to_html, EsiStatus, get_or_create_esi_or_none
 from ..models import (
+    data_retention_cutoff,
     Character,
     CharacterAsset,
     CharacterContact,
@@ -67,6 +69,20 @@ from ..utils import NoSocketsTestCase
 MODELS_PATH = "memberaudit.models"
 MANAGERS_PATH = "memberaudit.managers"
 TASKS_PATH = "memberaudit.tasks"
+
+
+class TestDataRetentionCutoff(TestCase):
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", 10)
+    def test_limit_is_set(self):
+        with patch(MODELS_PATH + ".now") as mock_now:
+            mock_now.return_value = dt.datetime(2020, 12, 19, 16, 15)
+            self.assertEqual(data_retention_cutoff(), dt.datetime(2020, 12, 9, 16, 0))
+
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+    def test_limit_not_set(self):
+        with patch(MODELS_PATH + ".now") as mock_now:
+            mock_now.return_value = dt.datetime(2020, 12, 19, 16, 15)
+            self.assertIsNone(data_retention_cutoff())
 
 
 class TestCharacterUpdateSection(NoSocketsTestCase):
@@ -1457,6 +1473,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         except EveEntity.DoesNotExist:
             return None, False
 
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     @patch(MANAGERS_PATH + ".fetch_esi_status")
     @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
     def test_update_mail_headers_1(
@@ -1479,7 +1496,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertEqual(obj.sender.id, 1002)
         self.assertTrue(obj.is_read)
         self.assertEqual(obj.subject, "Mail 1")
-        self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T16:07:00Z"))
+        self.assertEqual(obj.timestamp, parse_datetime("2015-09-05T16:07:00Z"))
         self.assertFalse(obj.body)
         self.assertTrue(obj.recipients.filter(id=1001).exists())
         self.assertTrue(obj.recipients.filter(id=9001).exists())
@@ -1489,14 +1506,16 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertEqual(obj.sender_id, 9001)
         self.assertFalse(obj.is_read)
         self.assertEqual(obj.subject, "Mail 2")
-        self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T18:07:00Z"))
+        self.assertEqual(obj.timestamp, parse_datetime("2015-09-10T18:07:00Z"))
         self.assertFalse(obj.body)
         self.assertSetEqual(set(obj.labels.values_list("label_id", flat=True)), {3})
 
         obj = self.character_1001.mails.get(mail_id=3)
         self.assertEqual(obj.sender_id, 1002)
         self.assertTrue(obj.recipients.filter(id=9003).exists())
+        self.assertEqual(obj.timestamp, parse_datetime("2015-09-20T12:07:00Z"))
 
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     @patch(MANAGERS_PATH + ".fetch_esi_status")
     @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
     def test_update_mail_headers_2(
@@ -1512,7 +1531,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
             mail_id=1,
             sender=sender,
             subject="Mail 1",
-            timestamp=parse_datetime("2015-09-30T16:07:00Z"),
+            timestamp=parse_datetime("2015-09-05T16:07:00Z"),
             is_read=False,  # to be updated
         )
         recipient_1, _ = MailEntity.objects.update_or_create_from_eve_entity_id(id=1001)
@@ -1536,12 +1555,13 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertEqual(obj.sender_id, 1002)
         self.assertTrue(obj.is_read)
         self.assertEqual(obj.subject, "Mail 1")
-        self.assertEqual(obj.timestamp, parse_datetime("2015-09-30T16:07:00Z"))
+        self.assertEqual(obj.timestamp, parse_datetime("2015-09-05T16:07:00Z"))
         self.assertFalse(obj.body)
         self.assertTrue(obj.recipients.filter(id=1001).exists())
         self.assertTrue(obj.recipients.filter(id=9001).exists())
         self.assertSetEqual(set(obj.labels.values_list("label_id", flat=True)), {3})
 
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     @patch(MANAGERS_PATH + ".fetch_esi_status")
     @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
     def test_update_mail_headers_3(
@@ -1564,6 +1584,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         obj = self.character_1001.mails.get(mail_id=1)
         self.assertFalse(obj.is_read)
 
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     @patch(MANAGERS_PATH + ".fetch_esi_status")
     @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
     def test_update_mail_headers_4(
@@ -1585,6 +1606,59 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
 
         obj = self.character_1001.mails.get(mail_id=1)
         self.assertTrue(obj.is_read)
+
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", 15)
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
+    def test_update_mail_headers_6(
+        self, mock_eve_entity, mock_fetch_esi_status, mock_esi
+    ):
+        """when data retention limit is set, then only fetch mails within that limit"""
+        mock_esi.client = esi_client_stub
+        mock_eve_entity.side_effect = self.stub_eve_entity_get_or_create_esi
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
+
+        with patch(MODELS_PATH + ".now") as mock_now:
+            mock_now.return_value = make_aware(dt.datetime(2015, 9, 20, 20, 5), UTC)
+            self.character_1001.update_mailing_lists()
+            self.character_1001.update_mail_labels()
+            self.character_1001.update_mail_headers()
+
+        self.assertSetEqual(
+            set(self.character_1001.mails.values_list("mail_id", flat=True)),
+            {2, 3},
+        )
+
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", 15)
+    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
+    def test_update_mail_headers_7(
+        self, mock_eve_entity, mock_fetch_esi_status, mock_esi
+    ):
+        """when data retention limit is set, then remove old data beyond that limit"""
+        mock_esi.client = esi_client_stub
+        mock_eve_entity.side_effect = self.stub_eve_entity_get_or_create_esi
+        mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
+        sender, _ = MailEntity.objects.update_or_create_from_eve_entity_id(id=1002)
+        CharacterMail.objects.create(
+            character=self.character_1001,
+            mail_id=99,
+            sender=sender,
+            subject="Mail Old",
+            timestamp=parse_datetime("2015-09-02T14:02:00Z"),
+            is_read=False,
+        )
+
+        with patch(MODELS_PATH + ".now") as mock_now:
+            mock_now.return_value = make_aware(dt.datetime(2015, 9, 20, 20, 5), UTC)
+            self.character_1001.update_mailing_lists()
+            self.character_1001.update_mail_labels()
+            self.character_1001.update_mail_headers()
+
+        self.assertSetEqual(
+            set(self.character_1001.mails.values_list("mail_id", flat=True)),
+            {2, 3},
+        )
 
     def test_update_mail_body_1(self, mock_esi):
         """can update mail body"""

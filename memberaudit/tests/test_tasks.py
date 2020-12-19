@@ -529,6 +529,7 @@ class TestUpdateCharacterWalletJournal(TestCase):
             self.assertTrue(False)  # Hack to ensure the test fails when it gets here
 
 
+@patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
 @patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 99, 60))
 @patch(MODELS_PATH + ".esi")
 @override_settings(CELERY_ALWAYS_EAGER=True)
@@ -643,6 +644,7 @@ class TestUpdateCharacter(TestCase):
         self.assertTrue(self.character_1001.is_update_status_ok())
 
 
+@patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
 @patch(MODELS_PATH + ".esi")
 @override_settings(CELERY_ALWAYS_EAGER=True)
 class TestUpdateAllCharacters(TestCase):

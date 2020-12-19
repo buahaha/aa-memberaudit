@@ -41,6 +41,7 @@ from .app_settings import (
     MEMBERAUDIT_UPDATE_STALE_RING_1,
     MEMBERAUDIT_UPDATE_STALE_RING_2,
     MEMBERAUDIT_UPDATE_STALE_RING_3,
+    MEMBERAUDIT_DATA_RETENTION_LIMIT,
 )
 from .decorators import fetch_token_for_character
 from .helpers import (
@@ -60,13 +61,23 @@ from .managers import (
     MailEntityManager,
 )
 from .providers import esi
-from .utils import LoggerAddTag, chunks
+from .utils import LoggerAddTag, chunks, datetime_round_hour
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 CURRENCY_MAX_DIGITS = 17
 CURRENCY_MAX_DECIMALS = 2
 NAMES_MAX_LENGTH = 100
+
+
+def data_retention_cutoff() -> Optional[dt.datetime]:
+    """returns cutoff datetime for data retention of None if unlimited"""
+    if MEMBERAUDIT_DATA_RETENTION_LIMIT is None:
+        return None
+    else:
+        return datetime_round_hour(
+            now() - dt.timedelta(days=MEMBERAUDIT_DATA_RETENTION_LIMIT)
+        )
 
 
 def accessible_users(user: User) -> models.QuerySet:
@@ -1460,6 +1471,10 @@ class Character(models.Model):
         ):
             self._preload_mail_senders(mail_headers)
             with transaction.atomic():
+                cutoff_datetime = data_retention_cutoff()
+                if cutoff_datetime:
+                    self.mails.filter(timestamp__lt=cutoff_datetime).delete()
+
                 incoming_ids = set(mail_headers.keys())
                 existing_ids = set(self.mails.values_list("mail_id", flat=True))
                 create_ids = incoming_ids.difference(existing_ids)
@@ -1480,7 +1495,7 @@ class Character(models.Model):
         else:
             logger.info("%s: Mails have not changed", self)
 
-    def _fetch_mail_headers(self, token) -> list:
+    def _fetch_mail_headers(self, token) -> dict:
         last_mail_id = None
         mail_headers_all = list()
         page = 1
@@ -1501,7 +1516,14 @@ class Character(models.Model):
                 last_mail_id = min([x["mail_id"] for x in mail_headers])
                 page += 1
 
-        mail_headers_all_2 = {x["mail_id"]: x for x in mail_headers_all}
+        cutoff_datetime = data_retention_cutoff()
+        mail_headers_all_2 = {
+            x["mail_id"]: x
+            for x in mail_headers_all
+            if cutoff_datetime is None
+            or not x["timestamp"]
+            or x["timestamp"] > cutoff_datetime
+        }
         logger.info(
             "%s: Received %s mail headers from ESI", self, len(mail_headers_all_2)
         )
