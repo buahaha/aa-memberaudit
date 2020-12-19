@@ -59,7 +59,7 @@ MEMBERAUDIT_UPDATE_STALE_RING_1 = clean_setting("MEMBERAUDIT_UPDATE_STALE_RING_1
 MEMBERAUDIT_UPDATE_STALE_RING_2 = clean_setting("MEMBERAUDIT_UPDATE_STALE_RING_2", 235)
 MEMBERAUDIT_UPDATE_STALE_RING_3 = clean_setting("MEMBERAUDIT_UPDATE_STALE_RING_3", 475)
 
-# Maximum number of days to keep historical data, e.g. mails and contracts
+# Maximum number of days to keep historical data for mails, contracts, wallet journal
 MEMBERAUDIT_DATA_RETENTION_LIMIT = clean_setting(
-    "MEMBERAUDIT_DATA_RETENTION_LIMIT", default_value=360, min_value=1
+    "MEMBERAUDIT_DATA_RETENTION_LIMIT", default_value=360, min_value=7
 )

@@ -948,7 +948,7 @@ class Character(models.Model):
 
         cutoff_datetime = data_retention_cutoff()
         contracts_list = {
-            obj["contract_id"]: obj
+            obj.get("contract_id"): obj
             for obj in contracts_data
             if cutoff_datetime is None or obj.get("date_expired") > cutoff_datetime
         }
@@ -1959,7 +1959,14 @@ class Character(models.Model):
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(journal, "wallet_journal")
 
-        entries_list = {x["id"]: x for x in journal if "id" in x}
+        cutoff_datetime = data_retention_cutoff()
+        entries_list = {
+            obj.get("id"): obj
+            for obj in journal
+            if cutoff_datetime is None or obj.get("date") > cutoff_datetime
+        }
+        if cutoff_datetime:
+            self.wallet_journal.filter(date__lt=cutoff_datetime).delete()
 
         with transaction.atomic():
             incoming_ids = set(entries_list.keys())

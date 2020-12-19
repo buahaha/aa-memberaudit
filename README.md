@@ -305,6 +305,7 @@ Note that all settings are optional and the app will use the documented default 
 Name | Description | Default
 -- | -- | --
 `MEMBERAUDIT_APP_NAME`| Name of this app as shown in the Auth sidebar. | `'Member Audit'`
+`MEMBERAUDIT_DATA_RETENTION_LIMIT`| Maximum number of days to keep historical data for mails, contracts and wallets. Minimum is 7 day. `None` will turn it off. | `360`
 `MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD`| ESI error limit remain threshold. The number of remaining errors is counted down from 100 as errors occur. Because multiple tasks may request the value simultaneously and get the same response, the threshold must be above 0 to prevent the API from shutting down with a 420 error | `25`
 `MEMBERAUDIT_BULK_METHODS_BATCH_SIZE`| Technical parameter defining the maximum number of objects processed per run of Django batch methods, e.g. bulk_create and bulk_update | `500`
 `MEMBERAUDIT_LOCATION_STALE_HOURS`| Hours after a existing location (e.g. structure) becomes stale and gets updated. e.g. for name changes of structures | `24`
@@ -315,7 +316,6 @@ Name | Description | Default
 `MEMBERAUDIT_UPDATE_STALE_RING_1`| Minutes after which sections belonging to ring 1 are considered stale: location, online status | `55`
 `MEMBERAUDIT_UPDATE_STALE_RING_2`| Minutes after which sections belonging to ring 2 are considered stale: all except those in ring 1 & 3 | `235`
 `MEMBERAUDIT_UPDATE_STALE_RING_3`| Minutes after which sections belonging to ring 3 are considered stale: assets | `475`
-`MEMBERAUDIT_DATA_RETENTION_LIMIT`| Maximum number of days to keep historical data, e.g. mails and contracts. `None` will turn it off (= no limit). Minimum is 1 day.  | `360`
 
 ## Management Commands
 

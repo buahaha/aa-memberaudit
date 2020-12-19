@@ -1959,6 +1959,7 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
         self.character_1001.update_wallet_balance()
         self.assertEqual(self.character_1001.wallet_balance.total, 123456789)
 
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_wallet_journal_1(self, mock_esi):
         """can create wallet journal entry from scratch"""
         mock_esi.client = esi_client_stub
@@ -1985,6 +1986,7 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
             obj.ref_type, "agent_mission_time_bonus_reward_corporation_tax"
         )
 
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_wallet_journal_2(self, mock_esi):
         """can add entry to existing wallet journal"""
         mock_esi.client = esi_client_stub
@@ -2018,6 +2020,7 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
         self.assertEqual(obj.ref_type, "contract_deposit")
         self.assertEqual(obj.second_party.id, 2002)
 
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_wallet_journal_3(self, mock_esi):
         """does not update existing entries"""
         mock_esi.client = esi_client_stub
@@ -2048,6 +2051,45 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
         self.assertEqual(obj.description, "dummy")
         self.assertEqual(obj.first_party.id, 1001)
         self.assertEqual(obj.second_party.id, 1002)
+
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", 10)
+    def test_update_wallet_journal_4(self, mock_esi):
+        """When new wallet entry is older than retention limit, then do not store it"""
+        mock_esi.client = esi_client_stub
+
+        with patch(MODELS_PATH + ".now") as mock_now:
+            mock_now.return_value = make_aware(dt.datetime(2018, 3, 11, 20, 5), UTC)
+            self.character_1001.update_wallet_journal()
+
+        self.assertSetEqual(
+            set(self.character_1001.wallet_journal.values_list("entry_id", flat=True)),
+            {91},
+        )
+
+    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", 20)
+    def test_update_wallet_journal_5(self, mock_esi):
+        """When wallet existing entry is older than retention limit, then delete it"""
+        mock_esi.client = esi_client_stub
+        CharacterWalletJournalEntry.objects.create(
+            character=self.character_1001,
+            entry_id=55,
+            amount=1_000_000,
+            balance=10_000_000,
+            context_id_type=CharacterWalletJournalEntry.CONTEXT_ID_TYPE_UNDEFINED,
+            date=make_aware(dt.datetime(2018, 2, 11, 20, 5), UTC),
+            description="dummy",
+            first_party=EveEntity.objects.get(id=1001),
+            second_party=EveEntity.objects.get(id=1002),
+        )
+
+        with patch(MODELS_PATH + ".now") as mock_now:
+            mock_now.return_value = make_aware(dt.datetime(2018, 3, 11, 20, 5), UTC)
+            self.character_1001.update_wallet_journal()
+
+        self.assertSetEqual(
+            set(self.character_1001.wallet_journal.values_list("entry_id", flat=True)),
+            {89, 91},
+        )
 
 
 @patch(MODELS_PATH + ".eve_xml_to_html")
