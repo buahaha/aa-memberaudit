@@ -1,3 +1,4 @@
+from copy import deepcopy
 import datetime as dt
 from typing import Dict, Iterable, Tuple
 
@@ -516,6 +517,8 @@ class CharacterUpdateStatusManager(models.Manager):
             SkillSet,
             SkillSetGroup,
         )
+        from . import app_settings
+        from django.conf import settings as auth_settings
 
         duration_expression = ExpressionWrapper(
             F("finished_at") - F("started_at"),
@@ -599,6 +602,19 @@ class CharacterUpdateStatusManager(models.Manager):
                         }
                     )
 
+        settings = dict()
+        for name, value in vars(app_settings).items():
+            if name.startswith("MEMBERAUDIT_"):
+                settings[name] = value
+
+        schedule = deepcopy(auth_settings.CELERYBEAT_SCHEDULE)
+        for name, details in schedule.items():
+            for k, v in details.items():
+                if k == "schedule":
+                    schedule[name][k] = str(v)
+
+        settings["CELERYBEAT_SCHEDULE"] = schedule
+
         return {
             "app_totals": {
                 "users_count": User.objects.filter(
@@ -614,6 +630,7 @@ class CharacterUpdateStatusManager(models.Manager):
                 "contacts_count": CharacterContact.objects.count(),
                 "contracts_count": CharacterContract.objects.count(),
             },
+            "settings": settings,
             "update_statistics": update_stats,
         }
 
