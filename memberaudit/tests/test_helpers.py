@@ -10,6 +10,7 @@ from allianceauth.tests.auth_utils import AuthUtils
 
 from .testdata.esi_client_stub import load_test_data
 from .testdata.load_entities import load_entities
+from .testdata.load_eveuniverse import load_eveuniverse
 from ..helpers import (
     eve_xml_to_html,
     users_with_permission,
@@ -18,12 +19,19 @@ from ..helpers import (
     EsiOffline,
     EsiErrorLimitExceeded,
 )
+from ..utils import NoSocketsTestCase
 
 
 MODULE_PATH = "memberaudit.helpers"
 
 
-class TestHTMLConversion(TestCase):
+class TestHTMLConversion(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_eveuniverse()
+        load_entities()
+
     def test_convert_eve_xml_alliance(self):
         """can convert an alliance link in CCP XML to HTML"""
         with patch(
@@ -100,7 +108,7 @@ class TestHTMLConversion(TestCase):
             self.assertNotEqual(result[:2], "u'")
 
 
-class TestUsersWithPermissionQS(TestCase):
+class TestUsersWithPermissionQS(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
