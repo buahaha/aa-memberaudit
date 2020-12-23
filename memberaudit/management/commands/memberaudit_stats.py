@@ -14,7 +14,7 @@ class Command(BaseCommand):
     help = "This command returns current statistics as JSON"
 
     def handle(self, *args, **options):
-        stats = CharacterUpdateStatus.objects.calculate_statistics()
+        stats = CharacterUpdateStatus.objects.statistics()
         stats_out = json.dumps(
             stats,
             sort_keys=True,

@@ -104,7 +104,7 @@ class TestCharacterUpdateStatus(NoSocketsTestCase):
         cls.character_1001 = create_memberaudit_character(1001)
         cls.content = {"alpha": 1, "bravo": 2}
 
-    def test_reset(self):
+    def test_reset_1(self):
         status = CharacterUpdateStatus.objects.create(
             character=self.character_1001,
             section=Character.UpdateSection.ASSETS,
@@ -116,6 +116,23 @@ class TestCharacterUpdateStatus(NoSocketsTestCase):
 
         self.assertIsNone(status.is_success)
         self.assertEqual(status.last_error_message, "")
+        self.assertEqual(status.root_task_id, "")
+        self.assertEqual(status.parent_task_id, "")
+
+    def test_reset_2(self):
+        status = CharacterUpdateStatus.objects.create(
+            character=self.character_1001,
+            section=Character.UpdateSection.ASSETS,
+            is_success=True,
+            last_error_message="abc",
+        )
+        status.reset(root_task_id="1", parent_task_id="2")
+        status.refresh_from_db()
+
+        self.assertIsNone(status.is_success)
+        self.assertEqual(status.last_error_message, "")
+        self.assertEqual(status.root_task_id, "1")
+        self.assertEqual(status.parent_task_id, "2")
 
     def test_has_changed_1(self):
         """When hash is different, then return True"""
@@ -3614,19 +3631,21 @@ class TestCharacterUpdateStatusManager(TestCase):
     def test_calculate_stats_1(self):
         """Can handle no data"""
         try:
-            CharacterUpdateStatus.objects.calculate_statistics()
+            CharacterUpdateStatus.objects.statistics()
         except Exception as ex:
             self.fail(f"Unexpected exception {ex} occurred")
 
     def test_calculate_stats_2(self):
         """normal calculation"""
         my_now = now()
+        root_task_id = "1"
         CharacterUpdateStatus.objects.create(
             character=self.character_1001,
             section=Character.UpdateSection.CONTACTS,
             is_success=True,
             started_at=my_now - dt.timedelta(seconds=30),
             finished_at=my_now,
+            root_task_id=root_task_id,
         )
         CharacterUpdateStatus.objects.create(
             character=self.character_1001,
@@ -3634,6 +3653,7 @@ class TestCharacterUpdateStatusManager(TestCase):
             is_success=True,
             started_at=my_now + dt.timedelta(seconds=10),
             finished_at=my_now + dt.timedelta(seconds=30),
+            root_task_id=root_task_id,
         )
         CharacterUpdateStatus.objects.create(
             character=self.character_1001,
@@ -3641,14 +3661,14 @@ class TestCharacterUpdateStatusManager(TestCase):
             is_success=True,
             started_at=my_now,
             finished_at=my_now + dt.timedelta(seconds=90),
+            root_task_id=root_task_id,
         )
-        stats = CharacterUpdateStatus.objects.calculate_statistics()[
-            "update_statistics"
-        ]
+        stats = CharacterUpdateStatus.objects.statistics()["update_statistics"]
 
         # round duration is calculated as total duration
         # from start of first to end of last section
         self.assertEqual(stats["ring_2"]["total"]["duration"], 60)
+        self.assertEqual(stats["ring_2"]["total"]["root_task_id"], root_task_id)
 
         # can identify longest section with character
         self.assertEqual(stats["ring_2"]["first"]["section"], "contacts")

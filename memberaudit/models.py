@@ -41,6 +41,7 @@ from .app_settings import (
     MEMBERAUDIT_UPDATE_STALE_RING_1,
     MEMBERAUDIT_UPDATE_STALE_RING_2,
     MEMBERAUDIT_UPDATE_STALE_RING_3,
+    MEMBERAUDIT_UPDATE_STALE_OFFSET,
     MEMBERAUDIT_DATA_RETENTION_LIMIT,
 )
 from .decorators import fetch_token_for_character
@@ -414,7 +415,9 @@ class Character(models.Model):
         else:
             minutes = MEMBERAUDIT_UPDATE_STALE_RING_3
 
-        return dt.timedelta(minutes=minutes)
+        # setting reduced by offset to ensure all sections are stale when
+        # periodic task starts
+        return dt.timedelta(minutes=minutes - MEMBERAUDIT_UPDATE_STALE_OFFSET)
 
     @classmethod
     def sections_in_ring(cls, ring: int) -> set:
@@ -463,7 +466,9 @@ class Character(models.Model):
 
         section.update_content_hash(content=content, hash_num=hash_num)
 
-    def reset_update_section(self, section: str) -> "CharacterUpdateStatus":
+    def reset_update_section(
+        self, section: str, root_task_id: str = None, parent_task_id: str = None
+    ) -> "CharacterUpdateStatus":
         """resets status of given update section and returns it"""
         try:
             section = self.update_status_set.get(section=section)
@@ -472,7 +477,7 @@ class Character(models.Model):
                 character=self, section=section
             )
 
-        section.reset()
+        section.reset(root_task_id, parent_task_id)
         return section
 
     def is_section_updating(self, section: str) -> bool:
@@ -2922,13 +2927,29 @@ class CharacterUpdateStatus(models.Model):
     section = models.CharField(
         max_length=64, choices=Character.UpdateSection.choices, db_index=True
     )
-    is_success = models.BooleanField(db_index=True, null=True, default=None)
+    is_success = models.BooleanField(
+        null=True,
+        default=None,
+        db_index=True,
+    )
     content_hash_1 = models.CharField(max_length=32, default="")
     content_hash_2 = models.CharField(max_length=32, default="")
     content_hash_3 = models.CharField(max_length=32, default="")
     last_error_message = models.TextField()
-    started_at = models.DateTimeField(null=True, default=None)
-    finished_at = models.DateTimeField(null=True, default=None)
+    root_task_id = models.CharField(
+        max_length=36,
+        default="",
+        db_index=True,
+        help_text="ID of update_all_characters task that started this update",
+    )
+    parent_task_id = models.CharField(
+        max_length=36,
+        default="",
+        db_index=True,
+        help_text="ID of character_update task that started this update",
+    )
+    started_at = models.DateTimeField(null=True, default=None, db_index=True)
+    finished_at = models.DateTimeField(null=True, default=None, db_index=True)
 
     objects = CharacterUpdateStatusManager()
 
@@ -2980,12 +3001,14 @@ class CharacterUpdateStatus(models.Model):
             json.dumps(content, cls=DjangoJSONEncoder).encode("utf-8")
         ).hexdigest()
 
-    def reset(self) -> None:
+    def reset(self, root_task_id: str = None, parent_task_id: str = None) -> None:
         """resets this update status"""
         self.is_success = None
         self.last_error_message = ""
         self.started_at = now()
         self.finished_at = None
+        self.root_task_id = root_task_id if root_task_id else ""
+        self.parent_task_id = parent_task_id if root_task_id else ""
         self.save()
 
 

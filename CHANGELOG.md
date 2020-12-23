@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Show and filter NPCs/agents in contact list ([#63](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/63))
 - Data retention limits for mail, contracts, wallet ([#75](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/75))
+- Improved statistics
+
+### Changed
+
+- Default values for MEMBERAUDIT_UPDATE_STALE_RING_x now rounded to full hours
 
 ### Fixed
 

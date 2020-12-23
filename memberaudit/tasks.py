@@ -86,7 +86,7 @@ def update_all_characters(force_update: bool = False) -> None:
     - force_update: When set to True will always update regardless of stale status
     """
     if MEMBERAUDIT_LOG_UPDATE_STATS:
-        stats = CharacterUpdateStatus.objects.calculate_statistics()
+        stats = CharacterUpdateStatus.objects.statistics()
         logger.info(f"Update statistics: {stats}")
 
     for character in Character.objects.all():
@@ -99,8 +99,8 @@ def update_all_characters(force_update: bool = False) -> None:
 # Main character update tasks
 
 
-@shared_task(**TASK_DEFAULT_KWARGS)
-def update_character(character_pk: int, force_update: bool = False) -> bool:
+@shared_task(**{**TASK_DEFAULT_KWARGS, **{"bind": True}})
+def update_character(self, character_pk: int, force_update: bool = False) -> bool:
     """Start respective update tasks for all stale sections of a character
 
     Args:
@@ -149,27 +149,44 @@ def update_character(character_pk: int, force_update: bool = False) -> bool:
                     "character_pk": character.pk,
                     "section": section,
                     "force_update": force_update,
+                    "root_task_id": self.request.parent_id,
+                    "parent_task_id": self.request.id,
                 },
                 priority=DEFAULT_TASK_PRIORITY,
             )
 
     if force_update or character.is_update_section_stale(Character.UpdateSection.MAILS):
         update_character_mails.apply_async(
-            kwargs={"character_pk": character.pk, "force_update": force_update},
+            kwargs={
+                "character_pk": character.pk,
+                "force_update": force_update,
+                "root_task_id": self.request.parent_id,
+                "parent_task_id": self.request.id,
+            },
             priority=DEFAULT_TASK_PRIORITY,
         )
     if force_update or character.is_update_section_stale(
         Character.UpdateSection.CONTACTS
     ):
         update_character_contacts.apply_async(
-            kwargs={"character_pk": character.pk, "force_update": force_update},
+            kwargs={
+                "character_pk": character.pk,
+                "force_update": force_update,
+                "root_task_id": self.request.parent_id,
+                "parent_task_id": self.request.id,
+            },
             priority=DEFAULT_TASK_PRIORITY,
         )
     if force_update or character.is_update_section_stale(
         Character.UpdateSection.CONTRACTS
     ):
         update_character_contracts.apply_async(
-            kwargs={"character_pk": character.pk, "force_update": force_update},
+            kwargs={
+                "character_pk": character.pk,
+                "force_update": force_update,
+                "root_task_id": self.request.parent_id,
+                "parent_task_id": self.request.id,
+            },
             priority=DEFAULT_TASK_PRIORITY,
         )
 
@@ -177,7 +194,11 @@ def update_character(character_pk: int, force_update: bool = False) -> bool:
         Character.UpdateSection.WALLET_JOURNAL
     ):
         update_character_wallet_journal.apply_async(
-            kwargs={"character_pk": character.pk},
+            kwargs={
+                "character_pk": character.pk,
+                "root_task_id": self.request.parent_id,
+                "parent_task_id": self.request.id,
+            },
             priority=DEFAULT_TASK_PRIORITY,
         )
 
@@ -185,7 +206,12 @@ def update_character(character_pk: int, force_update: bool = False) -> bool:
         Character.UpdateSection.ASSETS
     ):
         update_character_assets.apply_async(
-            kwargs={"character_pk": character.pk, "force_update": force_update},
+            kwargs={
+                "character_pk": character.pk,
+                "force_update": force_update,
+                "root_task_id": self.request.parent_id,
+                "parent_task_id": self.request.id,
+            },
             priority=DEFAULT_TASK_PRIORITY,
         )
 
@@ -196,10 +222,18 @@ def update_character(character_pk: int, force_update: bool = False) -> bool:
     ):
         chain(
             update_character_section.si(
-                character.pk, Character.UpdateSection.SKILLS, force_update
+                character.pk,
+                Character.UpdateSection.SKILLS,
+                force_update,
+                self.request.parent_id,
+                self.request.id,
             ),
             update_character_section.si(
-                character.pk, Character.UpdateSection.SKILL_SETS, force_update
+                character.pk,
+                Character.UpdateSection.SKILL_SETS,
+                force_update,
+                self.request.parent_id,
+                self.request.id,
             ),
         ).apply_async(priority=DEFAULT_TASK_PRIORITY)
 
@@ -211,11 +245,17 @@ def update_character(character_pk: int, force_update: bool = False) -> bool:
 
 @shared_task(**{**TASK_ESI_KWARGS, **{"base": QueueOnce}})
 def update_character_section(
-    self, character_pk: int, section: str, force_update: bool = False, **kwargs
+    self,
+    character_pk: int,
+    section: str,
+    force_update: bool = False,
+    root_task_id: str = None,
+    parent_task_id: str = None,
+    **kwargs,
 ) -> None:
     """Task that updates the section of a character"""
     character = Character.objects.get(pk=character_pk)
-    character.reset_update_section(section=section)
+    character.reset_update_section(section, root_task_id, parent_task_id)
     logger.info(
         "%s: Updating %s", character, Character.UpdateSection.display_name(section)
     )
@@ -294,7 +334,12 @@ def update_unresolved_eve_entities(
 
 
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_character_assets(character_pk: int, force_update: bool = False) -> None:
+def update_character_assets(
+    character_pk: int,
+    force_update: bool = False,
+    root_task_id: str = None,
+    parent_task_id: str = None,
+) -> None:
     """Main tasks for updating the character's assets"""
     character = Character.objects.get(pk=character_pk)
     logger.info(
@@ -302,7 +347,11 @@ def update_character_assets(character_pk: int, force_update: bool = False) -> No
         character,
         Character.UpdateSection.display_name(Character.UpdateSection.ASSETS),
     )
-    character.reset_update_section(section=Character.UpdateSection.ASSETS)
+    character.reset_update_section(
+        section=Character.UpdateSection.ASSETS,
+        root_task_id=root_task_id,
+        parent_task_id=parent_task_id,
+    )
     chain(
         assets_build_list_from_esi.s(character.pk, force_update),
         assets_preload_objects.s(character.pk),
@@ -507,14 +556,22 @@ def assets_create_children(
 
 
 @shared_task(**TASK_ESI_KWARGS)
-def update_character_mails(self, character_pk: int, force_update: bool = False) -> None:
+def update_character_mails(
+    self,
+    character_pk: int,
+    force_update: bool = False,
+    root_task_id: str = None,
+    parent_task_id: str = None,
+) -> None:
     """Main task for updating mails of a character"""
     character = Character.objects.get(pk=character_pk)
     section = Character.UpdateSection.MAILS
     logger.info(
         "%s: Updating %s", character, Character.UpdateSection.display_name(section)
     )
-    character.reset_update_section(section=section)
+    character.reset_update_section(
+        section=section, root_task_id=root_task_id, parent_task_id=parent_task_id
+    )
     chain(
         update_character_mailing_lists.si(character.pk, force_update=force_update),
         update_character_mail_labels.si(character.pk, force_update=force_update),
@@ -602,11 +659,18 @@ def update_character_mail_bodies(self, character_pk: int) -> None:
 
 
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_character_contacts(character_pk: int, force_update: bool = False) -> None:
+def update_character_contacts(
+    character_pk: int,
+    force_update: bool = False,
+    root_task_id: str = None,
+    parent_task_id: str = None,
+) -> None:
     """Main task for updating contacts of a character"""
     character = Character.objects.get(pk=character_pk)
     section = Character.UpdateSection.CONTACTS
-    character.reset_update_section(section=section)
+    character.reset_update_section(
+        section=section, root_task_id=root_task_id, parent_task_id=parent_task_id
+    )
     logger.info(
         "%s: Updating %s", character, Character.UpdateSection.display_name(section)
     )
@@ -649,11 +713,18 @@ def update_character_contacts_2(
 
 
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_character_contracts(character_pk: int, force_update: bool = False) -> None:
+def update_character_contracts(
+    character_pk: int,
+    force_update: bool = False,
+    root_task_id: str = None,
+    parent_task_id: str = None,
+) -> None:
     """Main task for updating contracts of a character"""
     character = Character.objects.get(pk=character_pk)
     section = Character.UpdateSection.CONTRACTS
-    character.reset_update_section(section=section)
+    character.reset_update_section(
+        section=section, root_task_id=root_task_id, parent_task_id=parent_task_id
+    )
     logger.info(
         "%s: Updating %s", character, Character.UpdateSection.display_name(section)
     )
@@ -750,11 +821,15 @@ def update_contract_bids_esi(self, character_pk: int, contract_pk: int):
 
 
 @shared_task(**TASK_DEFAULT_KWARGS)
-def update_character_wallet_journal(character_pk: int) -> None:
+def update_character_wallet_journal(
+    character_pk: int, root_task_id: str = None, parent_task_id: str = None
+) -> None:
     """Main task for updating wallet journal of a character"""
     character = Character.objects.get(pk=character_pk)
     section = Character.UpdateSection.WALLET_JOURNAL
-    character.reset_update_section(section=section)
+    character.reset_update_section(
+        section=section, root_task_id=root_task_id, parent_task_id=parent_task_id
+    )
     logger.info(
         "%s: Updating %s", character, Character.UpdateSection.display_name(section)
     )

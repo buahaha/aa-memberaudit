@@ -644,6 +644,7 @@ class TestUpdateCharacter(TestCase):
         self.assertTrue(self.character_1001.is_update_status_ok())
 
 
+@patch(TASKS_PATH + ".MEMBERAUDIT_LOG_UPDATE_STATS", False)
 @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
 @patch(MODELS_PATH + ".esi")
 @override_settings(CELERY_ALWAYS_EAGER=True)

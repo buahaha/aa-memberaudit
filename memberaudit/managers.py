@@ -1,5 +1,6 @@
 from copy import deepcopy
 import datetime as dt
+from math import floor
 from typing import Dict, Iterable, Tuple
 
 from django.contrib.auth.models import User
@@ -506,8 +507,8 @@ class CharacterMailLabelManager(models.Manager):
 
 
 class CharacterUpdateStatusManager(models.Manager):
-    def calculate_statistics(self) -> dict:
-        """calculates statistics from the last update run and returns it"""
+    def statistics(self) -> dict:
+        """returns detailed statistics about the last update run and the app"""
         from .models import (
             Character,
             CharacterAsset,
@@ -520,17 +521,51 @@ class CharacterUpdateStatusManager(models.Manager):
         from . import app_settings
         from django.conf import settings as auth_settings
 
+        def root_task_id_or_none(obj):
+            try:
+                return obj.root_task_id
+            except AttributeError:
+                return None
+
+        characters_count = Character.objects.count()
+
+        settings = {
+            name: value
+            for name, value in vars(app_settings).items()
+            if name.startswith("MEMBERAUDIT_")
+        }
+        schedule = deepcopy(auth_settings.CELERYBEAT_SCHEDULE)
+        for name, details in schedule.items():
+            for k, v in details.items():
+                if k == "schedule":
+                    schedule[name][k] = str(v)
+
+        settings["CELERYBEAT_SCHEDULE"] = schedule
+
+        qs_base = self.filter(
+            is_success=True,
+            started_at__isnull=False,
+            finished_at__isnull=False,
+        ).exclude(root_task_id="", parent_task_id="")
+        root_task_ids = {
+            ring: root_task_id_or_none(
+                qs_base.filter(section__in=Character.sections_in_ring(ring))
+                .order_by("-finished_at")
+                .first()
+            )
+            for ring in range(1, 4)
+        }
         duration_expression = ExpressionWrapper(
             F("finished_at") - F("started_at"),
             output_field=models.fields.DurationField(),
         )
-        qs_base = self.filter(
-            is_success=True, started_at__isnull=False, finished_at__isnull=False
-        ).annotate(duration=duration_expression)
+        qs_base = qs_base.filter(root_task_id__in=root_task_ids.values()).annotate(
+            duration=duration_expression
+        )
         update_stats = dict()
         if self.count() > 0:
             # per ring
-            for ring in [1, 2, 3]:
+            for ring in range(1, 4):
                 sections = Character.sections_in_ring(ring)
 
                 # calc totals
@@ -540,7 +575,7 @@ class CharacterUpdateStatusManager(models.Manager):
                     last = qs.order_by("finished_at").last()
                     started_at = first.started_at
                     finshed_at = last.finished_at
-                    duration = round((finshed_at - started_at).total_seconds(), 2)
+                    duration = round((finshed_at - started_at).total_seconds(), 1)
                 except (KeyError, AttributeError):
                     first = None
                     last = None
@@ -548,11 +583,23 @@ class CharacterUpdateStatusManager(models.Manager):
                     started_at = None
                     finshed_at = None
 
+                boundaries = (
+                    settings[f"MEMBERAUDIT_UPDATE_STALE_RING_{ring}"]
+                    - settings["MEMBERAUDIT_UPDATE_STALE_OFFSET"]
+                ) * 60
+                throughput = (
+                    floor(characters_count / duration * 3600) if duration else None
+                )
+                within_boundaries = duration < boundaries if duration else None
                 update_stats[f"ring_{ring}"] = {
                     "total": {
                         "duration": duration,
                         "started_at": started_at,
                         "finshed_at": finshed_at,
+                        "root_task_id": root_task_ids.get(ring),
+                        "throughput": throughput,
+                        "boundaries": boundaries,
+                        "within_boundaries": within_boundaries,
                     },
                     "max": {},
                     "sections": {},
@@ -573,19 +620,19 @@ class CharacterUpdateStatusManager(models.Manager):
                             qs_base.filter(section=section)
                             .aggregate(Max("duration"))["duration__max"]
                             .total_seconds(),
-                            2,
+                            1,
                         )
                         section_avg = round(
                             qs_base.filter(section=section)
                             .aggregate(Avg("duration"))["duration__avg"]
                             .total_seconds(),
-                            2,
+                            1,
                         )
                         section_min = round(
                             qs_base.filter(section=section)
                             .aggregate(Min("duration"))["duration__min"]
                             .total_seconds(),
-                            2,
+                            1,
                         )
                     except (KeyError, AttributeError):
                         section_max = (None,)
@@ -602,18 +649,9 @@ class CharacterUpdateStatusManager(models.Manager):
                         }
                     )
 
-        settings = dict()
-        for name, value in vars(app_settings).items():
-            if name.startswith("MEMBERAUDIT_"):
-                settings[name] = value
-
-        schedule = deepcopy(auth_settings.CELERYBEAT_SCHEDULE)
-        for name, details in schedule.items():
-            for k, v in details.items():
-                if k == "schedule":
-                    schedule[name][k] = str(v)
-
-        settings["CELERYBEAT_SCHEDULE"] = schedule
+                update_stats[f"ring_{ring}"]["total"]["sections_complete"] = set(
+                    sections
+                ) == set(update_stats[f"ring_{ring}"]["sections"])
 
         return {
             "app_totals": {
@@ -622,7 +660,7 @@ class CharacterUpdateStatusManager(models.Manager):
                 )
                 .distinct()
                 .count(),
-                "characters_count": Character.objects.count(),
+                "characters_count": characters_count,
                 "skill_set_groups_count": SkillSetGroup.objects.count(),
                 "skill_sets_count": SkillSet.objects.count(),
                 "assets_count": CharacterAsset.objects.count(),
@@ -639,7 +677,7 @@ class CharacterUpdateStatusManager(models.Manager):
         try:
             section_name = str(obj.section)
             character_name = str(obj.character)
-            duration = round(obj.duration.total_seconds(), 2)
+            duration = round(obj.duration.total_seconds(), 1)
         except (KeyError, AttributeError):
             section_name = None
             character_name = None
