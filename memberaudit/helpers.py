@@ -146,9 +146,15 @@ def eve_xml_to_html(xml: str) -> str:
     if is_ascii(x):
         x = bytes(x, "ascii").decode("unicode-escape")
         # temporary fix to address u-bug in ESI endpoint
-        # TODO: remove when ESI bug is fixed
+        # workaround to address syntax error bug (#77)
+        # TODO: remove when fixed
         if x.startswith("u'") and x.endswith("'"):
-            x = ast.literal_eval(x)
+            try:
+                x = ast.literal_eval(x)
+            except SyntaxError:
+                logger.warning("Failed to convert XML")
+                x = ""
+
     return mark_safe(x)
 
 

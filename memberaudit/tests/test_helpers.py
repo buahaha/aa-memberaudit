@@ -88,7 +88,7 @@ class TestHTMLConversion(NoSocketsTestCase):
             )
             self.assertTrue(result.find(dotlan.solar_system_url("Polaris")) != -1)
 
-    def test_convert_bio(self):
+    def test_convert_bio_1(self):
         """can convert a bio includes lots of non-ASCII characters and handle the u-bug"""
         with patch(
             "eveuniverse.models.EveEntity.objects.resolve_name",
@@ -105,6 +105,25 @@ class TestHTMLConversion(NoSocketsTestCase):
                 "Zuverlässigkeit, Eigeninitiative, Hilfsbereitschaft, Teamfähigkeit",
                 result,
             )
+            self.assertNotEqual(result[:2], "u'")
+
+    def test_convert_bio_2(self):
+        """can convert a bio that resulted in a syntax error (#77)"""
+        with patch(
+            "eveuniverse.models.EveEntity.objects.resolve_name",
+            Mock(return_value="An Alliance"),
+        ):
+            try:
+                result = eve_xml_to_html(
+                    load_test_data()
+                    .get("Character")
+                    .get("get_characters_character_id")
+                    .get("1003")
+                    .get("description")
+                )
+            except Exception as ex:
+                self.fail(f"Unexpected exception was raised: {ex}")
+
             self.assertNotEqual(result[:2], "u'")
 
 
