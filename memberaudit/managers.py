@@ -17,7 +17,7 @@ from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
-from .constants import EVE_TYPE_ID_SOLAR_SYSTEM
+from .constants import EVE_TYPE_ID_SOLAR_SYSTEM, EVE_CATEGORY_ID_SKILL
 from .app_settings import MEMBERAUDIT_LOCATION_STALE_HOURS
 from .helpers import fetch_esi_status
 from .providers import esi
@@ -27,6 +27,16 @@ from .utils import LoggerAddTag
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 BULK_METHODS_BATCH_SIZE = 500
+
+
+class EveSkillTypeManger(models.Manager):
+    def get_queryset(self):
+        return (
+            super()
+            .get_queryset()
+            .select_related("eve_group")
+            .filter(eve_group__eve_category_id=EVE_CATEGORY_ID_SKILL)
+        )
 
 
 class LocationManager(models.Manager):

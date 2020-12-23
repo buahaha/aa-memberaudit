@@ -9,12 +9,31 @@ from .constants import EVE_CATEGORY_ID_SKILL
 from .models import (
     Character,
     CharacterUpdateStatus,
+    EveSkillType,
     Location,
     SkillSetGroup,
     SkillSet,
     SkillSetSkill,
 )
 from . import tasks
+
+
+@admin.register(EveSkillType)
+class EveSkillTypeAdmin(admin.ModelAdmin):
+    def has_module_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_add_permission(self, request):
+        return False
+
+    ordering = ["name"]
+    search_fields = ["name"]
 
 
 class UpdateStatusOkFilter(admin.SimpleListFilter):
@@ -300,6 +319,7 @@ class SkillSetSkillAdminInline(MinValidatedInlineMixIn, admin.TabularInline):
     verbose_name_plural = "skills"
     min_num = 1
     formset = SkillSetSkillAdminFormSet
+    autocomplete_fields = ("eve_type",)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "eve_type":

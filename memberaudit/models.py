@@ -58,6 +58,7 @@ from .managers import (
     CharacterMailLabelManager,
     CharacterManager,
     CharacterUpdateStatusManager,
+    EveSkillTypeManger,
     LocationManager,
     MailEntityManager,
 )
@@ -108,6 +109,15 @@ def accessible_users(user: User) -> models.QuerySet:
             )
 
     return users_qs
+
+
+class EveSkillType(EveType):
+    """Subset of EveType for all skills"""
+
+    class Meta:
+        proxy = True
+
+    objects = EveSkillTypeManger()
 
 
 class General(models.Model):
@@ -3215,7 +3225,7 @@ class SkillSetSkill(models.Model):
         SkillSet, on_delete=models.CASCADE, related_name="skills"
     )
     eve_type = models.ForeignKey(
-        EveType, on_delete=models.CASCADE, verbose_name="skill", related_name="+"
+        EveSkillType, on_delete=models.CASCADE, verbose_name="skill", related_name="+"
     )
 
     required_level = models.PositiveIntegerField(
