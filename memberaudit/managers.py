@@ -5,7 +5,17 @@ from typing import Dict, Iterable, Tuple
 
 from django.contrib.auth.models import User
 from django.db import models
-from django.db.models import F, ExpressionWrapper, When, Case, Value, Max, Min, Avg
+from django.db.models import (
+    Avg,
+    Case,
+    Count,
+    F,
+    ExpressionWrapper,
+    Max,
+    Min,
+    Value,
+    When,
+)
 from django.utils.timezone import now
 
 from bravado.exception import HTTPUnauthorized, HTTPForbidden
@@ -537,7 +547,7 @@ class CharacterUpdateStatusManager(models.Manager):
             except AttributeError:
                 return None
 
-        characters_count = Character.objects.count()
+        all_characters_count = Character.objects.count()
 
         settings = {
             name: value
@@ -593,23 +603,23 @@ class CharacterUpdateStatusManager(models.Manager):
                     started_at = None
                     finshed_at = None
 
-                boundaries = (
+                available_time = (
                     settings[f"MEMBERAUDIT_UPDATE_STALE_RING_{ring}"]
                     - settings["MEMBERAUDIT_UPDATE_STALE_OFFSET"]
                 ) * 60
                 throughput = (
-                    floor(characters_count / duration * 3600) if duration else None
+                    floor(all_characters_count / duration * 3600) if duration else None
                 )
-                within_boundaries = duration < boundaries if duration else None
+                within_boundaries = duration < available_time if duration else None
                 update_stats[f"ring_{ring}"] = {
                     "total": {
                         "duration": duration,
                         "started_at": started_at,
                         "finshed_at": finshed_at,
                         "root_task_id": root_task_ids.get(ring),
-                        "throughput": throughput,
-                        "boundaries": boundaries,
-                        "within_boundaries": within_boundaries,
+                        "throughput_est": throughput,
+                        "available_time": available_time,
+                        "within_available_time": within_boundaries,
                     },
                     "max": {},
                     "sections": {},
@@ -659,9 +669,18 @@ class CharacterUpdateStatusManager(models.Manager):
                         }
                     )
 
-                update_stats[f"ring_{ring}"]["total"]["sections_complete"] = set(
-                    sections
-                ) == set(update_stats[f"ring_{ring}"]["sections"])
+                ring_characters_count = (
+                    Character.objects.filter(update_status_set__in=qs)
+                    .annotate(num_sections=Count("update_status_set__section"))
+                    .filter(num_sections=len(sections))
+                    .count()
+                )
+                update_stats[f"ring_{ring}"]["total"][
+                    "characters_count"
+                ] = ring_characters_count
+                update_stats[f"ring_{ring}"]["total"]["completed"] = (
+                    ring_characters_count == all_characters_count
+                )
 
         return {
             "app_totals": {
@@ -670,7 +689,7 @@ class CharacterUpdateStatusManager(models.Manager):
                 )
                 .distinct()
                 .count(),
-                "characters_count": characters_count,
+                "all_characters_count": all_characters_count,
                 "skill_set_groups_count": SkillSetGroup.objects.count(),
                 "skill_sets_count": SkillSet.objects.count(),
                 "assets_count": CharacterAsset.objects.count(),
