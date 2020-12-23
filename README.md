@@ -66,6 +66,9 @@ Member Audit adds the following key features to Auth:
 - Admins can use the flexible permission system to grant access levels for different roles (e.g. corp leadership may only have access to reports about their own corp members)
 - Admins can customize and configure Member Audit to fit their needs. e.g. change the app's name and define how often which type of data is updated from the Eve server
 
+- Designed to work efficiently with large number of characters
+- Data retention policy allows managing storage capacity needs
+
 ## Highlights
 
 ### Character Launcher
@@ -206,11 +209,17 @@ Update the Eve Online API app used for authentication in your AA installation to
 
 ### Step 5 - Verify Celery configuration
 
-This app makes heavy use of Celery and will typically run through many thousands of tasks with every character update run. Auth's default process based setup for Celery workers is sadly not well suited for high task volume and we therefore strongly recommend to switch to a thread based setup (e.g. gevent). A thread based setup allows you to run 5-10x more workers in parallel, significantly reducing the duration of character update runs.
+This app makes very heavy use of Celery and may run thousands of tasks every hour.
 
-For details on how to configure a celery workers with threads please check [this section](https://allianceauth.readthedocs.io/en/latest/maintenance/tuning/celery.html#increasing-task-throughput) in the Auth's documentation.
+**Please make sure your celery configuration meets the following minimum requirements or Member Audit may overwhelm your server**:
 
-Note that if you have more than 10 workers you also need to increase the connection pool for django-esi accordingly. See [here](https://gitlab.com/allianceauth/django-esi/-/blob/master/esi/app_settings.py#L32) for the corresponding setting.
+- 10 workers (more is better)
+- Tasks can be executed continuously without degrading overall server performance
+- Task priorities are enabled
+
+Please see [Celery Configuration](#celery-configuration) for details on how to configure celery accordingly.
+
+> **Note**<br>When the above requirements are met Member Audit will also run smoothly on smaller servers.
 
 ### Step 6 - Load Eve Universe map data
 
@@ -297,6 +306,42 @@ Alliance Auditor | Can search for and access all characters of his alliance  | `
 
 > **Note**<br>Naturally, superusers will have access to everything, without requiring permissions to be assigned.
 
+## Celery configuration
+
+### Task throughput
+
+This app makes heavy use of Celery and will often run thousands of tasks per hour. Auth's default Celery setup is not well suited for handling high task volumes though (e.g. it will only spawn one worker per core, which scale badly due to high CPU usage). We strongly recommend to switch to a thread based setup (e.g. gevent), which has been proven to be significantly more efficient for running Auth.
+
+For details on how to configure celery workers with threads please see [this section](https://allianceauth.readthedocs.io/en/latest/maintenance/tuning/celery.html#increasing-task-throughput) in the Auth's documentation.
+
+When switching to thread based workers please also make sure to setup measure to protect against memory leak. The default celery options will not work for threads. See [this section](https://allianceauth.readthedocs.io/en/latest/maintenance/tuning/celery.html#supervisor) for details.
+
+### ESI connection pool
+
+If you have more than 10 workers you also need to increase the connection pool for django-esi accordingly. See [here](https://gitlab.com/allianceauth/django-esi/-/blob/master/esi/app_settings.py#L32) for the corresponding setting.
+
+### Celery priorities
+
+Last, but not least, please make sure your Celery is configured to run with priorities. This should be the default for all current Auth installation, but if you have an older installation you may have missed this change. Please see [these release notes](https://gitlab.com/allianceauth/allianceauth/-/releases/v2.6.3) for details.
+
+### Member Audit configuration
+
+The goal of an optimal configuration for Member Audit is that your system can complete all update tasks for your character within the respective update cycle.
+
+For this you need to consider the following three factors:
+
+- Number of characters to update
+- Task throughput
+- Update frequency
+
+The number of characters depend on your organization. You an usually not influence this factor much and want to make sure that your system has sufficient room for that growth.
+
+Your task throughout is defined by the number of celery workers. The more workers you have, the higher your potential throughput, so you may want to maximize that number for your system.
+
+You can adjust the update frequency to meet your needs. For example if you have a lot of characters and your update tasks can not (or only barely) complete within the update cycle, then you can lengthen your update cycles to compensate. There are 3 update cycles called rings, which can be configured individually. See `MEMBERAUDIT_UPDATE_STALE_RING_x` in [settings](#settings) for details.
+
+> **Hint**<br>You can use the management command **memberaudit_stats** to get current data about the last update runs, which can be very helpful to find the optimal configuration. See [memberaudit_stats](#memberaudit_stats) for details.
+
 ## Settings
 
 Here is a list of available settings for this app. They can be configured by adding them to your AA settings file (`local.py`).
@@ -336,7 +381,14 @@ This command deletes all locally stored character data, but maintains character 
 
 ### memberaudit_stats
 
-This command returns current statistics as JSON, i.e. current update statistics and app totals.
+This command returns current statistics as JSON, i.e. current update statistics and app totals. This includes:
+
+- App totals with number of active users and characters
+- List of periodic celery tasks
+- Statistics about last update per ring, including:
+  - total duration
+  - est. throughput in characters per hour
+  - indicator if update was completed within time boundaries
 
 ### memberaudit_update_characters
 
