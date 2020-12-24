@@ -118,6 +118,7 @@ class CharacterAdmin(admin.ModelAdmin):
     )
     ordering = ["character_ownership__character__character_name"]
     search_fields = ["character_ownership__character__character_name"]
+    exclude = ("mailing_lists",)
 
     def _character_pic(self, obj):
         character = obj.character_ownership.character
@@ -291,7 +292,11 @@ class LocationAdmin(admin.ModelAdmin):
 @admin.register(SkillSetGroup)
 class SkillSetGroupAdmin(admin.ModelAdmin):
     list_display = ("name", "_skill_sets", "is_doctrine", "is_active")
-    list_filter = ("is_doctrine", "is_active")
+    list_filter = (
+        "is_doctrine",
+        "is_active",
+        ("skill_sets", admin.RelatedOnlyFieldListFilter),
+    )
     ordering = ["name"]
     filter_horizontal = ("skill_sets",)
 
@@ -337,6 +342,24 @@ class SkillSetSkillAdminInline(MinValidatedInlineMixIn, admin.TabularInline):
     autocomplete_fields = ("eve_type",)
 
 
+class SkillSetShipTypeFilter(admin.SimpleListFilter):
+    title = "is ship type"
+    parameter_name = "is_ship_type"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("yes", "yes"),
+            ("no", "no"),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == "yes":
+            return SkillSet.objects.filter(ship_type__isnull=False)
+        if self.value() == "no":
+            return SkillSet.objects.filter(ship_type__isnull=True)
+        return SkillSet.objects.all()
+
+
 @admin.register(SkillSet)
 class SkillSetAdmin(admin.ModelAdmin):
     autocomplete_fields = ("ship_type",)
@@ -348,6 +371,7 @@ class SkillSetAdmin(admin.ModelAdmin):
         "is_visible",
     )
     list_filter = (
+        SkillSetShipTypeFilter,
         "is_visible",
         ("groups", admin.RelatedOnlyFieldListFilter),
     )
