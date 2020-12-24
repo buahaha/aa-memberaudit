@@ -5,10 +5,11 @@ from django.utils.html import format_html
 
 from eveuniverse.models import EveType
 
-from .constants import EVE_CATEGORY_ID_SKILL
+from .constants import EVE_CATEGORY_ID_SHIP
 from .models import (
     Character,
     CharacterUpdateStatus,
+    EveShipType,
     EveSkillType,
     Location,
     SkillSetGroup,
@@ -18,8 +19,7 @@ from .models import (
 from . import tasks
 
 
-@admin.register(EveSkillType)
-class EveSkillTypeAdmin(admin.ModelAdmin):
+class EveUniverseEntityModelAdmin(admin.ModelAdmin):
     def has_module_permission(self, request):
         return False
 
@@ -34,6 +34,16 @@ class EveSkillTypeAdmin(admin.ModelAdmin):
 
     ordering = ["name"]
     search_fields = ["name"]
+
+
+@admin.register(EveShipType)
+class EveShipTypeAdmin(EveUniverseEntityModelAdmin):
+    pass
+
+
+@admin.register(EveSkillType)
+class EveSkillTypeAdmin(EveUniverseEntityModelAdmin):
+    pass
 
 
 class UpdateStatusOkFilter(admin.SimpleListFilter):
@@ -60,7 +70,9 @@ class SyncStatusAdminInline(admin.TabularInline):
         "last_error_message",
         "started_at",
         "finished_at",
+        "root_task_id",
     )
+    ordering = ["section"]
 
     def has_add_permission(self, request, obj=None):
         return False
@@ -104,7 +116,7 @@ class CharacterAdmin(admin.ModelAdmin):
         "character_ownership__user__profile__main_character",
         "character_ownership__character",
     )
-    ordering = ("-created_at",)
+    ordering = ["character_ownership__character__character_name"]
     search_fields = ["character_ownership__character__character_name"]
 
     def _character_pic(self, obj):
@@ -230,22 +242,24 @@ class CharacterAdmin(admin.ModelAdmin):
 
 @admin.register(Location)
 class LocationAdmin(admin.ModelAdmin):
-    list_display = ("id", "_name", "_type", "_group", "_solar_system", "updated_at")
+    list_display = ("_name", "_type", "_group", "_solar_system", "updated_at")
     list_filter = (
+        ("eve_type__eve_group", admin.RelatedOnlyFieldListFilter),
+        ("eve_type", admin.RelatedOnlyFieldListFilter),
         (
             "eve_solar_system__eve_constellation__eve_region",
             admin.RelatedOnlyFieldListFilter,
         ),
         ("eve_solar_system", admin.RelatedOnlyFieldListFilter),
-        ("eve_type__eve_group", admin.RelatedOnlyFieldListFilter),
     )
     search_fields = ["name"]
     list_select_related = (
-        "eve_solar_system",
-        "eve_solar_system__eve_constellation__eve_region",
-        "eve_type",
         "eve_type__eve_group",
+        "eve_type",
+        "eve_solar_system__eve_constellation__eve_region",
+        "eve_solar_system",
     )
+    ordering = ["name"]
 
     def _name(self, obj):
         return obj.name_plus
@@ -277,6 +291,7 @@ class LocationAdmin(admin.ModelAdmin):
 @admin.register(SkillSetGroup)
 class SkillSetGroupAdmin(admin.ModelAdmin):
     list_display = ("name", "_skill_sets", "is_doctrine", "is_active")
+    list_filter = ("is_doctrine", "is_active")
     ordering = ["name"]
     filter_horizontal = ("skill_sets",)
 
@@ -321,18 +336,10 @@ class SkillSetSkillAdminInline(MinValidatedInlineMixIn, admin.TabularInline):
     formset = SkillSetSkillAdminFormSet
     autocomplete_fields = ("eve_type",)
 
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "eve_type":
-            kwargs["queryset"] = (
-                EveType.objects.select_related("eve_group__eve_category")
-                .filter(eve_group__eve_category=EVE_CATEGORY_ID_SKILL)
-                .order_by("name")
-            )
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
 
 @admin.register(SkillSet)
 class SkillSetAdmin(admin.ModelAdmin):
+    autocomplete_fields = ("ship_type",)
     list_display = (
         "name",
         "ship_type",
@@ -340,7 +347,13 @@ class SkillSetAdmin(admin.ModelAdmin):
         "_groups",
         "is_visible",
     )
+    list_filter = (
+        "is_visible",
+        ("groups", admin.RelatedOnlyFieldListFilter),
+    )
+    list_select_related = ("ship_type",)
     ordering = ["name"]
+    search_fields = ["name"]
 
     def _skills(self, obj):
         return [
@@ -349,7 +362,9 @@ class SkillSetAdmin(admin.ModelAdmin):
                 x.required_level if x.required_level else "",
                 f"[{x.recommended_level}]" if x.recommended_level else "",
             )
-            for x in obj.skills.all().order_by("eve_type__name")
+            for x in obj.skills.select_related("eve_type")
+            .all()
+            .order_by("eve_type__name")
         ]
 
     def _groups(self, obj) -> list:
@@ -362,7 +377,7 @@ class SkillSetAdmin(admin.ModelAdmin):
         if db_field.name == "ship_type":
             kwargs["queryset"] = (
                 EveType.objects.select_related("eve_group__eve_category")
-                .filter(eve_group__eve_category=6)
+                .filter(eve_group__eve_category=EVE_CATEGORY_ID_SHIP)
                 .order_by("name")
             )
         return super().formfield_for_foreignkey(db_field, request, **kwargs)

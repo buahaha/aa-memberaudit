@@ -58,6 +58,7 @@ from .managers import (
     CharacterMailLabelManager,
     CharacterManager,
     CharacterUpdateStatusManager,
+    EveShipTypeManger,
     EveSkillTypeManger,
     LocationManager,
     MailEntityManager,
@@ -111,8 +112,17 @@ def accessible_users(user: User) -> models.QuerySet:
     return users_qs
 
 
+class EveShipType(EveType):
+    """Subset of EveType for all ship types"""
+
+    class Meta:
+        proxy = True
+
+    objects = EveShipTypeManger()
+
+
 class EveSkillType(EveType):
-    """Subset of EveType for all skills"""
+    """Subset of EveType for all skill types"""
 
     class Meta:
         proxy = True
@@ -3194,7 +3204,7 @@ class SkillSet(models.Model):
     name = models.CharField(max_length=NAMES_MAX_LENGTH, unique=True)
     description = models.TextField(blank=True)
     ship_type = models.ForeignKey(
-        EveType,
+        EveShipType,
         on_delete=models.SET_DEFAULT,
         default=None,
         null=True,

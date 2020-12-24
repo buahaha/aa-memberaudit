@@ -13,8 +13,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Data retention limits for mail, contracts, wallet ([#75](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/75))
 - Show and filter NPCs/agents in contact list ([#63](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/63))
-- Autocomplete drop-down for skills in skill sets
+- Autocomplete drop-down for skills and ship_type in skill sets
 - Improved statistics with memberaudit_stats
+- More filters and better sorting on admin site
 
 ### Changed
 
