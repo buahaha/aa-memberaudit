@@ -559,7 +559,7 @@ class TestCharacterContracts(TestViewsBase):
         self.assertEqual(obj["category"], "Implant")
         self.assertEqual(obj["price"], 5000000)
         self.assertEqual(obj["total"], 15000000)
-        self.assertFalse(obj["is_bpo"])
+        self.assertFalse(obj["is_blueprint_copy"])
 
     @patch(MODULE_PATH + ".now")
     def test_items_included_data_bpo(self, mock_now):
@@ -623,7 +623,7 @@ class TestCharacterContracts(TestViewsBase):
         self.assertEqual(obj["category"], "Implant")
         self.assertIsNone(obj["price"])
         self.assertIsNone(obj["total"])
-        self.assertTrue(obj["is_bpo"])
+        self.assertTrue(obj["is_blueprint_copy"])
 
     @patch(MODULE_PATH + ".now")
     def test_items_requested_data_normal(self, mock_now):
@@ -686,7 +686,7 @@ class TestCharacterContracts(TestViewsBase):
         self.assertEqual(obj["category"], "Implant")
         self.assertEqual(obj["price"], 5000000)
         self.assertEqual(obj["total"], 15000000)
-        self.assertFalse(obj["is_bpo"])
+        self.assertFalse(obj["is_blueprint_copy"])
 
 
 class TestViewsOther(TestViewsBase):

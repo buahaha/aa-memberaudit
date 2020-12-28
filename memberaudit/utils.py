@@ -1,7 +1,7 @@
 """
 Utility functions meant to be used in many apps
 
-Version 1.0.0
+Version 1.1.0
 """
 
 import socket
@@ -424,6 +424,21 @@ def create_fa_button_html(
         mark_safe(' disabled="disabled"') if disabled else "",
         mark_safe(f'<i class="{fa_code}"></i>'),
     )
+
+
+dimensions = [(12, "t"), (9, "b"), (6, "m"), (3, "k")]
+
+
+def humanize_value(value: float, precision: int = 2) -> str:
+    """returns given value in human readable and abbreviated form
+    e.g. 1234678 -> 1.23m
+    """
+    value = float(value)
+    for exponent, identifier in dimensions:
+        if value >= pow(10, exponent):
+            return f"{value / pow(10, exponent):,.{precision}f}{identifier}"
+
+    return f"{value:,.{precision}f}"
 
 
 class JSONDateTimeDecoder(json.JSONDecoder):

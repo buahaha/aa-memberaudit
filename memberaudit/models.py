@@ -2173,6 +2173,11 @@ class CharacterAsset(models.Model):
         return name
 
     @property
+    def icon_url(self) -> str:
+        variant = self.eve_type.IconVariant.BPC if self.is_blueprint_copy else None
+        return self.eve_type.icon_url(variant=variant)
+
+    @property
     def group_display(self) -> str:
         """group of this asset to be displayed to user"""
         return self.eve_type.name if self.name else self.eve_type.eve_group.name
@@ -2518,8 +2523,24 @@ class CharacterContractItem(models.Model):
         return f"{self.contract}-{self.record_id}"
 
     @property
-    def is_bpo(self) -> bool:
+    def is_blueprint_original(self) -> bool:
+        return self.raw_quantity == -1
+
+    @property
+    def is_blueprint_copy(self) -> bool:
         return self.raw_quantity == -2
+
+    @property
+    def is_blueprint(self) -> bool:
+        return self.raw_quantity in [-1, -2]
+
+    @property
+    def name_display(self) -> str:
+        """name to be displayed to user"""
+        name = self.eve_type.name
+        if self.is_blueprint_copy:
+            name += " [BPC]"
+        return name
 
 
 class CharacterCorporationHistory(models.Model):

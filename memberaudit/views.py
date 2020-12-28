@@ -1,6 +1,6 @@
 import datetime as dt
 import humanize
-from typing import Optional
+from typing import Optional, Tuple
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required, permission_required
@@ -102,6 +102,22 @@ def create_icon_plus_name_html(
         ),
         name_html,
     )
+
+
+def item_icon_plus_name_html(item, size=DEFAULT_ICON_SIZE) -> Tuple[str, str]:
+    """returns generated HTML with name and icon for asset and contract items"""
+    if item.is_blueprint_copy:
+        variant = item.eve_type.IconVariant.BPC
+    else:
+        variant = None
+
+    name = item.name_display
+    name_html = create_icon_plus_name_html(
+        icon_url=item.eve_type.icon_url(size=DEFAULT_ICON_SIZE, variant=variant),
+        name=name,
+        size=size,
+    )
+    return name_html, name
 
 
 def create_main_organization_html(main_character) -> str:
@@ -530,18 +546,12 @@ def character_assets_data(
         location_name = (
             f"{asset.location.name_plus} ({location_counts.get(asset.location_id, 0)})"
         )
-        name_html = create_icon_plus_name_html(
-            asset.eve_type.icon_url(DEFAULT_ICON_SIZE), asset.name_display
-        )
-
+        name_html, name = item_icon_plus_name_html(asset)
         data.append(
             {
                 "item_id": asset.item_id,
                 "location": location_name,
-                "name": {
-                    "display": name_html,
-                    "sort": asset.name_display,
-                },
+                "name": {"display": name_html, "sort": name},
                 "quantity": asset.quantity if not asset.is_singleton else "",
                 "group": asset.group_display,
                 "volume": asset.eve_type.volume,
@@ -613,16 +623,11 @@ def character_asset_container_data(
         return HttpResponseNotFound()
 
     for asset in assets_qs:
-        name_html = create_icon_plus_name_html(
-            asset.eve_type.icon_url(DEFAULT_ICON_SIZE), asset.name_display
-        )
+        name_html, name = item_icon_plus_name_html(asset)
         data.append(
             {
                 "item_id": asset.item_id,
-                "name": {
-                    "display": name_html,
-                    "sort": asset.name_display,
-                },
+                "name": {"display": name_html, "sort": name},
                 "quantity": asset.quantity if not asset.is_singleton else "",
                 "group": asset.group_display,
                 "volume": asset.eve_type.volume,
@@ -839,13 +844,7 @@ def _character_contract_items_data(
         items_qs = CharacterContractItem.objects.none()
 
     for item in items_qs:
-        name = item.eve_type.name
-        if item.is_bpo:
-            name += " [BPC]"
-
-        name_html = create_icon_plus_name_html(
-            item.eve_type.icon_url(DEFAULT_ICON_SIZE), name
-        )
+        name_html, name = item_icon_plus_name_html(item)
         data.append(
             {
                 "id": item.record_id,
@@ -858,7 +857,7 @@ def _character_contract_items_data(
                 "category": item.eve_type.eve_group.eve_category.name,
                 "price": item.price,
                 "total": item.total,
-                "is_bpo": item.is_bpo,
+                "is_blueprint_copy": item.is_blueprint_copy,
             }
         )
 

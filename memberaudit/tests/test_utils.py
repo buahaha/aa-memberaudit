@@ -30,6 +30,7 @@ from ..utils import (
     JSONDateTimeEncoder,
     generate_invalid_pk,
     datetime_round_hour,
+    humanize_value,
 )
 from ..utils import set_test_logger
 
@@ -363,3 +364,19 @@ class TestDatetimeRoundHour(TestCase):
     def test_after_midnight(self):
         obj = dt.datetime(2020, 12, 19, 00, 14)
         self.assertEqual(datetime_round_hour(obj), dt.datetime(2020, 12, 19, 0, 0))
+
+
+class TestFormatIskValue(NoSocketsTestCase):
+    def test_defaults(self):
+        self.assertEqual(humanize_value(0.9), "0.90")
+        self.assertEqual(humanize_value(1), "1.00")
+        self.assertEqual(humanize_value(1.1), "1.10")
+        self.assertEqual(humanize_value(1000), "1.00k")
+        self.assertEqual(humanize_value(1100), "1.10k")
+        self.assertEqual(humanize_value(551100), "551.10k")
+        self.assertEqual(humanize_value(1000000), "1.00m")
+        self.assertEqual(humanize_value(1000000000), "1.00b")
+        self.assertEqual(humanize_value(1000000000000), "1.00t")
+
+    def test_precision(self):
+        self.assertEqual(humanize_value(12340000000, 1), "12.3b")

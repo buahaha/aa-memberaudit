@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Fixed
+
+- Shows correct icons for BPC and BPOs
+
 ## [1.0.0b3] - 2020-12-24
 
 ### Added
