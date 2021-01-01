@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixed
 
 - Shows correct icons for BPC and BPOs
+- SkillSet reports: 'NoneType' object has no attribute 'portrait_url' ([#81](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/81))
 
 ## [1.0.0b3] - 2020-12-24
 

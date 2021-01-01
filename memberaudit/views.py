@@ -1550,22 +1550,25 @@ def skill_sets_report_data(request) -> JsonResponse:
         user = character.character_ownership.user
         auth_character = character.character_ownership.character
         main_character = user.profile.main_character
-        main_html = create_icon_plus_name_html(
-            user.profile.main_character.portrait_url(),
-            main_character.character_name,
-            avatar=True,
-        )
-        main_corporation = main_character.corporation_name
-        main_alliance = (
-            main_character.alliance_name if main_character.alliance_name else ""
-        )
-        organization_html = format_html(
-            "{}{}",
-            main_corporation,
-            f" [{main_character.alliance_ticker}]"
-            if main_character.alliance_name
-            else "",
-        )
+        if main_character:
+            main_name = main_character.character_name
+            main_html = create_icon_plus_name_html(
+                user.profile.main_character.portrait_url(), main_name, avatar=True
+            )
+            main_corporation = main_character.corporation_name
+            main_alliance = (
+                main_character.alliance_name if main_character.alliance_name else ""
+            )
+            organization_html = format_html(
+                "{}{}",
+                main_corporation,
+                f" [{main_character.alliance_ticker}]"
+                if main_character.alliance_name
+                else "",
+            )
+        else:
+            main_html = main_name = ""
+            main_corporation = main_alliance = organization_html = ""
         character_viewer_url = "{}?tab=skill_sets".format(
             reverse("memberaudit:character_viewer", args=[character.pk])
         )
@@ -1595,7 +1598,7 @@ def skill_sets_report_data(request) -> JsonResponse:
         return {
             "id": f"{group_pk}_{character.pk}",
             "group": group.name_plus if group else UNGROUPED_SKILL_SET,
-            "main": main_character.character_name,
+            "main": main_name,
             "main_html": main_html,
             "organization_html": organization_html,
             "corporation": main_corporation,

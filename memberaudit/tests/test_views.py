@@ -1665,3 +1665,22 @@ class TestSkillSetReportData(TestCase):
         self.assertEqual(row["character"], "Lex Luther")
         self.assertEqual(row["main"], "Clark Kent")
         self.assertTrue(multi_assert_in(["Ship 3"], row["has_required"]))
+
+    def test_can_handle_user_without_main(self):
+        character = create_memberaudit_character(1102)
+        user = character.character_ownership.user
+        user.profile.main_character = None
+        user.profile.save()
+
+        ship_1 = SkillSet.objects.create(name="Ship 1")
+        SkillSetSkill.objects.create(
+            skill_set=ship_1, eve_type=self.skill_type_1, required_level=3
+        )
+        doctrine_1 = SkillSetGroup.objects.create(name="Alpha")
+        doctrine_1.skill_sets.add(ship_1)
+
+        request = self.factory.get(reverse("memberaudit:skill_sets_report_data"))
+        request.user = self.user
+        response = skill_sets_report_data(request)
+        data = json_response_to_python_dict(response)
+        self.assertEqual(len(data), 4)
