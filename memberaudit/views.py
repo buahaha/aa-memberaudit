@@ -574,9 +574,9 @@ def character_asset_container(
     request, character_pk: int, character: Character, parent_asset_pk: int
 ) -> JsonResponse:
     try:
-        parent_asset = character.assets.select_related("location").get(
-            pk=parent_asset_pk
-        )
+        parent_asset = character.assets.select_related(
+            "location", "eve_type", "eve_type__eve_group"
+        ).get(pk=parent_asset_pk)
     except CharacterAsset.DoesNotExist:
         error_msg = (
             f"Asset with pk {parent_asset_pk} not found for character {character}"
@@ -589,6 +589,9 @@ def character_asset_container(
         context = {
             "character": character,
             "parent_asset": parent_asset,
+            "parent_asset_icon_url": parent_asset.eve_type.icon_url(
+                size=DEFAULT_ICON_SIZE
+            ),
         }
     return render(
         request,

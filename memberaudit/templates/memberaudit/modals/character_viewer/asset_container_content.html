@@ -16,7 +16,7 @@
         {% else %}
             <ol class="breadcrumb">
                 <li>{{ parent_asset.location.name }}</li>
-                <li class="active"><img src="{{ parent_asset.eve_type|evetype_icon_url:32 }}"/>&nbsp;&nbsp;{{ parent_asset.name_display }} ({{ parent_asset.group_display }})</li>
+                <li class="active"><img src="{{ parent_asset_icon_url }}"/>&nbsp;&nbsp;{{ parent_asset.name_display }} ({{ parent_asset.group_display }})</li>
             </ol>
 
             <div class="table-responsive">
