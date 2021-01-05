@@ -32,6 +32,7 @@ from ..models import (
     CharacterContractItem,
     CharacterCorporationHistory,
     CharacterImplant,
+    CharacterLocation,
     CharacterJumpClone,
     CharacterJumpCloneImplant,
     CharacterLoyaltyEntry,
@@ -74,6 +75,8 @@ from ..views import (
     compliance_report_data,
     skill_sets_report_data,
     remove_character,
+    character_finder,
+    reports,
     share_character,
     unshare_character,
 )
@@ -134,15 +137,24 @@ class TestCharacterAssets(TestViewsBase):
         super().setUpClass()
 
     def test_character_assets_data_1(self):
-        CharacterAsset.objects.create(
+        container = CharacterAsset.objects.create(
             character=self.character,
             item_id=1,
             location=self.jita_44,
             eve_type=EveType.objects.get(id=20185),
-            is_singleton=False,
+            is_singleton=True,
             name="Trucker",
             quantity=1,
         )
+        CharacterAsset.objects.create(
+            character=self.character,
+            item_id=2,
+            parent=container,
+            eve_type=EveType.objects.get(id=603),
+            is_singleton=False,
+            quantity=1,
+        )
+
         request = self.factory.get(
             reverse("memberaudit:character_assets_data", args=[self.character.pk])
         )
@@ -157,11 +169,12 @@ class TestCharacterAssets(TestViewsBase):
             row["location"], "Jita IV - Moon 4 - Caldari Navy Assembly Plant (1)"
         )
         self.assertEqual(row["name"]["sort"], "Trucker")
-        self.assertEqual(row["quantity"], 1)
+        self.assertEqual(row["quantity"], "")
         self.assertEqual(row["group"], "Charon")
         self.assertEqual(row["volume"], 16250000.0)
         self.assertEqual(row["solar_system"], "Jita")
         self.assertEqual(row["region"], "The Forge")
+        self.assertTrue(row["actions"])
 
     def test_character_assets_data_2(self):
         CharacterAsset.objects.create(
@@ -190,6 +203,7 @@ class TestCharacterAssets(TestViewsBase):
         self.assertEqual(row["quantity"], 1)
         self.assertEqual(row["group"], "Freighter")
         self.assertEqual(row["volume"], 16250000.0)
+        self.assertFalse(row["actions"])
 
     def test_character_asset_children_normal(self):
         parent_asset = CharacterAsset.objects.create(
@@ -728,44 +742,41 @@ class TestViewsOther(TestViewsBase):
         response = character_viewer(request, self.character.pk)
         self.assertEqual(response.status_code, 200)
 
-    def test_character_contacts_data(self):
-        CharacterContact.objects.create(
-            character=self.character,
-            eve_entity=EveEntity.objects.get(id=1101),
-            standing=-10,
-            is_blocked=True,
+    def test_can_open_character_finder_view(self):
+        self.user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.finder_access", self.user
         )
-        CharacterContact.objects.create(
-            character=self.character,
-            eve_entity=EveEntity.objects.get(id=2001),
-            standing=10,
-        )
-
-        request = self.factory.get(
-            reverse("memberaudit:character_contacts_data", args=[self.character.pk])
-        )
+        request = self.factory.get(reverse("memberaudit:character_finder"))
         request.user = self.user
-        response = character_contacts_data(request, self.character.pk)
+        response = character_finder(request)
         self.assertEqual(response.status_code, 200)
-        data = json_response_to_python_dict(response)
 
-        self.assertEqual(len(data), 2)
+    def test_character_finder_data(self):
+        self.user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.finder_access", self.user
+        )
+        CharacterLocation.objects.create(
+            character=self.character, eve_solar_system=self.jita, location=self.jita_44
+        )
+        character_1002 = add_memberaudit_character_to_user(self.user, 1002)
 
-        row = data[1101]
-        self.assertEqual(row["name"]["sort"], "Lex Luther")
-        self.assertEqual(row["standing"], -10)
-        self.assertEqual(row["type"], "Character")
-        self.assertEqual(row["is_watched"], False)
-        self.assertEqual(row["is_blocked"], True)
-        self.assertEqual(row["level"], "Terrible Standing")
+        request = self.factory.get(reverse("memberaudit:character_finder_data"))
+        request.user = self.user
+        response = character_finder_data(request)
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertSetEqual(
+            {x["character_pk"] for x in data}, {self.character.pk, character_1002.pk}
+        )
 
-        row = data[2001]
-        self.assertEqual(row["name"]["sort"], "Wayne Technologies")
-        self.assertEqual(row["standing"], 10)
-        self.assertEqual(row["type"], "Corporation")
-        self.assertEqual(row["is_watched"], False)
-        self.assertEqual(row["is_blocked"], False)
-        self.assertEqual(row["level"], "Excellent Standing")
+    def test_can_open_reports_view(self):
+        self.user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.reports_access", self.user
+        )
+        request = self.factory.get(reverse("memberaudit:reports"))
+        request.user = self.user
+        response = reports(request)
+        self.assertEqual(response.status_code, 200)
 
     def test_skill_sets_data(self):
         CharacterSkill.objects.create(
@@ -848,6 +859,47 @@ class TestViewsOther(TestViewsBase):
         self.assertEqual(row["skill_set_name"], "Ship 1")
         self.assertTrue(row["has_required"])
         self.assertEqual(row["failed_required_skills"], "-")
+
+
+class TestCharacterDataViewsOther(TestViewsBase):
+    def test_character_contacts_data(self):
+        CharacterContact.objects.create(
+            character=self.character,
+            eve_entity=EveEntity.objects.get(id=1101),
+            standing=-10,
+            is_blocked=True,
+        )
+        CharacterContact.objects.create(
+            character=self.character,
+            eve_entity=EveEntity.objects.get(id=2001),
+            standing=10,
+        )
+
+        request = self.factory.get(
+            reverse("memberaudit:character_contacts_data", args=[self.character.pk])
+        )
+        request.user = self.user
+        response = character_contacts_data(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python_dict(response)
+
+        self.assertEqual(len(data), 2)
+
+        row = data[1101]
+        self.assertEqual(row["name"]["sort"], "Lex Luther")
+        self.assertEqual(row["standing"], -10)
+        self.assertEqual(row["type"], "Character")
+        self.assertEqual(row["is_watched"], False)
+        self.assertEqual(row["is_blocked"], True)
+        self.assertEqual(row["level"], "Terrible Standing")
+
+        row = data[2001]
+        self.assertEqual(row["name"]["sort"], "Wayne Technologies")
+        self.assertEqual(row["standing"], 10)
+        self.assertEqual(row["type"], "Corporation")
+        self.assertEqual(row["is_watched"], False)
+        self.assertEqual(row["is_blocked"], False)
+        self.assertEqual(row["level"], "Excellent Standing")
 
     def test_character_jump_clones_data(self):
         clone_1 = jump_clone = CharacterJumpClone.objects.create(
@@ -1015,17 +1067,6 @@ class TestViewsOther(TestViewsBase):
         row = data[0]
         self.assertEqual(row["amount"], "1000000.00")
         self.assertEqual(row["balance"], "10000000.00")
-
-    def test_character_finder_data(self):
-        self.user = AuthUtils.add_permission_to_user_by_name(
-            "memberaudit.finder_access", self.user
-        )
-        request = self.factory.get(reverse("memberaudit:character_finder_data"))
-        request.user = self.user
-        response = character_finder_data(request)
-        self.assertEqual(response.status_code, 200)
-        data = json_response_to_python(response)
-        self.assertSetEqual({x["character_pk"] for x in data}, {self.character.pk})
 
     def test_character_corporation_history(self):
         """
