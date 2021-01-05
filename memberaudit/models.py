@@ -3310,7 +3310,10 @@ class MailEntity(models.Model):
         return self.name
 
     def __repr__(self) -> str:
-        return f"MailEntity(id={self.id}, category={self.category}, name='{self.name}')"
+        return (
+            f"{type(self).__name__}(id={self.id}, category={self.category}, "
+            f"name='{self.name}')"
+        )
 
     @property
     def name_plus(self) -> str:
@@ -3319,6 +3322,7 @@ class MailEntity(models.Model):
 
     @property
     def eve_entity_categories(self) -> set:
+        """categories which also exist for EveEntity"""
         return {
             self.Category.ALLIANCE,
             self.Category.CHARACTER,

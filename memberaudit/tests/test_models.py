@@ -86,14 +86,23 @@ class TestDataRetentionCutoff(TestCase):
 
 
 class TestCharacterUpdateSection(NoSocketsTestCase):
-    def testmethod_name(self):
+    def test_method_name(self):
         result = Character.UpdateSection.method_name(
             Character.UpdateSection.CORPORATION_HISTORY
         )
         self.assertEqual(result, "update_corporation_history")
 
-        result = Character.UpdateSection.method_name(Character.UpdateSection.MAILS)
-        self.assertEqual(result, "update_mails")
+        with self.assertRaises(ValueError):
+            result = Character.UpdateSection.method_name("invalid")
+
+    def test_display_name(self):
+        result = Character.UpdateSection.display_name(
+            Character.UpdateSection.CORPORATION_HISTORY
+        )
+        self.assertEqual(result, "corporation history")
+
+        with self.assertRaises(ValueError):
+            result = Character.UpdateSection.display_name("invalid")
 
 
 class TestCharacterUpdateStatus(NoSocketsTestCase):
@@ -2680,6 +2689,36 @@ class TestCharacterContract(NoSocketsTestCase):
             start_location=self.jita_44,
             end_location=self.jita_44,
         )
+        self.contract_completed = CharacterContract.objects.create(
+            character=self.character_1001,
+            contract_id=43,
+            availability=CharacterContract.AVAILABILITY_PERSONAL,
+            contract_type=CharacterContract.TYPE_ITEM_EXCHANGE,
+            date_issued=now() - dt.timedelta(days=3),
+            date_completed=now() - dt.timedelta(days=2),
+            date_expired=now() - dt.timedelta(days=1),
+            for_corporation=False,
+            issuer=EveEntity.objects.get(id=1001),
+            issuer_corporation=EveEntity.objects.get(id=2001),
+            status=CharacterContract.STATUS_FINISHED,
+            start_location=self.jita_44,
+            end_location=self.jita_44,
+        )
+
+    def test_str(self):
+        self.assertEqual(str(self.contract), f"{self.character_1001}-42")
+
+    def test_is_completed(self):
+        self.assertFalse(self.contract.is_completed)
+        self.assertTrue(self.contract_completed.is_completed)
+
+    def test_has_expired(self):
+        self.assertFalse(self.contract.has_expired)
+        self.assertTrue(self.contract_completed.has_expired)
+
+    def test_hours_issued_2_completed(self):
+        self.assertIsNone(self.contract.hours_issued_2_completed)
+        self.assertEqual(self.contract_completed.hours_issued_2_completed, 24)
 
     def test_summary_one_item_1(self):
         CharacterContractItem.objects.create(
@@ -2821,6 +2860,17 @@ class TestLocation(NoSocketsTestCase):
         load_entities()
         load_locations()
 
+    def test_str(self):
+        location = Location.objects.get(id=1000000000001)
+        self.assertEqual(str(location), "Amamake - Test Structure Alpha")
+
+    def test_repr(self):
+        location = Location.objects.get(id=1000000000001)
+        self.assertEqual(
+            repr(location),
+            "Location(id=1000000000001, name='Amamake - Test Structure Alpha')",
+        )
+
     def test_is_solar_system(self):
         location = Location.objects.create(
             id=30000142, eve_solar_system=EveSolarSystem.objects.get(id=30000142)
@@ -2840,6 +2890,13 @@ class TestLocation(NoSocketsTestCase):
         self.assertFalse(location.is_solar_system)
         self.assertFalse(location.is_station)
         self.assertTrue(location.is_structure)
+
+    def test_solar_system_url(self):
+        obj_1 = Location.objects.get(id=1000000000001)
+        obj_2 = Location.objects.create(id=1000000000999)
+
+        self.assertIn("Amamake", obj_1.solar_system_url)
+        self.assertEqual("", obj_2.solar_system_url)
 
 
 @patch(MANAGERS_PATH + ".esi")
@@ -3261,8 +3318,10 @@ class TestCharacter(NoSocketsTestCase):
     def setUpClass(cls) -> None:
         super().setUpClass()
         load_entities()
-        cls.character_1001 = create_memberaudit_character(1001)
-        cls.user = cls.character_1001.character_ownership.user
+
+    def setUp(self) -> None:
+        self.character_1001 = create_memberaudit_character(1001)
+        self.user = self.character_1001.character_ownership.user
 
     def test_is_main_1(self):
         self.assertTrue(self.character_1001.is_main)
@@ -3272,12 +3331,38 @@ class TestCharacter(NoSocketsTestCase):
         self.assertTrue(self.character_1001.is_main)
         self.assertFalse(character_1101.is_main)
 
+    def test_is_main_3(self):
+        self.user.profile.main_character = None
+        self.user.profile.save()
+        self.assertFalse(self.character_1001.is_main)
+
 
 class TestMailEntity(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
         load_entities()
+
+    def test_str(self):
+        obj, _ = MailEntity.objects.update_or_create_from_eve_entity_id(1001)
+        self.assertEqual(str(obj), "Bruce Wayne")
+
+    def test_repr(self):
+        obj, _ = MailEntity.objects.update_or_create_from_eve_entity_id(1001)
+        self.assertEqual(
+            repr(obj), "MailEntity(id=1001, category=CH, name='Bruce Wayne')"
+        )
+
+    def test_eve_entity_categories(self):
+        obj, _ = MailEntity.objects.update_or_create_from_eve_entity_id(1001)
+        self.assertSetEqual(
+            obj.eve_entity_categories,
+            {
+                MailEntity.Category.ALLIANCE,
+                MailEntity.Category.CHARACTER,
+                MailEntity.Category.CORPORATION,
+            },
+        )
 
     def test_name_plus_1(self):
         obj, _ = MailEntity.objects.update_or_create_from_eve_entity_id(1001)

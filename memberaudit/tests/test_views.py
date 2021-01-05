@@ -1250,7 +1250,7 @@ class TestMailData(TestCase):
         row = data[0]
         self.assertEqual(row["to"], "Bruce Wayne, Mailing List")
 
-    def test_character_mail_data(self):
+    def test_character_mail_data_normal(self):
         mail = self.character.mails.get(mail_id=7001)
         request = self.factory.get(
             reverse(
@@ -1268,6 +1268,18 @@ class TestMailData(TestCase):
         self.assertEqual(
             data["body"], "Mail with normal entity and mailing list as recipient"
         )
+
+    def test_character_mail_data_error(self):
+        invalid_mail_pk = generate_invalid_pk(CharacterMail)
+        request = self.factory.get(
+            reverse(
+                "memberaudit:character_mail_data",
+                args=[self.character.pk, invalid_mail_pk],
+            )
+        )
+        request.user = self.user
+        response = character_mail_data(request, self.character.pk, invalid_mail_pk)
+        self.assertEqual(response.status_code, 404)
 
 
 @patch(MODULE_PATH + ".messages_plus")
