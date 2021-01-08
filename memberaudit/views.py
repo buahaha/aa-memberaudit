@@ -1515,7 +1515,12 @@ def compliance_report_data(request) -> JsonResponse:
 
             is_compliant = user.unregistered_chars == 0
         else:
-            main_html = main_name = user.username
+            main_name = user.username
+            main_html = create_icon_plus_name_html(
+                eveimageserver.character_portrait_url(1, size=DEFAULT_ICON_SIZE),
+                main_name,
+                avatar=True,
+            )
             alliance_name = organization_html = corporation_name = ""
             is_compliant = False
 
