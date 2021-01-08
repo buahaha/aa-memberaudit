@@ -35,7 +35,7 @@ from .constants import (
 from .app_settings import MEMBERAUDIT_LOCATION_STALE_HOURS
 from .helpers import fetch_esi_status
 from .providers import esi
-from .utils import LoggerAddTag
+from .utils import LoggerAddTag, ObjectCacheMixin
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -434,7 +434,7 @@ class MailEntityManager(models.Manager):
     #     )
 
 
-class CharacterManager(models.Manager):
+class CharacterManager(ObjectCacheMixin, models.Manager):
     def unregistered_characters_of_user_count(self, user: User) -> int:
         return CharacterOwnership.objects.filter(
             user=user, memberaudit_character__isnull=True

@@ -62,3 +62,11 @@ MEMBERAUDIT_UPDATE_STALE_OFFSET = clean_setting("MEMBERAUDIT_UPDATE_STALE_OFFSET
 MEMBERAUDIT_DATA_RETENTION_LIMIT = clean_setting(
     "MEMBERAUDIT_DATA_RETENTION_LIMIT", default_value=360, min_value=7
 )
+
+####################
+# Internal settings
+
+# Timeout for caching objects when running tasks in seconds
+MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT = clean_setting(
+    "MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT", 600
+)
