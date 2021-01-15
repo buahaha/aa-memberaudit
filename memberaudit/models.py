@@ -18,7 +18,6 @@ from django.utils.translation import gettext_lazy as _
 from esi.models import Token
 from esi.errors import TokenError
 
-from eveuniverse.core.esitools import is_esi_online
 from eveuniverse.models import (
     EveAncestry,
     EveBloodline,
@@ -1218,9 +1217,30 @@ class Character(models.Model):
         else:
             logger.info("%s: Implants have not changed", self)
 
-    def update_location(self):
+    @fetch_token_for_character(
+        ["esi-location.read_location.v1", "esi-universe.read_structures.v1"]
+    )
+    def update_location(self, token: Token):
         """update the location for the given character"""
-        eve_solar_system, location = self.fetch_location()
+        logger.info("%s: Fetching location from ESI", self)
+        location_info = esi.client.Location.get_characters_character_id_location(
+            character_id=self.character_ownership.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+        eve_solar_system, _ = EveSolarSystem.objects.get_or_create_esi(
+            id=location_info.get("solar_system_id")
+        )
+        if location_info.get("station_id"):
+            location, _ = Location.objects.get_or_create_esi_async(
+                id=location_info.get("station_id"), token=token
+            )
+        elif location_info.get("structure_id"):
+            location, _ = Location.objects.get_or_create_esi_async(
+                id=location_info.get("structure_id"), token=token
+            )
+        else:
+            location = None
+
         if eve_solar_system:
             CharacterLocation.objects.update_or_create(
                 character=self,
@@ -2045,35 +2065,6 @@ class Character(models.Model):
             )
 
         EveEntity.objects.bulk_update_new_esi()
-
-    @fetch_token_for_character(
-        ["esi-location.read_location.v1", "esi-universe.read_structures.v1"]
-    )
-    def fetch_location(self, token: Token) -> Optional[dict]:
-        logger.info("%s: Fetching location from ESI", self)
-        if not is_esi_online():
-            return None, None
-
-        location_info = esi.client.Location.get_characters_character_id_location(
-            character_id=self.character_ownership.character.character_id,
-            token=token.valid_access_token(),
-        ).results()
-
-        solar_system, _ = EveSolarSystem.objects.get_or_create_esi(
-            id=location_info.get("solar_system_id")
-        )
-        if location_info.get("station_id"):
-            location, _ = Location.objects.get_or_create_esi_async(
-                id=location_info.get("station_id"), token=token
-            )
-        elif location_info.get("structure_id"):
-            location, _ = Location.objects.get_or_create_esi_async(
-                id=location_info.get("structure_id"), token=token
-            )
-        else:
-            location = None
-
-        return solar_system, location
 
     def _store_list_to_disk(self, lst: list, name: str):
         """stores the given list as JSON file to disk. For debugging

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
-- Reduced server load when running updates
+- Performance optimization of updates
 - Improved resilience against ESI timeouts during transactions
 
 ### Fixed
