@@ -39,12 +39,12 @@ class Command(BaseCommand):
             if not options["noinput"]:
                 user_input = get_input(
                     f"Are you sure you want to proceed for {character_count} "
-                    "character(s)? (Y/n)?"
+                    "character(s)? (y/N)?"
                 )
             else:
-                user_input = "Y"
+                user_input = "y"
 
-            if user_input == "Y":
+            if user_input.lower() == "y":
                 logger.info(
                     "Running command update_all_characters for %s characters.",
                     character_count,

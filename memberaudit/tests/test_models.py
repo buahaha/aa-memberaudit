@@ -2448,20 +2448,6 @@ class TestCharacterUpdateOther(TestCharacterUpdateBase):
         )
         self.assertEqual(self.character_1001.online_status.logins, 9001)
 
-    def test_fetch_location_station(self, mock_esi):
-        mock_esi.client = esi_client_stub
-
-        result = self.character_1001.fetch_location()
-        self.assertEqual(result[0], self.jita)
-        self.assertEqual(result[1], self.jita_44)
-
-    def test_fetch_location_structure(self, mock_esi):
-        mock_esi.client = esi_client_stub
-
-        result = self.character_1002.fetch_location()
-        self.assertEqual(result[0], self.amamake)
-        self.assertEqual(result[1], self.structure_1)
-
 
 class TestCharacterUpdateSkillSets(NoSocketsTestCase):
     @classmethod

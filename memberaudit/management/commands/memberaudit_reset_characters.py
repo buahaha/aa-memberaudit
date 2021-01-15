@@ -74,13 +74,13 @@ class Command(BaseCommand):
 
         if not options["noinput"]:
             user_input = get_input(
-                "Are you sure you want to proceed{}? (Y/n)?".format(
+                "Are you sure you want to proceed{}? (y/N)?".format(
                     f" for {len(character_ownerships)} character(s)"
                 )
             )
         else:
-            user_input = "Y"
-        if user_input == "Y":
+            user_input = "y"
+        if user_input.lower() == "y":
             logger.info("Running command reset_characters for %s characters.")
             self.stdout.write(
                 self.style.SUCCESS("Character data reset has been started!")

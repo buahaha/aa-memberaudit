@@ -25,6 +25,7 @@ from .app_settings import (
     MEMBERAUDIT_TASKS_MAX_ASSETS_PER_PASS,
     MEMBERAUDIT_TASKS_TIME_LIMIT,
     MEMBERAUDIT_UPDATE_STALE_RING_2,
+    MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT,
 )
 from .helpers import EsiOffline, EsiErrorLimitExceeded, fetch_esi_status
 from .models import (
@@ -89,9 +90,9 @@ def update_all_characters(force_update: bool = False) -> None:
         stats = CharacterUpdateStatus.objects.statistics()
         logger.info(f"Update statistics: {stats}")
 
-    for character in Character.objects.all():
+    for character_pk in Character.objects.values_list("pk", flat=True):
         update_character.apply_async(
-            kwargs={"character_pk": character.pk, "force_update": force_update},
+            kwargs={"character_pk": character_pk, "force_update": force_update},
             priority=DEFAULT_TASK_PRIORITY,
         )
 
@@ -111,7 +112,9 @@ def update_character(self, character_pk: int, force_update: bool = False) -> boo
     - True when update was conducted
     - False when no updated was needed
     """
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     all_sections = set(Character.UpdateSection.values)
     needs_update = force_update
     for section in all_sections:
@@ -254,7 +257,9 @@ def update_character_section(
     **kwargs,
 ) -> None:
     """Task that updates the section of a character"""
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     character.reset_update_section(section, root_task_id, parent_task_id)
     logger.info(
         "%s: Updating %s", character, Character.UpdateSection.display_name(section)
@@ -322,7 +327,9 @@ def update_unresolved_eve_entities(
 
     Optionally logs success for given update section
     """
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     _character_update_with_error_logging(
         self, character, section, EveEntity.objects.bulk_update_new_esi
     )
@@ -341,7 +348,9 @@ def update_character_assets(
     parent_task_id: str = None,
 ) -> None:
     """Main tasks for updating the character's assets"""
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     logger.info(
         "%s: Updating %s",
         character,
@@ -364,7 +373,9 @@ def assets_build_list_from_esi(
     self, character_pk: int, force_update: bool = False
 ) -> dict:
     """Building asset list"""
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     asset_list = _character_update_with_error_logging(
         self,
         character,
@@ -381,7 +392,9 @@ def assets_preload_objects(self, asset_list: dict, character_pk: int) -> Optiona
     if asset_list is None:
         return None
 
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     _character_update_with_error_logging(
         self,
         character,
@@ -404,7 +417,9 @@ def assets_create_parents(
     from the asset list have been created.
     Then call another task to create child assets.
     """
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     if asset_list is None:
         _log_character_update_success(character, Character.UpdateSection.ASSETS)
         return
@@ -487,7 +502,9 @@ def assets_create_children(
     This task will recursively call itself until all possible assets from the
     asset list are included into the asset tree
     """
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     logger.info("%s: Creating child assets - pass %s", character, cycle)
 
     # for debug
@@ -564,7 +581,9 @@ def update_character_mails(
     parent_task_id: str = None,
 ) -> None:
     """Main task for updating mails of a character"""
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     section = Character.UpdateSection.MAILS
     logger.info(
         "%s: Updating %s", character, Character.UpdateSection.display_name(section)
@@ -585,7 +604,9 @@ def update_character_mails(
 def update_character_mailing_lists(
     self, character_pk: int, force_update: bool = False
 ) -> None:
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     _character_update_with_error_logging(
         self,
         character,
@@ -599,7 +620,9 @@ def update_character_mailing_lists(
 def update_character_mail_labels(
     self, character_pk: int, force_update: bool = False
 ) -> None:
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     _character_update_with_error_logging(
         self,
         character,
@@ -613,7 +636,9 @@ def update_character_mail_labels(
 def update_character_mail_headers(
     self, character_pk: int, force_update: bool = False
 ) -> None:
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     _character_update_with_error_logging(
         self,
         character,
@@ -626,7 +651,9 @@ def update_character_mail_headers(
 @shared_task(**TASK_ESI_KWARGS)
 def update_mail_body_esi(self, character_pk: int, mail_pk: int):
     """Task for updating the body of a mail from ESI"""
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     mail = CharacterMail.objects.get(pk=mail_pk)
     _character_update_with_error_logging(
         self,
@@ -639,7 +666,9 @@ def update_mail_body_esi(self, character_pk: int, mail_pk: int):
 
 @shared_task(**TASK_ESI_KWARGS)
 def update_character_mail_bodies(self, character_pk: int) -> None:
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     mails_without_body_qs = character.mails.filter(body="")
     mails_without_body_count = mails_without_body_qs.count()
 
@@ -666,7 +695,9 @@ def update_character_contacts(
     parent_task_id: str = None,
 ) -> None:
     """Main task for updating contacts of a character"""
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     section = Character.UpdateSection.CONTACTS
     character.reset_update_section(
         section=section, root_task_id=root_task_id, parent_task_id=parent_task_id
@@ -685,7 +716,9 @@ def update_character_contacts(
 def update_character_contact_labels(
     self, character_pk: int, force_update: bool = False
 ) -> None:
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     _character_update_with_error_logging(
         self,
         character,
@@ -699,7 +732,9 @@ def update_character_contact_labels(
 def update_character_contacts_2(
     self, character_pk: int, force_update: bool = False
 ) -> None:
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     _character_update_with_error_logging(
         self,
         character,
@@ -720,7 +755,9 @@ def update_character_contracts(
     parent_task_id: str = None,
 ) -> None:
     """Main task for updating contracts of a character"""
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     section = Character.UpdateSection.CONTRACTS
     character.reset_update_section(
         section=section, root_task_id=root_task_id, parent_task_id=parent_task_id
@@ -740,7 +777,9 @@ def update_character_contracts(
 def update_character_contract_headers(
     self, character_pk: int, force_update: bool = False
 ) -> bool:
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     _character_update_with_error_logging(
         self,
         character,
@@ -753,7 +792,9 @@ def update_character_contract_headers(
 @shared_task(**TASK_DEFAULT_KWARGS)
 def update_character_contracts_items(character_pk: int):
     """Update items for all contracts of a character"""
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     contract_pks = set(
         character.contracts.filter(
             contract_type__in=[
@@ -780,7 +821,9 @@ def update_character_contracts_items(character_pk: int):
 @shared_task(**TASK_ESI_KWARGS)
 def update_contract_items_esi(self, character_pk: int, contract_pk: int):
     """Task for updating the items of a contract from ESI"""
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     contract = CharacterContract.objects.get(pk=contract_pk)
     character.update_contract_items(contract)
 
@@ -788,7 +831,9 @@ def update_contract_items_esi(self, character_pk: int, contract_pk: int):
 @shared_task(**TASK_DEFAULT_KWARGS)
 def update_character_contracts_bids(character_pk: int):
     """Update bids for all contracts of a character"""
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     contract_pks = set(
         character.contracts.filter(
             contract_type__in=[CharacterContract.TYPE_AUCTION],
@@ -812,7 +857,9 @@ def update_character_contracts_bids(character_pk: int):
 @shared_task(**TASK_ESI_KWARGS)
 def update_contract_bids_esi(self, character_pk: int, contract_pk: int):
     """Task for updating the bids of a contract from ESI"""
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     contract = CharacterContract.objects.get(pk=contract_pk)
     character.update_contract_bids(contract)
 
@@ -825,7 +872,9 @@ def update_character_wallet_journal(
     character_pk: int, root_task_id: str = None, parent_task_id: str = None
 ) -> None:
     """Main task for updating wallet journal of a character"""
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     section = Character.UpdateSection.WALLET_JOURNAL
     character.reset_update_section(
         section=section, root_task_id=root_task_id, parent_task_id=parent_task_id
@@ -841,7 +890,9 @@ def update_character_wallet_journal(
 
 @shared_task(**TASK_ESI_KWARGS)
 def update_character_wallet_journal_entries(self, character_pk: int) -> None:
-    character = Character.objects.get(pk=character_pk)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
     _character_update_with_error_logging(
         self,
         character,
