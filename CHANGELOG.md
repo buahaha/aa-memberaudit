@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Changed
+
+- Reduced server load when running updates
+- Improved resilience against ESI timeouts during transactions
+
 ### Fixed
 
 - Layout error for user with no main in reports ([#86](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/86))

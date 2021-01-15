@@ -611,8 +611,7 @@ class Character(models.Model):
         missing_ids = required_ids.difference(existing_ids)
         if missing_ids:
             logger.info("%s: Loading %s missing types from ESI", self, len(missing_ids))
-            for type_id in missing_ids:
-                EveType.objects.update_or_create_esi(id=type_id)
+            EveType.objects.bulk_get_or_create_esi(ids=missing_ids)
 
         assets_flat = {int(x["item_id"]): x for x in asset_list}
         incoming_location_ids = {
@@ -700,20 +699,18 @@ class Character(models.Model):
         if force_update or self.has_section_changed(
             section=self.UpdateSection.CORPORATION_HISTORY, content=history
         ):
+            entries = [
+                CharacterCorporationHistory(
+                    character=self,
+                    record_id=row.get("record_id"),
+                    corporation=get_or_create_or_none("corporation_id", row, EveEntity),
+                    is_deleted=row.get("is_deleted"),
+                    start_date=row.get("start_date"),
+                )
+                for row in history
+            ]
             with transaction.atomic():
                 self.corporation_history.all().delete()
-                entries = [
-                    CharacterCorporationHistory(
-                        character=self,
-                        record_id=row.get("record_id"),
-                        corporation=get_or_create_or_none(
-                            "corporation_id", row, EveEntity
-                        ),
-                        is_deleted=row.get("is_deleted"),
-                        start_date=row.get("start_date"),
-                    )
-                    for row in history
-                ]
                 if entries:
                     logger.info(
                         "%s: Creating %s entries for corporation history",
@@ -1169,7 +1166,7 @@ class Character(models.Model):
                     contract=contract,
                     bid_id=bid.get("bid_id"),
                     amount=bid.get("amount"),
-                    bidder=get_or_create_esi_or_none("bidder_id", bid, EveEntity),
+                    bidder=get_or_create_or_none("bidder_id", bid, EveEntity),
                     date_bid=bid.get("date_bid"),
                 )
                 for bid_id, bid in bids_list.items()
@@ -1178,6 +1175,7 @@ class Character(models.Model):
             CharacterContractBid.objects.bulk_create(
                 bids, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
             )
+        EveEntity.objects.bulk_update_new_esi()
 
     @fetch_token_for_character("esi-clones.read_implants.v1")
     def update_implants(self, token: Token, force_update: bool = False):
@@ -1193,21 +1191,23 @@ class Character(models.Model):
         if force_update or self.has_section_changed(
             section=self.UpdateSection.IMPLANTS, content=implants_data
         ):
+            if implants_data:
+                EveType.objects.bulk_get_or_create_esi(ids=implants_data)
+
             with transaction.atomic():
                 self.implants.all().delete()
                 if implants_data:
-                    implants = list()
-                    for eve_type_id in implants_data:
-                        eve_type, _ = EveType.objects.get_or_create_esi(id=eve_type_id)
-                        implants.append(
-                            CharacterImplant(character=self, eve_type=eve_type)
+                    implants = [
+                        CharacterImplant(
+                            character=self,
+                            eve_type=EveType.objects.get(id=eve_type_id),
                         )
-
+                        for eve_type_id in implants_data
+                    ]
                     logger.info("%s: Storing %s implants", self, len(implants))
                     CharacterImplant.objects.bulk_create(
                         implants, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
                     )
-
                 else:
                     logger.info("%s: No implants", self)
 
@@ -1285,8 +1285,9 @@ class Character(models.Model):
         if force_update or self.has_section_changed(
             section=self.UpdateSection.JUMP_CLONES, content=jump_clones_info
         ):
-            # fetch locations ahead of transaction
-            if jump_clones_info.get("jump_clones"):
+            jump_clones_list = jump_clones_info.get("jump_clones")
+            # fetch related objects ahead of transaction
+            if jump_clones_list:
                 incoming_location_ids = {
                     record["location_id"]
                     for record in jump_clones_info["jump_clones"]
@@ -1294,13 +1295,18 @@ class Character(models.Model):
                 }
                 self._preload_all_locations(token, incoming_location_ids)
 
+                for jump_clone_info in jump_clones_list:
+                    if jump_clone_info.get("implants"):
+                        EveType.objects.bulk_get_or_create_esi(
+                            ids=jump_clone_info.get("implants", [])
+                        )
+
             with transaction.atomic():
                 self.jump_clones.all().delete()
-                if not jump_clones_info.get("jump_clones"):
+                if not jump_clones_list:
                     logger.info("%s: No jump clones", self)
                     return
 
-                jump_clones_list = jump_clones_info.get("jump_clones")
                 logger.info("%s: Storing %s jump clones", self, len(jump_clones_list))
                 jump_clones = [
                     CharacterJumpClone(
@@ -1319,13 +1325,13 @@ class Character(models.Model):
                 for jump_clone_info in jump_clones_list:
                     if jump_clone_info.get("implants"):
                         for implant in jump_clone_info["implants"]:
-                            eve_type, _ = EveType.objects.get_or_create_esi(id=implant)
                             jump_clone = self.jump_clones.get(
                                 jump_clone_id=jump_clone_info.get("jump_clone_id")
                             )
                             implants.append(
                                 CharacterJumpCloneImplant(
-                                    jump_clone=jump_clone, eve_type=eve_type
+                                    jump_clone=jump_clone,
+                                    eve_type=EveType.objects.get(id=implant),
                                 )
                             )
 
@@ -1737,28 +1743,25 @@ class Character(models.Model):
             section=self.UpdateSection.SKILL_QUEUE, content=skillqueue
         ):
             # TODO: Replace delete + create with create + update
+            if skillqueue:
+                entries = [
+                    CharacterSkillqueueEntry(
+                        character=self,
+                        eve_type=get_or_create_esi_or_none("skill_id", entry, EveType),
+                        finish_date=entry.get("finish_date"),
+                        finished_level=entry.get("finished_level"),
+                        level_end_sp=entry.get("level_end_sp"),
+                        level_start_sp=entry.get("level_start_sp"),
+                        queue_position=entry.get("queue_position"),
+                        start_date=entry.get("start_date"),
+                        training_start_sp=entry.get("training_start_sp"),
+                    )
+                    for entry in skillqueue
+                ]
+            else:
+                entries = list()
             with transaction.atomic():
                 self.skillqueue.all().delete()
-                if skillqueue:
-                    entries = [
-                        CharacterSkillqueueEntry(
-                            character=self,
-                            eve_type=get_or_create_esi_or_none(
-                                "skill_id", entry, EveType
-                            ),
-                            finish_date=entry.get("finish_date"),
-                            finished_level=entry.get("finished_level"),
-                            level_end_sp=entry.get("level_end_sp"),
-                            level_start_sp=entry.get("level_start_sp"),
-                            queue_position=entry.get("queue_position"),
-                            start_date=entry.get("start_date"),
-                            training_start_sp=entry.get("training_start_sp"),
-                        )
-                        for entry in skillqueue
-                    ]
-                else:
-                    entries = list()
-
                 if entries:
                     logger.info(
                         "%s: Writing skill queue of size %s", self, len(entries)
@@ -1852,6 +1855,7 @@ class Character(models.Model):
         if force_update or self.has_section_changed(
             section=self.UpdateSection.SKILLS, content=skills_list
         ):
+            self._preload_types(skills_list)
             with transaction.atomic():
                 incoming_ids = set(skills_list.keys())
                 existing_ids = set(self.skills.values_list("eve_type_id", flat=True))
@@ -1914,12 +1918,19 @@ class Character(models.Model):
 
         return skills_list
 
+    def _preload_types(self, skills_list: dict):
+        if skills_list:
+            incoming_ids = set(skills_list.keys())
+            existing_ids = set(self.skills.values_list("eve_type_id", flat=True))
+            new_ids = incoming_ids.difference(existing_ids)
+            EveType.objects.bulk_get_or_create_esi(ids=new_ids)
+
     def _create_new_skills(self, skills_list: dict, create_ids: list):
         logger.info("%s: Storing %s new skills", self, len(create_ids))
         skills = [
             CharacterSkill(
                 character=self,
-                eve_type=get_or_create_esi_or_none("skill_id", skill_info, EveType),
+                eve_type=EveType.objects.get(id=skill_info.get("skill_id")),
                 active_skill_level=skill_info.get("active_skill_level"),
                 skillpoints_in_skill=skill_info.get("skillpoints_in_skill"),
                 trained_skill_level=skill_info.get("trained_skill_level"),
