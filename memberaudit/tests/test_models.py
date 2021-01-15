@@ -2413,7 +2413,6 @@ class TestCharacterUpdateLoyalty(TestCharacterUpdateBase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODELS_PATH + ".is_esi_online", lambda: True)
 @patch(MODELS_PATH + ".esi")
 class TestCharacterUpdateOther(TestCharacterUpdateBase):
     @classmethod
