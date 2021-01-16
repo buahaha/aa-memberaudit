@@ -414,7 +414,7 @@ class TestUpdateCharacterMails(TestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODELS_PATH + ".esi")
+@patch(MANAGERS_PATH + ".esi")
 class TestUpdateCharacterContacts(TestCase):
     @classmethod
     def setUpClass(cls) -> None:

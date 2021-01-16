@@ -32,6 +32,8 @@ from .helpers import EsiOffline, EsiErrorLimitExceeded, fetch_esi_status
 from .models import (
     Character,
     CharacterAsset,
+    CharacterContact,
+    CharacterContactLabel,
     CharacterContract,
     CharacterMail,
     CharacterUpdateStatus,
@@ -733,7 +735,7 @@ def update_character_contact_labels(
         self,
         character,
         Character.UpdateSection.CONTACTS,
-        character.update_contact_labels,
+        partial(CharacterContactLabel.objects.update_from_esi, character),
         force_update=force_update,
     )
 
@@ -749,7 +751,7 @@ def update_character_contacts_2(
         self,
         character,
         Character.UpdateSection.CONTACTS,
-        character.update_contacts,
+        partial(CharacterContact.objects.update_from_esi, character),
         force_update=force_update,
     )
 

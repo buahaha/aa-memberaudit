@@ -53,6 +53,8 @@ from .helpers import (
 )
 from .managers import (
     CharacterAssetManager,
+    CharacterContactManager,
+    CharacterContactLabelManager,
     CharacterContractItemManager,
     CharacterMailLabelManager,
     CharacterManager,
@@ -720,184 +722,6 @@ class Character(models.Model):
 
         else:
             logger.info("%s: Corporation history has not changed", self)
-
-    @fetch_token_for_character("esi-characters.read_contacts.v1")
-    def update_contact_labels(self, token: Token, force_update: bool = False):
-        logger.info("%s: Fetching contact labels from ESI", self)
-        labels = esi.client.Contacts.get_characters_character_id_contacts_labels(
-            character_id=self.character_ownership.character.character_id,
-            token=token.valid_access_token(),
-        ).results()
-        if MEMBERAUDIT_DEVELOPER_MODE:
-            self._store_list_to_disk(labels, "contact_labels")
-
-        if force_update or self.has_section_changed(
-            section=self.UpdateSection.CONTACTS, content=labels, hash_num=2
-        ):
-            # TODO: replace with bulk methods to optimize
-            with transaction.atomic():
-                if labels:
-                    incoming_ids = {x["label_id"] for x in labels}
-                else:
-                    incoming_ids = set()
-
-                existing_ids = set(
-                    self.contact_labels.values_list("label_id", flat=True)
-                )
-                obsolete_ids = existing_ids.difference(incoming_ids)
-                if obsolete_ids:
-                    logger.info(
-                        "%s: Removing %s obsolete skills", self, len(obsolete_ids)
-                    )
-                    self.contact_labels.filter(label_id__in=obsolete_ids).delete()
-
-                if incoming_ids:
-                    logger.info(
-                        "%s: Storing %s contact labels", self, len(incoming_ids)
-                    )
-                    for label in labels:
-                        CharacterContactLabel.objects.update_or_create(
-                            character=self,
-                            label_id=label.get("label_id"),
-                            defaults={
-                                "name": label.get("label_name"),
-                            },
-                        )
-                else:
-                    logger.info("%s: No contact labels", self)
-
-            self.update_section_content_hash(
-                section=self.UpdateSection.CONTACTS, content=labels, hash_num=2
-            )
-
-        else:
-            logger.info("%s: Contact labels have not changed", self)
-
-    @fetch_token_for_character("esi-characters.read_contacts.v1")
-    def update_contacts(self, token: Token, force_update: bool = False):
-        logger.info("%s: Fetching contacts from ESI", self)
-        contacts_data = esi.client.Contacts.get_characters_character_id_contacts(
-            character_id=self.character_ownership.character.character_id,
-            token=token.valid_access_token(),
-        ).results()
-        if MEMBERAUDIT_DEVELOPER_MODE:
-            self._store_list_to_disk(contacts_data, "contacts")
-
-        if contacts_data:
-            contacts_list = {int(x["contact_id"]): x for x in contacts_data}
-        else:
-            contacts_list = dict()
-
-        if force_update or self.has_section_changed(
-            section=self.UpdateSection.CONTACTS, content=contacts_list
-        ):
-            with transaction.atomic():
-                incoming_ids = set(contacts_list.keys())
-                existing_ids = set(
-                    self.contacts.values_list("eve_entity_id", flat=True)
-                )
-                obsolete_ids = existing_ids.difference(incoming_ids)
-                if obsolete_ids:
-                    logger.info(
-                        "%s: Removing %s obsolete contacts", self, len(obsolete_ids)
-                    )
-                    self.contacts.filter(eve_entity_id__in=obsolete_ids).delete()
-
-                create_ids = incoming_ids.difference(existing_ids)
-                if create_ids:
-                    self._create_new_contacts(
-                        contacts_list=contacts_list, contact_ids=create_ids
-                    )
-
-                update_ids = incoming_ids.difference(create_ids)
-                if update_ids:
-                    self._update_existing_contacts(
-                        contacts_list=contacts_list, contact_ids=update_ids
-                    )
-
-                if not obsolete_ids and not create_ids and not update_ids:
-                    logger.info("%s: Contacts have not changed", self)
-
-            self.update_section_content_hash(
-                section=self.UpdateSection.CONTACTS, content=contacts_list
-            )
-
-        else:
-            logger.info("%s: Contacts have not changed", self)
-
-    def _create_new_contacts(self, contacts_list: dict, contact_ids: list):
-        logger.info("%s: Storing %s new contacts", self, len(contact_ids))
-        new_contacts_list = {
-            contact_id: obj
-            for contact_id, obj in contacts_list.items()
-            if contact_id in contact_ids
-        }
-        new_contacts = [
-            CharacterContact(
-                character=self,
-                eve_entity=get_or_create_or_none("contact_id", contact_data, EveEntity),
-                is_blocked=contact_data.get("is_blocked"),
-                is_watched=contact_data.get("is_watched"),
-                standing=contact_data.get("standing"),
-            )
-            for contact_data in new_contacts_list.values()
-        ]
-        CharacterContact.objects.bulk_create(
-            new_contacts, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-        )
-        self._update_contact_contact_labels(
-            contacts_list=contacts_list, contact_ids=contact_ids, is_new=True
-        )
-
-    def _update_contact_contact_labels(
-        self, contacts_list: dict, contact_ids: list, is_new=False
-    ):
-        for contact_id, contact_data in contacts_list.items():
-            if contact_id in contact_ids and contact_data.get("label_ids"):
-                character_contact = self.contacts.get(eve_entity_id=contact_id)
-                if not is_new:
-                    character_contact.labels.clear()
-
-                labels = list()
-                for label_id in contact_data.get("label_ids"):
-                    try:
-                        label = self.contact_labels.get(label_id=label_id)
-                    except CharacterContactLabel.DoesNotExist:
-                        # sometimes label IDs on contacts
-                        # do not refer to actual labels
-                        logger.info(
-                            "%s: Unknown contact label with id %s",
-                            self,
-                            label_id,
-                        )
-                    else:
-                        labels.append(label)
-
-                    character_contact.labels.add(*labels)
-
-    def _update_existing_contacts(self, contacts_list: dict, contact_ids: list):
-        logger.info("%s: Updating %s contacts", self, len(contact_ids))
-        update_contact_pks = list(
-            self.contacts.filter(eve_entity_id__in=contact_ids).values_list(
-                "pk", flat=True
-            )
-        )
-        contacts = self.contacts.in_bulk(update_contact_pks)
-        for contact in contacts.values():
-            contact_data = contacts_list.get(contact.eve_entity_id)
-            if contact_data:
-                contact.is_blocked = contact_data.get("is_blocked")
-                contact.is_watched = contact_data.get("is_watched")
-                contact.standing = contact_data.get("standing")
-
-        CharacterContact.objects.bulk_update(
-            contacts.values(),
-            fields=["is_blocked", "is_watched", "standing"],
-            batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
-        )
-        self._update_contact_contact_labels(
-            contacts_list=contacts_list, contact_ids=contact_ids
-        )
 
     @fetch_token_for_character("esi-contracts.read_character_contracts.v1")
     def update_contract_headers(self, token: Token, force_update: bool = False):
@@ -2119,6 +1943,8 @@ class CharacterContactLabel(models.Model):
     label_id = models.PositiveBigIntegerField()
     name = models.CharField(max_length=NAMES_MAX_LENGTH)
 
+    objects = CharacterContactLabelManager()
+
     class Meta:
         default_permissions = ()
         constraints = [
@@ -2152,6 +1978,8 @@ class CharacterContact(models.Model):
     is_watched = models.BooleanField(default=None, null=True)
     standing = models.FloatField()
     labels = models.ManyToManyField(CharacterContactLabel, related_name="contacts")
+
+    objects = CharacterContactManager()
 
     class Meta:
         default_permissions = ()
