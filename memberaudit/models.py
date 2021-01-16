@@ -43,12 +43,12 @@ from .app_settings import (
     MEMBERAUDIT_UPDATE_STALE_OFFSET,
     MEMBERAUDIT_DATA_RETENTION_LIMIT,
 )
+from .core.xml_converter import eve_xml_to_html
 from .decorators import fetch_token_for_character
 from .helpers import (
     get_or_create_esi_or_none,
     get_or_none,
     get_or_create_or_none,
-    eve_xml_to_html,
     users_with_permission,
 )
 from .managers import (

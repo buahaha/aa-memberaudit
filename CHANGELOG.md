@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [1.0.1a1] - tbd.
+## [1.0.1a1] - tbd
 
 ### Changed
 
-- Performance optimization of updates
+- Performance optimization of updates ([#85](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/85))
 - Improved resilience against ESI timeouts during transactions
 
 ### Fixed

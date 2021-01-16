@@ -35,7 +35,8 @@ from . import (
     scope_names_set,
     add_memberaudit_character_to_user,
 )
-from ..helpers import eve_xml_to_html, EsiStatus, get_or_create_esi_or_none
+from ..core.xml_converter import eve_xml_to_html
+from ..helpers import EsiStatus, get_or_create_esi_or_none
 from ..models import (
     data_retention_cutoff,
     Character,
