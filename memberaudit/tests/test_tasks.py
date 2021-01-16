@@ -34,6 +34,7 @@ from .testdata.load_locations import load_locations
 from .testdata.esi_test_tools import BravadoResponseStub
 from ..utils import generate_invalid_pk
 
+CORE_PATH = "memberaudit.core"
 MODELS_PATH = "memberaudit.models"
 MANAGERS_PATH = "memberaudit.managers"
 TASKS_PATH = "memberaudit.tasks"
@@ -500,7 +501,7 @@ class TestUpdateCharacterContracts(TestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODELS_PATH + ".esi")
+@patch(MANAGERS_PATH + ".esi")
 class TestUpdateCharacterWalletJournal(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -542,8 +543,9 @@ class TestUpdateCharacterWalletJournal(TestCase):
             self.assertTrue(False)  # Hack to ensure the test fails when it gets here
 
 
-@patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+@patch(CORE_PATH + ".general.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
 @patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 99, 60))
+@patch(MANAGERS_PATH + ".esi")
 @patch(MODELS_PATH + ".esi")
 @override_settings(CELERY_ALWAYS_EAGER=True)
 class TestUpdateCharacter(TestCase):
@@ -557,16 +559,18 @@ class TestUpdateCharacter(TestCase):
     def setUp(self) -> None:
         self.character_1001 = create_memberaudit_character(1001)
 
-    def test_normal(self, mock_esi):
+    def test_normal(self, mock_esi_1, mock_esi_2):
         """can update from scratch"""
-        mock_esi.client = esi_client_stub
+        mock_esi_1.client = esi_client_stub
+        mock_esi_2.client = esi_client_stub
 
         result = update_character(self.character_1001.pk)
         self.assertTrue(result)
         self.assertTrue(self.character_1001.is_update_status_ok())
 
-    def test_report_error(self, mock_esi):
-        mock_esi.client = esi_client_error_stub
+    def test_report_error(self, mock_esi_1, mock_esi_2):
+        mock_esi_1.client = esi_client_error_stub
+        mock_esi_2.client = esi_client_error_stub
 
         with self.assertRaises(OSError):  # raised when skills/doctrines chains breaks
             update_character(self.character_1001.pk)
@@ -584,9 +588,12 @@ class TestUpdateCharacter(TestCase):
         self.assertTrue(status.finished_at)
 
     @patch(TASKS_PATH + ".Character.update_loyalty")
-    def test_do_not_update_current_section_1(self, update_loyalty, mock_esi):
+    def test_do_not_update_current_section_1(
+        self, update_loyalty, mock_esi_1, mock_esi_2
+    ):
         """When generic section has recently been updated, then do not update again"""
-        mock_esi.client = esi_client_stub
+        mock_esi_1.client = esi_client_stub
+        mock_esi_2.client = esi_client_stub
         CharacterUpdateStatus.objects.create(
             character=self.character_1001,
             section=Character.UpdateSection.LOYALTY,
@@ -600,9 +607,12 @@ class TestUpdateCharacter(TestCase):
         self.assertFalse(update_loyalty.called)
 
     @patch(TASKS_PATH + ".update_character_mails")
-    def test_do_not_update_current_section_2(self, update_character_mails, mock_esi):
+    def test_do_not_update_current_section_2(
+        self, update_character_mails, mock_esi_1, mock_esi_2
+    ):
         """When special section has recently been updated, then do not update again"""
-        mock_esi.client = esi_client_stub
+        mock_esi_1.client = esi_client_stub
+        mock_esi_2.client = esi_client_stub
         CharacterUpdateStatus.objects.create(
             character=self.character_1001,
             section=Character.UpdateSection.MAILS,
@@ -616,11 +626,14 @@ class TestUpdateCharacter(TestCase):
         self.assertFalse(update_character_mails.apply_async.called)
 
     @patch(TASKS_PATH + ".Character.update_skills", spec=True)
-    def test_do_not_update_current_section_3(self, mock_update_skills, mock_esi):
+    def test_do_not_update_current_section_3(
+        self, mock_update_skills, mock_esi_1, mock_esi_2
+    ):
         """When generic section has recently been updated and force_update is called
         then update again
         """
-        mock_esi.client = esi_client_stub
+        mock_esi_1.client = esi_client_stub
+        mock_esi_2.client = esi_client_stub
         CharacterUpdateStatus.objects.create(
             character=self.character_1001,
             section=Character.UpdateSection.SKILLS,
@@ -633,9 +646,10 @@ class TestUpdateCharacter(TestCase):
 
         self.assertTrue(mock_update_skills.called)
 
-    def test_no_update_required(self, mock_esi):
+    def test_no_update_required(self, mock_esi_1, mock_esi_2):
         """Do not update anything when not required"""
-        mock_esi.client = esi_client_stub
+        mock_esi_1.client = esi_client_stub
+        mock_esi_2.client = esi_client_stub
         for section in Character.UpdateSection.values:
             CharacterUpdateStatus.objects.create(
                 character=self.character_1001,
@@ -648,9 +662,10 @@ class TestUpdateCharacter(TestCase):
         result = update_character(self.character_1001.pk)
         self.assertFalse(result)
 
-    def test_update_forced(self, mock_esi):
+    def test_update_forced(self, mock_esi_1, mock_esi_2):
         """Can do forced update"""
-        mock_esi.client = esi_client_stub
+        mock_esi_1.client = esi_client_stub
+        mock_esi_2.client = esi_client_stub
 
         result = update_character(self.character_1001.pk, force_update=True)
         self.assertTrue(result)
@@ -658,7 +673,8 @@ class TestUpdateCharacter(TestCase):
 
 
 @patch(TASKS_PATH + ".MEMBERAUDIT_LOG_UPDATE_STATS", False)
-@patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+@patch(CORE_PATH + ".general.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+@patch(MANAGERS_PATH + ".esi")
 @patch(MODELS_PATH + ".esi")
 @override_settings(CELERY_ALWAYS_EAGER=True)
 class TestUpdateAllCharacters(TestCase):
@@ -672,8 +688,9 @@ class TestUpdateAllCharacters(TestCase):
     def setUp(self) -> None:
         self.character_1001 = create_memberaudit_character(1001)
 
-    def test_normal(self, mock_esi):
-        mock_esi.client = esi_client_stub
+    def test_normal(self, mock_esi_1, mock_esi_2):
+        mock_esi_1.client = esi_client_stub
+        mock_esi_2.client = esi_client_stub
 
         update_all_characters()
         self.assertTrue(self.character_1001.is_update_status_ok())

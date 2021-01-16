@@ -1,3 +1,4 @@
+from functools import partial
 import random
 from typing import Optional
 
@@ -34,6 +35,7 @@ from .models import (
     CharacterContract,
     CharacterMail,
     CharacterUpdateStatus,
+    CharacterWalletJournalEntry,
     Location,
     MailEntity,
 )
@@ -905,7 +907,7 @@ def update_character_wallet_journal_entries(self, character_pk: int) -> None:
         self,
         character,
         Character.UpdateSection.WALLET_JOURNAL,
-        character.update_wallet_journal,
+        partial(CharacterWalletJournalEntry.objects.update_from_esi, character),
     )
 
 

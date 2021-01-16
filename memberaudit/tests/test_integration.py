@@ -32,6 +32,7 @@ from . import (
 )
 
 MODELS_PATH = "memberaudit.models"
+MANAGERS_PATH = "memberaudit.managers"
 
 
 class TestUILauncher(WebTest):
@@ -67,13 +68,15 @@ class TestUILauncher(WebTest):
         self.assertEqual(character_viewer.status_code, 200)
 
     @patch(MODELS_PATH + ".esi")
+    @patch(MANAGERS_PATH + ".esi")
     @override_settings(CELERY_ALWAYS_EAGER=True)
-    def test_add_character(self, mock_esi):
+    def test_add_character(self, mock_esi_1, mock_esi_2):
         """
         when clicking on "register"
         then user can add a new character
         """
-        mock_esi.client = esi_client_stub
+        mock_esi_1.client = esi_client_stub
+        mock_esi_2.client = esi_client_stub
         # user as another auth character
         character_ownership_1001 = add_auth_character_to_user(self.user, 1001)
 

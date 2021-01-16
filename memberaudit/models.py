@@ -41,8 +41,8 @@ from .app_settings import (
     MEMBERAUDIT_UPDATE_STALE_RING_2,
     MEMBERAUDIT_UPDATE_STALE_RING_3,
     MEMBERAUDIT_UPDATE_STALE_OFFSET,
-    MEMBERAUDIT_DATA_RETENTION_LIMIT,
 )
+from .core.general import data_retention_cutoff
 from .core.xml_converter import eve_xml_to_html
 from .decorators import fetch_token_for_character
 from .helpers import (
@@ -57,29 +57,20 @@ from .managers import (
     CharacterMailLabelManager,
     CharacterManager,
     CharacterUpdateStatusManager,
+    CharacterWalletJournalEntryManager,
     EveShipTypeManger,
     EveSkillTypeManger,
     LocationManager,
     MailEntityManager,
 )
 from .providers import esi
-from .utils import LoggerAddTag, chunks, datetime_round_hour
+from .utils import LoggerAddTag, chunks
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 CURRENCY_MAX_DIGITS = 17
 CURRENCY_MAX_DECIMALS = 2
 NAMES_MAX_LENGTH = 100
-
-
-def data_retention_cutoff() -> Optional[dt.datetime]:
-    """returns cutoff datetime for data retention of None if unlimited"""
-    if MEMBERAUDIT_DATA_RETENTION_LIMIT is None:
-        return None
-    else:
-        return datetime_round_hour(
-            now() - dt.timedelta(days=MEMBERAUDIT_DATA_RETENTION_LIMIT)
-        )
 
 
 def accessible_users(user: User) -> models.QuerySet:
@@ -2000,72 +1991,6 @@ class Character(models.Model):
             character=self, defaults={"total": balance}
         )
 
-    @fetch_token_for_character("esi-wallet.read_character_wallet.v1")
-    def update_wallet_journal(self, token):
-        """syncs the character's wallet journal
-
-        Note: Does not update unknown EvEntities.
-        """
-        logger.info("%s: Fetching wallet journal from ESI", self)
-
-        journal = esi.client.Wallet.get_characters_character_id_wallet_journal(
-            character_id=self.character_ownership.character.character_id,
-            token=token.valid_access_token(),
-        ).results()
-        if MEMBERAUDIT_DEVELOPER_MODE:
-            self._store_list_to_disk(journal, "wallet_journal")
-
-        cutoff_datetime = data_retention_cutoff()
-        entries_list = {
-            obj.get("id"): obj
-            for obj in journal
-            if cutoff_datetime is None or obj.get("date") > cutoff_datetime
-        }
-        if cutoff_datetime:
-            self.wallet_journal.filter(date__lt=cutoff_datetime).delete()
-
-        with transaction.atomic():
-            incoming_ids = set(entries_list.keys())
-            existing_ids = set(self.wallet_journal.values_list("entry_id", flat=True))
-            create_ids = incoming_ids.difference(existing_ids)
-            if not create_ids:
-                logger.info("%s: No new wallet journal entries", self)
-                return
-
-            logger.info(
-                "%s: Adding %s new wallet journal entries", self, len(create_ids)
-            )
-            entries = [
-                CharacterWalletJournalEntry(
-                    character=self,
-                    entry_id=entry_id,
-                    amount=row.get("amount"),
-                    balance=row.get("balance"),
-                    context_id=row.get("context_id"),
-                    context_id_type=(
-                        CharacterWalletJournalEntry.match_context_type_id(
-                            row.get("context_id_type")
-                        )
-                    ),
-                    date=row.get("date"),
-                    description=row.get("description"),
-                    first_party=get_or_create_or_none("first_party_id", row, EveEntity),
-                    ref_type=row.get("ref_type"),
-                    second_party=get_or_create_or_none(
-                        "second_party_id", row, EveEntity
-                    ),
-                    tax=row.get("tax"),
-                    tax_receiver=row.get("tax_receiver"),
-                )
-                for entry_id, row in entries_list.items()
-                if entry_id in create_ids
-            ]
-            CharacterWalletJournalEntry.objects.bulk_create(
-                entries, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-            )
-
-        EveEntity.objects.bulk_update_new_esi()
-
     def _store_list_to_disk(self, lst: list, name: str):
         """stores the given list as JSON file to disk. For debugging
 
@@ -3170,6 +3095,8 @@ class CharacterWalletJournalEntry(models.Model):
         blank=True,
         related_name="+",
     )
+
+    objects = CharacterWalletJournalEntryManager()
 
     class Meta:
         default_permissions = ()

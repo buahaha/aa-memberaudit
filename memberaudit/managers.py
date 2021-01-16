@@ -4,7 +4,7 @@ from math import floor
 from typing import Dict, Iterable, Tuple
 
 from django.contrib.auth.models import User
-from django.db import models
+from django.db import models, transaction
 from django.db.models import (
     Avg,
     Case,
@@ -27,13 +27,18 @@ from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
+from .app_settings import (
+    MEMBERAUDIT_DEVELOPER_MODE,
+    MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
+    MEMBERAUDIT_LOCATION_STALE_HOURS,
+)
 from .constants import (
     EVE_TYPE_ID_SOLAR_SYSTEM,
     EVE_CATEGORY_ID_SKILL,
     EVE_CATEGORY_ID_SHIP,
 )
-from .app_settings import MEMBERAUDIT_LOCATION_STALE_HOURS
-from .helpers import fetch_esi_status
+from .core.general import data_retention_cutoff
+from .helpers import get_or_create_or_none, fetch_esi_status
 from .providers import esi
 from .utils import LoggerAddTag, ObjectCacheMixin
 
@@ -733,3 +738,66 @@ class CharacterUpdateStatusManager(models.Manager):
             "character": character_name,
             "duration": duration,
         }
+
+
+class CharacterWalletJournalEntryManager(models.Manager):
+    def update_from_esi(self, character: models.Model) -> None:
+        """syncs the character's wallet journal
+
+        Note: Does not update unknown EveEntities.
+        """
+        token = character.fetch_token("esi-wallet.read_character_wallet.v1")
+        logger.info("%s: Fetching wallet journal from ESI", character)
+        journal = esi.client.Wallet.get_characters_character_id_wallet_journal(
+            character_id=character.character_ownership.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            character._store_list_to_disk(journal, "wallet_journal")
+
+        cutoff_datetime = data_retention_cutoff()
+        entries_list = {
+            obj.get("id"): obj
+            for obj in journal
+            if cutoff_datetime is None or obj.get("date") > cutoff_datetime
+        }
+        if cutoff_datetime:
+            character.wallet_journal.filter(date__lt=cutoff_datetime).delete()
+
+        with transaction.atomic():
+            incoming_ids = set(entries_list.keys())
+            existing_ids = set(
+                character.wallet_journal.values_list("entry_id", flat=True)
+            )
+            create_ids = incoming_ids.difference(existing_ids)
+            if not create_ids:
+                logger.info("%s: No new wallet journal entries", character)
+                return
+
+            logger.info(
+                "%s: Adding %s new wallet journal entries", character, len(create_ids)
+            )
+            entries = [
+                self.model(
+                    character=character,
+                    entry_id=entry_id,
+                    amount=row.get("amount"),
+                    balance=row.get("balance"),
+                    context_id=row.get("context_id"),
+                    context_id_type=(
+                        self.model.match_context_type_id(row.get("context_id_type"))
+                    ),
+                    date=row.get("date"),
+                    description=row.get("description"),
+                    first_party=get_or_create_or_none("first_party_id", row, EveEntity),
+                    ref_type=row.get("ref_type"),
+                    second_party=get_or_create_or_none(
+                        "second_party_id", row, EveEntity
+                    ),
+                    tax=row.get("tax"),
+                    tax_receiver=row.get("tax_receiver"),
+                )
+                for entry_id, row in entries_list.items()
+                if entry_id in create_ids
+            ]
+            self.bulk_create(entries, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE)
