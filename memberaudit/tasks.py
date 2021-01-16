@@ -66,14 +66,22 @@ TASK_ESI_KWARGS = {
 }
 
 
-@shared_task(**TASK_DEFAULT_KWARGS)
-def run_regular_updates() -> None:
+@shared_task(**{**TASK_DEFAULT_KWARGS, **{"bind": True, "max_retries": 3}})
+def run_regular_updates(self) -> None:
     """Main task to be run on a regular basis to keep everyting updated and running"""
-    if not fetch_esi_status().is_online:
+    try:
+        fetch_esi_status().raise_for_status()
+    except EsiOffline as ex:
+        countdown = (10 + int(random.uniform(1, 10))) * 60
         logger.warning(
-            "ESI is currently offline. Can not start ESI related tasks. Aborting"
+            "ESI appears to be offline. Trying again in %d minutes.", countdown
         )
-        return
+        raise self.retry(countdown=countdown) from ex
+    except EsiErrorLimitExceeded as ex:
+        logger.warning(
+            "ESI error limit threshold reached. Trying again in %s seconds", ex.retry_in
+        )
+        raise self.retry(countdown=ex.retry_in) from ex
 
     update_market_prices.apply_async(priority=DEFAULT_TASK_PRIORITY)
     update_all_characters.apply_async(priority=DEFAULT_TASK_PRIORITY)
@@ -936,10 +944,13 @@ def update_structure_esi(self, id: int, token_pk: int):
     try:
         Location.objects.structure_update_or_create_esi(id, token)
     except EsiOffline as ex:
+        countdown = (30 + int(random.uniform(1, 20))) * 60
         logger.warning(
-            "Location #%s: ESI appears to be offline. Trying again in 30 minutes.", id
+            "Location #%s: ESI appears to be offline. Trying again in %d minutes.",
+            id,
+            countdown,
         )
-        raise self.retry(countdown=30 * 60 + int(random.uniform(1, 20))) from ex
+        raise self.retry(countdown=countdown) from ex
     except EsiErrorLimitExceeded as ex:
         logger.warning(
             "Location #%s: ESI error limit threshold reached. "

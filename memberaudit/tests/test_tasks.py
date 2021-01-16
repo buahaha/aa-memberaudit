@@ -59,7 +59,20 @@ class TestRegularUpdates(TestCase):
         mock_update_market_prices,
         mock_update_all_characters,
     ):
-        run_regular_updates()
+        with self.assertRaises(CeleryRetry):
+            run_regular_updates()
+
+        self.assertFalse(mock_update_market_prices.apply_async.called)
+        self.assertFalse(mock_update_all_characters.apply_async.called)
+
+    @patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 1, 60))
+    def test_esi_error_limit_reached(
+        self,
+        mock_update_market_prices,
+        mock_update_all_characters,
+    ):
+        with self.assertRaises(CeleryRetry):
+            run_regular_updates()
 
         self.assertFalse(mock_update_market_prices.apply_async.called)
         self.assertFalse(mock_update_all_characters.apply_async.called)
