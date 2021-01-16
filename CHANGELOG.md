@@ -7,12 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [1.0.1a2] - tbd
+## [1.0.1] - 2021-01-16
 
 ### Changed
 
-- Performance optimization of updates ([#85](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/85))
-- Improved resilience against ESI timeouts during transactions
+- Performance improvements for update tasks ([#85](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/85))
+- Improved resilience against ESI timeouts during transactions ([#87](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/87))
 - Improved protection against 420 error when running an update ([#83](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/83))
 
 ### Fixed
