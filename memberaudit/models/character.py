@@ -1,3 +1,7 @@
+"""
+Character and CharacterUpdateStatus models
+"""
+
 import datetime as dt
 import hashlib
 import json
@@ -417,7 +421,7 @@ class Character(models.Model):
 
     def update_character_details(self, force_update: bool = False):
         """syncs the character details for the given character"""
-        from .character_sections import CharacterDetails
+        from .sections import CharacterDetails
 
         logger.info("%s: Fetching character details from ESI", self)
         details = esi.client.Character.get_characters_character_id(
@@ -673,7 +677,7 @@ class Character(models.Model):
     )
     def update_location(self, token: Token):
         """update the location for the given character"""
-        from .character_sections import CharacterLocation
+        from .sections import CharacterLocation
 
         logger.info("%s: Fetching location from ESI", self)
         location_info = esi.client.Location.get_characters_character_id_location(
@@ -832,7 +836,7 @@ class Character(models.Model):
             logger.info("%s: Mail labels have not changed", self)
 
     def _fetch_mail_labels_from_esi(self, token) -> dict:
-        from .character_sections import CharacterMailUnreadCount
+        from .sections import CharacterMailUnreadCount
 
         logger.info("%s: Fetching mail labels from ESI", self)
         mail_labels_info = esi.client.Mail.get_characters_character_id_mail_labels(
@@ -925,7 +929,7 @@ class Character(models.Model):
     @fetch_token_for_character("esi-location.read_online.v1")
     def update_online_status(self, token):
         """Update the character's online status"""
-        from .character_sections import CharacterOnlineStatus
+        from .sections import CharacterOnlineStatus
 
         logger.info("%s: Fetching online status from ESI", self)
         online_info = esi.client.Location.get_characters_character_id_online(
@@ -986,7 +990,7 @@ class Character(models.Model):
             logger.info("%s: Skills have not changed", self)
 
     def _fetch_skills_from_esi(self, token: Token) -> dict:
-        from .character_sections import CharacterSkillpoints
+        from .sections import CharacterSkillpoints
 
         logger.info("%s: Fetching skills from ESI", self)
         skills_info = esi.client.Skills.get_characters_character_id_skills(
@@ -1024,7 +1028,7 @@ class Character(models.Model):
     @fetch_token_for_character("esi-wallet.read_character_wallet.v1")
     def update_wallet_balance(self, token):
         """syncs the character's wallet balance"""
-        from .character_sections import CharacterWalletBalance
+        from .sections import CharacterWalletBalance
 
         logger.info("%s: Fetching wallet balance from ESI", self)
         balance = esi.client.Wallet.get_characters_character_id_wallet(

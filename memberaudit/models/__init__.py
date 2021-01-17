@@ -9,7 +9,7 @@ from .general import (  # noqa: F401
     SkillSetSkill,
 )
 from .character import Character, CharacterUpdateStatus  # noqa: F401
-from .character_sections import (  # noqa: F401
+from .sections import (  # noqa: F401
     CharacterAsset,
     CharacterContact,
     CharacterContactLabel,

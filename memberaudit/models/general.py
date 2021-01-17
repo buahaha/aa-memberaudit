@@ -1,3 +1,7 @@
+"""
+Top level models
+"""
+
 from django.contrib.auth.models import User, Permission
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
