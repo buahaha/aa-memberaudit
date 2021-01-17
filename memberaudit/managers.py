@@ -48,8 +48,6 @@ from .utils import LoggerAddTag, ObjectCacheMixin
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
-BULK_METHODS_BATCH_SIZE = 500
-
 
 class EveShipTypeManger(models.Manager):
     def get_queryset(self):
@@ -1630,7 +1628,9 @@ class MailEntityManager(models.Manager):
                 obj.name = resolver.to_name(obj.id)
 
             self.bulk_update(
-                valid_objs.values(), ["name"], batch_size=BULK_METHODS_BATCH_SIZE
+                valid_objs.values(),
+                ["name"],
+                batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
             )
 
     # @transaction.atomic()

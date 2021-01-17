@@ -66,7 +66,7 @@ class TestUILauncher(WebTest):
         )
         self.assertEqual(character_viewer.status_code, 200)
 
-    @patch(MODELS_PATH + ".esi")
+    @patch(MODELS_PATH + ".character.esi")
     @override_settings(CELERY_ALWAYS_EAGER=True)
     def test_add_character(self, mock_esi):
         """

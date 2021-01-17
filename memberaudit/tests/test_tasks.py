@@ -86,7 +86,7 @@ class TestOtherTasks(TestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.esi")
 class TestUpdateCharacterAssets(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -296,7 +296,7 @@ class TestUpdateCharacterAssets(TestCase):
         """when preload objects failed then report the error"""
         mock_esi.client = esi_client_stub
 
-        with patch(MODELS_PATH + ".Location") as m:
+        with patch(MODELS_PATH + ".character.Location") as m:
             m.objects.get_or_create_esi_async.side_effect = HTTPInternalServerError(
                 response=BravadoResponseStub(500, "Test exception")
             )
@@ -315,7 +315,7 @@ class TestUpdateCharacterAssets(TestCase):
         """when building the asset tree failed then report the error"""
         mock_esi.client = esi_client_stub
 
-        with patch(MODELS_PATH + ".logger") as m:
+        with patch(MODELS_PATH + ".character.logger") as m:
             m.info.side_effect = HTTPInternalServerError(
                 response=BravadoResponseStub(500, "Test exception")
             )
@@ -370,7 +370,7 @@ class TestUpdateCharacterAssets(TestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.esi")
 class TestUpdateCharacterMails(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -413,7 +413,7 @@ class TestUpdateCharacterMails(TestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.esi")
 class TestUpdateCharacterContacts(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -456,7 +456,7 @@ class TestUpdateCharacterContacts(TestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.esi")
 class TestUpdateCharacterContracts(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -500,7 +500,7 @@ class TestUpdateCharacterContracts(TestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.esi")
 class TestUpdateCharacterWalletJournal(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -542,9 +542,9 @@ class TestUpdateCharacterWalletJournal(TestCase):
             self.assertTrue(False)  # Hack to ensure the test fails when it gets here
 
 
-@patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+@patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
 @patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 99, 60))
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.esi")
 @override_settings(CELERY_ALWAYS_EAGER=True)
 class TestUpdateCharacter(TestCase):
     @classmethod
@@ -658,8 +658,8 @@ class TestUpdateCharacter(TestCase):
 
 
 @patch(TASKS_PATH + ".MEMBERAUDIT_LOG_UPDATE_STATS", False)
-@patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+@patch(MODELS_PATH + ".character.esi")
 @override_settings(CELERY_ALWAYS_EAGER=True)
 class TestUpdateAllCharacters(TestCase):
     @classmethod
@@ -753,7 +753,7 @@ class TestUpdateCharactersDoctrines(TestCase):
     def setUp(self) -> None:
         self.character_1001 = create_memberaudit_character(1001)
 
-    @patch(MODELS_PATH + ".Character.update_skill_sets")
+    @patch(MODELS_PATH + ".character.Character.update_skill_sets")
     def test_normal(self, mock_update_skill_sets):
         update_characters_skill_checks()
         self.assertTrue(mock_update_skill_sets.called)

@@ -65,15 +65,15 @@ TASKS_PATH = "memberaudit.tasks"
 
 
 class TestDataRetentionCutoff(TestCase):
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", 10)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", 10)
     def test_limit_is_set(self):
-        with patch(MODELS_PATH + ".now") as mock_now:
+        with patch(MODELS_PATH + ".character.now") as mock_now:
             mock_now.return_value = dt.datetime(2020, 12, 19, 16, 15)
             self.assertEqual(data_retention_cutoff(), dt.datetime(2020, 12, 9, 16, 0))
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_limit_not_set(self):
-        with patch(MODELS_PATH + ".now") as mock_now:
+        with patch(MODELS_PATH + ".character.now") as mock_now:
             mock_now.return_value = dt.datetime(2020, 12, 19, 16, 15)
             self.assertIsNone(data_retention_cutoff())
 
@@ -324,7 +324,7 @@ class TestCharacterUpdateSectionMethods(NoSocketsTestCase):
         self.assertTrue(self.character_1001.is_section_updating(section=self.section))
 
 
-@patch(MODELS_PATH + ".MEMBERAUDIT_UPDATE_STALE_RING_3", 640)
+@patch(MODELS_PATH + ".character.MEMBERAUDIT_UPDATE_STALE_RING_3", 640)
 class TestCharacterIsUpdateSectionStale(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -648,7 +648,7 @@ class TestCharacterUpdateBase(TestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.esi")
 class TestCharacterUpdateContacts(TestCharacterUpdateBase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -842,13 +842,13 @@ class TestCharacterUpdateContacts(TestCharacterUpdateBase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.esi")
 class TestCharacterUpdateContracts(TestCharacterUpdateBase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_contracts_1(self, mock_esi):
         """can create new courier contract"""
         mock_esi.client = esi_client_stub
@@ -882,7 +882,7 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
         self.assertEqual(obj.title, "Test 1")
         self.assertEqual(obj.volume, 486000.0)
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_contracts_2(self, mock_esi):
         """can create new item exchange contract"""
         mock_esi.client = esi_client_stub
@@ -911,7 +911,7 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
         self.assertEqual(item.raw_quantity, -1)
         self.assertEqual(item.eve_type, EveType.objects.get(id=19551))
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_contracts_3(self, mock_esi):
         """can create new auction contract"""
         mock_esi.client = esi_client_stub
@@ -941,7 +941,7 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
         self.assertEqual(bid.date_bid, parse_datetime("2017-01-01T10:10:10Z"))
         self.assertEqual(bid.bidder, EveEntity.objects.get(id=1101))
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_contracts_4(self, mock_esi):
         """old contracts must be kept"""
         mock_esi.client = esi_client_stub
@@ -966,7 +966,7 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
         self.character_1001.update_contract_headers()
         self.assertEqual(self.character_1001.contracts.count(), 4)
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_contracts_5(self, mock_esi):
         """Existing contracts are updated"""
         mock_esi.client = esi_client_stub
@@ -1016,7 +1016,7 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
         self.assertEqual(obj.title, "Test 1")
         self.assertEqual(obj.volume, 486000.0)
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_contracts_6(self, mock_esi):
         """can add new bids to auction contract"""
         mock_esi.client = esi_client_stub
@@ -1060,7 +1060,7 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
         bid = obj.bids.get(bid_id=2)
         self.assertEqual(float(bid.amount), 21_000_000)
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_contracts_7(self, mock_esi):
         """when contract list from ESI has not changed, then skip update"""
         mock_esi.client = esi_client_stub
@@ -1075,7 +1075,7 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
         obj = self.character_1001.contracts.get(contract_id=100000001)
         self.assertEqual(obj.status, CharacterContract.STATUS_FINISHED)
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_contracts_8(self, mock_esi):
         """
         when contract list from ESI has not changed and update is forced, then update
@@ -1092,12 +1092,12 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
         obj = self.character_1001.contracts.get(contract_id=100000001)
         self.assertEqual(obj.status, CharacterContract.STATUS_IN_PROGRESS)
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", 10)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", 10)
     def test_update_contracts_9(self, mock_esi):
         """when retention limit is set, then only create contracts younger than limit"""
         mock_esi.client = esi_client_stub
 
-        with patch(MODELS_PATH + ".now") as mock_now:
+        with patch(MODELS_PATH + ".character.now") as mock_now:
             mock_now.return_value = make_aware(dt.datetime(2019, 10, 21, 1, 15), UTC)
             self.character_1001.update_contract_headers()
 
@@ -1106,7 +1106,7 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
             {100000002, 100000003},
         )
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", 15)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", 15)
     def test_update_contracts_10(self, mock_esi):
         """when retention limit is set,
         then remove existing contracts older than limit
@@ -1133,7 +1133,7 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
             days_to_complete=3,
         )
 
-        with patch(MODELS_PATH + ".now") as mock_now:
+        with patch(MODELS_PATH + ".character.now") as mock_now:
             mock_now.return_value = make_aware(dt.datetime(2019, 10, 21, 1, 15), UTC)
             self.character_1001.update_contract_headers()
 
@@ -1144,12 +1144,8 @@ class TestCharacterUpdateContracts(TestCharacterUpdateBase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.esi")
 class TestCharacterUpdateJumpClones(TestCharacterUpdateBase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        super().setUpClass()
-
     def test_update_jump_clones_1(self, mock_esi):
         """can update jump clones with implants"""
         mock_esi.client = esi_client_stub
@@ -1205,7 +1201,7 @@ class TestCharacterUpdateJumpClones(TestCharacterUpdateBase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.esi")
 class TestCharacterUpdateMails(TestCharacterUpdateBase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -1393,7 +1389,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         except EveEntity.DoesNotExist:
             return None, False
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     @patch(MANAGERS_PATH + ".fetch_esi_status")
     @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
     def test_update_mail_headers_1(
@@ -1435,7 +1431,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertTrue(obj.recipients.filter(id=9003).exists())
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-20T12:07:00Z"))
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     @patch(MANAGERS_PATH + ".fetch_esi_status")
     @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
     def test_update_mail_headers_2(
@@ -1481,7 +1477,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertTrue(obj.recipients.filter(id=9001).exists())
         self.assertSetEqual(set(obj.labels.values_list("label_id", flat=True)), {3})
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     @patch(MANAGERS_PATH + ".fetch_esi_status")
     @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
     def test_update_mail_headers_3(
@@ -1504,7 +1500,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         obj = self.character_1001.mails.get(mail_id=1)
         self.assertFalse(obj.is_read)
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     @patch(MANAGERS_PATH + ".fetch_esi_status")
     @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
     def test_update_mail_headers_4(
@@ -1527,7 +1523,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         obj = self.character_1001.mails.get(mail_id=1)
         self.assertTrue(obj.is_read)
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", 15)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", 15)
     @patch(MANAGERS_PATH + ".fetch_esi_status")
     @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
     def test_update_mail_headers_6(
@@ -1538,7 +1534,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         mock_eve_entity.side_effect = self.stub_eve_entity_get_or_create_esi
         mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
 
-        with patch(MODELS_PATH + ".now") as mock_now:
+        with patch(MODELS_PATH + ".character.now") as mock_now:
             mock_now.return_value = make_aware(dt.datetime(2015, 9, 20, 20, 5), UTC)
             self.character_1001.update_mailing_lists()
             self.character_1001.update_mail_labels()
@@ -1549,7 +1545,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
             {2, 3},
         )
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", 15)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", 15)
     @patch(MANAGERS_PATH + ".fetch_esi_status")
     @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
     def test_update_mail_headers_7(
@@ -1569,7 +1565,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
             is_read=False,
         )
 
-        with patch(MODELS_PATH + ".now") as mock_now:
+        with patch(MODELS_PATH + ".character.now") as mock_now:
             mock_now.return_value = make_aware(dt.datetime(2015, 9, 20, 20, 5), UTC)
             self.character_1001.update_mailing_lists()
             self.character_1001.update_mail_labels()
@@ -1606,7 +1602,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         obj = self.character_1001.mails.get(mail_id=1)
         self.assertEqual(obj.body, "blah blah blah")
 
-    @patch(MODELS_PATH + ".eve_xml_to_html")
+    @patch(MODELS_PATH + ".character.eve_xml_to_html")
     def test_update_mail_body_2(self, mock_eve_xml_to_html, mock_esi):
         """can update mail body"""
         mock_esi.client = esi_client_stub
@@ -1630,7 +1626,7 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertTrue(mock_eve_xml_to_html.called)
 
 
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.esi")
 class TestCharacterUpdateSkillQueue(TestCharacterUpdateBase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -1709,7 +1705,7 @@ class TestCharacterUpdateSkillQueue(TestCharacterUpdateBase):
         self.assertEqual(entry.finished_level, 3)
 
 
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.esi")
 class TestCharacterUpdateSkills(TestCharacterUpdateBase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -1807,7 +1803,7 @@ class TestCharacterUpdateSkills(TestCharacterUpdateBase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.esi")
 class TestCharacterUpdateWallet(TestCharacterUpdateBase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -1819,7 +1815,7 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
         self.character_1001.update_wallet_balance()
         self.assertEqual(self.character_1001.wallet_balance.total, 123456789)
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_wallet_journal_1(self, mock_esi):
         """can create wallet journal entry from scratch"""
         mock_esi.client = esi_client_stub
@@ -1846,7 +1842,7 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
             obj.ref_type, "agent_mission_time_bonus_reward_corporation_tax"
         )
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_wallet_journal_2(self, mock_esi):
         """can add entry to existing wallet journal"""
         mock_esi.client = esi_client_stub
@@ -1880,7 +1876,7 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
         self.assertEqual(obj.ref_type, "contract_deposit")
         self.assertEqual(obj.second_party.id, 2002)
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
     def test_update_wallet_journal_3(self, mock_esi):
         """does not update existing entries"""
         mock_esi.client = esi_client_stub
@@ -1912,12 +1908,12 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
         self.assertEqual(obj.first_party.id, 1001)
         self.assertEqual(obj.second_party.id, 1002)
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", 10)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", 10)
     def test_update_wallet_journal_4(self, mock_esi):
         """When new wallet entry is older than retention limit, then do not store it"""
         mock_esi.client = esi_client_stub
 
-        with patch(MODELS_PATH + ".now") as mock_now:
+        with patch(MODELS_PATH + ".character.now") as mock_now:
             mock_now.return_value = make_aware(dt.datetime(2018, 3, 11, 20, 5), UTC)
             self.character_1001.update_wallet_journal()
 
@@ -1926,7 +1922,7 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
             {91},
         )
 
-    @patch(MODELS_PATH + ".MEMBERAUDIT_DATA_RETENTION_LIMIT", 20)
+    @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", 20)
     def test_update_wallet_journal_5(self, mock_esi):
         """When wallet existing entry is older than retention limit, then delete it"""
         mock_esi.client = esi_client_stub
@@ -1942,7 +1938,7 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
             second_party=EveEntity.objects.get(id=1002),
         )
 
-        with patch(MODELS_PATH + ".now") as mock_now:
+        with patch(MODELS_PATH + ".character.now") as mock_now:
             mock_now.return_value = make_aware(dt.datetime(2018, 3, 11, 20, 5), UTC)
             self.character_1001.update_wallet_journal()
 
@@ -1952,8 +1948,8 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
         )
 
 
-@patch(MODELS_PATH + ".eve_xml_to_html")
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.eve_xml_to_html")
+@patch(MODELS_PATH + ".character.esi")
 class TestCharacterUpdateCharacterDetails(TestCharacterUpdateBase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -2041,7 +2037,7 @@ class TestCharacterUpdateCharacterDetails(TestCharacterUpdateBase):
         self.character_1001.details.refresh_from_db()
         self.assertEqual(self.character_1001.details.name, "Bruce Wayne")
 
-    @patch(MODELS_PATH + ".get_or_create_esi_or_none")
+    @patch(MODELS_PATH + ".character.get_or_create_esi_or_none")
     def test_esi_ancestry_bug(
         self, mock_get_or_create_esi_or_none, mock_esi, mock_eve_xml_to_html
     ):
@@ -2077,7 +2073,7 @@ class TestCharacterUpdateCharacterDetails(TestCharacterUpdateBase):
         self.assertTrue(mock_eve_xml_to_html.called)
 
 
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.esi")
 class TestCharacterUpdateCorporationHistory(TestCharacterUpdateBase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -2142,7 +2138,7 @@ class TestCharacterUpdateCorporationHistory(TestCharacterUpdateBase):
         self.assertEqual(obj.corporation, self.corporation_2001)
 
 
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.esi")
 class TestCharacterUpdateImplants(TestCharacterUpdateBase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -2189,7 +2185,7 @@ class TestCharacterUpdateImplants(TestCharacterUpdateBase):
         self.assertTrue(self.character_1001.implants.filter(eve_type_id=19540).exists())
 
 
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.esi")
 class TestCharacterUpdateLoyalty(TestCharacterUpdateBase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -2247,7 +2243,7 @@ class TestCharacterUpdateLoyalty(TestCharacterUpdateBase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MODELS_PATH + ".esi")
+@patch(MODELS_PATH + ".character.esi")
 class TestCharacterUpdateOther(TestCharacterUpdateBase):
     @classmethod
     def setUpClass(cls) -> None:
