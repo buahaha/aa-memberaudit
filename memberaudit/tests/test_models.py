@@ -32,7 +32,6 @@ from . import (
 from ..core.xml_converter import eve_xml_to_html
 from ..helpers import EsiStatus, get_or_create_esi_or_none
 from ..models import (
-    data_retention_cutoff,
     Character,
     CharacterContact,
     CharacterContactLabel,
@@ -52,6 +51,7 @@ from ..models import (
     Location,
     MailEntity,
 )
+from ..models.character import data_retention_cutoff
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.esi_test_tools import BravadoResponseStub
 from .testdata.load_eveuniverse import load_eveuniverse

@@ -3,16 +3,12 @@ from .general import (  # noqa: F401
     EveSkillType,
     General,
     Location,
+    MailEntity,
     SkillSet,
     SkillSetGroup,
     SkillSetSkill,
-    MailEntity,
 )
-from .character import (  # noqa: F401
-    Character,
-    CharacterUpdateStatus,
-    data_retention_cutoff,
-)
+from .character import Character, CharacterUpdateStatus  # noqa: F401
 from .character_sections import (  # noqa: F401
     CharacterAsset,
     CharacterContact,
