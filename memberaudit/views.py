@@ -37,9 +37,9 @@ from .models import (
     CharacterContract,
     CharacterContractItem,
     CharacterMail,
+    General,
     Location,
     SkillSetGroup,
-    accessible_users,
 )
 from .utils import (
     add_no_wrap_html,
@@ -1485,7 +1485,7 @@ def reports(request) -> HttpResponse:
 @permission_required("memberaudit.reports_access")
 def compliance_report_data(request) -> JsonResponse:
     users_and_character_counts = (
-        accessible_users(request.user)
+        General.accessible_users(request.user)
         .annotate(total_chars=Count("character_ownerships__character", distinct=True))
         .annotate(
             unregistered_chars=Count(
@@ -1628,7 +1628,9 @@ def skill_sets_report_data(request) -> JsonResponse:
             "character_ownership__character",
         )
         .prefetch_related("skill_set_checks")
-        .filter(character_ownership__user__in=list(accessible_users(request.user)))
+        .filter(
+            character_ownership__user__in=list(General.accessible_users(request.user))
+        )
     )
 
     my_select_related = "skill_set", "skill_set__ship_type"

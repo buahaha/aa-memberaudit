@@ -8,6 +8,7 @@ from eveuniverse.models import EveEntity, EveSolarSystem, EveType
 
 from allianceauth.eveonline.evelinks import dotlan, evewho
 from allianceauth.services.hooks import get_extension_logger
+
 from .. import __title__
 from ..helpers import users_with_permission
 from ..managers import (
@@ -23,37 +24,8 @@ from .constants import NAMES_MAX_LENGTH
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
-def accessible_users(user: User) -> models.QuerySet:
-    """users that the given user can access"""
-    if user.has_perm("memberaudit.view_everything"):
-        users_qs = General.users_with_basic_access()
-    else:
-        users_qs = User.objects.none()
-        if (
-            user.has_perm("memberaudit.view_same_alliance")
-            and user.profile.main_character.alliance_id
-        ):
-            users_qs = (
-                General.users_with_basic_access()
-                .select_related("profile__main_character")
-                .filter(
-                    profile__main_character__alliance_id=user.profile.main_character.alliance_id
-                )
-            )
-        elif user.has_perm("memberaudit.view_same_corporation"):
-            users_qs = (
-                General.users_with_basic_access()
-                .select_related("profile__main_character")
-                .filter(
-                    profile__main_character__corporation_id=user.profile.main_character.corporation_id
-                )
-            )
-
-    return users_qs
-
-
 class General(models.Model):
-    """Meta model for app permissions"""
+    """Meta model for user permissions"""
 
     class Meta:
         managed = False
@@ -83,6 +55,35 @@ class General(models.Model):
     @classmethod
     def users_with_basic_access(cls) -> models.QuerySet:
         return users_with_permission(cls.basic_permission())
+
+    @classmethod
+    def accessible_users(cls, user: User) -> models.QuerySet:
+        """users that the given user can access"""
+        if user.has_perm("memberaudit.view_everything"):
+            users_qs = cls.users_with_basic_access()
+        else:
+            users_qs = User.objects.none()
+            if (
+                user.has_perm("memberaudit.view_same_alliance")
+                and user.profile.main_character.alliance_id
+            ):
+                users_qs = (
+                    cls.users_with_basic_access()
+                    .select_related("profile__main_character")
+                    .filter(
+                        profile__main_character__alliance_id=user.profile.main_character.alliance_id
+                    )
+                )
+            elif user.has_perm("memberaudit.view_same_corporation"):
+                users_qs = (
+                    cls.users_with_basic_access()
+                    .select_related("profile__main_character")
+                    .filter(
+                        profile__main_character__corporation_id=user.profile.main_character.corporation_id
+                    )
+                )
+
+        return users_qs
 
 
 class Location(models.Model):
