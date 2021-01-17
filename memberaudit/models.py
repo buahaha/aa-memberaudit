@@ -2,7 +2,7 @@ import datetime as dt
 import hashlib
 import json
 import os
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from bravado.exception import HTTPInternalServerError
 
@@ -10,7 +10,7 @@ from django.contrib.auth.models import User, Permission
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import MinValueValidator, MaxValueValidator
-from django.db import models, transaction
+from django.db import models
 from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
@@ -36,7 +36,6 @@ from . import __title__
 from .app_settings import (
     MEMBERAUDIT_MAX_MAILS,
     MEMBERAUDIT_DEVELOPER_MODE,
-    MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
     MEMBERAUDIT_UPDATE_STALE_RING_1,
     MEMBERAUDIT_UPDATE_STALE_RING_2,
     MEMBERAUDIT_UPDATE_STALE_RING_3,
@@ -47,20 +46,33 @@ from .core.xml_converter import eve_xml_to_html
 from .decorators import fetch_token_for_character
 from .helpers import (
     get_or_create_esi_or_none,
-    get_or_none,
     get_or_create_or_none,
     users_with_permission,
 )
 from .managers import (
     CharacterAssetManager,
+    CharacterContactLabelManager,
+    CharacterContactManager,
+    CharacterContractManager,
+    CharacterContractBidManager,
     CharacterContractItemManager,
+    CharacterCorporationHistoryManager,
+    CharacterImplantManager,
+    CharacterLoyaltyEntryManager,
+    CharacterJumpCloneManager,
     CharacterMailLabelManager,
+    CharacterMailManager,
     CharacterManager,
+    CharacterSkillManager,
+    CharacterSkillqueueEntryManager,
+    CharacterSkillSetCheckManager,
     CharacterUpdateStatusManager,
+    CharacterWalletJournalEntryManager,
     EveShipTypeManger,
     EveSkillTypeManger,
     LocationManager,
     MailEntityManager,
+    SkillSetManager,
 )
 from .providers import esi
 from .utils import LoggerAddTag, chunks, datetime_round_hour
@@ -686,50 +698,6 @@ class Character(models.Model):
         else:
             logger.info("%s: Character details have not changed", self)
 
-    def update_corporation_history(self, force_update: bool = False):
-        """syncs the character's corporation history"""
-        logger.info("%s: Fetching corporation history from ESI", self)
-        history = esi.client.Character.get_characters_character_id_corporationhistory(
-            character_id=self.character_ownership.character.character_id,
-        ).results()
-        if MEMBERAUDIT_DEVELOPER_MODE:
-            self._store_list_to_disk(history, "corporation_history")
-
-        if force_update or self.has_section_changed(
-            section=self.UpdateSection.CORPORATION_HISTORY, content=history
-        ):
-            entries = [
-                CharacterCorporationHistory(
-                    character=self,
-                    record_id=row.get("record_id"),
-                    corporation=get_or_create_or_none("corporation_id", row, EveEntity),
-                    is_deleted=row.get("is_deleted"),
-                    start_date=row.get("start_date"),
-                )
-                for row in history
-            ]
-            with transaction.atomic():
-                self.corporation_history.all().delete()
-                if entries:
-                    logger.info(
-                        "%s: Creating %s entries for corporation history",
-                        self,
-                        len(entries),
-                    )
-                    CharacterCorporationHistory.objects.bulk_create(entries)
-                else:
-                    logger.info("%s: Corporation history is empty", self)
-
-            if entries:
-                EveEntity.objects.bulk_update_new_esi()
-
-            self.update_section_content_hash(
-                section=self.UpdateSection.CORPORATION_HISTORY, content=history
-            )
-
-        else:
-            logger.info("%s: Corporation history has not changed", self)
-
     @fetch_token_for_character("esi-characters.read_contacts.v1")
     def update_contact_labels(self, token: Token, force_update: bool = False):
         logger.info("%s: Fetching contact labels from ESI", self)
@@ -739,46 +707,13 @@ class Character(models.Model):
         ).results()
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(labels, "contact_labels")
-
         if force_update or self.has_section_changed(
             section=self.UpdateSection.CONTACTS, content=labels, hash_num=2
         ):
-            # TODO: replace with bulk methods to optimize
-            with transaction.atomic():
-                if labels:
-                    incoming_ids = {x["label_id"] for x in labels}
-                else:
-                    incoming_ids = set()
-
-                existing_ids = set(
-                    self.contact_labels.values_list("label_id", flat=True)
-                )
-                obsolete_ids = existing_ids.difference(incoming_ids)
-                if obsolete_ids:
-                    logger.info(
-                        "%s: Removing %s obsolete skills", self, len(obsolete_ids)
-                    )
-                    self.contact_labels.filter(label_id__in=obsolete_ids).delete()
-
-                if incoming_ids:
-                    logger.info(
-                        "%s: Storing %s contact labels", self, len(incoming_ids)
-                    )
-                    for label in labels:
-                        CharacterContactLabel.objects.update_or_create(
-                            character=self,
-                            label_id=label.get("label_id"),
-                            defaults={
-                                "name": label.get("label_name"),
-                            },
-                        )
-                else:
-                    logger.info("%s: No contact labels", self)
-
+            self.contact_labels.update_for_character(self, labels)
             self.update_section_content_hash(
                 section=self.UpdateSection.CONTACTS, content=labels, hash_num=2
             )
-
         else:
             logger.info("%s: Contact labels have not changed", self)
 
@@ -800,113 +735,13 @@ class Character(models.Model):
         if force_update or self.has_section_changed(
             section=self.UpdateSection.CONTACTS, content=contacts_list
         ):
-            with transaction.atomic():
-                incoming_ids = set(contacts_list.keys())
-                existing_ids = set(
-                    self.contacts.values_list("eve_entity_id", flat=True)
-                )
-                obsolete_ids = existing_ids.difference(incoming_ids)
-                if obsolete_ids:
-                    logger.info(
-                        "%s: Removing %s obsolete contacts", self, len(obsolete_ids)
-                    )
-                    self.contacts.filter(eve_entity_id__in=obsolete_ids).delete()
-
-                create_ids = incoming_ids.difference(existing_ids)
-                if create_ids:
-                    self._create_new_contacts(
-                        contacts_list=contacts_list, contact_ids=create_ids
-                    )
-
-                update_ids = incoming_ids.difference(create_ids)
-                if update_ids:
-                    self._update_existing_contacts(
-                        contacts_list=contacts_list, contact_ids=update_ids
-                    )
-
-                if not obsolete_ids and not create_ids and not update_ids:
-                    logger.info("%s: Contacts have not changed", self)
-
+            self.contacts.update_for_character(self, contacts_list)
             self.update_section_content_hash(
                 section=self.UpdateSection.CONTACTS, content=contacts_list
             )
 
         else:
             logger.info("%s: Contacts have not changed", self)
-
-    def _create_new_contacts(self, contacts_list: dict, contact_ids: list):
-        logger.info("%s: Storing %s new contacts", self, len(contact_ids))
-        new_contacts_list = {
-            contact_id: obj
-            for contact_id, obj in contacts_list.items()
-            if contact_id in contact_ids
-        }
-        new_contacts = [
-            CharacterContact(
-                character=self,
-                eve_entity=get_or_create_or_none("contact_id", contact_data, EveEntity),
-                is_blocked=contact_data.get("is_blocked"),
-                is_watched=contact_data.get("is_watched"),
-                standing=contact_data.get("standing"),
-            )
-            for contact_data in new_contacts_list.values()
-        ]
-        CharacterContact.objects.bulk_create(
-            new_contacts, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-        )
-        self._update_contact_contact_labels(
-            contacts_list=contacts_list, contact_ids=contact_ids, is_new=True
-        )
-
-    def _update_contact_contact_labels(
-        self, contacts_list: dict, contact_ids: list, is_new=False
-    ):
-        for contact_id, contact_data in contacts_list.items():
-            if contact_id in contact_ids and contact_data.get("label_ids"):
-                character_contact = self.contacts.get(eve_entity_id=contact_id)
-                if not is_new:
-                    character_contact.labels.clear()
-
-                labels = list()
-                for label_id in contact_data.get("label_ids"):
-                    try:
-                        label = self.contact_labels.get(label_id=label_id)
-                    except CharacterContactLabel.DoesNotExist:
-                        # sometimes label IDs on contacts
-                        # do not refer to actual labels
-                        logger.info(
-                            "%s: Unknown contact label with id %s",
-                            self,
-                            label_id,
-                        )
-                    else:
-                        labels.append(label)
-
-                    character_contact.labels.add(*labels)
-
-    def _update_existing_contacts(self, contacts_list: dict, contact_ids: list):
-        logger.info("%s: Updating %s contacts", self, len(contact_ids))
-        update_contact_pks = list(
-            self.contacts.filter(eve_entity_id__in=contact_ids).values_list(
-                "pk", flat=True
-            )
-        )
-        contacts = self.contacts.in_bulk(update_contact_pks)
-        for contact in contacts.values():
-            contact_data = contacts_list.get(contact.eve_entity_id)
-            if contact_data:
-                contact.is_blocked = contact_data.get("is_blocked")
-                contact.is_watched = contact_data.get("is_watched")
-                contact.standing = contact_data.get("standing")
-
-        CharacterContact.objects.bulk_update(
-            contacts.values(),
-            fields=["is_blocked", "is_watched", "standing"],
-            batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
-        )
-        self._update_contact_contact_labels(
-            contacts_list=contacts_list, contact_ids=contact_ids
-        )
 
     @fetch_token_for_character("esi-contracts.read_character_contracts.v1")
     def update_contract_headers(self, token: Token, force_update: bool = False):
@@ -933,24 +768,7 @@ class Character(models.Model):
                 obj["end_location_id"] for obj in contracts_list.values()
             }
             self._preload_all_locations(token=token, incoming_ids=incoming_location_ids)
-            with transaction.atomic():
-                incoming_ids = set(contracts_list.keys())
-                existing_ids = set(self.contracts.values_list("contract_id", flat=True))
-
-                create_ids = incoming_ids.difference(existing_ids)
-                if create_ids:
-                    self._create_new_contracts(
-                        contracts_list=contracts_list,
-                        contract_ids=create_ids,
-                        token=token,
-                    )
-
-                update_ids = incoming_ids.difference(create_ids)
-                if update_ids:
-                    self._update_existing_contracts(
-                        contracts_list=contracts_list, contract_ids=update_ids
-                    )
-
+            self.contracts.update_for_character(self, contracts_list)
             self.update_section_content_hash(
                 section=self.UpdateSection.CONTRACTS, content=contracts_list
             )
@@ -975,105 +793,6 @@ class Character(models.Model):
         }
         return contracts_list
 
-    def _create_new_contracts(
-        self, contracts_list: dict, contract_ids: set, token: Token
-    ) -> None:
-        logger.info("%s: Storing %s new contracts", self, len(contract_ids))
-        new_contracts = list()
-        for contract_id in contract_ids:
-            contract_data = contracts_list.get(contract_id)
-            if contract_data:
-                new_contracts.append(
-                    CharacterContract(
-                        character=self,
-                        contract_id=contract_data.get("contract_id"),
-                        acceptor=get_or_create_or_none(
-                            "acceptor_id", contract_data, EveEntity
-                        ),
-                        acceptor_corporation=get_or_create_or_none(
-                            "acceptor_corporation_id", contract_data, EveEntity
-                        ),
-                        assignee=get_or_create_or_none(
-                            "assignee_id", contract_data, EveEntity
-                        ),
-                        availability=CharacterContract.ESI_AVAILABILITY_MAP[
-                            contract_data.get("availability")
-                        ],
-                        buyout=contract_data.get("buyout"),
-                        collateral=contract_data.get("collateral"),
-                        contract_type=CharacterContract.ESI_TYPE_MAP.get(
-                            contract_data.get("type"),
-                            CharacterContract.TYPE_UNKNOWN,
-                        ),
-                        date_accepted=contract_data.get("date_accepted"),
-                        date_completed=contract_data.get("date_completed"),
-                        date_expired=contract_data.get("date_expired"),
-                        date_issued=contract_data.get("date_issued"),
-                        days_to_complete=contract_data.get("days_to_complete"),
-                        end_location=get_or_none(
-                            "end_location_id", contract_data, Location
-                        ),
-                        for_corporation=contract_data.get("for_corporation"),
-                        issuer_corporation=get_or_create_or_none(
-                            "issuer_corporation_id", contract_data, EveEntity
-                        ),
-                        issuer=get_or_create_or_none(
-                            "issuer_id", contract_data, EveEntity
-                        ),
-                        price=contract_data.get("price"),
-                        reward=contract_data.get("reward"),
-                        start_location=get_or_none(
-                            "start_location_id", contract_data, Location
-                        ),
-                        status=CharacterContract.ESI_STATUS_MAP[
-                            contract_data.get("status")
-                        ],
-                        title=contract_data.get("title", ""),
-                        volume=contract_data.get("volume"),
-                    )
-                )
-
-        CharacterContract.objects.bulk_create(
-            new_contracts, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-        )
-
-    def _update_existing_contracts(
-        self, contracts_list: dict, contract_ids: set
-    ) -> None:
-        logger.info("%s: Updating %s contracts", self, len(contract_ids))
-        update_contract_pks = list(
-            self.contracts.filter(contract_id__in=contract_ids).values_list(
-                "pk", flat=True
-            )
-        )
-        contracts = self.contracts.in_bulk(update_contract_pks)
-        for contract in contracts.values():
-            contract_data = contracts_list.get(contract.contract_id)
-            if contract_data:
-                contract.acceptor = get_or_create_or_none(
-                    "acceptor_id", contract_data, EveEntity
-                )
-                contract.acceptor_corporation = get_or_create_or_none(
-                    "acceptor_corporation_id", contract_data, EveEntity
-                )
-                contract.date_accepted = contract_data.get("date_accepted")
-                contract.date_completed = contract_data.get("date_completed")
-                contract.status = CharacterContract.ESI_STATUS_MAP[
-                    contract_data.get("status")
-                ]
-
-        CharacterContract.objects.bulk_update(
-            contracts.values(),
-            fields=[
-                "acceptor",
-                "acceptor_corporation",
-                "date_accepted",
-                "date_completed",
-                "status",
-            ],
-            batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
-        )
-
     @fetch_token_for_character("esi-contracts.read_character_contracts.v1")
     def update_contract_items(self, token: Token, contract: "CharacterContract"):
         """update the character's contract details"""
@@ -1097,30 +816,7 @@ class Character(models.Model):
             contract_id=contract.contract_id,
             token=token.valid_access_token(),
         ).results()
-        logger.info(
-            "%s, %s: Storing %s contract items",
-            self,
-            contract.contract_id,
-            len(items_data),
-        )
-        items = [
-            CharacterContractItem(
-                contract=contract,
-                record_id=item.get("record_id"),
-                is_included=item.get("is_included"),
-                is_singleton=item.get("is_singleton"),
-                quantity=item.get("quantity"),
-                raw_quantity=item.get("raw_quantity"),
-                eve_type=get_or_create_esi_or_none("type_id", item, EveType),
-            )
-            for item in items_data
-            if "record_id" in item
-        ]
-        with transaction.atomic():
-            contract.items.all().delete()
-            CharacterContractItem.objects.bulk_create(
-                items, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-            )
+        contract.items.update_for_contract(contract, items_data)
 
     @fetch_token_for_character("esi-contracts.read_character_contracts.v1")
     def update_contract_bids(self, token: Token, contract: "CharacterContract"):
@@ -1144,37 +840,26 @@ class Character(models.Model):
             ).results()
         )
         bids_list = {int(x["bid_id"]): x for x in bids_data if "bid_id" in x}
-        with transaction.atomic():
-            incoming_ids = set(bids_list.keys())
-            existing_ids = set(contract.bids.values_list("bid_id", flat=True))
-            create_ids = incoming_ids.difference(existing_ids)
-            if not create_ids:
-                logger.info(
-                    "%s, %s: No new contract bids to add", self, contract.contract_id
-                )
-                return
-
-            logger.info(
-                "%s, %s: Storing %s new contract bids",
-                self,
-                contract.contract_id,
-                len(create_ids),
-            )
-            bids = [
-                CharacterContractBid(
-                    contract=contract,
-                    bid_id=bid.get("bid_id"),
-                    amount=bid.get("amount"),
-                    bidder=get_or_create_or_none("bidder_id", bid, EveEntity),
-                    date_bid=bid.get("date_bid"),
-                )
-                for bid_id, bid in bids_list.items()
-                if bid_id in create_ids
-            ]
-            CharacterContractBid.objects.bulk_create(
-                bids, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-            )
+        contract.bids.update_for_contract(contract, bids_list)
         EveEntity.objects.bulk_update_new_esi()
+
+    def update_corporation_history(self, force_update: bool = False):
+        """syncs the character's corporation history"""
+        logger.info("%s: Fetching corporation history from ESI", self)
+        history = esi.client.Character.get_characters_character_id_corporationhistory(
+            character_id=self.character_ownership.character.character_id,
+        ).results()
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(history, "corporation_history")
+        if force_update or self.has_section_changed(
+            section=self.UpdateSection.CORPORATION_HISTORY, content=history
+        ):
+            self.corporation_history.update_for_character(self, history)
+            self.update_section_content_hash(
+                section=self.UpdateSection.CORPORATION_HISTORY, content=history
+            )
+        else:
+            logger.info("%s: Corporation history has not changed", self)
 
     @fetch_token_for_character("esi-clones.read_implants.v1")
     def update_implants(self, token: Token, force_update: bool = False):
@@ -1186,34 +871,15 @@ class Character(models.Model):
         ).results()
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(implants_data, "implants")
-
         if force_update or self.has_section_changed(
             section=self.UpdateSection.IMPLANTS, content=implants_data
         ):
             if implants_data:
                 EveType.objects.bulk_get_or_create_esi(ids=implants_data)
-
-            with transaction.atomic():
-                self.implants.all().delete()
-                if implants_data:
-                    implants = [
-                        CharacterImplant(
-                            character=self,
-                            eve_type=EveType.objects.get(id=eve_type_id),
-                        )
-                        for eve_type_id in implants_data
-                    ]
-                    logger.info("%s: Storing %s implants", self, len(implants))
-                    CharacterImplant.objects.bulk_create(
-                        implants, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-                    )
-                else:
-                    logger.info("%s: No implants", self)
-
+            self.implants.update_for_character(self, implants_data)
             self.update_section_content_hash(
                 section=self.UpdateSection.IMPLANTS, content=implants_data
             )
-
         else:
             logger.info("%s: Implants have not changed", self)
 
@@ -1264,23 +930,7 @@ class Character(models.Model):
         if force_update or self.has_section_changed(
             section=self.UpdateSection.LOYALTY, content=loyalty_entries
         ):
-            with transaction.atomic():
-                self.loyalty_entries.all().delete()
-                new_entries = [
-                    CharacterLoyaltyEntry(
-                        character=self,
-                        corporation=get_or_create_or_none(
-                            "corporation_id", entry, EveEntity
-                        ),
-                        loyalty_points=entry.get("loyalty_points"),
-                    )
-                    for entry in loyalty_entries
-                    if "corporation_id" in entry and "loyalty_points" in entry
-                ]
-                CharacterLoyaltyEntry.objects.bulk_create(
-                    new_entries, MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-                )
-
+            self.loyalty_entries.update_for_character(self, loyalty_entries)
             self.update_section_content_hash(
                 section=self.UpdateSection.LOYALTY, content=loyalty_entries
             )
@@ -1321,45 +971,7 @@ class Character(models.Model):
                             ids=jump_clone_info.get("implants", [])
                         )
 
-            with transaction.atomic():
-                self.jump_clones.all().delete()
-                if not jump_clones_list:
-                    logger.info("%s: No jump clones", self)
-                    return
-
-                logger.info("%s: Storing %s jump clones", self, len(jump_clones_list))
-                jump_clones = [
-                    CharacterJumpClone(
-                        character=self,
-                        jump_clone_id=record.get("jump_clone_id"),
-                        location=get_or_none("location_id", record, Location),
-                        name=record.get("name") if record.get("name") else "",
-                    )
-                    for record in jump_clones_list
-                ]
-                CharacterJumpClone.objects.bulk_create(
-                    jump_clones,
-                    batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
-                )
-                implants = list()
-                for jump_clone_info in jump_clones_list:
-                    if jump_clone_info.get("implants"):
-                        for implant in jump_clone_info["implants"]:
-                            jump_clone = self.jump_clones.get(
-                                jump_clone_id=jump_clone_info.get("jump_clone_id")
-                            )
-                            implants.append(
-                                CharacterJumpCloneImplant(
-                                    jump_clone=jump_clone,
-                                    eve_type=EveType.objects.get(id=implant),
-                                )
-                            )
-
-                CharacterJumpCloneImplant.objects.bulk_create(
-                    implants,
-                    batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
-                )
-
+            self.jump_clones.update_for_character(self, jump_clones_list)
             self.update_section_content_hash(
                 section=self.UpdateSection.JUMP_CLONES, content=jump_clones_info
             )
@@ -1402,21 +1014,10 @@ class Character(models.Model):
         if force_update or self.has_section_changed(
             section=self.UpdateSection.MAILS, content=mailing_lists, hash_num=2
         ):
-            with transaction.atomic():
-                logger.info("%s: Updating %s mailing lists", self, len(incoming_ids))
-                new_mailing_lists = list()
-                for list_id, mailing_list in mailing_lists.items():
-                    mailing_list_obj, _ = MailEntity.objects.update_or_create(
-                        id=list_id,
-                        defaults={
-                            "category": MailEntity.Category.MAILING_LIST,
-                            "name": mailing_list.get("name"),
-                        },
-                    )
-                    new_mailing_lists.append(mailing_list_obj)
-
-                self.mailing_lists.set(new_mailing_lists, clear=True)
-
+            new_mailing_lists = self.mailing_lists.update_for_character(
+                character=self, mailing_lists=mailing_lists
+            )
+            self.mailing_lists.set(new_mailing_lists, clear=True)
             self.update_section_content_hash(
                 section=self.UpdateSection.MAILS, content=mailing_lists, hash_num=2
             )
@@ -1435,26 +1036,7 @@ class Character(models.Model):
         if force_update or self.has_section_changed(
             section=self.UpdateSection.MAILS, content=mail_labels_list, hash_num=3
         ):
-            logger.info("%s: Storing %s mail labels", self, len(mail_labels_list))
-            with transaction.atomic():
-                incoming_ids = set(mail_labels_list.keys())
-                existing_ids = set(self.mail_labels.values_list("label_id", flat=True))
-                obsolete_ids = existing_ids.difference(incoming_ids)
-                if obsolete_ids:
-                    self.mail_labels.filter(label_id__in=obsolete_ids).delete()
-
-                create_ids = incoming_ids.difference(existing_ids)
-                if create_ids:
-                    self._create_new_mail_labels(
-                        mail_labels_list=mail_labels_list, label_ids=create_ids
-                    )
-
-                update_ids = incoming_ids.difference(create_ids)
-                if update_ids:
-                    self._update_existing_mail_labels(
-                        mail_labels_list=mail_labels_list, label_ids=update_ids
-                    )
-
+            self.mail_labels.update_for_character(self, mail_labels_list)
             self.update_section_content_hash(
                 section=self.UpdateSection.MAILS, content=mail_labels_list, hash_num=3
             )
@@ -1483,75 +1065,17 @@ class Character(models.Model):
         else:
             return dict()
 
-    def _create_new_mail_labels(self, mail_labels_list: dict, label_ids: set):
-        new_labels = [
-            CharacterMailLabel(
-                character=self,
-                label_id=label.get("label_id"),
-                color=label.get("color"),
-                name=label.get("name"),
-                unread_count=label.get("unread_count"),
-            )
-            for label_id, label in mail_labels_list.items()
-            if label_id in label_ids
-        ]
-        CharacterMailLabel.objects.bulk_create(
-            new_labels, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-        )
-
-    def _update_existing_mail_labels(self, mail_labels_list: dict, label_ids: set):
-        logger.info("%s: Updating %s mail labels", self, len(label_ids))
-        update_pks = list(
-            self.mail_labels.filter(label_id__in=label_ids).values_list("pk", flat=True)
-        )
-        labels = self.mail_labels.in_bulk(update_pks)
-        for label in labels.values():
-            record = mail_labels_list.get(label.label_id)
-            if record:
-                label.name = record.get("name")
-                label.color = record.get("color")
-                label.unread_count = record.get("unread_count")
-
-        CharacterMailLabel.objects.bulk_update(
-            labels.values(),
-            fields=["name", "color", "unread_count"],
-            batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
-        )
-
     @fetch_token_for_character("esi-mail.read_mail.v1")
     def update_mail_headers(self, token: Token, force_update: bool = False):
         mail_headers = self._fetch_mail_headers(token)
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(mail_headers, "mail_headers")
-
-        cutoff_datetime = data_retention_cutoff()
-        if cutoff_datetime:
-            self.mails.filter(timestamp__lt=cutoff_datetime).delete()
-
-        if force_update or self.has_section_changed(
-            section=self.UpdateSection.MAILS, content=mail_headers
-        ):
-            self._preload_mail_senders(mail_headers)
-            with transaction.atomic():
-                incoming_ids = set(mail_headers.keys())
-                existing_ids = set(self.mails.values_list("mail_id", flat=True))
-                create_ids = incoming_ids.difference(existing_ids)
-                if create_ids:
-                    self._create_mail_headers(mail_headers, create_ids)
-
-                update_ids = incoming_ids.difference(create_ids)
-                if update_ids:
-                    self._update_mail_headers(mail_headers, update_ids)
-
-                if not create_ids and not update_ids:
-                    logger.info("%s: No mails", self)
-
-            self.update_section_content_hash(
-                section=self.UpdateSection.MAILS, content=mail_headers
-            )
-
-        else:
-            logger.info("%s: Mails have not changed", self)
+        self.mails.update_for_character(
+            character=self,
+            cutoff_datetime=data_retention_cutoff(),
+            mail_headers=mail_headers,
+            force_update=force_update,
+        )
 
     def _fetch_mail_headers(self, token) -> dict:
         last_mail_id = None
@@ -1595,130 +1119,8 @@ class Character(models.Model):
             if mail_id in subset_ids
         }
 
-    def _preload_mail_senders(self, mail_headers):
-        incoming_ids = set(mail_headers.keys())
-        existing_ids = set(self.mails.values_list("mail_id", flat=True))
-        create_ids = incoming_ids.difference(existing_ids)
-        if create_ids:
-            new_mail_headers_list = self._headers_list_subset(mail_headers, create_ids)
-            for mail_id, header in new_mail_headers_list.items():
-                MailEntity.objects.get_or_create_esi_async(header.get("from"))
-
-    def _create_mail_headers(self, mail_headers: dict, create_ids) -> None:
-        logger.info("%s: Create %s new mail headers", self, len(create_ids))
-        new_mail_headers_list = self._headers_list_subset(mail_headers, create_ids)
-        self._add_missing_mailing_lists_from_recipients(new_mail_headers_list)
-
-        # create headers
-        new_headers = list()
-        for mail_id, header in new_mail_headers_list.items():
-            new_headers.append(
-                CharacterMail(
-                    character=self,
-                    mail_id=mail_id,
-                    sender=get_or_none("from", header, MailEntity),
-                    is_read=bool(header.get("is_read")),
-                    subject=header.get("subject", ""),
-                    timestamp=header.get("timestamp"),
-                )
-            )
-
-        CharacterMail.objects.bulk_create(
-            new_headers, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-        )
-
-        # add recipients and labels
-        labels = self.mail_labels.get_all_labels()
-        for mail_id, header in new_mail_headers_list.items():
-            mail_obj = self.mails.get(mail_id=mail_id)
-            recipients = list()
-            recipient_type_map = {
-                "alliance": MailEntity.Category.ALLIANCE,
-                "character": MailEntity.Category.CHARACTER,
-                "corporation": MailEntity.Category.CORPORATION,
-                "mailing_list": MailEntity.Category.MAILING_LIST,
-            }
-            for recipient_info in header.get("recipients"):
-                recipient, _ = MailEntity.objects.get_or_create(
-                    id=recipient_info.get("recipient_id"),
-                    defaults={
-                        "category": recipient_type_map[
-                            recipient_info.get("recipient_type")
-                        ]
-                    },
-                )
-                recipients.append(recipient)
-
-            mail_obj.recipients.set(recipients, clear=True)
-            MailEntity.objects.bulk_update_names(recipients, keep_names=True)
-            self._update_labels_of_mail(mail_obj, header.get("labels"), labels)
-
-    def _add_missing_mailing_lists_from_recipients(self, new_mail_headers_list):
-        """Add mailing lists from recipients that are not part of the known
-        mailing lists"""
-        incoming_ids = set()
-        for header in new_mail_headers_list.values():
-            for recipient in header.get("recipients"):
-                if recipient.get("recipient_type") == "mailing_list":
-                    incoming_ids.add(recipient.get("recipient_id"))
-
-        existing_ids = set(
-            MailEntity.objects.filter(
-                category=MailEntity.Category.MAILING_LIST
-            ).values_list("id", flat=True)
-        )
-        create_ids = incoming_ids.difference(existing_ids)
-        if create_ids:
-            logger.info(
-                "%s: Adding %s unknown mailing lists from recipients",
-                self,
-                len(create_ids),
-            )
-            for list_id in create_ids:
-                MailEntity.objects.get_or_create(
-                    id=list_id, defaults={"category": MailEntity.Category.MAILING_LIST}
-                )
-
-    def _update_labels_of_mail(
-        self,
-        mail: "CharacterMail",
-        label_ids: List[int],
-        labels: List["CharacterMailLabel"],
-    ) -> None:
-        """Updates the labels of a mail object from a dict"""
-        mail.labels.clear()
-        if label_ids:
-            labels_to_add = list()
-            for label_id in label_ids:
-                try:
-                    labels_to_add.append(labels[label_id])
-                except KeyError:
-                    logger.info(
-                        "%s: Unknown mail label with ID %s for mail %s",
-                        self,
-                        label_id,
-                        mail,
-                    )
-
-            mail.labels.add(*labels_to_add)
-
-    def _update_mail_headers(self, mail_headers: dict, update_ids) -> None:
-        logger.info("%s: Updating %s mail headers", self, len(update_ids))
-        mail_pks = self.mails.filter(mail_id__in=update_ids).values_list(
-            "pk", flat=True
-        )
-        labels = self.mail_labels.get_all_labels()
-        mails = self.mails.in_bulk(mail_pks)
-        for mail in mails.values():
-            mail_header = mail_headers.get(mail.mail_id)
-            if mail_header:
-                mail.is_read = bool(mail_header.get("is_read"))
-                self._update_labels_of_mail(mail, mail_header.get("labels"), labels)
-
-        CharacterMail.objects.bulk_update(mails.values(), ["is_read"])
-
     @fetch_token_for_character("esi-mail.read_mail.v1")
-    def update_mail_body(self, token: Token, mail: "CharacterMail") -> None:
+    def update_mail_body(self, token: Token, mail: models.Model) -> None:
         logger.debug("%s: Fetching body from ESI for mail ID %s", self, mail.mail_id)
         mail_body = esi.client.Mail.get_characters_character_id_mail_mail_id(
             character_id=self.character_ownership.character.character_id,
@@ -1762,36 +1164,7 @@ class Character(models.Model):
         if force_update or self.has_section_changed(
             section=self.UpdateSection.SKILL_QUEUE, content=skillqueue
         ):
-            # TODO: Replace delete + create with create + update
-            if skillqueue:
-                entries = [
-                    CharacterSkillqueueEntry(
-                        character=self,
-                        eve_type=get_or_create_esi_or_none("skill_id", entry, EveType),
-                        finish_date=entry.get("finish_date"),
-                        finished_level=entry.get("finished_level"),
-                        level_end_sp=entry.get("level_end_sp"),
-                        level_start_sp=entry.get("level_start_sp"),
-                        queue_position=entry.get("queue_position"),
-                        start_date=entry.get("start_date"),
-                        training_start_sp=entry.get("training_start_sp"),
-                    )
-                    for entry in skillqueue
-                ]
-            else:
-                entries = list()
-            with transaction.atomic():
-                self.skillqueue.all().delete()
-                if entries:
-                    logger.info(
-                        "%s: Writing skill queue of size %s", self, len(entries)
-                    )
-                    CharacterSkillqueueEntry.objects.bulk_create(
-                        entries, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-                    )
-                else:
-                    logger.info("%s: Skill queue is empty", self)
-
+            self.skillqueue.update_for_character(self, skillqueue)
             self.update_section_content_hash(
                 section=self.UpdateSection.SKILL_QUEUE, content=skillqueue
             )
@@ -1803,70 +1176,7 @@ class Character(models.Model):
         """Checks if character has the skills needed for skill sets
         and updates results in database
         """
-        with transaction.atomic():
-            character_skills = {
-                obj["eve_type_id"]: obj["active_skill_level"]
-                for obj in self.skills.values("eve_type_id", "active_skill_level")
-            }
-            self.skill_set_checks.all().delete()
-            skill_sets_qs = SkillSet.objects.prefetch_related(
-                "skills", "skills__eve_type"
-            ).all()
-            skill_sets_count = skill_sets_qs.count()
-            if skill_sets_count == 0:
-                logger.info("%s: No skill sets defined", self)
-                return
-
-            logger.info("%s: Checking %s skill sets", self, skill_sets_count)
-            skill_set_checks = [
-                CharacterSkillSetCheck(character=self, skill_set=skill_set)
-                for skill_set in skill_sets_qs
-            ]
-            CharacterSkillSetCheck.objects.bulk_create(
-                skill_set_checks, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-            )
-
-            # add failed recommended / required skills to objects if any
-            obj_pks = list(self.skill_set_checks.values_list("pk", flat=True))
-            skill_set_checks = self.skill_set_checks.in_bulk(obj_pks)
-            checks_by_skill_set_id = {
-                obj.skill_set_id: obj for obj in skill_set_checks.values()
-            }
-
-            # required skills
-            for skill_set in skill_sets_qs:
-                failed_skills = self._identify_failed_skills(
-                    skill_set, character_skills, "required"
-                )
-                if failed_skills:
-                    checks_by_skill_set_id[skill_set.id].failed_required_skills.add(
-                        *failed_skills
-                    )
-
-            # required skills
-            for skill_set in skill_sets_qs:
-                failed_skills = self._identify_failed_skills(
-                    skill_set, character_skills, "recommended"
-                )
-                if failed_skills:
-                    checks_by_skill_set_id[skill_set.id].failed_recommended_skills.add(
-                        *failed_skills
-                    )
-
-    @staticmethod
-    def _identify_failed_skills(
-        skill_set: "SkillSet", character_skills: dict, level_name: str
-    ) -> list:
-        failed_skills = list()
-        kwargs = {f"{level_name}_level__isnull": False}
-        for skill in skill_set.skills.filter(**kwargs):
-            eve_type_id = skill.eve_type_id
-            if eve_type_id not in character_skills or character_skills[
-                eve_type_id
-            ] < getattr(skill, f"{level_name}_level"):
-                failed_skills.append(skill)
-
-        return failed_skills
+        self.skill_set_checks.update_for_character(self)
 
     @fetch_token_for_character("esi-skills.read_skills.v1")
     def update_skills(self, token, force_update: bool = False):
@@ -1876,34 +1186,7 @@ class Character(models.Model):
             section=self.UpdateSection.SKILLS, content=skills_list
         ):
             self._preload_types(skills_list)
-            with transaction.atomic():
-                incoming_ids = set(skills_list.keys())
-                existing_ids = set(self.skills.values_list("eve_type_id", flat=True))
-                obsolete_ids = existing_ids.difference(incoming_ids)
-                if obsolete_ids:
-                    logger.info(
-                        "%s: Removing %s obsolete skills", self, len(obsolete_ids)
-                    )
-                    self.skills.filter(eve_type_id__in=obsolete_ids).delete()
-
-                create_ids = None
-                update_ids = None
-                if skills_list:
-                    create_ids = incoming_ids.difference(existing_ids)
-                    if create_ids:
-                        self._create_new_skills(
-                            skills_list=skills_list, create_ids=create_ids
-                        )
-
-                    update_ids = incoming_ids.difference(create_ids)
-                    if update_ids:
-                        self._update_existing_skills(
-                            skills_list=skills_list, update_ids=update_ids
-                        )
-
-                if not obsolete_ids and not create_ids and not update_ids:
-                    logger.info("%s: Skills have not changed", self)
-
+            self.skills.update_for_character(self, skills_list)
             self.update_section_content_hash(
                 section=self.UpdateSection.SKILLS, content=skills_list
             )
@@ -1945,46 +1228,6 @@ class Character(models.Model):
             new_ids = incoming_ids.difference(existing_ids)
             EveType.objects.bulk_get_or_create_esi(ids=new_ids)
 
-    def _create_new_skills(self, skills_list: dict, create_ids: list):
-        logger.info("%s: Storing %s new skills", self, len(create_ids))
-        skills = [
-            CharacterSkill(
-                character=self,
-                eve_type=EveType.objects.get(id=skill_info.get("skill_id")),
-                active_skill_level=skill_info.get("active_skill_level"),
-                skillpoints_in_skill=skill_info.get("skillpoints_in_skill"),
-                trained_skill_level=skill_info.get("trained_skill_level"),
-            )
-            for skill_id, skill_info in skills_list.items()
-            if skill_id in create_ids
-        ]
-        CharacterSkill.objects.bulk_create(
-            skills, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-        )
-
-    def _update_existing_skills(self, skills_list: dict, update_ids: list):
-        logger.info("%s: Updating %s skills", self, len(update_ids))
-        update_pks = list(
-            self.skills.filter(eve_type_id__in=update_ids).values_list("pk", flat=True)
-        )
-        skills = self.skills.in_bulk(update_pks)
-        for skill in skills.values():
-            skill_info = skills_list.get(skill.eve_type_id)
-            if skill_info:
-                skill.active_skill_level = skill_info.get("active_skill_level")
-                skill.skillpoints_in_skill = skill_info.get("skillpoints_in_skill")
-                skill.trained_skill_level = skill_info.get("trained_skill_level")
-
-        CharacterSkill.objects.bulk_update(
-            skills.values(),
-            fields=[
-                "active_skill_level",
-                "skillpoints_in_skill",
-                "trained_skill_level",
-            ],
-            batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
-        )
-
     @fetch_token_for_character("esi-wallet.read_character_wallet.v1")
     def update_wallet_balance(self, token):
         """syncs the character's wallet balance"""
@@ -2007,7 +1250,6 @@ class Character(models.Model):
         Note: Does not update unknown EvEntities.
         """
         logger.info("%s: Fetching wallet journal from ESI", self)
-
         journal = esi.client.Wallet.get_characters_character_id_wallet_journal(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
@@ -2015,56 +1257,7 @@ class Character(models.Model):
         if MEMBERAUDIT_DEVELOPER_MODE:
             self._store_list_to_disk(journal, "wallet_journal")
 
-        cutoff_datetime = data_retention_cutoff()
-        entries_list = {
-            obj.get("id"): obj
-            for obj in journal
-            if cutoff_datetime is None or obj.get("date") > cutoff_datetime
-        }
-        if cutoff_datetime:
-            self.wallet_journal.filter(date__lt=cutoff_datetime).delete()
-
-        with transaction.atomic():
-            incoming_ids = set(entries_list.keys())
-            existing_ids = set(self.wallet_journal.values_list("entry_id", flat=True))
-            create_ids = incoming_ids.difference(existing_ids)
-            if not create_ids:
-                logger.info("%s: No new wallet journal entries", self)
-                return
-
-            logger.info(
-                "%s: Adding %s new wallet journal entries", self, len(create_ids)
-            )
-            entries = [
-                CharacterWalletJournalEntry(
-                    character=self,
-                    entry_id=entry_id,
-                    amount=row.get("amount"),
-                    balance=row.get("balance"),
-                    context_id=row.get("context_id"),
-                    context_id_type=(
-                        CharacterWalletJournalEntry.match_context_type_id(
-                            row.get("context_id_type")
-                        )
-                    ),
-                    date=row.get("date"),
-                    description=row.get("description"),
-                    first_party=get_or_create_or_none("first_party_id", row, EveEntity),
-                    ref_type=row.get("ref_type"),
-                    second_party=get_or_create_or_none(
-                        "second_party_id", row, EveEntity
-                    ),
-                    tax=row.get("tax"),
-                    tax_receiver=row.get("tax_receiver"),
-                )
-                for entry_id, row in entries_list.items()
-                if entry_id in create_ids
-            ]
-            CharacterWalletJournalEntry.objects.bulk_create(
-                entries, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-            )
-
-        EveEntity.objects.bulk_update_new_esi()
+        self.wallet_journal.update_for_character(self, data_retention_cutoff(), journal)
 
     def _store_list_to_disk(self, lst: list, name: str):
         """stores the given list as JSON file to disk. For debugging
@@ -2194,6 +1387,8 @@ class CharacterContactLabel(models.Model):
     label_id = models.PositiveBigIntegerField()
     name = models.CharField(max_length=NAMES_MAX_LENGTH)
 
+    objects = CharacterContactLabelManager()
+
     class Meta:
         default_permissions = ()
         constraints = [
@@ -2227,6 +1422,8 @@ class CharacterContact(models.Model):
     is_watched = models.BooleanField(default=None, null=True)
     standing = models.FloatField()
     labels = models.ManyToManyField(CharacterContactLabel, related_name="contacts")
+
+    objects = CharacterContactManager()
 
     class Meta:
         default_permissions = ()
@@ -2422,6 +1619,8 @@ class CharacterContract(models.Model):
     title = models.CharField(max_length=NAMES_MAX_LENGTH, default="")
     volume = models.FloatField(default=None, null=True)
 
+    objects = CharacterContractManager()
+
     class Meta:
         default_permissions = ()
         constraints = [
@@ -2497,6 +1696,8 @@ class CharacterContractBid(models.Model):
     bidder = models.ForeignKey(EveEntity, on_delete=models.CASCADE, related_name="+")
     date_bid = models.DateTimeField()
 
+    objects = CharacterContractBidManager()
+
     class Meta:
         default_permissions = ()
 
@@ -2556,6 +1757,8 @@ class CharacterCorporationHistory(models.Model):
     )
     is_deleted = models.BooleanField(null=True, default=None, db_index=True)
     start_date = models.DateTimeField(db_index=True)
+
+    objects = CharacterCorporationHistoryManager()
 
     class Meta:
         default_permissions = ()
@@ -2644,6 +1847,8 @@ class CharacterImplant(models.Model):
     )
     eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE, related_name="+")
 
+    objects = CharacterImplantManager()
+
     class Meta:
         default_permissions = ()
         constraints = [
@@ -2692,6 +1897,8 @@ class CharacterLoyaltyEntry(models.Model):
 
     loyalty_points = models.PositiveIntegerField()
 
+    objects = CharacterLoyaltyEntryManager()
+
     class Meta:
         default_permissions = ()
         constraints = [
@@ -2715,6 +1922,8 @@ class CharacterJumpClone(models.Model):
 
     location = models.ForeignKey(Location, on_delete=models.CASCADE)
     name = models.CharField(max_length=NAMES_MAX_LENGTH, default="")
+
+    objects = CharacterJumpCloneManager()
 
     class Meta:
         default_permissions = ()
@@ -2769,6 +1978,8 @@ class CharacterMail(models.Model):
     )
     subject = models.CharField(max_length=255, default="")
     timestamp = models.DateTimeField(null=True, default=None)
+
+    objects = CharacterMailManager()
 
     class Meta:
         default_permissions = ()
@@ -2864,6 +2075,8 @@ class CharacterSkill(models.Model):
         validators=[MinValueValidator(1), MaxValueValidator(5)]
     )
 
+    objects = CharacterSkillManager()
+
     class Meta:
         default_permissions = ()
         constraints = [
@@ -2912,6 +2125,8 @@ class CharacterSkillqueueEntry(models.Model):
     start_date = models.DateTimeField(default=None, null=True)
     training_start_sp = models.PositiveIntegerField(default=None, null=True)
 
+    objects = CharacterSkillqueueEntryManager()
+
     class Meta:
         default_permissions = ()
         constraints = [
@@ -2942,6 +2157,8 @@ class CharacterSkillSetCheck(models.Model):
     failed_recommended_skills = models.ManyToManyField(
         "SkillSetSkill", related_name="failed_recommended_skill_set_checks"
     )
+
+    objects = CharacterSkillSetCheckManager()
 
     class Meta:
         default_permissions = ()
@@ -3171,6 +2388,8 @@ class CharacterWalletJournalEntry(models.Model):
         related_name="+",
     )
 
+    objects = CharacterWalletJournalEntryManager()
+
     class Meta:
         default_permissions = ()
         constraints = [
@@ -3246,6 +2465,8 @@ class SkillSet(models.Model):
             "on their character sheet and used for audit purposes only."
         ),
     )
+
+    objects = SkillSetManager()
 
     def __str__(self) -> str:
         return str(self.name)
