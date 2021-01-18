@@ -15,12 +15,11 @@ from allianceauth.services.hooks import get_extension_logger
 
 from .. import __title__
 from ..helpers import users_with_permission
-from ..managers import (
+from ..managers.general import (
     EveShipTypeManger,
     EveSkillTypeManger,
     LocationManager,
     MailEntityManager,
-    SkillSetManager,
 )
 from ..utils import LoggerAddTag
 from .constants import NAMES_MAX_LENGTH
@@ -267,8 +266,6 @@ class SkillSet(models.Model):
             "on their character sheet and used for audit purposes only."
         ),
     )
-
-    objects = SkillSetManager()
 
     def __str__(self) -> str:
         return str(self.name)

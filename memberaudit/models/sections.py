@@ -21,7 +21,7 @@ from allianceauth.services.hooks import get_extension_logger
 
 from .. import __title__
 from ..core.xml_converter import eve_xml_to_html
-from ..managers import (
+from ..managers.sections import (
     CharacterAssetManager,
     CharacterContactLabelManager,
     CharacterContactManager,

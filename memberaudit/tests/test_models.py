@@ -1390,8 +1390,8 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
             return None, False
 
     @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
-    @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
+    @patch(MANAGERS_PATH + ".sections.EveEntity.objects.get_or_create_esi")
     def test_update_mail_headers_1(
         self, mock_eve_entity, mock_fetch_esi_status, mock_esi
     ):
@@ -1432,8 +1432,8 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertEqual(obj.timestamp, parse_datetime("2015-09-20T12:07:00Z"))
 
     @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
-    @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
+    @patch(MANAGERS_PATH + ".sections.EveEntity.objects.get_or_create_esi")
     def test_update_mail_headers_2(
         self, mock_eve_entity, mock_fetch_esi_status, mock_esi
     ):
@@ -1478,8 +1478,8 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertSetEqual(set(obj.labels.values_list("label_id", flat=True)), {3})
 
     @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
-    @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
+    @patch(MANAGERS_PATH + ".sections.EveEntity.objects.get_or_create_esi")
     def test_update_mail_headers_3(
         self, mock_eve_entity, mock_fetch_esi_status, mock_esi
     ):
@@ -1501,8 +1501,8 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertFalse(obj.is_read)
 
     @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
-    @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
+    @patch(MANAGERS_PATH + ".sections.EveEntity.objects.get_or_create_esi")
     def test_update_mail_headers_4(
         self, mock_eve_entity, mock_fetch_esi_status, mock_esi
     ):
@@ -1524,8 +1524,8 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         self.assertTrue(obj.is_read)
 
     @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", 15)
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
-    @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
+    @patch(MANAGERS_PATH + ".sections.EveEntity.objects.get_or_create_esi")
     def test_update_mail_headers_6(
         self, mock_eve_entity, mock_fetch_esi_status, mock_esi
     ):
@@ -1546,8 +1546,8 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         )
 
     @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", 15)
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
-    @patch(MANAGERS_PATH + ".EveEntity.objects.get_or_create_esi")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
+    @patch(MANAGERS_PATH + ".sections.EveEntity.objects.get_or_create_esi")
     def test_update_mail_headers_7(
         self, mock_eve_entity, mock_fetch_esi_status, mock_esi
     ):
@@ -1948,7 +1948,7 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
         )
 
 
-@patch(MANAGERS_PATH + ".eve_xml_to_html")
+@patch(MANAGERS_PATH + ".sections.eve_xml_to_html")
 @patch(MODELS_PATH + ".character.esi")
 class TestCharacterUpdateCharacterDetails(TestCharacterUpdateBase):
     @classmethod
@@ -2037,7 +2037,7 @@ class TestCharacterUpdateCharacterDetails(TestCharacterUpdateBase):
         self.character_1001.details.refresh_from_db()
         self.assertEqual(self.character_1001.details.name, "Bruce Wayne")
 
-    @patch(MANAGERS_PATH + ".get_or_create_esi_or_none")
+    @patch(MANAGERS_PATH + ".sections.get_or_create_esi_or_none")
     def test_esi_ancestry_bug(
         self, mock_get_or_create_esi_or_none, mock_esi, mock_eve_xml_to_html
     ):

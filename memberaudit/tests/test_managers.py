@@ -288,7 +288,7 @@ class TestMailEntityManager(NoSocketsTestCase):
         self.assertEqual(obj.category, MailEntity.Category.CHARACTER)
         self.assertEqual(obj.name, "John Doe")
 
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
     def test_get_or_create_esi_2(self, mock_fetch_esi_status):
         """When entity does not exist, create it from ESI / existing EveEntity"""
         mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
@@ -299,7 +299,7 @@ class TestMailEntityManager(NoSocketsTestCase):
         self.assertEqual(obj.category, MailEntity.Category.CHARACTER)
         self.assertEqual(obj.name, "Bruce Wayne")
 
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
     def test_update_or_create_esi_1(self, mock_fetch_esi_status):
         """When entity does not exist, create it from ESI / existing EveEntity"""
         mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
@@ -453,7 +453,7 @@ class TestMailEntityManager(NoSocketsTestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
-@patch(MANAGERS_PATH + ".fetch_esi_status")
+@patch(MANAGERS_PATH + ".general.fetch_esi_status")
 class TestMailEntityManagerAsync(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -627,7 +627,7 @@ class TestCharacterUpdateStatusManager(TestCase):
         self.assertEqual(stats["ring_3"]["max"]["duration"], 90)
 
 
-@patch(MANAGERS_PATH + ".esi")
+@patch(MANAGERS_PATH + ".general.esi")
 class TestLocationManager(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -646,7 +646,7 @@ class TestLocationManager(NoSocketsTestCase):
 
     # Structures
 
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
     def test_can_create_structure(self, mock_fetch_esi_status, mock_esi):
         mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client = esi_client_stub
@@ -661,7 +661,7 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertEqual(obj.eve_type, self.astrahus)
         self.assertEqual(obj.owner, self.corporation_2001)
 
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
     def test_can_update_structure(self, mock_fetch_esi_status, mock_esi):
         mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client = esi_client_stub
@@ -684,7 +684,7 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertEqual(obj.eve_type, self.astrahus)
         self.assertEqual(obj.owner, self.corporation_2001)
 
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
     def test_does_not_update_existing_location_during_grace_period(
         self, mock_fetch_esi_status, mock_esi
     ):
@@ -704,7 +704,7 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertFalse(created)
         self.assertEqual(obj, obj_existing)
 
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
     def test_always_update_existing_empty_locations_after_grace_period_1(
         self, mock_fetch_esi_status, mock_esi
     ):
@@ -715,7 +715,7 @@ class TestLocationManager(NoSocketsTestCase):
         obj, _ = Location.objects.get_or_create_esi(id=1000000000001, token=self.token)
         self.assertIsNone(obj.eve_solar_system)
 
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
     def test_always_update_existing_empty_locations_after_grace_period_2(
         self, mock_fetch_esi_status, mock_esi
     ):
@@ -730,8 +730,8 @@ class TestLocationManager(NoSocketsTestCase):
             )
         self.assertEqual(obj.eve_solar_system, self.amamake)
 
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
-    @patch(MANAGERS_PATH + ".MEMBERAUDIT_LOCATION_STALE_HOURS", 24)
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
+    @patch(MANAGERS_PATH + ".general.MEMBERAUDIT_LOCATION_STALE_HOURS", 24)
     def test_always_update_existing_locations_which_are_stale(
         self, mock_fetch_esi_status, mock_esi
     ):
@@ -753,7 +753,7 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertFalse(created)
         self.assertEqual(obj.eve_solar_system, self.amamake)
 
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
     def test_propagates_http_error_on_structure_create(
         self, mock_fetch_esi_status, mock_esi
     ):
@@ -763,7 +763,7 @@ class TestLocationManager(NoSocketsTestCase):
         with self.assertRaises(HTTPNotFound):
             Location.objects.update_or_create_esi(id=1000000000099, token=self.token)
 
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
     def test_always_creates_empty_location_for_invalid_ids(
         self, mock_fetch_esi_status, mock_esi
     ):
@@ -776,7 +776,7 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertTrue(created)
         self.assertTrue(obj.is_empty)
 
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
     def test_propagates_exceptions_on_structure_create(
         self, mock_fetch_esi_status, mock_esi
     ):
@@ -788,7 +788,7 @@ class TestLocationManager(NoSocketsTestCase):
         with self.assertRaises(RuntimeError):
             Location.objects.update_or_create_esi(id=1000000000099, token=self.token)
 
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
     def test_can_create_empty_location_on_access_error_1(
         self, mock_fetch_esi_status, mock_esi
     ):
@@ -803,7 +803,7 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertTrue(created)
         self.assertEqual(obj.id, 1000000000099)
 
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
     def test_can_create_empty_location_on_access_error_2(
         self, mock_fetch_esi_status, mock_esi
     ):
@@ -818,7 +818,7 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertTrue(created)
         self.assertEqual(obj.id, 1000000000099)
 
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
     def test_does_not_creates_empty_location_on_access_errors_if_requested(
         self, mock_fetch_esi_status, mock_esi
     ):
@@ -829,7 +829,7 @@ class TestLocationManager(NoSocketsTestCase):
         with self.assertRaises(RuntimeError):
             Location.objects.update_or_create_esi(id=1000000000099, token=self.token)
 
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
     def test_records_esi_error_on_access_error(self, mock_fetch_esi_status, mock_esi):
         mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client.Universe.get_universe_structures_structure_id.side_effect = (
@@ -909,7 +909,7 @@ class TestLocationManager(NoSocketsTestCase):
         self.assertIsNone(obj.owner)
 
 
-@patch(MANAGERS_PATH + ".esi")
+@patch(MANAGERS_PATH + ".general.esi")
 class TestLocationManagerAsync(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -930,7 +930,7 @@ class TestLocationManagerAsync(TestCase):
         cache.clear()
 
     @override_settings(CELERY_ALWAYS_EAGER=True)
-    @patch(MANAGERS_PATH + ".fetch_esi_status")
+    @patch(MANAGERS_PATH + ".general.fetch_esi_status")
     def test_can_create_structure_async(self, mock_fetch_esi_status, mock_esi):
         mock_fetch_esi_status.return_value = EsiStatus(True, 99, 60)
         mock_esi.client = esi_client_stub

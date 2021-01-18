@@ -36,7 +36,7 @@ from ..app_settings import (
 )
 from ..core.xml_converter import eve_xml_to_html
 from ..decorators import fetch_token_for_character
-from ..managers import CharacterManager, CharacterUpdateStatusManager
+from ..managers.character import CharacterManager, CharacterUpdateStatusManager
 from ..providers import esi
 from ..utils import LoggerAddTag, chunks, datetime_round_hour
 from .general import Location
