@@ -8,8 +8,6 @@ import json
 import os
 from typing import Any, Optional
 
-from bravado.exception import HTTPInternalServerError
-
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
@@ -21,15 +19,7 @@ from django.utils.translation import gettext_lazy as _
 from esi.models import Token
 from esi.errors import TokenError
 
-from eveuniverse.models import (
-    EveAncestry,
-    EveBloodline,
-    EveEntity,
-    EveFaction,
-    EveRace,
-    EveSolarSystem,
-    EveType,
-)
+from eveuniverse.models import EveEntity, EveType
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.services.hooks import get_extension_logger
@@ -46,7 +36,6 @@ from ..app_settings import (
 )
 from ..core.xml_converter import eve_xml_to_html
 from ..decorators import fetch_token_for_character
-from ..helpers import get_or_create_esi_or_none, get_or_create_or_none
 from ..managers import CharacterManager, CharacterUpdateStatusManager
 from ..providers import esi
 from ..utils import LoggerAddTag, chunks, datetime_round_hour
@@ -433,53 +422,7 @@ class Character(models.Model):
         if force_update or self.has_section_changed(
             section=self.UpdateSection.CHARACTER_DETAILS, content=details
         ):
-            description = (
-                details.get("description", "") if details.get("description") else ""
-            )
-            if description:
-                eve_xml_to_html(description)  # resolve names early
-
-            gender = (
-                CharacterDetails.GENDER_MALE
-                if details.get("gender") == "male"
-                else CharacterDetails.GENDER_FEMALE
-            )
-
-            # Workaround because of ESI issue #1264
-            # TODO: Remove once issue is fixed
-            try:
-                eve_ancestry = get_or_create_esi_or_none(
-                    "ancestry_id", details, EveAncestry
-                )
-            except HTTPInternalServerError:
-                eve_ancestry = None
-
-            CharacterDetails.objects.update_or_create(
-                character=self,
-                defaults={
-                    "alliance": get_or_create_or_none(
-                        "alliance_id", details, EveEntity
-                    ),
-                    "birthday": details.get("birthday"),
-                    "eve_ancestry": eve_ancestry,
-                    "eve_bloodline": get_or_create_esi_or_none(
-                        "bloodline_id", details, EveBloodline
-                    ),
-                    "eve_faction": get_or_create_esi_or_none(
-                        "faction_id", details, EveFaction
-                    ),
-                    "eve_race": get_or_create_esi_or_none("race_id", details, EveRace),
-                    "corporation": get_or_create_or_none(
-                        "corporation_id", details, EveEntity
-                    ),
-                    "description": description,
-                    "gender": gender,
-                    "name": details.get("name", ""),
-                    "security_status": details.get("security_status"),
-                    "title": details.get("title", "") if details.get("title") else "",
-                },
-            )
-            EveEntity.objects.bulk_update_new_esi()
+            CharacterDetails.objects.update_for_character(self, details)
             self.update_section_content_hash(
                 section=self.UpdateSection.CHARACTER_DETAILS, content=details
             )
@@ -684,28 +627,7 @@ class Character(models.Model):
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
-        eve_solar_system, _ = EveSolarSystem.objects.get_or_create_esi(
-            id=location_info.get("solar_system_id")
-        )
-        if location_info.get("station_id"):
-            location, _ = Location.objects.get_or_create_esi_async(
-                id=location_info.get("station_id"), token=token
-            )
-        elif location_info.get("structure_id"):
-            location, _ = Location.objects.get_or_create_esi_async(
-                id=location_info.get("structure_id"), token=token
-            )
-        else:
-            location = None
-
-        if eve_solar_system:
-            CharacterLocation.objects.update_or_create(
-                character=self,
-                defaults={
-                    "eve_solar_system": eve_solar_system,
-                    "location": location,
-                },
-            )
+        CharacterLocation.objects.update_for_character(self, token, location_info)
 
     @fetch_token_for_character("esi-characters.read_loyalty.v1")
     def update_loyalty(self, token: Token, force_update: bool = False):

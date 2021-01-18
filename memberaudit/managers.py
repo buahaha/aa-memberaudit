@@ -3,6 +3,8 @@ import datetime as dt
 from math import floor
 from typing import Dict, Iterable, Tuple, List
 
+from bravado.exception import HTTPInternalServerError
+
 from django.contrib.auth.models import User
 from django.db import models, transaction
 from django.db.models import (
@@ -21,12 +23,21 @@ from django.utils.timezone import now
 from bravado.exception import HTTPUnauthorized, HTTPForbidden
 from esi.models import Token
 
-from eveuniverse.models import EveEntity, EveSolarSystem, EveType
+from eveuniverse.models import (
+    EveAncestry,
+    EveBloodline,
+    EveEntity,
+    EveFaction,
+    EveRace,
+    EveSolarSystem,
+    EveType,
+)
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__
+from .core.xml_converter import eve_xml_to_html
 from .constants import (
     EVE_TYPE_ID_SOLAR_SYSTEM,
     EVE_CATEGORY_ID_SKILL,
@@ -734,6 +745,55 @@ class CharacterCorporationHistoryManager(models.Manager):
             EveEntity.objects.bulk_update_new_esi()
 
 
+class CharacterDetailsManager(models.Manager):
+    def update_for_character(self, character: models.Model, details):
+        description = (
+            details.get("description", "") if details.get("description") else ""
+        )
+        if description:
+            eve_xml_to_html(description)  # resolve names early
+
+        gender = (
+            self.model.GENDER_MALE
+            if details.get("gender") == "male"
+            else self.model.GENDER_FEMALE
+        )
+
+        # Workaround because of ESI issue #1264
+        # TODO: Remove once issue is fixed
+        try:
+            eve_ancestry = get_or_create_esi_or_none(
+                "ancestry_id", details, EveAncestry
+            )
+        except HTTPInternalServerError:
+            eve_ancestry = None
+
+        self.update_or_create(
+            character=character,
+            defaults={
+                "alliance": get_or_create_or_none("alliance_id", details, EveEntity),
+                "birthday": details.get("birthday"),
+                "eve_ancestry": eve_ancestry,
+                "eve_bloodline": get_or_create_esi_or_none(
+                    "bloodline_id", details, EveBloodline
+                ),
+                "eve_faction": get_or_create_esi_or_none(
+                    "faction_id", details, EveFaction
+                ),
+                "eve_race": get_or_create_esi_or_none("race_id", details, EveRace),
+                "corporation": get_or_create_or_none(
+                    "corporation_id", details, EveEntity
+                ),
+                "description": description,
+                "gender": gender,
+                "name": details.get("name", ""),
+                "security_status": details.get("security_status"),
+                "title": details.get("title", "") if details.get("title") else "",
+            },
+        )
+        EveEntity.objects.bulk_update_new_esi()
+
+
 class CharacterImplantManager(models.Manager):
     @transaction.atomic()
     def update_for_character(self, character: models.Model, implants_data):
@@ -750,6 +810,36 @@ class CharacterImplantManager(models.Manager):
             self.bulk_create(implants, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE)
         else:
             logger.info("%s: No implants", character)
+
+
+class CharacterLocationManager(models.Manager):
+    def update_for_character(
+        self, character: models.Model, token: Token, location_info
+    ):
+        from .models.general import Location
+
+        eve_solar_system, _ = EveSolarSystem.objects.get_or_create_esi(
+            id=location_info.get("solar_system_id")
+        )
+        if location_info.get("station_id"):
+            location, _ = Location.objects.get_or_create_esi_async(
+                id=location_info.get("station_id"), token=token
+            )
+        elif location_info.get("structure_id"):
+            location, _ = Location.objects.get_or_create_esi_async(
+                id=location_info.get("structure_id"), token=token
+            )
+        else:
+            location = None
+
+        if eve_solar_system:
+            self.update_or_create(
+                character=character,
+                defaults={
+                    "eve_solar_system": eve_solar_system,
+                    "location": location,
+                },
+            )
 
 
 class CharacterLoyaltyEntryManager(models.Manager):

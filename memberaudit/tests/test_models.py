@@ -1948,7 +1948,7 @@ class TestCharacterUpdateWallet(TestCharacterUpdateBase):
         )
 
 
-@patch(MODELS_PATH + ".character.eve_xml_to_html")
+@patch(MANAGERS_PATH + ".eve_xml_to_html")
 @patch(MODELS_PATH + ".character.esi")
 class TestCharacterUpdateCharacterDetails(TestCharacterUpdateBase):
     @classmethod
@@ -2037,7 +2037,7 @@ class TestCharacterUpdateCharacterDetails(TestCharacterUpdateBase):
         self.character_1001.details.refresh_from_db()
         self.assertEqual(self.character_1001.details.name, "Bruce Wayne")
 
-    @patch(MODELS_PATH + ".character.get_or_create_esi_or_none")
+    @patch(MANAGERS_PATH + ".get_or_create_esi_or_none")
     def test_esi_ancestry_bug(
         self, mock_get_or_create_esi_or_none, mock_esi, mock_eve_xml_to_html
     ):
@@ -2244,11 +2244,7 @@ class TestCharacterUpdateLoyalty(TestCharacterUpdateBase):
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(MODELS_PATH + ".character.esi")
-class TestCharacterUpdateOther(TestCharacterUpdateBase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        super().setUpClass()
-
+class TestCharacterUpdateLocation(TestCharacterUpdateBase):
     def test_update_location_1(self, mock_esi):
         mock_esi.client = esi_client_stub
 
@@ -2263,6 +2259,10 @@ class TestCharacterUpdateOther(TestCharacterUpdateBase):
         self.assertEqual(self.character_1002.location.eve_solar_system, self.amamake)
         self.assertEqual(self.character_1002.location.location, self.structure_1)
 
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(MODELS_PATH + ".character.esi")
+class TestCharacterUpdateOnlineStatus(TestCharacterUpdateBase):
     def test_update_online_status(self, mock_esi):
         mock_esi.client = esi_client_stub
 

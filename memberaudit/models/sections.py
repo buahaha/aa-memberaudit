@@ -29,7 +29,9 @@ from ..managers import (
     CharacterContractBidManager,
     CharacterContractItemManager,
     CharacterCorporationHistoryManager,
+    CharacterDetailsManager,
     CharacterImplantManager,
+    CharacterLocationManager,
     CharacterLoyaltyEntryManager,
     CharacterJumpCloneManager,
     CharacterMailLabelManager,
@@ -556,6 +558,8 @@ class CharacterDetails(models.Model):
     security_status = models.FloatField(default=None, null=True)
     title = models.TextField()
 
+    objects = CharacterDetailsManager()
+
     class Meta:
         default_permissions = ()
 
@@ -604,6 +608,8 @@ class CharacterLocation(models.Model):
     location = models.ForeignKey(
         Location, on_delete=models.SET_DEFAULT, default=None, null=True
     )
+
+    objects = CharacterLocationManager()
 
     class Meta:
         default_permissions = ()
