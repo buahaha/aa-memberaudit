@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Changed
+
+- Refactor and split models ([#66](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/66))
+
 ## [1.0.1] - 2021-01-16
 
 ### Changed
