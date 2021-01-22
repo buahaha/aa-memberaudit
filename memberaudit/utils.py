@@ -1,7 +1,7 @@
 """
 Utility functions meant to be used in many apps
 
-Version 1.3.0
+Version 1.3.1
 """
 
 import socket
@@ -522,9 +522,7 @@ class ObjectCacheMixin:
             self._fetch_object_for_cache, pk=pk, select_related=select_related
         )
         return cache.get_or_set(
-            key=self._create_object_cache_key(pk, select_related),
-            func=func,
-            timeout=timeout,
+            self._create_object_cache_key(pk, select_related), func, timeout
         )
 
     def _create_object_cache_key(self, pk, select_related: str = None) -> str:
@@ -548,7 +546,7 @@ class ObjectCacheMixin:
 def cached_queryset(
     queryset: models.QuerySet, key: str, timeout: Union[int, float]
 ) -> models.QuerySet:
-    return cache.get_or_set(key=key, func=lambda: queryset, timeout=timeout)
+    return cache.get_or_set(key, lambda: queryset, timeout)
 
 
 ###################

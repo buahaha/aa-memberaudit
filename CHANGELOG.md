@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
+## [1.0.2] - 2021-01-22
+
 - Refactor and split models ([#66](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/66))
+
+### Fixed
+
+- Incompatible with django-redis-cache 3.0 ([#90](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/90))
+
+### Changed
 
 ## [1.0.1] - 2021-01-16
 
