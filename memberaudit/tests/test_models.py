@@ -2679,7 +2679,7 @@ class TestCharacterUpdateWalletTransaction(TestCharacterUpdateBase):
         self.assertEqual(obj.location, Location.objects.get(id=60003760))
         self.assertEqual(obj.quantity, 3)
         self.assertEqual(obj.eve_type, EveType.objects.get(id=603))
-        self.assertEqual(float(obj.unit_price), 75.99)
+        self.assertEqual(float(obj.unit_price), 450000.99)
 
     def test_should_add_wallet_transactions_from_scratch_with_journal_ref(
         self, mock_esi
@@ -2689,7 +2689,7 @@ class TestCharacterUpdateWalletTransaction(TestCharacterUpdateBase):
         journal_entry = CharacterWalletJournalEntry.objects.create(
             character=self.character_1001,
             entry_id=67890,
-            amount=75.99,
+            amount=450000.99,
             balance=10_000_000,
             context_id_type=CharacterWalletJournalEntry.CONTEXT_ID_TYPE_UNDEFINED,
             date=parse_datetime("2016-10-24T09:00:00Z"),

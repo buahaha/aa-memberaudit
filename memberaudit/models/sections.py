@@ -1079,14 +1079,14 @@ class CharacterWalletTransaction(models.Model):
 
     objects = CharacterWalletTransactionManager()
 
-    # class Meta:
-    #     default_permissions = ()
-    #     constraints = [
-    #         models.UniqueConstraint(
-    #             fields=["character", "transaction_id"],
-    #             name="functional_pk_characterwalletjournalentry",
-    #         )
-    #     ]
+    class Meta:
+        default_permissions = ()
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "transaction_id"],
+                name="functional_pk_characterwallettransactions",
+            )
+        ]
 
     def __str__(self) -> str:
         return str(self.character) + " " + str(self.transaction_id)

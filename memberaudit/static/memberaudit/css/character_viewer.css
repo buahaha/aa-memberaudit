@@ -1,4 +1,8 @@
 @media all {
+    h4 {
+        margin-top: 0px;
+    }
+
     /* character summary */
     .character-summary-flex {
         display: flex;
@@ -165,24 +169,41 @@
     }
     */
 
-    /* Wallet */
-    #tab_wallet tbody td:nth-child(1) {
+    /* Wallet Journal */
+    #tab_wallet_journal tbody td:nth-child(1) {
         white-space: nowrap;
     }
 
-    #tab_wallet tbody td:nth-child(5) {
+    #tab_wallet_journal tbody td:nth-child(5) {
         text-align: right;
     }
 
-    #tab_wallet tfoot td:nth-child(5) {
+    #tab_wallet_journal tfoot td:nth-child(5) {
         text-align: right;
     }
 
-    #tab_wallet tbody td:nth-child(6) {
+    #tab_wallet_journal tbody td:nth-child(6) {
         text-align: right;
     }
 
-    #tab_wallet tfoot td:nth-child(6) {
+    #tab_wallet_journal tfoot td:nth-child(6) {
+        text-align: right;
+    }
+
+    /* Wallet Transactions */
+    #tab_wallet_transactions tbody td:nth-child(1) {
+        white-space: nowrap;
+    }
+
+    #tab_wallet_transactions tbody td:nth-child(2) {
+        text-align: right;
+    }
+
+    #tab_wallet_transactions tbody td:nth-child(4) {
+        text-align: right;
+    }
+
+    #tab_wallet_transactions tbody td:nth-child(5) {
         text-align: right;
     }
 

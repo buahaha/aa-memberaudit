@@ -1,0 +1,23 @@
+{% load i18n %}
+
+<div role="tabpanel" class="tab-pane" id="wallet_transactions">
+    <h4>Market Transactions</h4>
+    <div class="table-responsive">
+        <table class="table table-striped table-width-fix" id="tab_wallet_transactions">
+            <thead>
+                <tr>
+                    <th>{% translate 'Date' %}</th>
+                    <th>{% translate 'Quantity' %}</th>
+                    <th>{% translate 'Type' %}</th>
+                    <th>{% translate 'Unit Price' %}</th>
+                    <th>{% translate 'Total' %}</th>
+                    <th>{% translate 'Client' %}</th>
+                    <th>{% translate 'Where' %}</th>
+                </tr>
+            </thead>
+
+            <tbody></tbody>
+        </table>
+    </div>
+    {% include 'memberaudit/partials/character_viewer/tabs/last_updated.html' with update_section=last_updates.wallet_transactions %}
+</div>

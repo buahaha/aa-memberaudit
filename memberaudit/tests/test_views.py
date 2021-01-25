@@ -41,6 +41,7 @@ from ..models import (
     CharacterSkill,
     CharacterSkillqueueEntry,
     CharacterWalletJournalEntry,
+    CharacterWalletTransaction,
     SkillSetGroup,
     SkillSet,
     SkillSetSkill,
@@ -71,6 +72,7 @@ from ..views import (
     character_skills_data,
     character_skillqueue_data,
     character_wallet_journal_data,
+    character_wallet_transactions_data,
     character_finder_data,
     compliance_report_data,
     skill_sets_report_data,
@@ -1065,8 +1067,44 @@ class TestCharacterDataViewsOther(TestViewsBase):
         data = json_response_to_python(response)
         self.assertEqual(len(data), 1)
         row = data[0]
-        self.assertEqual(row["amount"], "1000000.00")
-        self.assertEqual(row["balance"], "10000000.00")
+        self.assertEqual(row["amount"], 1000000.00)
+        self.assertEqual(row["balance"], 10000000.00)
+
+    def test_character_wallet_transaction_data(self):
+        my_date = now()
+        CharacterWalletTransaction.objects.create(
+            character=self.character,
+            transaction_id=42,
+            client=EveEntity.objects.get(id=1002),
+            date=my_date,
+            is_buy=True,
+            is_personal=True,
+            location=Location.objects.get(id=60003760),
+            quantity=3,
+            eve_type=EveType.objects.get(id=603),
+            unit_price=450000.99,
+        )
+        request = self.factory.get(
+            reverse(
+                "memberaudit:character_wallet_transactions_data",
+                args=[self.character.pk],
+            )
+        )
+        request.user = self.user
+        response = character_wallet_transactions_data(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
+        data = json_response_to_python(response)
+        self.assertEqual(len(data), 1)
+        row = data[0]
+        self.assertEqual(row["date"], my_date.isoformat())
+        self.assertEqual(row["quantity"], 3)
+        self.assertEqual(row["type"], "Merlin")
+        self.assertEqual(row["unit_price"], 450_000.99)
+        self.assertEqual(row["total"], -1_350_002.97)
+        self.assertEqual(row["client"], "Clark Kent")
+        self.assertEqual(
+            row["location"], "Jita IV - Moon 4 - Caldari Navy Assembly Plant"
+        )
 
     def test_character_corporation_history(self):
         """

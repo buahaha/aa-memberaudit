@@ -36,7 +36,8 @@
                             {% include 'memberaudit/partials/character_viewer/tabs/mails.html' %}
                             {% include 'memberaudit/partials/character_viewer/tabs/skills.html' %}
                             {% include 'memberaudit/partials/character_viewer/tabs/skill_queue.html' %}
-                            {% include 'memberaudit/partials/character_viewer/tabs/wallet.html' %}
+                            {% include 'memberaudit/partials/character_viewer/tabs/wallet_journal.html' %}
+                            {% include 'memberaudit/partials/character_viewer/tabs/wallet_transactions.html' %}
                         </div>
                     </div>
                 </div>
@@ -615,8 +616,8 @@
                 }
             });
 
-            /* Wallet */
-            $('#tab_wallet').DataTable({
+            /* Wallet Journal */
+            $('#tab_wallet_journal').DataTable({
                 ajax: {
                     url: "{% url 'memberaudit:character_wallet_journal_data' character.pk %}",
                     dataSrc: '',
@@ -632,11 +633,19 @@
                     { data: 'second_party' },
                     {
                         data: 'amount',
-                        render: $.fn.dataTable.render.number( ',', '.', 2 )
+                        render: function ( data, type, row, meta ) {
+                            value = data.toLocaleString()
+                            if ( data < 0 ) {
+                                return '<span class="text-danger">' + value + '</span>';
+                            } else {
+                                return '<span class="text-success">' + value + '</span>';
+                            }
+                        }
                     },
+
                     {
                         data: 'balance',
-                        render: $.fn.dataTable.render.number( ',', '.', 2 )
+                        render: $.fn.dataTable.render.number( ',', '.', 0 )
                     },
                     { data: 'description' },
                 ],
@@ -657,6 +666,67 @@
                     bootstrap: true
                 }
             });
+
+            /* Wallet Transactions */
+            $('#tab_wallet_transactions').DataTable({
+                ajax: {
+                    url: "{% url 'memberaudit:character_wallet_transactions_data' character.pk %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    {
+                        data: 'date',
+                        render: $.fn.dataTable.render.moment( moment.ISO_8601, DATETIME_FORMAT )
+                    },
+                    {
+                        data: 'quantity',
+                        render: $.fn.dataTable.render.number( ',', '.', 0 )
+                    },
+                    { data: 'type' },
+                    {
+                        data: 'unit_price',
+                        render: $.fn.dataTable.render.number( ',', '.', 2 )
+                    },
+                    {
+                        data: 'total',
+                        render: function ( data, type, row, meta ) {
+                            value = data.toLocaleString()
+                            if ( row['is_buy'] ) {
+                                return '<span class="text-danger">' + value + '</span>';
+                            } else {
+                                return '<span class="text-success">' + value + '</span>';
+                            }
+                        }
+                    },
+                    { data: 'client' },
+                    { data: 'location' },
+                    /* hidden */
+                    { data: 'buy_or_sell' },
+
+                ],
+                order: [[0, "desc"]],
+                columnDefs: [
+                    { "visible": false, "targets": [ 7 ] }
+                ],
+                filterDropDown: {
+                    columns: [
+                        {
+                            idx: 7,
+                            title: "{% trans 'Buy and Sell' %}"
+                        },
+                        {
+                            idx: 5
+                        },
+                        {
+                            idx: 6
+                        }
+                    ],
+                    autoSize: false,
+                    bootstrap: true
+                }
+            });
+
         });
     </script>
 {% endblock extra_javascript %}

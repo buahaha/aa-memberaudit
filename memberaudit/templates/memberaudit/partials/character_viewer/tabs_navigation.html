@@ -19,5 +19,11 @@
     <li role="presentation"><a href="#skillqueue" aria-controls="skillqueue" role="tab" data-toggle="tab">{% translate 'Skill Queue' %}</a></li>
     <li role="presentation"><a href="#skill_sets" aria-controls="skill_sets" role="tab" data-toggle="tab">{% translate 'Skill Sets' %}</a></li>
     <li role="presentation"><a href="#skills" aria-controls="skills" role="tab" data-toggle="tab">{% translate 'Skills' %}</a></li>
-    <li role="presentation"><a href="#wallet" aria-controls="wallet" role="tab" data-toggle="tab">{% translate 'Wallet' %}</a></li>
+    <li class="dropdown active" role="presentation" role="tab" aria-controls="wallet">
+        <a href="#" id="myTabDrop1" class="dropdown-toggle" data-toggle="dropdown">{% translate 'Wallet' %}&nbsp;<b class="caret"></b></a>
+        <ul class="dropdown-menu" role="menu" aria-labelledby="myTabDrop1">
+        <li class=""><a href="#wallet_journal" tabindex="-1" data-toggle="tab">{% translate 'Transactions' %}</a></li>
+        <li class=""><a href="#wallet_transactions" tabindex="-1" data-toggle="tab">{% translate 'Market Transactions' %}</a></li>
+        </ul>
+    </li>
 </ul>

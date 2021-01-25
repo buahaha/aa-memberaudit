@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-### Changed
+## [1.1.0] - 2021-01-25
+
+### Added
+
+- Wallet transactions ([#88](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/88))
+- Red/green coloring of wallet amounts like in the Eve client
 
 ## [1.0.2] - 2021-01-22
+
+### Changed
 
 - Refactor and split models ([#66](https://gitlab.com/ErikKalkoken/aa-memberaudit/issues/66))
 

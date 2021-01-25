@@ -33,4 +33,5 @@ from .sections import (  # noqa: F401
     CharacterSkillSetCheck,
     CharacterWalletBalance,
     CharacterWalletJournalEntry,
+    CharacterWalletTransaction,
 )

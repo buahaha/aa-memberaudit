@@ -74,11 +74,6 @@ urlpatterns = [
         name="character_corporation_history",
     ),
     path(
-        "character_skill_sets_data/<int:character_pk>/",
-        views.character_skill_sets_data,
-        name="character_skill_sets_data",
-    ),
-    path(
         "character_implants_data/<int:character_pk>/",
         views.character_implants_data,
         name="character_implants_data",
@@ -119,9 +114,19 @@ urlpatterns = [
         name="character_skills_data",
     ),
     path(
+        "character_skill_sets_data/<int:character_pk>/",
+        views.character_skill_sets_data,
+        name="character_skill_sets_data",
+    ),
+    path(
         "character_wallet_journal_data/<int:character_pk>/",
         views.character_wallet_journal_data,
         name="character_wallet_journal_data",
+    ),
+    path(
+        "character_wallet_transactions_data/<int:character_pk>/",
+        views.character_wallet_transactions_data,
+        name="character_wallet_transactions_data",
     ),
     path("reports", views.reports, name="reports"),
     path(

@@ -1336,14 +1336,45 @@ def character_wallet_journal_data(
                     "ref_type": row.ref_type.replace("_", " ").title(),
                     "first_party": first_party,
                     "second_party": second_party,
-                    "amount": row.amount,
-                    "balance": row.balance,
+                    "amount": float(row.amount),
+                    "balance": float(row.balance),
                     "description": row.description,
                 }
             )
     except ObjectDoesNotExist:
         pass
+    return JsonResponse(wallet_data, safe=False)
 
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_wallet_transactions_data(
+    request, character_pk: int, character: Character
+) -> JsonResponse:
+    wallet_data = list()
+    try:
+        for row in character.wallet_transactions.select_related(
+            "client", "eve_type", "location"
+        ).all():
+            buy_or_sell = gettext_lazy("Buy") if row.is_buy else gettext_lazy("Sell")
+            wallet_data.append(
+                {
+                    "date": row.date.isoformat(),
+                    "quantity": row.quantity,
+                    "type": row.eve_type.name,
+                    "unit_price": float(row.unit_price),
+                    "total": float(
+                        row.unit_price * row.quantity * (-1 if row.is_buy else 1)
+                    ),
+                    "client": row.client.name,
+                    "location": row.location.name,
+                    "is_buy": row.is_buy,
+                    "buy_or_sell": buy_or_sell,
+                }
+            )
+    except ObjectDoesNotExist:
+        pass
     return JsonResponse(wallet_data, safe=False)
 
 

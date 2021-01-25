@@ -56,7 +56,7 @@ Member Audit adds the following key features to Auth:
   - Skill queue
   - Skill sets
   - Skills
-  - Wallet
+  - Wallet (journal and transactions)
 
 - Leadership can define Skill Sets, which are a way of defining skills needed to perform a specific activity or fly a doctrine ship. They allow recruiters and leadership to see at a glance what a character can do (e.g. which doctrine ships he/she can fly)
 - Leadership can see reports and analytics about their members. Those currently include:
