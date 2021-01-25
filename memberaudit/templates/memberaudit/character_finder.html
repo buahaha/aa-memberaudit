@@ -15,11 +15,12 @@
                 <table class="table table-striped table-width-fix" id="tab_characters">
                     <thead>
                         <tr>
-                            <th>{% translate 'Character' %}</th>
-                            <th>{% translate 'Organization' %}</th>
-                            <th>{% translate 'Location' %}</th>
-                            <th>{% translate 'Main' %}</th>
-                            <th>{% translate 'State' %}</th>
+                            <th>{% translate 'Character<br>Name' %}</th>
+                            <th>{% translate 'Character<br>Organization' %}</th>
+                            <th>{% translate 'Character<br>Location' %}</th>
+                            <th>{% translate 'Main<br>Name' %}</th>
+                            <th>{% translate 'Main<br>Organization' %}</th>
+                            <th>{% translate 'Main<br>State' %}</th>
                             <th></th>
                         </tr>
                     </thead>
@@ -61,7 +62,8 @@
                     },
                     { data: 'character_organization' },
                     { data: 'location' },
-                    { data: 'main' },
+                    { data: 'main_character' },
+                    { data: 'main_organization' },
                     { data: 'state_name' },
                     { data: 'actions' },
                     /* hidden columns */
@@ -69,12 +71,14 @@
                     { data: 'corporation_name' },
                     { data: 'region_name' },
                     { data: 'solar_system_name' },
+                    { data: 'main_alliance_name' },
+                    { data: 'main_corporation_name' },
                     { data: 'main_str' },
                 ],
 
                 columnDefs: [
-                    { "orderable": false, "targets": [ 5 ] },
-                    { "visible": false, "targets": [ 6, 7, 8, 9, 10 ] },
+                    { "orderable": false, "targets": [ 6 ] },
+                    { "visible": false, "targets": [ 7, 8, 9, 10, 11, 12, 13 ] },
                 ],
 
                 order: [ [ 0, "asc" ] ],
@@ -82,28 +86,37 @@
                 filterDropDown: {
                     columns: [
                         {
-                            idx: 6,
-                            title: "{% translate 'Alliance' %}"
-                        },
-                        {
                             idx: 7,
-                            title: "{% translate 'Corporation' %}"
-                        },
-                        {
-                            idx: 10,
-                            title: "{% translate 'Main?' %}"
-                        },
-                        {
-                            idx: 4
+                            title: "{% translate 'Char Alliance' %}"
                         },
                         {
                             idx: 8,
-                            title: "{% translate 'Region' %}"
+                            title: "{% translate 'Char Corporation' %}"
                         },
                         {
                             idx: 9,
-                            title: "{% translate 'Solar System' %}"
+                            title: "{% translate 'Char Region' %}"
                         },
+                        {
+                            idx: 10,
+                            title: "{% translate 'Char Solar System' %}"
+                        },
+                        {
+                            idx: 11,
+                            title: "{% translate 'Main Alliance' %}"
+                        },
+                        {
+                            idx: 12,
+                            title: "{% translate 'Main Corporation' %}"
+                        },
+                        {
+                            idx: 13,
+                            title: "{% translate 'Is Main?' %}"
+                        },
+                        {
+                            idx: 5,
+                            title: "{% translate 'Main State' %}"
+                        }
 
                     ],
                     bootstrap: true
@@ -117,6 +130,7 @@
     {% include 'bundles/datatables-css.html' %}
     <link rel="stylesheet" href="{% static 'memberaudit/css/global.css' %}" type="text/css">
     <link rel="stylesheet" href="{% static 'memberaudit/css/memberaudit.css' %}" type="text/css">
+    <link rel="stylesheet" href="{% static 'memberaudit/css/character_finder.css' %}" type="text/css">
 {% endblock %}
 
 {% block extra_script %}

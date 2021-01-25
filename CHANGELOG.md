@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Added
+
+- Additional filters and columns for character finder
+
 ## [1.1.0] - 2021-01-25
 
 ### Added

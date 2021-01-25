@@ -1435,9 +1435,18 @@ def character_finder_data(request) -> JsonResponse:
                 user_profile.main_character.character_name,
                 avatar=True,
             )
+            main_corporation = user_profile.main_character.corporation_name
+            main_alliance = (
+                user_profile.main_character.alliance_name
+                if user_profile.main_character.alliance_name
+                else ""
+            )
+            main_organization = format_html(
+                "{}<br><em>{}</em>", auth_character.corporation_name, alliance_name
+            )
 
         except AttributeError:
-            main_html = ""
+            main_alliance = main_organization = main_corporation = main_html = ""
 
         text = format_html(
             "{}&nbsp;{}",
@@ -1473,6 +1482,9 @@ def character_finder_data(request) -> JsonResponse:
             solar_system_name = ""
             region_name = ""
 
+        alliance_name = (
+            auth_character.alliance_name if auth_character.alliance_name else ""
+        )
         character_list.append(
             {
                 "character_pk": character.pk,
@@ -1481,14 +1493,17 @@ def character_finder_data(request) -> JsonResponse:
                     "sort": auth_character.character_name,
                 },
                 "character_organization": character_organization,
-                "main": main_html,
+                "main_character": main_html,
+                "main_organization": main_organization,
                 "state_name": user_profile.state.name,
                 "location": location_html,
                 "actions": actions_html,
-                "corporation_name": auth_character.corporation_name,
                 "alliance_name": alliance_name,
+                "corporation_name": auth_character.corporation_name,
                 "solar_system_name": solar_system_name,
                 "region_name": region_name,
+                "main_alliance_name": main_alliance,
+                "main_corporation_name": main_corporation,
                 "main_str": yesno_str(character.is_main),
             }
         )
