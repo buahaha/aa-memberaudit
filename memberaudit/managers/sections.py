@@ -1072,3 +1072,64 @@ class CharacterWalletJournalEntryManager(models.Manager):
                 if entry_id in create_ids
             ]
             self.bulk_create(entries, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE)
+
+
+class CharacterWalletTransactionManager(models.Manager):
+    def update_for_character(self, character, cutoff_datetime, transactions, token):
+        from ..models import Location
+
+        transaction_list = {
+            obj.get("transaction_id"): obj
+            for obj in transactions
+            if cutoff_datetime is None or obj.get("date") > cutoff_datetime
+        }
+        if cutoff_datetime:
+            self.filter(character=character, date__lt=cutoff_datetime).delete()
+
+        incoming_location_ids = {
+            row.get("location_id") for row in transaction_list.values()
+        }
+        character._preload_all_locations(token, incoming_location_ids)
+        type_ids = {row.get("type_id") for row in transaction_list.values()}
+        EveType.objects.bulk_get_or_create_esi(ids=type_ids)
+
+        with transaction.atomic():
+            incoming_ids = set(transaction_list.keys())
+            existing_ids = set(self.values_list("transaction_id", flat=True))
+            create_ids = incoming_ids.difference(existing_ids)
+            if not create_ids:
+                logger.info("%s: No new wallet transcations", character)
+                return
+
+            logger.info(
+                "%s: Adding %s new wallet transactions",
+                character,
+                len(create_ids),
+            )
+            entries = []
+            for transaction_id, row in transaction_list.items():
+                if transaction_id in create_ids:
+                    try:
+                        journal_entry = character.wallet_journal.get(
+                            entry_id=row.get("journal_ref_id")
+                        )
+                    except character.wallet_journal.model.DoesNotExist:
+                        journal_entry = None
+                    entries.append(
+                        self.model(
+                            character=character,
+                            transaction_id=transaction_id,
+                            client=get_or_create_or_none("client_id", row, EveEntity),
+                            date=row.get("date"),
+                            is_buy=row.get("is_buy"),
+                            is_personal=row.get("is_personal"),
+                            journal_ref=journal_entry,
+                            location=get_or_none("location_id", row, Location),
+                            eve_type=EveType.objects.get(id=row.get("type_id")),
+                            quantity=row.get("quantity"),
+                            unit_price=row.get("unit_price"),
+                        )
+                    )
+            self.bulk_create(entries, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE)
+
+        EveEntity.objects.bulk_update_new_esi()

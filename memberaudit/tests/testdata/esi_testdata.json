@@ -684,6 +684,22 @@
                     "second_party_id": 2001
                 }
             ]
+        },
+        "get_characters_character_id_wallet_transactions": {
+            "1001": [
+                {
+                    "client_id": 1003,
+                    "date": "2016-10-24T09:00:00Z",
+                    "is_buy": true,
+                    "is_personal": true,
+                    "journal_ref_id": 67890,
+                    "location_id": 60003760,
+                    "quantity": 3,
+                    "transaction_id": 42,
+                    "type_id": 603,
+                    "unit_price": 75.99
+                }
+            ]
         }
     }
 }

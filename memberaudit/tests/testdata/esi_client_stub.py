@@ -150,6 +150,12 @@ _endpoints = [
         "character_id",
         needs_token=True,
     ),
+    EsiEndpoint(
+        "Wallet",
+        "get_characters_character_id_wallet_transactions",
+        "character_id",
+        needs_token=True,
+    ),
 ]
 
 esi_client_stub = EsiClientStub(load_test_data(), endpoints=_endpoints)

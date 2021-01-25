@@ -40,6 +40,7 @@ from ..managers.sections import (
     CharacterSkillqueueEntryManager,
     CharacterSkillSetCheckManager,
     CharacterWalletJournalEntryManager,
+    CharacterWalletTransactionManager,
 )
 from ..utils import LoggerAddTag
 from .constants import CURRENCY_MAX_DECIMALS, CURRENCY_MAX_DIGITS, NAMES_MAX_LENGTH
@@ -975,7 +976,8 @@ class CharacterWalletJournalEntry(models.Model):
     character = models.ForeignKey(
         Character, on_delete=models.CASCADE, related_name="wallet_journal"
     )
-    entry_id = models.PositiveBigIntegerField()
+    entry_id = models.PositiveBigIntegerField(db_index=True)
+
     amount = models.DecimalField(
         max_digits=CURRENCY_MAX_DIGITS,
         decimal_places=CURRENCY_MAX_DECIMALS,
@@ -1049,3 +1051,42 @@ class CharacterWalletJournalEntry(models.Model):
             return result
 
         return cls.CONTEXT_ID_TYPE_UNDEFINED
+
+
+class CharacterWalletTransaction(models.Model):
+    character = models.ForeignKey(
+        Character, on_delete=models.CASCADE, related_name="wallet_transactions"
+    )
+    transaction_id = models.PositiveBigIntegerField(db_index=True)
+
+    client = models.ForeignKey(EveEntity, on_delete=models.CASCADE, related_name="+")
+    date = models.DateTimeField()
+    is_buy = models.BooleanField()
+    is_personal = models.BooleanField()
+    journal_ref = models.OneToOneField(
+        CharacterWalletJournalEntry,
+        on_delete=models.SET_DEFAULT,
+        default=None,
+        null=True,
+        related_name="wallet_transaction",
+    )
+    location = models.ForeignKey(Location, on_delete=models.CASCADE)
+    quantity = models.PositiveIntegerField()
+    eve_type = models.ForeignKey(EveType, on_delete=models.CASCADE)
+    unit_price = models.DecimalField(
+        max_digits=CURRENCY_MAX_DIGITS, decimal_places=CURRENCY_MAX_DECIMALS
+    )
+
+    objects = CharacterWalletTransactionManager()
+
+    # class Meta:
+    #     default_permissions = ()
+    #     constraints = [
+    #         models.UniqueConstraint(
+    #             fields=["character", "transaction_id"],
+    #             name="functional_pk_characterwalletjournalentry",
+    #         )
+    #     ]
+
+    def __str__(self) -> str:
+        return str(self.character) + " " + str(self.transaction_id)

@@ -78,6 +78,7 @@ class Character(models.Model):
         SKILL_SETS = "skill_sets", _("skill sets")
         WALLET_BALLANCE = "wallet_balance", _("wallet balance")
         WALLET_JOURNAL = "wallet_journal", _("wallet journal")
+        WALLET_TRANSACTIONS = "wallet_transactions", _("wallet transactions")
 
         @classmethod
         def method_name(cls, section: str) -> str:
@@ -121,6 +122,7 @@ class Character(models.Model):
         UpdateSection.SKILL_QUEUE: 1,
         UpdateSection.WALLET_BALLANCE: 2,
         UpdateSection.WALLET_JOURNAL: 2,
+        UpdateSection.WALLET_TRANSACTIONS: 2,
     }
 
     character_ownership = models.OneToOneField(
@@ -979,6 +981,25 @@ class Character(models.Model):
             self._store_list_to_disk(journal, "wallet_journal")
 
         self.wallet_journal.update_for_character(self, data_retention_cutoff(), journal)
+
+    @fetch_token_for_character("esi-wallet.read_character_wallet.v1")
+    def update_wallet_transactions(self, token):
+        """syncs the character's wallet transactions"""
+        logger.info("%s: Fetching wallet transactions from ESI", self)
+        transactions = (
+            esi.client.Wallet.get_characters_character_id_wallet_transactions(
+                character_id=self.character_ownership.character.character_id,
+                token=token.valid_access_token(),
+            ).results()
+        )
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(transactions, "wallet_transactions")
+        self.wallet_transactions.update_for_character(
+            character=self,
+            cutoff_datetime=data_retention_cutoff(),
+            transactions=transactions,
+            token=token,
+        )
 
     def _store_list_to_disk(self, lst: list, name: str):
         """stores the given list as JSON file to disk. For debugging
