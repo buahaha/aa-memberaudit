@@ -7,7 +7,7 @@
         <p class="text-danger">{{ error }}</p>
     {% else %}
         <ol class="breadcrumb">
-            <li><a href="#assets_browser">Locations</a></li>
+            <li><a href="#asset_browser">Locations</a></li>
             {% for breadcrumb in breadcrumbs %}
                 {% if forloop.last %}
                     <li class="active"><img src="{{ breadcrumb.icon_url }}"/>&nbsp;&nbsp;{{ breadcrumb.name }}</li>
@@ -17,7 +17,6 @@
                     </a></li>
                 {% endif %}
             {% endfor %}
-            {% comment %} <li class="active"><img src="{{ parent_asset_icon_url }}"/>&nbsp;&nbsp;{{ parent_asset.name_display }} ({{ parent_asset.group_display }})</li> {% endcomment %}
         </ol>
 
         <div class="table-responsive">
@@ -33,9 +32,7 @@
                         <th></th>
                     </tr>
                 </thead>
-
                 <tbody> </tbody>
-
                 <tfoot>
                     <th></th>
                     <th></th>
@@ -140,7 +137,7 @@
             $("#div_assets_main").load(ajax_children_url)
         });
 
-        $('a[href="#assets_browser"]').click(function(){
+        $('a[href="#asset_browser"]').click(function(){
             $('#div_assets_main').load(
                 '{% url "memberaudit:character_asset_locations" character.pk %}'
             )

@@ -58,6 +58,7 @@
 
     <script type="application/javascript" src="{% static 'memberaudit/vendor/datatables/plugins/datetime.js' %}"></script>
     <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
+    <script src="https://code.highcharts.com/highcharts.js"></script>
 
     <script type="application/javascript">
         const DATETIME_FORMAT = 'YYYY-MMM-DD<br>HH:mm'
@@ -127,7 +128,16 @@
             $('#div_assets_main').load(
                 '{% url "memberaudit:character_asset_locations" character.pk %}'
             )
-            $('a[href="#assets_browser"]').click(function(){
+            $('a[href="#asset_overview"]').click(function(event){
+                $(".pillAssets").removeClass("active");
+                $(event.currentTarget.parentNode).addClass("active");
+                $('#div_assets_main').load(
+                    '{% url "memberaudit:character_asset_overview" character.pk %}'
+                )
+            });
+            $('a[href="#asset_browser"]').click(function(){
+                $(".pillAssets").removeClass("active");
+                $(event.currentTarget.parentNode).addClass("active");
                 $('#div_assets_main').load(
                     '{% url "memberaudit:character_asset_locations" character.pk %}'
                 )

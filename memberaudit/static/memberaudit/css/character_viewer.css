@@ -43,8 +43,16 @@
         text-align: right;
     }
 
+    #tab_assets tfoot th:nth-child(1) {
+        text-align: right;
+    }
 
-    /* Assets */
+    #tab_assets tfoot th:nth-child(2) {
+        text-align: right;
+    }
+
+
+    /* Asset Container */
 
     #tab_asset_children tbody td:nth-child(1) {
         white-space: nowrap;

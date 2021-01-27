@@ -485,18 +485,101 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
+def character_asset_overview(
+    request, character_pk: int, character: Character
+) -> HttpResponse:
+    context = {"character": character}
+    return render(
+        request,
+        "memberaudit/partials/character_viewer/tabs/asset_overview.html",
+        context,
+    )
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
 def character_asset_locations(
     request, character_pk: int, character: Character
 ) -> HttpResponse:
-    context = {
-        "character": character,
-        "dummy_icon_url": eveimageserver.type_icon_url(1),
-    }
+    context = {"character": character}
     return render(
         request,
         "memberaudit/partials/character_viewer/tabs/asset_locations.html",
         context,
     )
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_asset_chart_regions_data(
+    request, character_pk: int, character: Character
+) -> JsonResponse:
+    data = list()
+    try:
+        regions_qs = (
+            character.assets.annotate_pricing()
+            .select_related("location__eve_solar_system__eve_constellation__eve_region")
+            .filter(location__isnull=False)
+            .values(
+                region_name=F(
+                    "location__eve_solar_system__eve_constellation__eve_region__name"
+                ),
+            )
+            .annotate(
+                total_value=Sum(
+                    F("price") * F("quantity"), output_field=models.FloatField()
+                )
+            )
+        )
+
+    except ObjectDoesNotExist:
+        return HttpResponseNotFound()
+
+    data = [
+        {
+            "name": row["region_name"] if row["region_name"] else "Unknown",
+            "y": row["total_value"] if row["total_value"] else 0,
+        }
+        for row in regions_qs
+    ]
+    return JsonResponse(data, safe=False)
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_asset_chart_solar_systems_data(
+    request, character_pk: int, character: Character
+) -> JsonResponse:
+    data = list()
+    try:
+        solar_systems_qs = (
+            character.assets.annotate_pricing()
+            .select_related("location__eve_solar_system")
+            .filter(location__isnull=False)
+            .values(
+                solar_system_name=F("location__eve_solar_system__name"),
+            )
+            .annotate(
+                total_value=Sum(
+                    F("price") * F("quantity"), output_field=models.FloatField()
+                )
+            )
+        )
+
+    except ObjectDoesNotExist:
+        return HttpResponseNotFound()
+
+    data = [
+        {
+            "name": row["solar_system_name"] if row["solar_system_name"] else "Unknown",
+            "y": row["total_value"] if row["total_value"] else 0,
+        }
+        for row in solar_systems_qs
+    ]
+    return JsonResponse(data, safe=False)
 
 
 @login_required

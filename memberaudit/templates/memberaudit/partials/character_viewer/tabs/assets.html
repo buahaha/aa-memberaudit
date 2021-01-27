@@ -4,12 +4,14 @@
     <div class="row">
         <div class="col-md-2">
             <ul class="nav nav-pills nav-stacked">
-                <li role="presentation" class="active"><a href="#assets_overview">Overview</a></li>
-                <li role="presentation"><a href="#assets_browser">Browser</a></li>
-                <li role="presentation"><a href="#assets_search">Search</a></li>
+                <li role="presentation" class="pillAssets"><a href="#asset_overview">Overview</a></li>
+                <li role="presentation" class="active pillAssets"><a href="#asset_browser">Browser</a></li>
+                <li role="presentation" class="pillAssets"><a href="#assets_search">Search</a></li>
             </ul>
         </div>
         <div class="col-md-10" id="div_assets_main">
         </div>
     </div>
+    {% include 'memberaudit/partials/character_viewer/tabs/last_updated.html' with update_section=last_updates.assets %}
+    <p class="text-muted">{% translate 'Prices are average market prices.' %}</p>
 </div>

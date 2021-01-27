@@ -29,6 +29,21 @@ urlpatterns = [
         name="unshare_character",
     ),
     path(
+        "character_asset_overview/<int:character_pk>/",
+        views.character_asset_overview,
+        name="character_asset_overview",
+    ),
+    path(
+        "character_asset_chart_regions_data/<int:character_pk>/",
+        views.character_asset_chart_regions_data,
+        name="character_asset_chart_regions_data",
+    ),
+    path(
+        "character_asset_chart_solar_systems_data/<int:character_pk>/",
+        views.character_asset_chart_solar_systems_data,
+        name="character_asset_chart_solar_systems_data",
+    ),
+    path(
         "character_asset_locations/<int:character_pk>/",
         views.character_asset_locations,
         name="character_asset_locations",
