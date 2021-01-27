@@ -529,11 +529,13 @@ def assets_create_children(
         }
         for item_id in child_asset_ids:
             item = assets_flat[item_id]
+            parent = character.assets.get(item_id=item["location_id"])
             new_assets.append(
                 CharacterAsset(
                     character=character,
                     item_id=item_id,
-                    parent=character.assets.get(item_id=item["location_id"]),
+                    parent=parent,
+                    location=parent.location,
                     eve_type_id=item.get("type_id"),
                     name=item.get("name"),
                     is_blueprint_copy=item.get("is_blueprint_copy"),
