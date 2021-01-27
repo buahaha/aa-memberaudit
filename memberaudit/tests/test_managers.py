@@ -641,30 +641,6 @@ class TestLocationManager(NoSocketsTestCase):
         cls.corporation_2001 = EveEntity.objects.get(id=2001)
         cls.corporation_2002 = EveEntity.objects.get(id=2002)
 
-    def test_should_have_name_plus_in_query(self):
-        # given
-        Location.objects.create(
-            id=1,
-            name="Existing Structure",
-            eve_solar_system=self.jita,
-            eve_type=self.jita_trade_hub,
-            owner=self.corporation_2001,
-        )
-        Location.objects.create(
-            id=2,
-            name="",
-            owner=self.corporation_2001,
-        )
-        # when
-        result = {
-            obj["id"]: obj["name_plus_2"]
-            for obj in Location.objects.values("id", "name_plus_2")
-        }
-        # then
-        self.assertDictEqual(
-            {1: "Existing Structure", 2: "Unknown structure #2"}, result
-        )
-
 
 @patch(MANAGERS_PATH + ".general.esi")
 class TestLocationManagerEsi(NoSocketsTestCase):

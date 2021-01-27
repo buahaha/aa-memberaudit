@@ -11,7 +11,7 @@ from eveuniverse.models import EveEntity, EveType
 from allianceauth.tests.auth_utils import AuthUtils
 
 from ..models import (
-    CharacterAsset,
+    # CharacterAsset,
     CharacterContract,
     CharacterContractItem,
     CharacterMail,
@@ -176,48 +176,48 @@ class TestUICharacterViewer(WebTest):
         cls.user = cls.character.character_ownership.user
         cls.jita_44 = Location.objects.get(id=60003760)
 
-    def test_asset_container(self):
-        """
-        given user has a registered character with assets which contain other assets
-        when user clicks on an asset container
-        then the contents of that asset container are shown
-        """
-        # setup data
-        parent_asset = CharacterAsset.objects.create(
-            character=self.character,
-            item_id=1,
-            location=self.jita_44,
-            eve_type=EveType.objects.get(id=20185),
-            is_singleton=True,
-            name="Trucker",
-            quantity=1,
-        )
-        CharacterAsset.objects.create(
-            character=self.character,
-            item_id=2,
-            parent=parent_asset,
-            eve_type=EveType.objects.get(id=603),
-            is_singleton=True,
-            name="My Precious",
-            quantity=1,
-        )
+    # def test_asset_container(self):
+    #     """
+    #     given user has a registered character with assets which contain other assets
+    #     when user clicks on an asset container
+    #     then the contents of that asset container are shown
+    #     """
+    #     # setup data
+    #     parent_asset = CharacterAsset.objects.create(
+    #         character=self.character,
+    #         item_id=1,
+    #         location=self.jita_44,
+    #         eve_type=EveType.objects.get(id=20185),
+    #         is_singleton=True,
+    #         name="Trucker",
+    #         quantity=1,
+    #     )
+    #     CharacterAsset.objects.create(
+    #         character=self.character,
+    #         item_id=2,
+    #         parent=parent_asset,
+    #         eve_type=EveType.objects.get(id=603),
+    #         is_singleton=True,
+    #         name="My Precious",
+    #         quantity=1,
+    #     )
 
-        # open character viewer
-        self.app.set_user(self.user)
-        character_viewer = self.app.get(
-            reverse("memberaudit:character_viewer", args=[self.character.pk])
-        )
-        self.assertEqual(character_viewer.status_code, 200)
+    #     # open character viewer
+    #     self.app.set_user(self.user)
+    #     character_viewer = self.app.get(
+    #         reverse("memberaudit:character_viewer", args=[self.character.pk])
+    #     )
+    #     self.assertEqual(character_viewer.status_code, 200)
 
-        # open asset container
-        asset_container = self.app.get(
-            reverse(
-                "memberaudit:character_asset_container",
-                args=[self.character.pk, parent_asset.pk],
-            )
-        )
-        self.assertEqual(asset_container.status_code, 200)
-        self.assertIn("Asset Container", asset_container.text)
+    #     # open asset container
+    #     asset_container = self.app.get(
+    #         reverse(
+    #             "memberaudit:character_asset_container",
+    #             args=[self.character.pk, parent_asset.pk],
+    #         )
+    #     )
+    #     self.assertEqual(asset_container.status_code, 200)
+    #     self.assertIn("Asset Container", asset_container.text)
 
     def test_contract_items(self):
         """
