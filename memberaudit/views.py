@@ -51,7 +51,6 @@ from .utils import (
     messages_plus,
     yesno_str,
     add_bs_label_html,
-    humanize_value,
 )
 
 from .app_settings import MEMBERAUDIT_APP_NAME
@@ -499,20 +498,6 @@ def character_asset_overview(
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
-def character_asset_locations(
-    request, character_pk: int, character: Character
-) -> HttpResponse:
-    context = {"character": character}
-    return render(
-        request,
-        "memberaudit/partials/character_viewer/tabs/asset_locations.html",
-        context,
-    )
-
-
-@login_required
-@permission_required("memberaudit.basic_access")
-@fetch_character_if_allowed()
 def character_asset_chart_regions_data(
     request, character_pk: int, character: Character
 ) -> JsonResponse:
@@ -529,7 +514,8 @@ def character_asset_chart_regions_data(
             )
             .annotate(
                 total_value=Sum(
-                    F("price") * F("quantity"), output_field=models.FloatField()
+                    F("price") * F("quantity") / 1000_000_000,
+                    output_field=models.FloatField(),
                 )
             )
         )
@@ -564,7 +550,8 @@ def character_asset_chart_solar_systems_data(
             )
             .annotate(
                 total_value=Sum(
-                    F("price") * F("quantity"), output_field=models.FloatField()
+                    F("price") * F("quantity") / 1000_000_000,
+                    output_field=models.FloatField(),
                 )
             )
         )
@@ -580,6 +567,20 @@ def character_asset_chart_solar_systems_data(
         for row in solar_systems_qs
     ]
     return JsonResponse(data, safe=False)
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_asset_locations(
+    request, character_pk: int, character: Character
+) -> HttpResponse:
+    context = {"character": character}
+    return render(
+        request,
+        "memberaudit/partials/character_viewer/tabs/asset_locations.html",
+        context,
+    )
 
 
 @login_required
@@ -637,6 +638,7 @@ def character_asset_locations_data(
         else:
             icon_url = eveimageserver.corporation_logo_url(1, size=DEFAULT_ICON_SIZE)
         location_html = create_icon_plus_name_html(icon_url, location["name_plus_2"])
+        items_count = location["items_count"] if location["items_count"] else 0
         items_value = float(location["items_value"]) if location["items_value"] else 0
         region_name = location[
             "location__eve_solar_system__eve_constellation__eve_region__name"
@@ -659,13 +661,8 @@ def character_asset_locations_data(
                 },
                 "solar_system": location["location__eve_solar_system__name"],
                 "region": region_name,
-                "items_count": location["items_count"]
-                if location["items_count"]
-                else 0,
-                "items_value": {
-                    "display": humanize_value(items_value, 1),
-                    "sort": items_value,
-                },
+                "items_count": items_count,
+                "items_value": items_value,
                 "actions": actions_html,
             }
         )

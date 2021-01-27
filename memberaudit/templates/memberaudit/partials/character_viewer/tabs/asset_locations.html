@@ -38,10 +38,7 @@
                     { data: 'items_count' },
                     {
                         data: 'items_value',
-                        render: {
-                            _: 'display',
-                            sort: 'sort'
-                        }
+                        render: $.fn.dataTable.render.number( ',', '.', 0 )
                     },
                     { data: 'region' },
                     { data: 'actions' },

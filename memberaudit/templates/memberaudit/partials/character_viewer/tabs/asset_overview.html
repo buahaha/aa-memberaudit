@@ -23,75 +23,39 @@
     </div>
 </div>
 
-<script>
-    let fontFamily = 'Lato, "Helvetica Neue", Helvetica, Arial, sans-serif';
-    let colors = [
-        'rgba(0, 188, 140)',
-        'rgba(52, 152, 219)',
-        'rgba(243, 156, 18)',
-        'rgba(231, 76, 60)',
-        'rgba(55, 90, 127)',
-        'rgba(68, 68, 68)',
-        'rgba(173, 181, 189)',
-        'rgba(48, 48, 48)',
-    ];
-    {% if NIGHT_MODE %}
-        Highcharts.setOptions({
-            colors: colors,
-            chart: {
-                backgroundColor: 'rgba(48, 48, 48)',
-                style: {
-                    fontFamily: fontFamily
-                }
-            },
-            plotOptions: {
-                pie: {
-                    borderColor: 'rgba(48, 48, 48)',
-                    dataLabels: {
-                        color: 'rgba(255, 255, 255)'
-                    }
+<script type="application/javascript">
+    Highcharts.setOptions({
+        chart: {
+            plotBackgroundColor: null,
+            plotBorderWidth: null,
+            plotShadow: false,
+            type: 'pie'
+        },
+        title: null,
+        tooltip: {
+            pointFormat: '{series.name}: <b>{point.y:.2f} B ISK</b>'
+        },
+        accessibility: {
+            point: {
+                valueSuffix: 'B'
+            }
+        },
+        plotOptions: {
+            pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                dataLabels: {
+                    enabled: true,
+                    format: '<b>{point.name}</b>: {point.y:.1f}'
                 }
             }
-        });
-    {% else %}
-        Highcharts.setOptions({
-            colors: colors,
-            chart: {
-                style: {
-                    fontFamily: fontFamily
-                }
-            }
-        });
-    {% endif %}
-
+        },
+        subtitle: {
+            text: "Total value by location in billion ISK"
+        }
+    });
     $.get('{% url "memberaudit:character_asset_chart_regions_data" character.pk %}', function(data) {
         Highcharts.chart('asset_chart_regions', {
-            chart: {
-                plotBackgroundColor: null,
-                plotBorderWidth: null,
-                plotShadow: false,
-                type: 'pie'
-            },
-            title: null,
-            tooltip: {
-                pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
-            },
-            accessibility: {
-                point: {
-                    valueSuffix: '%'
-                }
-            },
-            plotOptions: {
-                pie: {
-                    allowPointSelect: true,
-                    cursor: 'pointer',
-                    dataLabels: {
-                        enabled: true,
-                        format: '<b>{point.name}</b>: {point.percentage:.0f} %'
-                    },
-                    size: "60%"
-                }
-            },
             series: [{
                 name: 'Regions',
                 colorByPoint: true,
@@ -102,37 +66,11 @@
 
     $.get('{% url "memberaudit:character_asset_chart_solar_systems_data" character.pk %}', function(data) {
         Highcharts.chart('asset_chart_solar_systems', {
-            chart: {
-                plotBackgroundColor: null,
-                plotBorderWidth: null,
-                plotShadow: false,
-                type: 'pie'
-            },
-            title: null,
-            tooltip: {
-                pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
-            },
-            accessibility: {
-                point: {
-                    valueSuffix: '%'
-                }
-            },
-            plotOptions: {
-                pie: {
-                    allowPointSelect: true,
-                    cursor: 'pointer',
-                    dataLabels: {
-                        enabled: true,
-                        format: '<b>{point.name}</b>: {point.percentage:.0f} %'
-                    },
-                    size: "60%"
-                }
-            },
             series: [{
-                name: 'Regions',
+                name: 'Solar Systems',
                 colorByPoint: true,
                 data: data
             }]
         });
     });
-</script
+</script>

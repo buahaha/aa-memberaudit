@@ -1,0 +1,50 @@
+<!--
+Setup highcharts.js incl. app specific options
+-->
+{% load static %}
+
+<script type="application/javascript" src="{% static 'memberaudit/vendor/highcharts/highcharts.js' %}"></script>
+<script type="application/javascript">
+    let fontFamily = "Lato, 'Helvetica Neue', Helvetica, Arial, sans-serif";
+    let colors = [
+        "rgba(0, 188, 140)",
+        "rgba(52, 152, 219)",
+        "rgba(243, 156, 18)",
+        "rgba(231, 76, 60)",
+        "rgba(55, 90, 127)",
+        "rgba(68, 68, 68)",
+        "rgba(173, 181, 189)",
+        "rgba(48, 48, 48)",
+    ];
+    {% if NIGHT_MODE %}
+        Highcharts.setOptions({
+            colors: colors,
+            chart: {
+                backgroundColor: "rgba(48, 48, 48)",
+                style: {
+                    fontFamily: fontFamily
+                }
+            },
+            plotOptions: {
+                pie: {
+                    borderColor: "rgba(48, 48, 48)",
+                    dataLabels: {
+                        color: "rgba(255, 255, 255)"
+                    }
+                }
+            },
+            subtitle: {
+                style: {"color": "rgba(173, 181, 189)"}
+            }
+        });
+    {% else %}
+        Highcharts.setOptions({
+            colors: colors,
+            chart: {
+                style: {
+                    fontFamily: fontFamily
+                }
+            }
+        });
+    {% endif %}
+</script>
