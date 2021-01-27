@@ -20,7 +20,11 @@ from eveuniverse.models import (
 from allianceauth.services.hooks import get_extension_logger
 
 from .. import __title__
+from .constants import CURRENCY_MAX_DECIMALS, CURRENCY_MAX_DIGITS, NAMES_MAX_LENGTH
+from ..constants import EVE_CATEGORY_ID_SHIP
 from ..core.xml_converter import eve_xml_to_html
+from .character import Character
+from .general import Location
 from ..managers.sections import (
     CharacterAssetManager,
     CharacterContactLabelManager,
@@ -43,10 +47,6 @@ from ..managers.sections import (
     CharacterWalletTransactionManager,
 )
 from ..utils import LoggerAddTag
-from .constants import CURRENCY_MAX_DECIMALS, CURRENCY_MAX_DIGITS, NAMES_MAX_LENGTH
-from .character import Character
-from .general import Location
-
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -108,6 +108,9 @@ class CharacterAsset(models.Model):
     def group_display(self) -> str:
         """group of this asset to be displayed to user"""
         return self.eve_type.name if self.name else self.eve_type.eve_group.name
+
+    def is_ship(self) -> str:
+        return self.eve_type.eve_group.eve_category_id == EVE_CATEGORY_ID_SHIP
 
 
 class CharacterContactLabel(models.Model):

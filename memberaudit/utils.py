@@ -1,7 +1,7 @@
 """
 Utility functions meant to be used in many apps
 
-Version 1.3.1
+Version 1.3.2
 """
 
 import socket
@@ -201,7 +201,11 @@ def humanize_value(value: float, precision: int = 2) -> str:
     """returns given value in human readable and abbreviated form
     e.g. 1234678 -> 1.23m
     """
-    value = float(value)
+    try:
+        value = float(value)
+    except TypeError:
+        value = 0
+
     for exponent, identifier in [(12, "t"), (9, "b"), (6, "m"), (3, "k")]:
         if value >= pow(10, exponent):
             return f"{value / pow(10, exponent):,.{precision}f}{identifier}"

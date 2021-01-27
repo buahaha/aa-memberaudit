@@ -2,6 +2,9 @@ import datetime as dt
 from typing import Iterable, Tuple
 
 from django.db import models
+
+# from django.db.models.functions import Concat
+# from django.db.models import Case, F, Value, When
 from django.utils.timezone import now
 
 from bravado.exception import HTTPUnauthorized, HTTPForbidden
@@ -67,6 +70,26 @@ class LocationManager(models.Manager):
     """
 
     _UPDATE_EMPTY_GRACE_MINUTES = 5
+
+    # def get_queryset(self):
+    #     """Add 'name_plus' field to all querysets"""
+    #     return (
+    #         super()
+    #         .get_queryset()
+    #         .annotate(
+    #             name_plus_2=Case(
+    #                 When(
+    #                     eve_type__isnull=True,
+    #                     then=Concat(
+    #                         Value("Unknown structure #"),
+    #                         "id",
+    #                         output_field=models.CharField(),
+    #                     ),
+    #                 ),
+    #                 default=F("name"),
+    #             )
+    #         )
+    #     )
 
     def get_or_create_esi(self, id: int, token: Token) -> Tuple[models.Model, bool]:
         """gets or creates location object with data fetched from ESI

@@ -1,0 +1,111 @@
+{% load i18n %}
+
+<div role="tabpanel" class="tab-pane" id="assets">
+    <ol class="breadcrumb">
+            <li class="active">Locations</li>
+    </ol>
+    <div class="table-responsive">
+        <table class="table table-striped table-width-fix" id="tab_assets">
+            <thead>
+                <tr>
+                    <th>{% translate 'Location Name' %}</th>
+                    <th>{% translate 'Items Count' %}</th>
+                    <th>{% translate 'Items Value' %}</th>
+                    <th>{% translate 'Region' %}</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    {% include 'memberaudit/partials/character_viewer/tabs/last_updated.html' with update_section=last_updates.assets %}
+    <p class="text-muted">{% translate 'Prices are average market prices.' %}</p>
+    <script>
+        $(document).ready(function () {
+            $('#tab_assets').DataTable({
+                ajax: {
+                    url: "{% url 'memberaudit:character_asset_locations_data' character.pk %}",
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    {
+                        data: 'location',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
+                    { data: 'items_count' },
+                    {
+                        data: 'items_value',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
+                    { data: 'region' },
+                    { data: 'actions' },
+
+                    /* hidden columns */
+                    { data: 'solar_system' },
+                ],
+                order: [[0, "asc"]],
+                columnDefs: [
+                    { "orderable": false, "targets": [ 4] },
+                    { "visible": false, "targets": [ 5 ] }
+                ],
+                filterDropDown: {
+                    columns: [
+                        {
+                            idx: 3,
+                            title: "{% translate 'Region' %}"
+                        },
+                        {
+                            idx: 5,
+                            title: "{% translate 'Solar System' %}"
+                        }
+                    ],
+                    autoSize: false,
+                    bootstrap: true
+                }
+                /*
+                ,
+                footerCallback: function ( row, data, start, end, display ) {
+                    var api = this.api(), data;
+
+                    // Remove the formatting to get integer data for summation
+                    var intVal = function ( i ) {
+                        return typeof i === 'string' ?
+                            i.replace(/[\$,]/g, '')*1 :
+                            typeof i === 'number' ?
+                                i : 0;
+                    };
+
+                    // Total over all pages
+                    var total = api
+                        .column( 6 )
+                        .data()
+                        .reduce( function (a, b) {
+                            return intVal(a) + intVal(b);
+                        }, 0 );
+
+                    // Update footer
+                    $( api.column( 6 ).footer() ).html(
+                        total.toLocaleString()
+                    );
+                }
+                */
+            });
+
+            /* Load asset container for location */
+            $(document).on('click','.reload-asset-container', function(event) {
+                event.stopPropagation();
+                event.stopImmediatePropagation();
+                var ajax_children_url = $(event.currentTarget).data('ajax_children_url');
+                $("#div_assets_main").load(ajax_children_url)
+            });
+        });
+    </script>
+</div>

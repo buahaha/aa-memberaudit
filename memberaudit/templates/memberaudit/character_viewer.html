@@ -45,7 +45,6 @@
         </div>
     </div>
 
-    {% include 'memberaudit/modals/character_viewer/asset_container.html' %}
     {% include 'memberaudit/modals/character_viewer/contract.html' %}
     {% include 'memberaudit/modals/character_viewer/mail.html' %}
 {% endblock details %}
@@ -125,104 +124,13 @@
             });
 
             /* Assets */
-            $('#tab_assets').DataTable({
-                ajax: {
-                    url: "{% url 'memberaudit:character_assets_data' character.pk %}",
-                    dataSrc: '',
-                    cache: false
-                },
-                columns: [
-                    { data: 'location' },
-                    { data: 'name',
-                        render: {
-                            _: 'display',
-                            sort: 'sort'
-                        }
-                    },
-                    {
-                        data: 'quantity',
-                        render: $.fn.dataTable.render.number( ',', '.', 0 )
-                    },
-                    { data: 'group' },
-                    {
-                        data: 'volume',
-                        render: $.fn.dataTable.render.number( ',', '.', 2 )
-                    },
-                    {
-                        data: 'price',
-                        render: $.fn.dataTable.render.number( ',', '.', 2 )
-                    },
-                    {
-                        data: 'total',
-                        render: $.fn.dataTable.render.number( ',', '.', 2 )
-                    },
-                    { data: 'actions' },
-
-                    /* hidden columns */
-                    { data: 'region' },
-                    { data: 'solar_system' },
-                    { data: 'is_ship' },
-                ],
-                order: [[0, "asc"], [1, "asc"], [2, "asc"]],
-                rowGroup: {
-                    dataSrc: 'location',
-                    className: 'table-group'
-                },
-                columnDefs: [
-                    { "orderable": false, "targets": [ 1, 7 ] },
-                    { "visible": false, "targets": [ 0, 8, 9, 10 ] }
-                ],
-                filterDropDown: {
-                    columns: [
-                        {
-                            idx: 8,
-                            title: "{% translate 'Region' %}"
-                        },
-                        {
-                            idx: 9,
-                            title: "{% translate 'Solar System' %}"
-                        },
-                        {
-                            idx: 0
-                        },
-                        {
-                            idx: 10,
-                            title: "{% translate 'Ship?' %}"
-                        },
-                    ],
-                    autoSize: false,
-                    bootstrap: true
-                },
-                footerCallback: function ( row, data, start, end, display ) {
-                    var api = this.api(), data;
-
-                    // Remove the formatting to get integer data for summation
-                    var intVal = function ( i ) {
-                        return typeof i === 'string' ?
-                            i.replace(/[\$,]/g, '')*1 :
-                            typeof i === 'number' ?
-                                i : 0;
-                    };
-
-                    // Total over all pages
-                    var total = api
-                        .column( 6 )
-                        .data()
-                        .reduce( function (a, b) {
-                            return intVal(a) + intVal(b);
-                        }, 0 );
-
-                    // Update footer
-                    $( api.column( 6 ).footer() ).html(
-                        total.toLocaleString()
-                    );
-                }
-            });
-
-            $('#modalCharacterAssetContainer').on('show.bs.modal', function(event) {
-                var button = $(event.relatedTarget)
-                var ajax_children_url = button.data('ajax_children_url');
-                $("#modalCharacterAssetContainerContent").load(ajax_children_url)
+            $('#div_assets_main').load(
+                '{% url "memberaudit:character_asset_locations" character.pk %}'
+            )
+            $('a[href="#assets_browser"]').click(function(){
+                $('#div_assets_main').load(
+                    '{% url "memberaudit:character_asset_locations" character.pk %}'
+                )
             });
 
             /* Contacts */

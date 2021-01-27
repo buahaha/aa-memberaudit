@@ -29,17 +29,22 @@ urlpatterns = [
         name="unshare_character",
     ),
     path(
-        "character_assets_data/<int:character_pk>/",
-        views.character_assets_data,
-        name="character_assets_data",
+        "character_asset_locations/<int:character_pk>/",
+        views.character_asset_locations,
+        name="character_asset_locations",
     ),
     path(
-        "character_asset_container/<int:character_pk>/<int:parent_asset_pk>/",
+        "character_asset_locations_data/<int:character_pk>/",
+        views.character_asset_locations_data,
+        name="character_asset_locations_data",
+    ),
+    path(
+        "character_asset_container/<int:character_pk>/<int:location_id>/",
         views.character_asset_container,
         name="character_asset_container",
     ),
     path(
-        "character_asset_container_data/<int:character_pk>/<int:parent_asset_pk>/",
+        "character_asset_container_data/<int:character_pk>/<int:location_id>/",
         views.character_asset_container_data,
         name="character_asset_container_data",
     ),

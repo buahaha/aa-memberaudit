@@ -1,3 +1,4 @@
+from collections import Counter
 import datetime as dt
 import humanize
 from typing import Optional, Tuple
@@ -5,12 +6,14 @@ from typing import Optional, Tuple
 from django.core.exceptions import ObjectDoesNotExist
 from django.contrib.auth.decorators import login_required, permission_required
 from django.db import transaction, models
-from django.db.models import Count, F, Max, Q, Sum
+from django.db.models import Count, F, Max, Q, Sum, Case, Value, When
+from django.db.models.functions import Concat
 from django.http import (
     JsonResponse,
     HttpResponse,
     HttpResponseNotFound,
     HttpResponseForbidden,
+    Http404,
 )
 from django.shortcuts import render, redirect
 from django.urls import reverse
@@ -28,7 +31,6 @@ from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
 
 from . import tasks, __title__
-from .constants import EVE_CATEGORY_ID_SHIP
 from .decorators import fetch_character_if_allowed
 from .helpers import eve_solar_system_to_html
 from .models import (
@@ -49,6 +51,7 @@ from .utils import (
     messages_plus,
     yesno_str,
     add_bs_label_html,
+    humanize_value,
 )
 
 from .app_settings import MEMBERAUDIT_APP_NAME
@@ -482,85 +485,105 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
-def character_assets_data(
+def character_asset_locations(
+    request, character_pk: int, character: Character
+) -> HttpResponse:
+    context = {
+        "character": character,
+        "dummy_icon_url": eveimageserver.type_icon_url(1),
+    }
+    return render(
+        request,
+        "memberaudit/partials/character_viewer/tabs/asset_locations.html",
+        context,
+    )
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
+def character_asset_locations_data(
     request, character_pk: int, character: Character
 ) -> JsonResponse:
     data = list()
     try:
-        asset_qs = (
+        locations_qs = (
             character.assets.annotate_pricing()
             .select_related(
-                "eve_type",
-                "eve_type__eve_group",
-                "eve_type__eve_group__eve_category",
                 "location",
+                "location__eve_solar_system",
                 "location__eve_solar_system__eve_constellation__eve_region",
+                "location__eve_type",
             )
             .filter(location__isnull=False)
+            .values(
+                "location_id",
+                "location__eve_solar_system__name",
+                "location__eve_solar_system__eve_constellation__eve_region__name",
+                "location__eve_type_id",
+            )
+            .annotate(items_count=Count("location"))
+            .annotate(
+                items_value=Sum(
+                    F("price") * F("quantity"), output_field=models.FloatField()
+                )
+            )
+            .annotate(
+                name_plus_2=Case(
+                    When(
+                        location__eve_solar_system__isnull=True,
+                        then=Concat(
+                            Value("Unknown structure #"),
+                            "location_id",
+                            output_field=models.CharField(),
+                        ),
+                    ),
+                    default=F("location__name"),
+                )
+            )
         )
 
     except ObjectDoesNotExist:
         return HttpResponseNotFound()
 
-    assets_with_children_ids = set(
-        character.assets.filter(children__isnull=False).values_list(
-            "item_id", flat=True
-        )
-    )
-
-    location_counts = {
-        obj["id"]: obj["items_count"]
-        for obj in (
-            Location.objects.filter(characterasset__character=character)
-            .annotate(items_count=Count("characterasset"))
-            .values("id", "items_count")
-        )
-    }
-
-    for asset in asset_qs:
-        if asset.location.eve_solar_system:
-            region = asset.location.eve_solar_system.eve_constellation.eve_region.name
-            solar_system = asset.location.eve_solar_system.name
-        else:
-            region = ""
-            solar_system = ""
-
-        is_ship = yesno_str(
-            asset.eve_type.eve_group.eve_category_id == EVE_CATEGORY_ID_SHIP
-        )
-
-        if asset.item_id in assets_with_children_ids:
-            ajax_children_url = reverse(
-                "memberaudit:character_asset_container",
-                args=[character.pk, asset.pk],
-            )
-            actions_html = (
-                '<button type="button" class="btn btn-default btn-sm" '
-                'data-toggle="modal" data-target="#modalCharacterAssetContainer" '
-                f"data-ajax_children_url={ajax_children_url}>"
-                '<i class="fas fa-search"></i></button>'
+    for location in locations_qs:
+        if location["location__eve_type_id"]:
+            icon_url = eveimageserver.type_icon_url(
+                location["location__eve_type_id"], size=DEFAULT_ICON_SIZE
             )
         else:
-            actions_html = ""
-
-        location_name = (
-            f"{asset.location.name_plus} ({location_counts.get(asset.location_id, 0)})"
+            icon_url = eveimageserver.corporation_logo_url(1, size=DEFAULT_ICON_SIZE)
+        location_html = create_icon_plus_name_html(icon_url, location["name_plus_2"])
+        items_value = float(location["items_value"]) if location["items_value"] else 0
+        region_name = location[
+            "location__eve_solar_system__eve_constellation__eve_region__name"
+        ]
+        ajax_children_url = reverse(
+            "memberaudit:character_asset_container",
+            args=[character.pk, location["location_id"]],
         )
-        name_html, name = item_icon_plus_name_html(asset)
+        actions_html = (
+            '<button type="button" class="btn btn-default btn-sm reload-asset-container" '
+            f"data-ajax_children_url={ajax_children_url}>"
+            '<i class="fas fa-search"></i></button>'
+        )
         data.append(
             {
-                "item_id": asset.item_id,
-                "location": location_name,
-                "name": {"display": name_html, "sort": name},
-                "quantity": asset.quantity if not asset.is_singleton else "",
-                "group": asset.group_display,
-                "volume": asset.eve_type.volume,
-                "price": asset.price,
-                "total": asset.total,
+                "id": location["location_id"],
+                "location": {
+                    "display": location_html,
+                    "sort": location["name_plus_2"],
+                },
+                "solar_system": location["location__eve_solar_system__name"],
+                "region": region_name,
+                "items_count": location["items_count"]
+                if location["items_count"]
+                else 0,
+                "items_value": {
+                    "display": humanize_value(items_value, 1),
+                    "sort": items_value,
+                },
                 "actions": actions_html,
-                "region": region,
-                "solar_system": solar_system,
-                "is_ship": is_ship,
             }
         )
 
@@ -571,31 +594,76 @@ def character_assets_data(
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
 def character_asset_container(
-    request, character_pk: int, character: Character, parent_asset_pk: int
-) -> JsonResponse:
-    try:
-        parent_asset = character.assets.select_related(
-            "location", "eve_type", "eve_type__eve_group"
-        ).get(pk=parent_asset_pk)
-    except CharacterAsset.DoesNotExist:
-        error_msg = (
-            f"Asset with pk {parent_asset_pk} not found for character {character}"
+    request,
+    character_pk: int,
+    character: Character,
+    location_id: int,
+) -> HttpResponse:
+    def build_asset_container_url(character, location_id, path=None):
+        return (
+            reverse(
+                "memberaudit:character_asset_container",
+                args=[character.pk, location_id],
+            )
+            + (f"?path={','.join(path)}" if path else "")
         )
-        logger.warning(error_msg)
-        context = {
-            "error": error_msg,
-        }
+
+    try:
+        location = Location.objects.select_related("eve_type").get(id=location_id)
+    except Location.DoesNotExist:
+        raise Http404(f"Location with ID {location_id} not found for {character}")
+
+    if not character.assets.filter(location_id=location_id).exists():
+        raise Http404(f"Character {character} has no assets in {location}")
+
+    if location.eve_type_id:
+        location_icon_url = eveimageserver.type_icon_url(
+            location.eve_type_id, size=DEFAULT_ICON_SIZE
+        )
     else:
-        context = {
-            "character": character,
-            "parent_asset": parent_asset,
-            "parent_asset_icon_url": parent_asset.eve_type.icon_url(
-                size=DEFAULT_ICON_SIZE
-            ),
+        location_icon_url = eveimageserver.corporation_logo_url(
+            1, size=DEFAULT_ICON_SIZE
+        )
+    breadcrumbs = [
+        {
+            "name": location.name_plus,
+            "url": build_asset_container_url(character, location.id),
+            "icon_url": location_icon_url,
         }
+    ]
+    path = request.GET.get("path")
+    if path:
+        parent_asset_pks = list(path.split(","))
+        for parent_asset_pk, n in Counter(parent_asset_pks).items():
+            parent_asset = character.assets.select_related(
+                "eve_type", "eve_type__eve_group"
+            ).get(pk=int(parent_asset_pk))
+            breadcrumbs.append(
+                {
+                    "name": parent_asset.name_display,
+                    "url": build_asset_container_url(
+                        character, location_id, [parent_asset_pk]
+                    ),
+                    "icon_url": parent_asset.eve_type.icon_url(size=DEFAULT_ICON_SIZE),
+                }
+            )
+
+    data_url = (
+        reverse(
+            "memberaudit:character_asset_container_data",
+            args=[character.pk, location_id],
+        )
+        + (f"?path={path}" if path else "")
+    )
+    context = {
+        "character": character,
+        "location": location,
+        "data_url": data_url,
+        "breadcrumbs": breadcrumbs,
+    }
     return render(
         request,
-        "memberaudit/modals/character_viewer/asset_container_content.html",
+        "memberaudit/partials/character_viewer/tabs/asset_container.html",
         context,
     )
 
@@ -604,29 +672,65 @@ def character_asset_container(
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
 def character_asset_container_data(
-    request, character_pk: int, character: Character, parent_asset_pk: int
+    request,
+    character_pk: int,
+    character: Character,
+    location_id: int,
 ) -> JsonResponse:
     data = list()
-    try:
-        parent_asset = character.assets.get(pk=parent_asset_pk)
-    except CharacterAsset.DoesNotExist:
-        error_msg = (
-            f"Asset with pk {parent_asset_pk} not found for character {character}"
-        )
-        logger.warning(error_msg)
-        return HttpResponseNotFound(error_msg)
+    path = request.GET.get("path")
+    if not path:
+        try:
+            assets_qs = character.assets.annotate_pricing().filter(
+                location_id=location_id
+            )
+        except ObjectDoesNotExist:
+            raise Http404()
+    else:
+        parent_asset_pks = list(map(int, path.split(",")))
+        parent_asset_pk = parent_asset_pks[-1]
+        try:
+            parent_asset = character.assets.get(pk=parent_asset_pk)
+        except CharacterAsset.DoesNotExist:
+            error_msg = (
+                f"Asset with pk {parent_asset_pk} not found for character {character}"
+            )
+            logger.warning(error_msg)
+            return HttpResponseNotFound(error_msg)
 
-    try:
-        assets_qs = parent_asset.children.annotate_pricing().select_related(
-            "eve_type",
-            "eve_type__eve_group",
-            "eve_type__eve_group__eve_category",
-        )
-    except ObjectDoesNotExist:
-        return HttpResponseNotFound()
+        try:
+            assets_qs = parent_asset.children.annotate_pricing()
+        except ObjectDoesNotExist:
+            raise Http404()
 
-    for asset in assets_qs:
+    assets_with_children_ids = set(
+        assets_qs.filter(children__isnull=False).values_list("item_id", flat=True)
+    )
+
+    for asset in assets_qs.select_related(
+        "eve_type",
+        "eve_type__eve_group",
+        "eve_type__eve_group__eve_category",
+    ):
         name_html, name = item_icon_plus_name_html(asset)
+        is_container = asset.item_id in assets_with_children_ids
+        if is_container:
+            ajax_children_url = (
+                reverse(
+                    "memberaudit:character_asset_container",
+                    args=[character.pk, location_id],
+                )
+                + f"?path={asset.pk}"
+            )
+            actions_html = (
+                '<button id="xyz123" type="button" '
+                'class="btn btn-default btn-sm reload-asset-container" '
+                f"data-ajax_children_url={ajax_children_url}>"
+                '<i class="fas fa-search"></i></button>'
+            )
+        else:
+            actions_html = ""
+
         data.append(
             {
                 "item_id": asset.item_id,
@@ -636,6 +740,9 @@ def character_asset_container_data(
                 "volume": asset.eve_type.volume,
                 "price": asset.price,
                 "total": asset.total,
+                "actions": actions_html,
+                "is_container_str": yesnonone_str(is_container),
+                "is_ship_str": yesnonone_str(asset.is_ship()),
             }
         )
 

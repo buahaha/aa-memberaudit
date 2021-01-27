@@ -53,7 +53,7 @@ from ..views import (
     index,
     launcher,
     character_viewer,
-    character_assets_data,
+    character_asset_locations_data,
     character_asset_container,
     character_asset_container_data,
     character_contacts_data,
@@ -158,10 +158,12 @@ class TestCharacterAssets(TestViewsBase):
         )
 
         request = self.factory.get(
-            reverse("memberaudit:character_assets_data", args=[self.character.pk])
+            reverse(
+                "memberaudit:character_asset_locations_data", args=[self.character.pk]
+            )
         )
         request.user = self.user
-        response = character_assets_data(request, self.character.pk)
+        response = character_asset_locations_data(request, self.character.pk)
         self.assertEqual(response.status_code, 200)
         data = json_response_to_python(response)
         self.assertEqual(len(data), 1)
@@ -189,10 +191,12 @@ class TestCharacterAssets(TestViewsBase):
             quantity=1,
         )
         request = self.factory.get(
-            reverse("memberaudit:character_assets_data", args=[self.character.pk])
+            reverse(
+                "memberaudit:character_asset_locations_data", args=[self.character.pk]
+            )
         )
         request.user = self.user
-        response = character_assets_data(request, self.character.pk)
+        response = character_asset_locations_data(request, self.character.pk)
         self.assertEqual(response.status_code, 200)
         data = json_response_to_python(response)
         self.assertEqual(len(data), 1)
