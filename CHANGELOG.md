@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.1.1] - 2021-01-29
+
 ### Added
 
 - Additional filters and columns for character finder
@@ -14,6 +16,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Changed
 
 - Switched from local to on-demand swagger spec
+- Improved protection of tasks against ESI outage and exceeded ESI error limits
 
 ## [1.1.0] - 2021-01-25
 

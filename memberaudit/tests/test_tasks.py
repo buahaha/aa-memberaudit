@@ -43,7 +43,7 @@ TASKS_PATH = "memberaudit.tasks"
 @patch(TASKS_PATH + ".update_market_prices")
 class TestRegularUpdates(TestCase):
     @patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 99, 60))
-    def test_normal(
+    def test_should_run_update_normally(
         self,
         mock_update_market_prices,
         mock_update_all_characters,
@@ -54,7 +54,7 @@ class TestRegularUpdates(TestCase):
         self.assertTrue(mock_update_all_characters.apply_async.called)
 
     @patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(False, 99, 60))
-    def test_esi_down(
+    def test_should_retry_if_esi_is_down(
         self,
         mock_update_market_prices,
         mock_update_all_characters,
@@ -66,7 +66,7 @@ class TestRegularUpdates(TestCase):
         self.assertFalse(mock_update_all_characters.apply_async.called)
 
     @patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 1, 60))
-    def test_esi_error_limit_reached(
+    def test_should_retry_if_esi_error_threshold_exceeded(
         self,
         mock_update_market_prices,
         mock_update_all_characters,
@@ -86,6 +86,7 @@ class TestOtherTasks(TestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 99, 60))
 @patch(MODELS_PATH + ".character.esi")
 class TestUpdateCharacterAssets(TestCase):
     @classmethod
@@ -370,6 +371,7 @@ class TestUpdateCharacterAssets(TestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 99, 60))
 @patch(MODELS_PATH + ".character.esi")
 class TestUpdateCharacterMails(TestCase):
     @classmethod
@@ -413,6 +415,7 @@ class TestUpdateCharacterMails(TestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 99, 60))
 @patch(MODELS_PATH + ".character.esi")
 class TestUpdateCharacterContacts(TestCase):
     @classmethod
@@ -456,6 +459,7 @@ class TestUpdateCharacterContacts(TestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 99, 60))
 @patch(MODELS_PATH + ".character.esi")
 class TestUpdateCharacterContracts(TestCase):
     @classmethod
@@ -500,6 +504,7 @@ class TestUpdateCharacterContracts(TestCase):
 
 
 @override_settings(CELERY_ALWAYS_EAGER=True)
+@patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 99, 60))
 @patch(MODELS_PATH + ".character.esi")
 class TestUpdateCharacterWalletJournal(TestCase):
     @classmethod
@@ -557,7 +562,7 @@ class TestUpdateCharacter(TestCase):
     def setUp(self) -> None:
         self.character_1001 = create_memberaudit_character(1001)
 
-    def test_normal(self, mock_esi):
+    def test_should_update_normally(self, mock_esi):
         """can update from scratch"""
         mock_esi.client = esi_client_stub
 
@@ -565,7 +570,7 @@ class TestUpdateCharacter(TestCase):
         self.assertTrue(result)
         self.assertTrue(self.character_1001.is_update_status_ok())
 
-    def test_report_error(self, mock_esi):
+    def test_should_report_errors_during_updates(self, mock_esi):
         mock_esi.client = esi_client_error_stub
 
         with self.assertRaises(OSError):  # raised when skills/doctrines chains breaks
@@ -584,8 +589,8 @@ class TestUpdateCharacter(TestCase):
         self.assertTrue(status.finished_at)
 
     @patch(TASKS_PATH + ".Character.update_loyalty")
-    def test_do_not_update_current_section_1(self, update_loyalty, mock_esi):
-        """When generic section has recently been updated, then do not update again"""
+    def test_should_update_stale_sections_only_1(self, update_loyalty, mock_esi):
+        """normal section"""
         mock_esi.client = esi_client_stub
         CharacterUpdateStatus.objects.create(
             character=self.character_1001,
@@ -600,8 +605,10 @@ class TestUpdateCharacter(TestCase):
         self.assertFalse(update_loyalty.called)
 
     @patch(TASKS_PATH + ".update_character_mails")
-    def test_do_not_update_current_section_2(self, update_character_mails, mock_esi):
-        """When special section has recently been updated, then do not update again"""
+    def test_should_update_stale_sections_only_2(
+        self, update_character_mails, mock_esi
+    ):
+        """special section"""
         mock_esi.client = esi_client_stub
         CharacterUpdateStatus.objects.create(
             character=self.character_1001,
@@ -616,7 +623,7 @@ class TestUpdateCharacter(TestCase):
         self.assertFalse(update_character_mails.apply_async.called)
 
     @patch(TASKS_PATH + ".Character.update_skills", spec=True)
-    def test_do_not_update_current_section_3(self, mock_update_skills, mock_esi):
+    def test_should_update_stale_sections_only_3(self, mock_update_skills, mock_esi):
         """When generic section has recently been updated and force_update is called
         then update again
         """
