@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Additional filters and columns for character finder
 
+### Changed
+
+- Switched from local to on-demand swagger spec
+
 ## [1.1.0] - 2021-01-25
 
 ### Added
