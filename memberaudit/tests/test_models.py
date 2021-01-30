@@ -2747,9 +2747,7 @@ class TestLocation(NoSocketsTestCase):
         )
 
     def test_is_solar_system(self):
-        location = Location.objects.create(
-            id=30000142, eve_solar_system=EveSolarSystem.objects.get(id=30000142)
-        )
+        location = Location.objects.get(id=30000142)
         self.assertTrue(location.is_solar_system)
         self.assertFalse(location.is_station)
         self.assertFalse(location.is_structure)

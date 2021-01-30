@@ -2,7 +2,7 @@ import os
 import inspect
 import json
 
-from eveuniverse.models import EveEntity
+from eveuniverse.models import EveEntity, EveSolarSystem
 
 from ...constants import EVE_CATEGORY_ID_STATION
 from ...models import Location
@@ -39,4 +39,9 @@ def load_locations():
             id=obj.id,
             name=obj.name,
             category=EveEntity.CATEGORY_STATION,
+        )
+
+    for obj in EveSolarSystem.objects.all():
+        Location.objects.create(
+            id=obj.id, name=obj.name, eve_solar_system=obj, eve_type_id=5
         )

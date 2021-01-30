@@ -92,6 +92,7 @@ class General(models.Model):
 class Location(models.Model):
     """An Eve Online location: Station or Upwell Structure or Solar System"""
 
+    _LOCATION_ID_ASSET_SAFETY = 2004
     _SOLAR_SYSTEM_ID_START = 30_000_000
     _SOLAR_SYSTEM_ID_END = 33_000_000
     _STATION_ID_START = 60_000_000
@@ -178,6 +179,10 @@ class Location(models.Model):
         return self.is_station_id(self.id)
 
     @property
+    def is_asset_safety(self) -> bool:
+        return self.is_asset_safety_id(self.id)
+
+    @property
     def is_structure(self) -> bool:
         return self.is_structure_id(self.id)
 
@@ -192,6 +197,10 @@ class Location(models.Model):
     @classmethod
     def is_structure_id(cls, location_id: int) -> bool:
         return location_id >= cls._STRUCTURE_ID_START
+
+    @classmethod
+    def is_asset_safety_id(cls, location_id: int) -> bool:
+        return location_id == cls._LOCATION_ID_ASSET_SAFETY
 
 
 class EveShipType(EveType):

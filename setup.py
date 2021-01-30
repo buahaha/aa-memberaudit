@@ -41,11 +41,12 @@ setup(
     python_requires="~=3.6",
     install_requires=[
         "allianceauth>=2.8.0",
+        "dataclasses>='0.7';python_version<'3.7'",
         "celery-once>=2.0.1",
         "django-esi>=2.0.4",
         "django-eveuniverse>=0.7.4",
         "humanize",
         "requests",
+        "dacite",
     ],
-    extras_require={"testing": ["django-webtest", "requests-mock"]},
 )
