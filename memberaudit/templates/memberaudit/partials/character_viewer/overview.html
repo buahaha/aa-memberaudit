@@ -10,28 +10,36 @@
         <div class="character-summary-flex">
             <div class="character-summary-image hidden-xs">
                 <p class="text-center">
-                    <img width="128" height="128" class="img-rounded" src="{{ auth_character|character_portrait_url:128 }}"/>
+                    <img width="128" height="128" class="img-rounded"
+                        src="{{ auth_character|character_portrait_url:128 }}" />
                 </p>
 
                 <p class="text-center">
                     <a href="{{ auth_character|zkillboard_character_url }}" target="_blank">
-                        <img src="{% static 'memberaudit/images/zkillboard.png' %}" title="{{ auth_character.character_name }} on zKillboard">
+                        <img src="{% static 'memberaudit/images/zkillboard.png' %}"
+                            title="{{ auth_character.character_name }} on zKillboard">
                     </a>
 
                     <a href="{{ auth_character|evewho_character_url }}" target="_blank">
-                        <img src="{{ 1|character_portrait_url:32 }}" title="{{ auth_character.character_name }} on EveWho" width="16px" height="16px">
+                        <img src="{{ 1|character_portrait_url:32 }}"
+                            title="{{ auth_character.character_name }} on EveWho" width="16px" height="16px">
                     </a>
 
-                    <a href="https://forums.eveonline.com/u/{{ auth_character.character_name.split|join:'_' }}/summary" target="_blank">
-                        <img src="{% static 'memberaudit/images/evelogo.png' %}" title="{{ auth_character.character_name }} on Eve Forums" width="16px" height="16px">
+                    <a href="https://forums.eveonline.com/u/{{ auth_character.character_name.split|join:'_' }}/summary"
+                        target="_blank">
+                        <img src="{% static 'memberaudit/images/evelogo.png' %}"
+                            title="{{ auth_character.character_name }} on Eve Forums" width="16px" height="16px">
                     </a>
 
                     <a href="https://eve-search.com/search/author/{{ auth_character.character_name }}" target="_blank">
-                        <img src="{% static 'memberaudit/images/evesearch.png' %}" title="{{ auth_character.character_name }} on Eve Search" width="16px" height="16px">
+                        <img src="{% static 'memberaudit/images/evesearch.png' %}"
+                            title="{{ auth_character.character_name }} on Eve Search" width="16px" height="16px">
                     </a>
 
-                    <a href="https://eve-prism.com/?view=character&name={{ auth_character.character_name }}" target="_blank">
-                        <img src="{% static 'memberaudit/images/eve-prism.png' %}" title="{{ auth_character.character_name }} on Eve Prism" width="16px" height="16px">
+                    <a href="https://eve-prism.com/?view=character&name={{ auth_character.character_name }}"
+                        target="_blank">
+                        <img src="{% static 'memberaudit/images/eve-prism.png' %}"
+                            title="{{ auth_character.character_name }} on Eve Prism" width="16px" height="16px">
                     </a>
                 </p>
             </div>
@@ -44,13 +52,13 @@
                         <dl class="dl-horizontal">
                             <dt>{% translate 'Character:' %}</dt>
                             <dd class="nowrap">
-                                {{ auth_character.character_name}}
+                                {{ auth_character.character_name}} - {{auth_character.character_id}}
                                 {% if auth_character.character_id == main_character_id %}
-                                    &nbsp;<i class="fas fa-crown" title="Main character"></i>
+                                &nbsp;<i class="fas fa-crown" title="Main character"></i>
                                 {% endif %}
 
                                 {% if character.is_shared %}
-                                    &nbsp;<i class="far fa-eye" title="Currently shared with recruiters"></i>
+                                &nbsp;<i class="far fa-eye" title="Currently shared with recruiters"></i>
                                 {% endif %}
                             </dd>
 
@@ -64,26 +72,27 @@
                             <dt>{% translate 'Alliance:' %}</dt>
                             <dd>
                                 {% if auth_character.alliance_name %}
-                                    <a href="{{ auth_character.alliance_name|dotlan_alliance_url }}" target="_blank">
-                                        {{ auth_character.alliance_name }}
-                                    </a>
+                                <a href="{{ auth_character.alliance_name|dotlan_alliance_url }}" target="_blank">
+                                    {{ auth_character.alliance_name }}
+                                </a>
                                 {% else %}
-                                    -
+                                -
                                 {% endif %}
                             </dd>
 
                             <dt>{% translate 'Faction:' %}</dt>
                             {% if character_details %}
-                                <dd>{{ character_details.faction|default:"-" }}</dd>
+                            <dd>{{ character_details.faction|default:"-" }}</dd>
                             {% else %}
-                                <dd class="text-muted">{{no_data}}</dd>
+                            <dd class="text-muted">{{no_data}}</dd>
                             {% endif %}
 
                             <dt>{% translate 'Race:' %}</dt>
                             {% if character_details %}
-                                <dd>{{ character_details.eve_bloodline.eve_race }} / {{ character_details.eve_bloodline }}</dd>
+                            <dd>{{ character_details.eve_bloodline.eve_race }} / {{ character_details.eve_bloodline }}
+                            </dd>
                             {% else %}
-                                <dd class="text-muted">{{no_data}}</dd>
+                            <dd class="text-muted">{{no_data}}</dd>
                             {% endif %}
                         </dl>
                     </div>
@@ -92,39 +101,40 @@
                         <dl class="dl-horizontal">
                             <dt>{% translate 'Born:' %}</dt>
                             {% if character_details %}
-                                <dd>{{ character_details.birthday|naturaltime }}</dd>
+                            <dd>{{ character_details.birthday|naturaltime }}</dd>
                             {% else %}
-                                <dd class="text-muted">{{no_data}}</dd>
+                            <dd class="text-muted">{{no_data}}</dd>
                             {% endif %}
 
                             <dt>{% translate 'Skillpoints:' %}</dt>
                             {% if character.skillpoints %}
-                                <dd>{{ character.skillpoints.total|intword }}</dd>
+                            <dd>{{ character.skillpoints.total|intword }}</dd>
                             {% else %}
-                                <dd class="text-muted">{{no_data}}</dd>
+                            <dd class="text-muted">{{no_data}}</dd>
                             {% endif %}
 
                             <dt>{% translate 'Sec. Status:' %}</dt>
                             {% if character_details.security_status %}
-                                <dd class="{% if character_details.security_status < 0 %}text-danger{% elif character_details.security_status > 0 %}text-success{% endif %}">
-                                    {{ character_details.security_status|floatformat:1 }}
-                                </dd>
+                            <dd
+                                class="{% if character_details.security_status < 0 %}text-danger{% elif character_details.security_status > 0 %}text-success{% endif %}">
+                                {{ character_details.security_status|floatformat:1 }}
+                            </dd>
                             {% else %}
-                                <dd class="text-muted">{{no_data}}</dd>
+                            <dd class="text-muted">{{no_data}}</dd>
                             {% endif %}
 
                             <dt>{% translate 'Assets:' %}</dt>
                             {% if character_assets_total %}
-                                <dd>{{ character_assets_total|intword }} ISK (est.)</dd>
+                            <dd>{{ character_assets_total|intword }} ISK (est.)</dd>
                             {% else %}
-                                <dd class="text-muted">{{no_data}}</dd>
+                            <dd class="text-muted">{{no_data}}</dd>
                             {% endif %}
 
                             <dt>{% translate 'Wallet:' %}</dt>
                             {% if character.wallet_balance %}
-                                <dd>{{ character.wallet_balance.total|intword }} ISK</dd>
+                            <dd>{{ character.wallet_balance.total|intword }} ISK</dd>
                             {% else %}
-                                <dd class="text-muted">{{no_data}}</dd>
+                            <dd class="text-muted">{{no_data}}</dd>
                             {% endif %}
                         </dl>
                     </div>
@@ -133,19 +143,20 @@
                         <dl class="dl-horizontal">
                             <dt>{% translate 'Location:' %}</dt>
                             {% if character.location %}
-                                <dd>{{ character.location.location.name_plus }}</dd>
+                            <dd>{{ character.location.location.name_plus }}</dd>
                             {% else %}
-                                <dd class="text-muted">{{no_data}}</dd>
+                            <dd class="text-muted">{{no_data}}</dd>
                             {% endif %}
 
                             <dt>{% translate 'System:' %}</dt>
-                            <dd>{% include 'memberaudit/partials/solar_system.html' with character=character only %}</dd>
+                            <dd>{% include 'memberaudit/partials/solar_system.html' with character=character only %}
+                            </dd>
 
                             <dt>{% translate 'Last Login:' %}</dt>
                             {% if character.online_status.last_login %}
-                                <dd class="nowrap">{{ character.online_status.last_login|naturaltime }}</dd>
+                            <dd class="nowrap">{{ character.online_status.last_login|naturaltime }}</dd>
                             {% else %}
-                                <dd class="text-muted">{{no_data}}</dd>
+                            <dd class="text-muted">{{no_data}}</dd>
                             {% endif %}
 
                             <dt>{% translate 'Main:' %}</dt>
