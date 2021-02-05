@@ -1,0 +1,69 @@
+{% load i18n %}
+{% load static %}
+{% load humanize %}
+{% load evelinks %}
+
+<div class="modal" id="modalCharacterSkillSetDetails" tabindex="-1" role="dialog" aria-labelledby="myModalLabel">
+    <div class="modal-dialog modal-lg" role="document" id="modalCharacterSkillSetContents">
+        <div class="modal-content">
+            <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">
+                        &times;
+                    </span></button>
+                <h4 class="modal-title" id="myModalLabel">{% translate 'Loading...' %}</h4>
+            </div>
+
+            <div class="modal-body">
+
+                <div class="table-responsive">
+                    <table class="table table-striped table-width-fix" id="skill_set_details">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Recommended</th>
+                                <th>Required</th>
+                                <th>result</th>
+                            </tr>
+                        </thead>
+
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">
+                    {% translate 'Close' %}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- {% block details %}
+<div class="panel panel-default">
+    <div class="panel-heading" style="display:flex;">
+        <h3 class="panel-title">{{name}}</h3>
+    </div>
+    <div class="panel-body">
+
+        {{ character }}
+
+        {% for i in data %}
+        <div class="info">
+            {{ i.name }} - {{ i.recommended }} - {{ i.required }} - {{ i.result }}
+        </div>
+        {% endfor %}
+
+
+        <!--  {% for skill in skills %}
+        <div class="info">
+            {{ skill.eve_type_id }} -- {{ skill.eve_type }} - {{skill.required_level}} - {{skill.recommended_level}}
+        </div>
+        {% endfor %} -->
+</div>
+
+</div>
+{% endblock %} -->
