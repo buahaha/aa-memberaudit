@@ -21,7 +21,7 @@ from ..managers.general import (
     LocationManager,
     MailEntityManager,
 )
-from ..utils import LoggerAddTag
+from ..utils.logging import LoggerAddTag
 from .constants import NAMES_MAX_LENGTH
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)

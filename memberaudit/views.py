@@ -41,12 +41,12 @@ from .models import (
     Location,
     SkillSetGroup,
 )
-from .utils import (
+from .utils.logging import LoggerAddTag
+from .utils.messages import messages_plus
+from .utils.views import (
     add_no_wrap_html,
     create_link_html,
     create_fa_button_html,
-    LoggerAddTag,
-    messages_plus,
     yesno_str,
     add_bs_label_html,
 )

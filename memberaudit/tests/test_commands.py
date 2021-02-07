@@ -9,7 +9,7 @@ from django.core.management import call_command
 from . import create_user_from_evecharacter, add_auth_character_to_user
 from ..models import Character
 from .testdata.load_entities import load_entities
-from ..utils import NoSocketsTestCase
+from ..utils.testing import NoSocketsTestCase
 
 PACKAGE_PATH = "memberaudit.management.commands"
 

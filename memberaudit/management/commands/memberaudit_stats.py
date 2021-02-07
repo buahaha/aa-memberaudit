@@ -5,7 +5,7 @@ from django.core.serializers.json import DjangoJSONEncoder
 
 from ... import __title__
 from ...models import CharacterUpdateStatus
-from ...utils import LoggerAddTag
+from ...utils.logging import LoggerAddTag
 
 logger = LoggerAddTag(logging.getLogger(__name__), __title__)
 

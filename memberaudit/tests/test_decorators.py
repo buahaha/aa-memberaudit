@@ -10,7 +10,7 @@ from . import create_memberaudit_character, scope_names_set
 from ..decorators import fetch_character_if_allowed, fetch_token_for_character
 from ..models import Character
 from .testdata.load_entities import load_entities
-from ..utils import generate_invalid_pk
+from ..utils.testing import generate_invalid_pk
 
 
 DUMMY_URL = "http://www.example.com"

@@ -16,7 +16,7 @@ from ..helpers import (
     EsiOffline,
     EsiErrorLimitExceeded,
 )
-from ..utils import NoSocketsTestCase
+from ..utils.testing import NoSocketsTestCase
 
 
 MODULE_PATH = "memberaudit.helpers"

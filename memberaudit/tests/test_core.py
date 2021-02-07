@@ -6,7 +6,7 @@ from .testdata.esi_client_stub import load_test_data
 from .testdata.load_entities import load_entities
 from .testdata.load_eveuniverse import load_eveuniverse
 from ..core.xml_converter import eve_xml_to_html
-from ..utils import NoSocketsTestCase
+from ..utils.testing import NoSocketsTestCase
 
 
 MODULE_PATH = "memberaudit.core.xml_converter"

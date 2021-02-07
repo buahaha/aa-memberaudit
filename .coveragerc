@@ -11,7 +11,7 @@ exclude_lines =
 ignore_errors = True
 omit =
     setup.py
-    */test*.py
+    */test_*.py
     */tests/*.py
     */migrations/*
     doc/*

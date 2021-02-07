@@ -32,7 +32,7 @@ from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
 from .testdata.load_locations import load_locations
 from .testdata.esi_test_tools import BravadoResponseStub
-from ..utils import generate_invalid_pk
+from ..utils.testing import generate_invalid_pk
 
 MODELS_PATH = "memberaudit.models"
 MANAGERS_PATH = "memberaudit.managers"
