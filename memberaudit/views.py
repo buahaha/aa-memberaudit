@@ -1180,9 +1180,7 @@ def character_skill_sets_data(
             )
         else:
             group_name = UNGROUPED_SKILL_SET
-
-
-        #name_link = f'<a href="/member-audit/character_skill_set_details/{character_pk}/{check.skill_set_id}">{check.skill_set.name}</a>'
+        
         url = (
             check.skill_set.ship_type.icon_url(DEFAULT_ICON_SIZE)
             if check.skill_set.ship_type
@@ -1203,7 +1201,7 @@ def character_skill_sets_data(
             check.failed_recommended_skills, "recommended_level"
         )
         has_recommended = (
-            not bool(failed_recommended_skills) 
+            not bool(failed_recommended_skills)
             if failed_recommended_skills is not None
             else None
         )
@@ -1233,11 +1231,7 @@ def character_skill_sets_data(
             ),
             "has_recommended": has_recommended,
             "has_recommended_str": yesnonone_str(has_recommended),
-<<<<<<< HEAD
             "action": actions_html,
-=======
-            "action" : actions_html,
->>>>>>> Add details modal for skills
         }
 
     def compile_failed_skills(failed_skills, level_name) -> Optional[list]:
@@ -1279,6 +1273,7 @@ def character_skill_sets_data(
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
+<<<<<<< HEAD
 <<<<<<< HEAD
 def character_skill_set_details(
     request, character_pk: int, character: Character, skill_set_pk: int
@@ -1348,50 +1343,67 @@ def character_skill_set_details(request,
 character_pk: int, 
 character: Character,
 skill_set_pk: int) -> HttpResponse:
+=======
+def character_skill_set_details(
+    request, character_pk: int, character: Character, skill_set_pk: int
+) -> HttpResponse:
+>>>>>>> adding pre-commit changes
 
     skill_set = SkillSet.objects.get(id=skill_set_pk)
-    skill_set_skills = SkillSetSkill.objects.filter(skill_set_id=skill_set_pk)   
+    skill_set_skills = SkillSetSkill.objects.filter(skill_set_id=skill_set_pk)
 
-    out_data= list()
+    out_data = list()
 
     url = (
-            skill_set.ship_type.icon_url(ICON_SIZE_64)
-            if skill_set.ship_type
-            else eveimageserver.type_icon_url(
-                SKILL_SET_DEFAULT_ICON_TYPE_ID, size=ICON_SIZE_64
-            )
-        )      
+        skill_set.ship_type.icon_url(ICON_SIZE_64)
+        if skill_set.ship_type
+        else eveimageserver.type_icon_url(
+            SKILL_SET_DEFAULT_ICON_TYPE_ID, size=ICON_SIZE_64
+        )
+    )
 
     for skill in skill_set_skills:
-        cs = character.skills.select_related("eve_type").filter(eve_type_id=skill.eve_type_id).first()
+        cs = (
+            character.skills.select_related("eve_type")
+            .filter(eve_type_id=skill.eve_type_id)
+            .first()
+        )
 
         current = 0
         result = ""
-        if cs == None:
+        if cs is None:
             result = "fas fa-times boolean-icon-false"
-        elif(cs.active_skill_level >= skill.recommended_level):
+        elif cs.active_skill_level >= skill.recommended_level:
             result = "fas fa-check-double boolean-icon-true"
             current = cs.active_skill_level
-        elif(cs.active_skill_level >= skill.required_level):
+        elif cs.active_skill_level >= skill.required_level:
             result = "fas fa-check boolean-icon-true"
             current = cs.active_skill_level
 
         out_data.append(
-            {               
-                "name" : skill.eve_type.name,
-                "required" : MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[skill.required_level],
-                "recommended" : MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[skill.recommended_level],
-                "current" : MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[current],
-                "result" : result
+            {
+                "name": skill.eve_type.name,
+                "required": MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[skill.required_level],
+                "recommended": MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[skill.recommended_level],
+                "current": MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[current],
+                "result": result,
             }
         )
 
+<<<<<<< HEAD
     context = { 
             "name" : skill_set.name,
             "ship_url": url,
             "skills" : out_data,
         }
 >>>>>>> Add details modal for skills
+=======
+    context = {
+        "name": skill_set.name,
+        "ship_url": url,
+        "skills": out_data,
+    }
+>>>>>>> adding pre-commit changes
 
     return render(
         request,
@@ -1418,10 +1430,14 @@ def character_skills_data(
                     "group": skill.eve_type.eve_group.name,
                     "skill": skill.eve_type.name,
 <<<<<<< HEAD
+<<<<<<< HEAD
                     "skill_name": f"{skill_name} - {skill.eve_type_id}",
 =======
                     "skill_name":f"{skill_name} - {skill.eve_type_id}",
 >>>>>>> Add details modal for skills
+=======
+                    "skill_name": f"{skill_name} - {skill.eve_type_id}",
+>>>>>>> adding pre-commit changes
                     "level": skill.active_skill_level,
                     "level_str": level_str,
                 }
