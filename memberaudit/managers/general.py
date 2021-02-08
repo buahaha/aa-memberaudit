@@ -22,7 +22,7 @@ from ..app_settings import (
 )
 from ..helpers import fetch_esi_status
 from ..providers import esi
-from ..utils.logging import LoggerAddTag
+from app_utils.logging import LoggerAddTag
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)

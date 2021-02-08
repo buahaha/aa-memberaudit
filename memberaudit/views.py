@@ -41,9 +41,9 @@ from .models import (
     Location,
     SkillSetGroup,
 )
-from .utils.logging import LoggerAddTag
-from .utils.messages import messages_plus
-from .utils.views import (
+from app_utils.logging import LoggerAddTag
+from app_utils.messages import messages_plus
+from app_utils.views import (
     bootstrap_icon_plus_name_html,
     bootstrap_label_html,
     fontawesome_link_button_html,

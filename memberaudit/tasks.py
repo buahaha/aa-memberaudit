@@ -37,7 +37,7 @@ from .models import (
     Location,
     MailEntity,
 )
-from .utils.logging import LoggerAddTag
+from app_utils.logging import LoggerAddTag
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)

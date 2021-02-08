@@ -23,7 +23,7 @@ from .. import __title__
 from ..core.xml_converter import eve_xml_to_html
 from ..app_settings import MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
 from ..helpers import get_or_create_or_none, get_or_create_esi_or_none, get_or_none
-from ..utils.logging import LoggerAddTag
+from app_utils.logging import LoggerAddTag
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)

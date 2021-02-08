@@ -48,7 +48,7 @@ from ..models import (
     Location,
     MailEntity,
 )
-from ..utils.testing import generate_invalid_pk
+from app_utils.testing import generate_invalid_pk
 from ..views import (
     index,
     launcher,

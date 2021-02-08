@@ -14,7 +14,7 @@ from ...constants import (
     EVE_CATEGORY_ID_SKILL,
     EVE_CATEGORY_ID_STRUCTURE,
 )
-from ...utils.logging import LoggerAddTag
+from app_utils.logging import LoggerAddTag
 
 
 logger = LoggerAddTag(logging.getLogger(__name__), __title__)

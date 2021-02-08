@@ -42,7 +42,7 @@ from ..managers.sections import (
     CharacterWalletJournalEntryManager,
     CharacterWalletTransactionManager,
 )
-from ..utils.logging import LoggerAddTag
+from app_utils.logging import LoggerAddTag
 from .constants import CURRENCY_MAX_DECIMALS, CURRENCY_MAX_DIGITS, NAMES_MAX_LENGTH
 from .character import Character
 from .general import Location

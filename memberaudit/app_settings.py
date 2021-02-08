@@ -1,6 +1,6 @@
 from django.utils.text import slugify
 from django.utils.translation import ugettext_lazy as _
-from .utils.django import clean_setting
+from app_utils.django import clean_setting
 
 # Name of this app as shown in the Auth sidebar and page titles
 MEMBERAUDIT_APP_NAME = clean_setting(

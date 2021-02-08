@@ -9,8 +9,8 @@ from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.services.hooks import get_extension_logger
 
 from .. import __title__
-from ..utils.caching import ObjectCacheMixin
-from ..utils.logging import LoggerAddTag
+from app_utils.caching import ObjectCacheMixin
+from app_utils.logging import LoggerAddTag
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)

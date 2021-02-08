@@ -8,7 +8,7 @@ from ... import __title__
 from . import get_input
 from ...models import Character, Location, MailEntity
 from ...tasks import update_all_characters
-from ...utils.logging import LoggerAddTag
+from app_utils.logging import LoggerAddTag
 
 logger = LoggerAddTag(logging.getLogger(__name__), __title__)
 

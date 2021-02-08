@@ -14,8 +14,8 @@ from allianceauth.services.hooks import get_extension_logger
 
 from . import __title__, __version__
 from .app_settings import MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD
-from .utils.logging import LoggerAddTag
-from .utils.views import link_html
+from app_utils.logging import LoggerAddTag
+from app_utils.views import link_html
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
