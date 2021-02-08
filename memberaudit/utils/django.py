@@ -23,7 +23,7 @@ def clean_setting(
     required_type: type = None,
     choices: list = None,
 ) -> Any:
-    """cleans the input for a custom setting
+    """cleans the user input for an app's setting in the Django settings file
 
     Will use default_value if setting is not defined.
     Will use minimum or maximum value if respective boundary is exceeded.

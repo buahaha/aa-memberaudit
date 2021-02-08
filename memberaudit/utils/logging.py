@@ -1,12 +1,8 @@
 import logging
 
 
-###################
-# logging
-
-
 class LoggerAddTag(logging.LoggerAdapter):
-    """add custom tag to a logger"""
+    """adds a custom prefix to the given logger"""
 
     def __init__(self, my_logger, prefix):
         super(LoggerAddTag, self).__init__(my_logger, {})
@@ -20,5 +16,5 @@ logger = LoggerAddTag(logging.getLogger(__name__), __package__)
 
 
 def make_logger_prefix(tag: str):
-    """creates a function to add logger prefix, which returns tag when used empty"""
+    """creates a function to add logger prefixes, which returns tag when used empty"""
     return lambda text="": "{}{}".format(tag, (": " + text) if text else "")

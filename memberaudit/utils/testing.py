@@ -13,11 +13,11 @@ def generate_invalid_pk(MyModel: models.Model) -> int:
 
 
 class SocketAccessError(Exception):
-    pass
+    """Error raised when a test script accesses the network"""
 
 
 class NoSocketsTestCase(TestCase):
-    """Variation of TestCase class that prevents any use of sockets"""
+    """Variation of Django's TestCase class that prevents any network use."""
 
     @classmethod
     def setUpClass(cls):

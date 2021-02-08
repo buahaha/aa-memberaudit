@@ -4,7 +4,7 @@ from django.utils.html import format_html
 
 
 class messages_plus:
-    """Pendant to Django messages adding level icons and HTML support
+    """Improvement of Django messages with added level icons and HTML support
 
     Careful: Use with safe strings only
     """

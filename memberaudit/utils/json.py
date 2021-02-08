@@ -6,6 +6,10 @@ from pytz import timezone
 
 
 class JSONDateTimeDecoder(json.JSONDecoder):
+    """Decoder for the standard json library to decode JSON into datetime.
+    To be used together with `JSONDateTimeEncoder`.
+    """
+
     def __init__(self, *args, **kwargs) -> None:
         json.JSONDecoder.__init__(
             self, object_hook=self.dict_to_object, *args, **kwargs
@@ -27,9 +31,8 @@ class JSONDateTimeDecoder(json.JSONDecoder):
 
 
 class JSONDateTimeEncoder(json.JSONEncoder):
-    """Instead of letting the default encoder convert datetime to string,
-    convert datetime objects into a dict, which can be decoded by the
-    JSONDateTimeDecoder
+    """Encoder for the standard json library to encode datetime into JSON.
+    To be used together with `JSONDateTimeDecoder`.
     """
 
     def default(self, o: Any) -> Any:
