@@ -9,7 +9,7 @@ from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
 
 from ..models import Character
-from .utils import add_character_to_user
+from ..utils.testing import add_character_to_user
 
 
 def create_user_from_evecharacter(character_id: int) -> Tuple[User, CharacterOwnership]:

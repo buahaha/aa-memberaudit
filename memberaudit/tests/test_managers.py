@@ -26,8 +26,7 @@ from .testdata.esi_test_tools import BravadoResponseStub
 from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
 from .testdata.load_locations import load_locations
-from .utils import queryset_pks
-from ..utils.testing import NoSocketsTestCase
+from ..utils.testing import NoSocketsTestCase, queryset_pks
 
 
 MODELS_PATH = "memberaudit.models"
