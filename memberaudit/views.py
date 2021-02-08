@@ -44,11 +44,13 @@ from .models import (
 from .utils.logging import LoggerAddTag
 from .utils.messages import messages_plus
 from .utils.views import (
-    add_no_wrap_html,
-    create_link_html,
-    create_fa_button_html,
+    bootstrap_icon_plus_name_html,
+    bootstrap_label_html,
+    fontawesome_link_button_html,
+    no_wrap_html,
+    link_html,
     yesno_str,
-    add_bs_label_html,
+    yesnonone_str,
 )
 
 from .app_settings import MEMBERAUDIT_APP_NAME
@@ -66,44 +68,6 @@ SKILL_SET_DEFAULT_ICON_TYPE_ID = 3327
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
-def yesnonone_str(value: Optional[bool]) -> str:
-    """returns yes/no/none for boolean as string and with localization"""
-    if value is True:
-        return gettext_lazy("yes")
-    elif value is False:
-        return gettext_lazy("no")
-    else:
-        return ""
-
-
-def create_img_html(src: str, classes: list = None, size: int = None) -> str:
-    classes_str = format_html('class="{}"', (" ".join(classes)) if classes else "")
-    size_html = format_html('width="{}" height="{}"', size, size) if size else ""
-    return format_html('<img {} {} src="{}">', classes_str, size_html, src)
-
-
-def create_icon_plus_name_html(
-    icon_url,
-    name,
-    size: int = DEFAULT_ICON_SIZE,
-    avatar: bool = False,
-    url: str = None,
-    text: str = None,
-) -> str:
-    """create HTML to display an icon next to a name. Can also be a link."""
-    name_html = create_link_html(url, name, new_window=False) if url else name
-    if text:
-        name_html = format_html("{}&nbsp;{}", name_html, text)
-
-    return format_html(
-        "{}&nbsp;&nbsp;&nbsp;{}",
-        create_img_html(
-            icon_url, classes=["ra-avatar", "img-circle"] if avatar else [], size=size
-        ),
-        name_html,
-    )
-
-
 def item_icon_plus_name_html(item, size=DEFAULT_ICON_SIZE) -> Tuple[str, str]:
     """returns generated HTML with name and icon for asset and contract items"""
     if item.is_blueprint_copy:
@@ -112,7 +76,7 @@ def item_icon_plus_name_html(item, size=DEFAULT_ICON_SIZE) -> Tuple[str, str]:
         variant = None
 
     name = item.name_display
-    name_html = create_icon_plus_name_html(
+    name_html = bootstrap_icon_plus_name_html(
         icon_url=item.eve_type.icon_url(size=DEFAULT_ICON_SIZE, variant=variant),
         name=name,
         size=size,
@@ -656,11 +620,13 @@ def character_contacts_data(
             name = contact.eve_entity.name
             is_npc = contact.eve_entity.is_npc
             if is_npc:
-                name_plus = format_html("{} {}", name, add_bs_label_html("NPC", "info"))
+                name_plus = format_html(
+                    "{} {}", name, bootstrap_label_html("NPC", "info")
+                )
             else:
                 name_plus = name
 
-            name_html = create_icon_plus_name_html(
+            name_html = bootstrap_icon_plus_name_html(
                 contact.eve_entity.icon_url(DEFAULT_ICON_SIZE), name_plus, avatar=True
             )
             data.append(
@@ -920,7 +886,7 @@ def character_implants_data(
         for implant in character.implants.select_related("eve_type").prefetch_related(
             "eve_type__dogma_attributes"
         ):
-            implant_html = create_icon_plus_name_html(
+            implant_html = bootstrap_icon_plus_name_html(
                 implant.eve_type.icon_url(DEFAULT_ICON_SIZE), implant.eve_type.name
             )
             try:
@@ -953,7 +919,7 @@ def character_loyalty_data(
     data = list()
     try:
         for entry in character.loyalty_entries.select_related("corporation"):
-            corporation_html = create_icon_plus_name_html(
+            corporation_html = bootstrap_icon_plus_name_html(
                 entry.corporation.icon_url(DEFAULT_ICON_SIZE), entry.corporation.name
             )
             data.append(
@@ -1021,8 +987,8 @@ def character_jump_clones_data(
                 )
             if implants_data:
                 implants = "<br>".join(
-                    create_icon_plus_name_html(
-                        x["icon_url"], add_no_wrap_html(x["name"]), size=24
+                    bootstrap_icon_plus_name_html(
+                        x["icon_url"], no_wrap_html(x["name"]), size=24
                     )
                     for x in sorted(implants_data, key=lambda k: k["slot_num"])
                 )
@@ -1128,7 +1094,7 @@ def character_mail_data(
         [
             {
                 "name": obj.name_plus,
-                "link": create_link_html(obj.external_url(), obj.name_plus),
+                "link": link_html(obj.external_url(), obj.name_plus),
             }
             for obj in mail.recipients.all()
         ],
@@ -1138,7 +1104,7 @@ def character_mail_data(
     data = {
         "mail_id": mail.mail_id,
         "labels": list(mail.labels.values_list("label_id", flat=True)),
-        "from": create_link_html(mail.sender.external_url(), mail.sender.name_plus),
+        "from": link_html(mail.sender.external_url(), mail.sender.name_plus),
         "to": ", ".join([obj["link"] for obj in recipients]),
         "subject": mail.subject,
         "sent": mail.timestamp.isoformat(),
@@ -1259,7 +1225,7 @@ def character_skill_sets_data(
             key=lambda k: k["eve_type__name"].lower(),
         )
         return [
-            add_bs_label_html(
+            bootstrap_label_html(
                 format_html(
                     "{}&nbsp;{}",
                     obj["eve_type__name"],
@@ -1417,7 +1383,7 @@ def character_finder_data(request) -> JsonResponse:
         character_viewer_url = reverse(
             "memberaudit:character_viewer", args=[character.pk]
         )
-        actions_html = create_fa_button_html(
+        actions_html = fontawesome_link_button_html(
             url=character_viewer_url,
             fa_code="fas fa-search",
             button_type="primary",
@@ -1430,7 +1396,7 @@ def character_finder_data(request) -> JsonResponse:
         )
         user_profile = character.character_ownership.user.profile
         try:
-            main_html = create_icon_plus_name_html(
+            main_html = bootstrap_icon_plus_name_html(
                 user_profile.main_character.portrait_url(),
                 user_profile.main_character.character_name,
                 avatar=True,
@@ -1457,7 +1423,7 @@ def character_finder_data(request) -> JsonResponse:
             if character.is_shared
             else "",
         )
-        character_html = create_icon_plus_name_html(
+        character_html = bootstrap_icon_plus_name_html(
             auth_character.portrait_url(),
             auth_character.character_name,
             avatar=True,
@@ -1548,7 +1514,7 @@ def compliance_report_data(request) -> JsonResponse:
         if user.profile.main_character:
             main_character = user.profile.main_character
             main_name = main_character.character_name
-            main_html = create_icon_plus_name_html(
+            main_html = bootstrap_icon_plus_name_html(
                 main_character.portrait_url(),
                 main_character.character_name,
                 avatar=True,
@@ -1562,7 +1528,7 @@ def compliance_report_data(request) -> JsonResponse:
             is_compliant = user.unregistered_chars == 0
         else:
             main_name = user.username
-            main_html = create_icon_plus_name_html(
+            main_html = bootstrap_icon_plus_name_html(
                 eveimageserver.character_portrait_url(1, size=DEFAULT_ICON_SIZE),
                 main_name,
                 avatar=True,
@@ -1606,7 +1572,7 @@ def skill_sets_report_data(request) -> JsonResponse:
         main_character = user.profile.main_character
         if main_character:
             main_name = main_character.character_name
-            main_html = create_icon_plus_name_html(
+            main_html = bootstrap_icon_plus_name_html(
                 user.profile.main_character.portrait_url(), main_name, avatar=True
             )
             main_corporation = main_character.corporation_name
@@ -1626,7 +1592,7 @@ def skill_sets_report_data(request) -> JsonResponse:
         character_viewer_url = "{}?tab=skill_sets".format(
             reverse("memberaudit:character_viewer", args=[character.pk])
         )
-        character_html = create_icon_plus_name_html(
+        character_html = bootstrap_icon_plus_name_html(
             auth_character.portrait_url(),
             auth_character.character_name,
             avatar=True,
@@ -1634,7 +1600,7 @@ def skill_sets_report_data(request) -> JsonResponse:
         )
         group_pk = group.pk if group else 0
         has_required = [
-            create_icon_plus_name_html(
+            bootstrap_icon_plus_name_html(
                 obj.skill_set.ship_type.icon_url(DEFAULT_ICON_SIZE)
                 if obj.skill_set.ship_type
                 else eveimageserver.type_icon_url(

@@ -3,6 +3,9 @@ from typing import Any
 
 from django.apps import apps
 from django.conf import settings
+from django.contrib.auth.models import User, Permission
+from django.db import models
+from django.db.models import Q
 
 from .logging import LoggerAddTag
 
@@ -91,3 +94,18 @@ def clean_setting(
             )
             cleaned_value = default_value
     return cleaned_value
+
+
+def users_with_permission(permission: Permission) -> models.QuerySet:
+    """returns queryset of users that have the given Django permission"""
+    return (
+        User.objects.prefetch_related(
+            "user_permissions", "groups", "profile__state__permissions"
+        )
+        .filter(
+            Q(user_permissions=permission)
+            | Q(groups__permissions=permission)
+            | Q(profile__state__permissions=permission)
+        )
+        .distinct()
+    )

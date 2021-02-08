@@ -198,3 +198,45 @@ def queryset_pks(queryset) -> set:
     Useful for comparing test results.
     """
     return set(queryset.values_list("pk", flat=True))
+
+
+class BravadoResponseStub:
+    """Stub for IncomingResponse in bravado, e.g. for HTTPError exceptions"""
+
+    def __init__(
+        self, status_code, reason="", text="", headers=None, raw_bytes=None
+    ) -> None:
+        self.reason = reason
+        self.status_code = status_code
+        self.text = text
+        self.headers = headers if headers else dict()
+        self.raw_bytes = raw_bytes
+
+    def __str__(self):
+        return "{0} {1}".format(self.status_code, self.reason)
+
+
+class BravadoOperationStub:
+    """Stub to simulate the operation object return from bravado via django-esi"""
+
+    class RequestConfig:
+        def __init__(self, also_return_response):
+            self.also_return_response = also_return_response
+
+    class ResponseStub:
+        def __init__(self, headers):
+            self.headers = headers
+
+    def __init__(self, data, headers: dict = None, also_return_response: bool = False):
+        self._data = data
+        self._headers = headers if headers else {"x-pages": 1}
+        self.request_config = BravadoOperationStub.RequestConfig(also_return_response)
+
+    def result(self, **kwargs):
+        if self.request_config.also_return_response:
+            return [self._data, self.ResponseStub(self._headers)]
+        else:
+            return self._data
+
+    def results(self, **kwargs):
+        return self.result(**kwargs)

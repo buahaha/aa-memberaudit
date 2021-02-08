@@ -2,66 +2,17 @@ from unittest.mock import patch
 
 import requests_mock
 
-from django.contrib.auth.models import Group
 from django.test import TestCase
 
-
-from allianceauth.tests.auth_utils import AuthUtils
-
-from .testdata.load_entities import load_entities
 from ..helpers import (
-    users_with_permission,
     fetch_esi_status,
     EsiStatus,
     EsiOffline,
     EsiErrorLimitExceeded,
 )
-from ..utils.testing import NoSocketsTestCase
 
 
 MODULE_PATH = "memberaudit.helpers"
-
-
-class TestUsersWithPermissionQS(NoSocketsTestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        super().setUpClass()
-        load_entities()
-        cls.permission = AuthUtils.get_permission_by_name("memberaudit.basic_access")
-        cls.group, _ = Group.objects.get_or_create(name="Test Group")
-        AuthUtils.add_permissions_to_groups([cls.permission], [cls.group])
-        cls.state = AuthUtils.create_state(name="Test State", priority=75)
-        cls.state.permissions.add(cls.permission)
-
-    def setUp(self) -> None:
-        self.user_1 = AuthUtils.create_user("Bruce Wayne")
-        self.user_2 = AuthUtils.create_user("Lex Luther")
-
-    @classmethod
-    def user_with_permission_pks(cls) -> set:
-        return set(users_with_permission(cls.permission).values_list("pk", flat=True))
-
-    def test_user_permission(self):
-        """direct user permissions"""
-        AuthUtils.add_permissions_to_user([self.permission], self.user_1)
-        self.assertSetEqual(self.user_with_permission_pks(), {self.user_1.pk})
-
-    def test_group_permission(self):
-        """group permissions"""
-        self.user_1.groups.add(self.group)
-        self.assertSetEqual(self.user_with_permission_pks(), {self.user_1.pk})
-
-    def test_state_permission(self):
-        """state permissions"""
-        AuthUtils.assign_state(self.user_1, self.state, disconnect_signals=True)
-        self.assertSetEqual(self.user_with_permission_pks(), {self.user_1.pk})
-
-    def test_distinct_qs(self):
-        """only return one user object, despiste multiple matches"""
-        AuthUtils.add_permissions_to_user([self.permission], self.user_1)
-        self.user_1.groups.add(self.group)
-        AuthUtils.assign_state(self.user_1, self.state, disconnect_signals=True)
-        self.assertSetEqual(self.user_with_permission_pks(), {self.user_1.pk})
 
 
 class TestEsiStatusExceptions(TestCase):

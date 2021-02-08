@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 import requests
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.core.cache import cache
 from django.http import HttpRequest
 from django.test import TestCase
@@ -12,20 +12,22 @@ from django.utils import translation
 from django.utils.html import mark_safe
 from django.utils.timezone import now
 
+from allianceauth.tests.auth_utils import AuthUtils
+
 from ..utils.caching import ObjectCacheMixin
 from ..utils.datetime import datetime_round_hour, timeuntil_str
-from ..utils.django import app_labels, clean_setting
+from ..utils.django import app_labels, clean_setting, users_with_permission
 from ..utils.helpers import chunks
 from ..utils.json import JSONDateTimeDecoder, JSONDateTimeEncoder
 from ..utils.messages import messages_plus
 from ..utils.testing import NoSocketsTestCase, SocketAccessError, generate_invalid_pk
 from ..utils.views import (
-    add_no_wrap_html,
+    no_wrap_html,
     yesno_str,
-    create_bs_button_html,
-    create_bs_glyph_html,
-    create_link_html,
-    add_bs_label_html,
+    bootstrap_link_button_html,
+    bootstrap_glyph_html,
+    link_html,
+    bootstrap_label_html,
     humanize_value,
 )
 from ..utils.urls import get_site_base_url
@@ -238,8 +240,8 @@ class TestAppLabel(TestCase):
 
 class TestHtmlHelper(TestCase):
     def test_add_no_wrap_html(self):
-        expected = '<span style="white-space: nowrap;">Dummy</span>'
-        self.assertEqual(add_no_wrap_html("Dummy"), expected)
+        expected = '<span class="text-nowrap;">Dummy</span>'
+        self.assertEqual(no_wrap_html("Dummy"), expected)
 
     def test_yesno_str(self):
         with translation.override("en"):
@@ -251,26 +253,24 @@ class TestHtmlHelper(TestCase):
 
     def test_add_bs_label_html(self):
         expected = '<div class="label label-danger">Dummy</div>'
-        self.assertEqual(add_bs_label_html("Dummy", "danger"), expected)
+        self.assertEqual(bootstrap_label_html("Dummy", "danger"), expected)
 
     def test_create_link_html_default(self):
         expected = (
             '<a href="https://www.example.com" target="_blank">' "Example Link</a>"
         )
-        self.assertEqual(
-            create_link_html("https://www.example.com", "Example Link"), expected
-        )
+        self.assertEqual(link_html("https://www.example.com", "Example Link"), expected)
 
     def test_create_link_html(self):
         expected = '<a href="https://www.example.com">Example Link</a>'
         self.assertEqual(
-            create_link_html("https://www.example.com", "Example Link", False), expected
+            link_html("https://www.example.com", "Example Link", False), expected
         )
         expected = (
             '<a href="https://www.example.com">' "<strong>Example Link</strong></a>"
         )
         self.assertEqual(
-            create_link_html(
+            link_html(
                 "https://www.example.com",
                 mark_safe("<strong>Example Link</strong>"),
                 False,
@@ -280,7 +280,7 @@ class TestHtmlHelper(TestCase):
 
     def test_create_bs_glyph_html(self):
         expected = '<span class="glyphicon glyphicon-example"></span>'
-        self.assertEqual(create_bs_glyph_html("example"), expected)
+        self.assertEqual(bootstrap_glyph_html("example"), expected)
 
     def test_create_bs_button_html_default(self):
         expected = (
@@ -288,7 +288,7 @@ class TestHtmlHelper(TestCase):
             '<span class="glyphicon glyphicon-example"></span></a>'
         )
         self.assertEqual(
-            create_bs_button_html("https://www.example.com", "example", "info"),
+            bootstrap_link_button_html("https://www.example.com", "example", "info"),
             expected,
         )
 
@@ -299,7 +299,9 @@ class TestHtmlHelper(TestCase):
             '<span class="glyphicon glyphicon-example"></span></a>'
         )
         self.assertEqual(
-            create_bs_button_html("https://www.example.com", "example", "info", True),
+            bootstrap_link_button_html(
+                "https://www.example.com", "example", "info", True
+            ),
             expected,
         )
 
@@ -445,3 +447,44 @@ class TestObjectCacheMixin(TestCase):
 
         self.assertEqual(obj.name, "My Fake Model")
         self.assertEqual(mock_fetch_object_for_cache.call_count, 1)
+
+
+class TestUsersWithPermissionQS(NoSocketsTestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.permission = AuthUtils.get_permission_by_name("memberaudit.basic_access")
+        cls.group, _ = Group.objects.get_or_create(name="Test Group")
+        AuthUtils.add_permissions_to_groups([cls.permission], [cls.group])
+        cls.state = AuthUtils.create_state(name="Test State", priority=75)
+        cls.state.permissions.add(cls.permission)
+
+    def setUp(self) -> None:
+        self.user_1 = AuthUtils.create_user("Bruce Wayne")
+        self.user_2 = AuthUtils.create_user("Lex Luther")
+
+    @classmethod
+    def user_with_permission_pks(cls) -> set:
+        return set(users_with_permission(cls.permission).values_list("pk", flat=True))
+
+    def test_user_permission(self):
+        """direct user permissions"""
+        AuthUtils.add_permissions_to_user([self.permission], self.user_1)
+        self.assertSetEqual(self.user_with_permission_pks(), {self.user_1.pk})
+
+    def test_group_permission(self):
+        """group permissions"""
+        self.user_1.groups.add(self.group)
+        self.assertSetEqual(self.user_with_permission_pks(), {self.user_1.pk})
+
+    def test_state_permission(self):
+        """state permissions"""
+        AuthUtils.assign_state(self.user_1, self.state, disconnect_signals=True)
+        self.assertSetEqual(self.user_with_permission_pks(), {self.user_1.pk})
+
+    def test_distinct_qs(self):
+        """only return one user object, despiste multiple matches"""
+        AuthUtils.add_permissions_to_user([self.permission], self.user_1)
+        self.user_1.groups.add(self.group)
+        AuthUtils.assign_state(self.user_1, self.state, disconnect_signals=True)
+        self.assertSetEqual(self.user_with_permission_pks(), {self.user_1.pk})

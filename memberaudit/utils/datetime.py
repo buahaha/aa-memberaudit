@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from django.utils.translation import gettext_lazy as _
 
 
-# Format for output of datetime for this app
+# Default format for output of datetime
 DATETIME_FORMAT = "%Y-%m-%d %H:%M"
 
 

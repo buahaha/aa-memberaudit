@@ -14,7 +14,6 @@ from allianceauth.eveonline.evelinks import dotlan, evewho
 from allianceauth.services.hooks import get_extension_logger
 
 from .. import __title__
-from ..helpers import users_with_permission
 from ..managers.general import (
     EveShipTypeManger,
     EveSkillTypeManger,
@@ -22,6 +21,7 @@ from ..managers.general import (
     MailEntityManager,
 )
 from ..utils.logging import LoggerAddTag
+from ..utils.django import users_with_permission
 from .constants import NAMES_MAX_LENGTH
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)

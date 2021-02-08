@@ -4,9 +4,8 @@ from typing import Optional
 
 import requests
 
-from django.contrib.auth.models import User, Permission
+
 from django.db import models
-from django.db.models import Q
 from django.utils.html import format_html
 
 from eveuniverse.models import EveSolarSystem
@@ -16,7 +15,7 @@ from allianceauth.services.hooks import get_extension_logger
 from . import __title__, __version__
 from .app_settings import MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD
 from .utils.logging import LoggerAddTag
-from .utils.views import create_link_html
+from .utils.views import link_html
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -80,28 +79,11 @@ def eve_solar_system_to_html(solar_system: EveSolarSystem, show_region=True) -> 
     )
     return format_html(
         '{} <span class="{}">{}</span>{}',
-        create_link_html(dotlan.solar_system_url(solar_system.name), solar_system.name),
+        link_html(dotlan.solar_system_url(solar_system.name), solar_system.name),
         css_class,
         round(solar_system.security_status, 1),
         region_html,
     )
-
-
-def users_with_permission(permission: Permission) -> models.QuerySet:
-    """returns queryset of users that have the given permission in Auth"""
-    users_qs = (
-        User.objects.prefetch_related(
-            "user_permissions", "groups", "profile__state__permissions"
-        )
-        .filter(
-            Q(user_permissions=permission)
-            | Q(groups__permissions=permission)
-            | Q(profile__state__permissions=permission)
-        )
-        .distinct()
-    )
-
-    return users_qs
 
 
 class EsiStatusException(Exception):
