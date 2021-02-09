@@ -1495,7 +1495,7 @@ def reports(request) -> HttpResponse:
 
 @login_required
 @permission_required("memberaudit.reports_access")
-def compliance_report_data(request) -> JsonResponse:
+def user_compliance_report_data(request) -> JsonResponse:
     users_and_character_counts = (
         General.accessible_users(request.user)
         .annotate(total_chars=Count("character_ownerships__character", distinct=True))

@@ -130,9 +130,9 @@ urlpatterns = [
     ),
     path("reports", views.reports, name="reports"),
     path(
-        "compliance_report_data",
-        views.compliance_report_data,
-        name="compliance_report_data",
+        "user_compliance_report_data",
+        views.user_compliance_report_data,
+        name="user_compliance_report_data",
     ),
     path("character_finder", views.character_finder, name="character_finder"),
     path(

@@ -74,7 +74,7 @@ from ..views import (
     character_wallet_journal_data,
     character_wallet_transactions_data,
     character_finder_data,
-    compliance_report_data,
+    user_compliance_report_data,
     skill_sets_report_data,
     remove_character,
     character_finder,
@@ -1518,9 +1518,9 @@ class TestComplianceReportData(TestCase):
         AuthUtils.create_user("John Doe")  # this user should not show up in view
 
     def _execute_request(self) -> dict:
-        request = self.factory.get(reverse("memberaudit:compliance_report_data"))
+        request = self.factory.get(reverse("memberaudit:user_compliance_report_data"))
         request.user = self.user
-        response = compliance_report_data(request)
+        response = user_compliance_report_data(request)
         self.assertEqual(response.status_code, 200)
         return json_response_to_python_dict(response)
 
@@ -1599,9 +1599,9 @@ class TestComplianceReportData(TestCase):
         user = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.view_everything", user
         )
-        request = self.factory.get(reverse("memberaudit:compliance_report_data"))
+        request = self.factory.get(reverse("memberaudit:user_compliance_report_data"))
         request.user = user
-        response = compliance_report_data(request)
+        response = user_compliance_report_data(request)
         self.assertEqual(response.status_code, 200)
         result = json_response_to_python_dict(response)
         self.assertSetEqual(

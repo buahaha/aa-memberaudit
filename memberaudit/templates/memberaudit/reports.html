@@ -31,7 +31,7 @@
         $(document).ready(function() {
             $('#tab_compliance').DataTable({
                 ajax: {
-                    url: '{% url 'memberaudit:compliance_report_data' %}',
+                    url: '{% url 'memberaudit:user_compliance_report_data' %}',
                     dataSrc: '',
                     cache: false
                 },
