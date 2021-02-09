@@ -15,10 +15,10 @@
         <table class="table table-striped table-width-fix" id="skill_set_details">
             <thead>
                 <tr>
-                    <th>Name</th>
-                    <th class="text-center">Recommended</th>
-                    <th class="text-center">Required</th>
-                    <th class="text-center">Current</th>
+                    <th>{% translate 'Name' %}</th>
+                    <th class="text-center">{% translate 'Required' %}</th>
+                    <th class="text-center">{% translate 'Recommended' %}</th>
+                    <th class="text-center">{% translate 'Current' %}</th>
                     <th></th>
                 </tr>
             </thead>
@@ -27,8 +27,8 @@
                 {% for skill in skills %}
                 <tr>
                     <td>{{ skill.name }}</td>
-                    <td class="text-center">{{ skill.recommended }}</td>
                     <td class="text-center">{{ skill.required }}</td>
+                    <td class="text-center">{{ skill.recommended }}</td>
                     <td class="text-center">{{ skill.current }}</td>
                     <td class="{{ skill.result }}" />
                 </tr>
