@@ -12,7 +12,8 @@
             <div class="panel-body">
                 <!-- Tab panes -->
                 <div class="tab-content">
-                    {% include 'memberaudit/partials/reports/tabs/compliance.html' %}
+                    {% include 'memberaudit/partials/reports/tabs/user_compliance.html' %}
+                    {% include 'memberaudit/partials/reports/tabs/corporation_compliance.html' %}
                     {% include 'memberaudit/partials/reports/tabs/skill_sets.html' %}
                 </div>
             </div>
@@ -29,7 +30,7 @@
 
     <script>
         $(document).ready(function() {
-            $('#tab_compliance').DataTable({
+            $('#tab_user_compliance').DataTable({
                 ajax: {
                     url: '{% url 'memberaudit:user_compliance_report_data' %}',
                     dataSrc: '',
@@ -86,6 +87,64 @@
                         $(row).addClass('success');
                     }
                     else if (data['is_registered']){
+                        $(row).addClass('warning');
+                    }
+                    else {
+                        $(row).addClass('danger');
+                    }
+                }
+            });
+
+            $('#tab_corporation_compliance').DataTable({
+                ajax: {
+                    url: '{% url 'memberaudit:corporation_compliance_report_data' %}',
+                    dataSrc: '',
+                    cache: false
+                },
+                columns: [
+                    {
+                        data: 'organization_html',
+                        render: {
+                            _: 'display',
+                            sort: 'sort'
+                        }
+                    },
+                    { data: 'mains_count' },
+                    { data: 'characters_count' },
+                    { data: 'compliance_percent' },
+                    /* hidden columns */
+                    { data: 'alliance_name' },
+                    { data: 'corporation_name' },
+                    { data: 'is_compliant_str' },
+                ],
+                columnDefs: [
+                    { "visible": false, "targets": [ 4, 5, 6 ] },
+                ],
+                order: [ [ 0, "asc" ] ],
+                filterDropDown: {
+                    columns: [
+                        {
+                            idx: 4,
+                            title: "{% translate 'Alliance' %}"
+                        },
+                        {
+                            idx: 5,
+                            title: "{% translate 'Corporation' %}"
+                        },
+                        {
+                            idx: 6,
+                            title: "{% translate 'Compliant?' %}"
+                        },
+                    ],
+                    autoSize: false,
+                    bootstrap: true
+                },
+                createdRow: function( row, data, dataIndex )
+                {
+                    if (data['is_compliant']){
+                        $(row).addClass('success');
+                    }
+                    else if (data['is_partly_compliant']){
                         $(row).addClass('warning');
                     }
                     else {
@@ -157,6 +216,7 @@
     {% include 'bundles/datatables-css.html' %}
     <link rel="stylesheet" href="{% static 'memberaudit/css/global.css' %}" type="text/css">
     <link rel="stylesheet" href="{% static 'memberaudit/css/memberaudit.css' %}" type="text/css">
+    <link rel="stylesheet" href="{% static 'memberaudit/css/reports.css' %}" type="text/css">
 {% endblock %}
 
 {% block extra_script %}

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Added
+
+- Report for corporation compliance
+
 ## [1.1.1] - 2021-01-29
 
 ### Added
