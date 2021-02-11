@@ -1180,7 +1180,7 @@ def character_skill_sets_data(
             )
         else:
             group_name = UNGROUPED_SKILL_SET
-        
+
         url = (
             check.skill_set.ship_type.icon_url(DEFAULT_ICON_SIZE)
             if check.skill_set.ship_type
@@ -1273,8 +1273,6 @@ def character_skill_sets_data(
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
-<<<<<<< HEAD
-<<<<<<< HEAD
 def character_skill_set_details(
     request, character_pk: int, character: Character, skill_set_pk: int
 ) -> HttpResponse:
@@ -1302,7 +1300,6 @@ def character_skill_set_details(
         recommended_level_str = "-"
         required_level_str = "-"
         current_str = "-"
-<<<<<<< HEAD
         result = ""
 
         if skill.recommended_level is not None:
@@ -1339,88 +1336,6 @@ def character_skill_set_details(
         "ship_url": url,
         "skills": out_data,
     }
-=======
-def character_skill_set_details(request, 
-character_pk: int, 
-character: Character,
-skill_set_pk: int) -> HttpResponse:
-=======
-def character_skill_set_details(
-    request, character_pk: int, character: Character, skill_set_pk: int
-) -> HttpResponse:
->>>>>>> adding pre-commit changes
-
-    skill_set = SkillSet.objects.get(id=skill_set_pk)
-    skill_set_skills = SkillSetSkill.objects.filter(skill_set_id=skill_set_pk)
-
-    out_data = list()
-
-    url = (
-        skill_set.ship_type.icon_url(ICON_SIZE_64)
-        if skill_set.ship_type
-        else eveimageserver.type_icon_url(
-            SKILL_SET_DEFAULT_ICON_TYPE_ID, size=ICON_SIZE_64
-        )
-    )
-
-    for skill in skill_set_skills:
-        cs = (
-            character.skills.select_related("eve_type")
-            .filter(eve_type_id=skill.eve_type_id)
-            .first()
-        )
-
-        current = 0
-=======
->>>>>>> added unit test, sorted skill, fixed linebreak
-        result = ""
-
-        if skill.recommended_level is not None:
-            recommended_level_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[
-                skill.recommended_level
-            ]
-
-        if skill.required_level is not None:
-            required_level_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[skill.required_level]
-
-        if cs is not None:
-            current_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[cs.active_skill_level]
-
-        if cs is None:
-            result = "fas fa-times boolean-icon-false"
-        elif cs.active_skill_level >= skill.recommended_level:
-            result = "fas fa-check-double boolean-icon-true"
-        elif cs.active_skill_level >= skill.required_level:
-            result = "fas fa-check boolean-icon-true"
-
-        out_data.append(
-            {
-                "name": skill.eve_type.name,
-                "required": required_level_str,
-                "recommended": recommended_level_str,
-                "current": current_str,
-                "result": result,
-            }
-        )
-
-<<<<<<< HEAD
-<<<<<<< HEAD
-    context = { 
-            "name" : skill_set.name,
-            "ship_url": url,
-            "skills" : out_data,
-        }
->>>>>>> Add details modal for skills
-=======
-=======
-    out_data = sorted(out_data, key=lambda k: (k["name"].lower()))
->>>>>>> added unit test, sorted skill, fixed linebreak
-    context = {
-        "name": skill_set.name,
-        "ship_url": url,
-        "skills": out_data,
-    }
->>>>>>> adding pre-commit changes
 
     return render(
         request,
@@ -1446,15 +1361,7 @@ def character_skills_data(
                 {
                     "group": skill.eve_type.eve_group.name,
                     "skill": skill.eve_type.name,
-<<<<<<< HEAD
-<<<<<<< HEAD
                     "skill_name": f"{skill_name} - {skill.eve_type_id}",
-=======
-                    "skill_name":f"{skill_name} - {skill.eve_type_id}",
->>>>>>> Add details modal for skills
-=======
-                    "skill_name": f"{skill_name} - {skill.eve_type_id}",
->>>>>>> adding pre-commit changes
                     "level": skill.active_skill_level,
                     "level_str": level_str,
                 }
