@@ -1302,6 +1302,7 @@ def character_skill_set_details(
         recommended_level_str = "-"
         required_level_str = "-"
         current_str = "-"
+<<<<<<< HEAD
         result = ""
 
         if skill.recommended_level is not None:
@@ -1370,26 +1371,39 @@ def character_skill_set_details(
         )
 
         current = 0
+=======
+>>>>>>> added unit test, sorted skill, fixed linebreak
         result = ""
+
+        if skill.recommended_level is not None:
+            recommended_level_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[
+                skill.recommended_level
+            ]
+
+        if skill.required_level is not None:
+            required_level_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[skill.required_level]
+
+        if cs is not None:
+            current_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[cs.active_skill_level]
+
         if cs is None:
             result = "fas fa-times boolean-icon-false"
         elif cs.active_skill_level >= skill.recommended_level:
             result = "fas fa-check-double boolean-icon-true"
-            current = cs.active_skill_level
         elif cs.active_skill_level >= skill.required_level:
             result = "fas fa-check boolean-icon-true"
-            current = cs.active_skill_level
 
         out_data.append(
             {
                 "name": skill.eve_type.name,
-                "required": MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[skill.required_level],
-                "recommended": MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[skill.recommended_level],
-                "current": MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[current],
+                "required": required_level_str,
+                "recommended": recommended_level_str,
+                "current": current_str,
                 "result": result,
             }
         )
 
+<<<<<<< HEAD
 <<<<<<< HEAD
     context = { 
             "name" : skill_set.name,
@@ -1398,6 +1412,9 @@ def character_skill_set_details(
         }
 >>>>>>> Add details modal for skills
 =======
+=======
+    out_data = sorted(out_data, key=lambda k: (k["name"].lower()))
+>>>>>>> added unit test, sorted skill, fixed linebreak
     context = {
         "name": skill_set.name,
         "ship_url": url,
