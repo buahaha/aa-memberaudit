@@ -231,7 +231,7 @@
 
         /* Contacts */
         $('#tab_contacts').DataTable({
-            "paging": false,
+            "paging": true,
             ajax: {
                 url: "{% url 'memberaudit:character_contacts_data' character.pk %}",
                 dataSrc: '',
@@ -569,7 +569,7 @@
             },
             columnDefs: [
                 { "visible": false, "targets": [0, 6, 7] },
-                { "orderable": false, "targets": [3] }
+                { "orderable": false, "targets": [3, 5] }
 
             ],
             filterDropDown: {
