@@ -22,6 +22,8 @@ class CreateEveUniverseTestData(TestCase):
                     20185,
                     24311,
                     24312,
+                    24313,
+                    24314,
                     35832,
                     35835,
                     52678,

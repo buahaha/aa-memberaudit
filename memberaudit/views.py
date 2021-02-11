@@ -1215,7 +1215,6 @@ def character_skill_sets_data(
         else:
             group_name = UNGROUPED_SKILL_SET
 
-        # name_link = f'<a href="/member-audit/character_skill_set_details/{character_pk}/{check.skill_set_id}">{check.skill_set.name}</a>'
         url = (
             check.skill_set.ship_type.icon_url(DEFAULT_ICON_SIZE)
             if check.skill_set.ship_type
@@ -1332,27 +1331,40 @@ def character_skill_set_details(
             .first()
         )
 
-        current = 0
+        recommended_level_str = "-"
+        required_level_str = "-"
+        current_str = "-"
         result = ""
+
+        if skill.recommended_level is not None:
+            recommended_level_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[
+                skill.recommended_level
+            ]
+
+        if skill.required_level is not None:
+            required_level_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[skill.required_level]
+
+        if cs is not None:
+            current_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[cs.active_skill_level]
+
         if cs is None:
             result = "fas fa-times boolean-icon-false"
         elif cs.active_skill_level >= skill.recommended_level:
             result = "fas fa-check-double boolean-icon-true"
-            current = cs.active_skill_level
         elif cs.active_skill_level >= skill.required_level:
             result = "fas fa-check boolean-icon-true"
-            current = cs.active_skill_level
 
         out_data.append(
             {
                 "name": skill.eve_type.name,
-                "required": MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[skill.required_level],
-                "recommended": MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[skill.recommended_level],
-                "current": MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[current],
+                "required": required_level_str,
+                "recommended": recommended_level_str,
+                "current": current_str,
                 "result": result,
             }
         )
 
+    out_data = sorted(out_data, key=lambda k: (k["name"].lower()))
     context = {
         "name": skill_set.name,
         "ship_url": url,
