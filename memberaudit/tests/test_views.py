@@ -873,6 +873,28 @@ class TestViewsOther(TestViewsBase):
             skillpoints_in_skill=10,
             trained_skill_level=4,
         )
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=self.skill_type_2,
+            active_skill_level=2,
+            skillpoints_in_skill=10,
+            trained_skill_level=2,
+        )
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=self.skill_type_3,
+            active_skill_level=4,
+            skillpoints_in_skill=10,
+            trained_skill_level=4,
+        )
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=self.skill_type_4,
+            active_skill_level=3,
+            skillpoints_in_skill=10,
+            trained_skill_level=3,
+        )
+
         skill_set_1 = SkillSet.objects.create(name="skill set")
         SkillSetSkill.objects.create(
             skill_set=skill_set_1,
@@ -880,17 +902,16 @@ class TestViewsOther(TestViewsBase):
             required_level=3,
             recommended_level=5,
         )
-
         SkillSetSkill.objects.create(
             skill_set=skill_set_1,
             eve_type=self.skill_type_2,
             required_level=None,
-            recommended_level=4,
+            recommended_level=3,
         )
         SkillSetSkill.objects.create(
             skill_set=skill_set_1,
             eve_type=self.skill_type_3,
-            required_level=4,
+            required_level=3,
             recommended_level=None,
         )
         SkillSetSkill.objects.create(
@@ -916,6 +937,10 @@ class TestViewsOther(TestViewsBase):
         text = response_content_to_str(response.content)
 
         self.assertIn(skill_set_1.name, text)
+        self.assertIn(self.skill_type_1.name, text)
+        self.assertIn(self.skill_type_2.name, text)
+        self.assertIn(self.skill_type_3.name, text)
+        self.assertIn(self.skill_type_4.name, text)
 
 
 class TestCharacterDataViewsOther(TestViewsBase):
