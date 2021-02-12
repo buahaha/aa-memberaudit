@@ -90,6 +90,600 @@
             "position_z": 7.960999000649318e+16
         }
     ],
+    "EveDogmaAttribute": [
+        {
+            "default_value": 0.0,
+            "description": "Integer that describes the types mass",
+            "display_name": "Mass",
+            "eve_unit_id": 2,
+            "high_is_good": true,
+            "icon_id": 76,
+            "id": 4,
+            "name": "mass",
+            "published": true,
+            "stackable": null
+        },
+        {
+            "default_value": 0.0,
+            "description": "Maximum velocity of ship",
+            "display_name": "Maximum Velocity",
+            "eve_unit_id": 11,
+            "high_is_good": true,
+            "icon_id": 1389,
+            "id": 37,
+            "name": "maxVelocity",
+            "published": true,
+            "stackable": null
+        },
+        {
+            "default_value": 0.0,
+            "description": "The cargo space allowed",
+            "display_name": "Capacity",
+            "eve_unit_id": 9,
+            "high_is_good": true,
+            "icon_id": 71,
+            "id": 38,
+            "name": "capacity",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "Volume of things in cubic meters",
+            "display_name": "Volume",
+            "eve_unit_id": 9,
+            "high_is_good": true,
+            "icon_id": 67,
+            "id": 161,
+            "name": "volume",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "Radius of an object in meters",
+            "display_name": "",
+            "eve_unit_id": null,
+            "high_is_good": true,
+            "icon_id": 1390,
+            "id": 162,
+            "name": "radius",
+            "published": null,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "The charisma of a character.",
+            "display_name": "Charisma",
+            "eve_unit_id": 120,
+            "high_is_good": true,
+            "icon_id": 1378,
+            "id": 164,
+            "name": "charisma",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "The intelligence of a character.",
+            "display_name": "Intelligence",
+            "eve_unit_id": 120,
+            "high_is_good": true,
+            "icon_id": 1380,
+            "id": 165,
+            "name": "intelligence",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "The memory of a character.",
+            "display_name": "Memory",
+            "eve_unit_id": 120,
+            "high_is_good": true,
+            "icon_id": 1381,
+            "id": 166,
+            "name": "memory",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "The perception of a character.",
+            "display_name": "Perception",
+            "eve_unit_id": 120,
+            "high_is_good": true,
+            "icon_id": 1382,
+            "id": 167,
+            "name": "perception",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "The willpower of a character.",
+            "display_name": "Willpower",
+            "eve_unit_id": 120,
+            "high_is_good": true,
+            "icon_id": 1379,
+            "id": 168,
+            "name": "willpower",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "+/- bonus to the charisma of a character.",
+            "display_name": "Charisma Modifier",
+            "eve_unit_id": 120,
+            "high_is_good": true,
+            "icon_id": 1378,
+            "id": 175,
+            "name": "charismaBonus",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "+/- bonus to the intelligence of a character.",
+            "display_name": "Intelligence Modifier",
+            "eve_unit_id": 120,
+            "high_is_good": true,
+            "icon_id": 1380,
+            "id": 176,
+            "name": "intelligenceBonus",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "+/- bonus to the memory of a character.",
+            "display_name": "Memory Modifier",
+            "eve_unit_id": 120,
+            "high_is_good": true,
+            "icon_id": 1381,
+            "id": 177,
+            "name": "memoryBonus",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "+/- bonus to the perception of a character.",
+            "display_name": "Perception Modifier",
+            "eve_unit_id": 120,
+            "high_is_good": true,
+            "icon_id": 1382,
+            "id": 178,
+            "name": "perceptionBonus",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "+/- bonus to the willpower of a character.",
+            "display_name": "Willpower Modifier",
+            "eve_unit_id": 120,
+            "high_is_good": true,
+            "icon_id": 1379,
+            "id": 179,
+            "name": "willpowerBonus",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "The type ID of the skill that is required.",
+            "display_name": "Primary Skill required",
+            "eve_unit_id": 116,
+            "high_is_good": true,
+            "icon_id": null,
+            "id": 182,
+            "name": "requiredSkill1",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "Required skill level for skill 1",
+            "display_name": "",
+            "eve_unit_id": null,
+            "high_is_good": true,
+            "icon_id": null,
+            "id": 277,
+            "name": "requiredSkill1Level",
+            "published": null,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "Autogenerated skill attribute, velocityBonus",
+            "display_name": "Velocity Modifier",
+            "eve_unit_id": 121,
+            "high_is_good": true,
+            "icon_id": 1389,
+            "id": 315,
+            "name": "velocityBonus",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "Whether an item is an implant or not",
+            "display_name": "Implant Slot",
+            "eve_unit_id": 136,
+            "high_is_good": true,
+            "icon_id": 2224,
+            "id": 331,
+            "name": "implantness",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 1.0,
+            "description": "Authoring has been moved to FSD\r\nTech level of an item",
+            "display_name": "Tech Level",
+            "eve_unit_id": 140,
+            "high_is_good": true,
+            "icon_id": 1446,
+            "id": 422,
+            "name": "techLevel",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "Chance of being caught Transporting contraband. ",
+            "display_name": "",
+            "eve_unit_id": null,
+            "high_is_good": true,
+            "icon_id": 0,
+            "id": 445,
+            "name": "smugglingChance",
+            "published": null,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "Autogenerated skill attribute, smugglingChanceBonus",
+            "display_name": "Smuggling Chance Bonus",
+            "eve_unit_id": 105,
+            "high_is_good": true,
+            "icon_id": 1196,
+            "id": 447,
+            "name": "smugglingChanceBonus",
+            "published": null,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "Authoring has been moved to FSD\r\nThe ranking of the module within its tech level",
+            "display_name": "Meta Level",
+            "eve_unit_id": 140,
+            "high_is_good": true,
+            "icon_id": null,
+            "id": 633,
+            "name": "metaLevelOld",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "",
+            "display_name": "Snake Set Bonus",
+            "eve_unit_id": 104,
+            "high_is_good": true,
+            "icon_id": 0,
+            "id": 802,
+            "name": "implantSetSerpentis",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "",
+            "display_name": "Asklepian Set Bonus",
+            "eve_unit_id": 104,
+            "high_is_good": true,
+            "icon_id": 0,
+            "id": 803,
+            "name": "implantSetSerpentis2",
+            "published": true,
+            "stackable": true
+        }
+    ],
+    "EveDogmaEffect": [
+        {
+            "description": "",
+            "disallow_auto_repeat": null,
+            "discharge_attribute_id": null,
+            "display_name": "",
+            "duration_attribute_id": null,
+            "effect_category": 0,
+            "electronic_chance": null,
+            "falloff_attribute_id": null,
+            "icon_id": 0,
+            "id": 302,
+            "is_assistance": null,
+            "is_offensive": null,
+            "is_warp_safe": null,
+            "name": "empathyCharismaBonusModAddCharismaLocationChar",
+            "post_expression": null,
+            "pre_expression": null,
+            "published": null,
+            "range_attribute_id": null,
+            "range_chance": null,
+            "tracking_speed_attribute_id": null
+        },
+        {
+            "description": "",
+            "disallow_auto_repeat": null,
+            "discharge_attribute_id": null,
+            "display_name": "",
+            "duration_attribute_id": null,
+            "effect_category": 0,
+            "electronic_chance": null,
+            "falloff_attribute_id": null,
+            "icon_id": 0,
+            "id": 304,
+            "is_assistance": null,
+            "is_offensive": null,
+            "is_warp_safe": null,
+            "name": "instantRecallMemoryBonusModAddMemoryLocationChar",
+            "post_expression": null,
+            "pre_expression": null,
+            "published": null,
+            "range_attribute_id": null,
+            "range_chance": null,
+            "tracking_speed_attribute_id": null
+        },
+        {
+            "description": "",
+            "disallow_auto_repeat": null,
+            "discharge_attribute_id": null,
+            "display_name": "",
+            "duration_attribute_id": null,
+            "effect_category": 0,
+            "electronic_chance": null,
+            "falloff_attribute_id": null,
+            "icon_id": 0,
+            "id": 306,
+            "is_assistance": null,
+            "is_offensive": null,
+            "is_warp_safe": null,
+            "name": "analyticalMindIntelligenceBonusModAddIntelligenceLocationChar",
+            "post_expression": null,
+            "pre_expression": null,
+            "published": null,
+            "range_attribute_id": null,
+            "range_chance": null,
+            "tracking_speed_attribute_id": null
+        },
+        {
+            "description": "",
+            "disallow_auto_repeat": null,
+            "discharge_attribute_id": null,
+            "display_name": "",
+            "duration_attribute_id": null,
+            "effect_category": 0,
+            "electronic_chance": null,
+            "falloff_attribute_id": null,
+            "icon_id": 0,
+            "id": 308,
+            "is_assistance": null,
+            "is_offensive": null,
+            "is_warp_safe": null,
+            "name": "ironWillWillpowerBonusModAddWillpowerLocationChar",
+            "post_expression": null,
+            "pre_expression": null,
+            "published": null,
+            "range_attribute_id": null,
+            "range_chance": null,
+            "tracking_speed_attribute_id": null
+        },
+        {
+            "description": "",
+            "disallow_auto_repeat": null,
+            "discharge_attribute_id": null,
+            "display_name": "",
+            "duration_attribute_id": null,
+            "effect_category": 0,
+            "electronic_chance": null,
+            "falloff_attribute_id": null,
+            "icon_id": 0,
+            "id": 310,
+            "is_assistance": null,
+            "is_offensive": null,
+            "is_warp_safe": null,
+            "name": "spatialAwarenessPerceptionBonusModAddPerceptionLocationChar",
+            "post_expression": null,
+            "pre_expression": null,
+            "published": null,
+            "range_attribute_id": null,
+            "range_chance": null,
+            "tracking_speed_attribute_id": null
+        },
+        {
+            "description": "",
+            "disallow_auto_repeat": null,
+            "discharge_attribute_id": null,
+            "display_name": "",
+            "duration_attribute_id": null,
+            "effect_category": 0,
+            "electronic_chance": null,
+            "falloff_attribute_id": null,
+            "icon_id": 0,
+            "id": 394,
+            "is_assistance": null,
+            "is_offensive": null,
+            "is_warp_safe": null,
+            "name": "navigationVelocityBonusPostPercentMaxVelocityShip",
+            "post_expression": null,
+            "pre_expression": null,
+            "published": null,
+            "range_attribute_id": null,
+            "range_chance": null,
+            "tracking_speed_attribute_id": null
+        },
+        {
+            "description": "",
+            "disallow_auto_repeat": null,
+            "discharge_attribute_id": null,
+            "display_name": "",
+            "duration_attribute_id": null,
+            "effect_category": 0,
+            "electronic_chance": null,
+            "falloff_attribute_id": null,
+            "icon_id": 0,
+            "id": 1244,
+            "is_assistance": null,
+            "is_offensive": null,
+            "is_warp_safe": null,
+            "name": "smugglingModifier",
+            "post_expression": null,
+            "pre_expression": null,
+            "published": null,
+            "range_attribute_id": null,
+            "range_chance": null,
+            "tracking_speed_attribute_id": null
+        },
+        {
+            "description": "",
+            "disallow_auto_repeat": null,
+            "discharge_attribute_id": null,
+            "display_name": "",
+            "duration_attribute_id": null,
+            "effect_category": 0,
+            "electronic_chance": null,
+            "falloff_attribute_id": null,
+            "icon_id": 0,
+            "id": 1261,
+            "is_assistance": null,
+            "is_offensive": null,
+            "is_warp_safe": null,
+            "name": "setBonusSerpentis",
+            "post_expression": null,
+            "pre_expression": null,
+            "published": null,
+            "range_attribute_id": null,
+            "range_chance": null,
+            "tracking_speed_attribute_id": null
+        },
+        {
+            "description": "",
+            "disallow_auto_repeat": null,
+            "discharge_attribute_id": null,
+            "display_name": "",
+            "duration_attribute_id": null,
+            "effect_category": 0,
+            "electronic_chance": null,
+            "falloff_attribute_id": null,
+            "icon_id": 0,
+            "id": 1262,
+            "is_assistance": null,
+            "is_offensive": null,
+            "is_warp_safe": null,
+            "name": "setBonusSerpentis2",
+            "post_expression": null,
+            "pre_expression": null,
+            "published": null,
+            "range_attribute_id": null,
+            "range_chance": null,
+            "tracking_speed_attribute_id": null
+        }
+    ],
+    "EveDogmaEffectModifier": [
+        {
+            "domain": "charID",
+            "eve_dogma_effect_id": 302,
+            "func": "ItemModifier",
+            "id": 51,
+            "modified_attribute_id": 164,
+            "modifying_attribute_id": 175,
+            "modifying_effect_id": null,
+            "operator": 2
+        },
+        {
+            "domain": "charID",
+            "eve_dogma_effect_id": 304,
+            "func": "ItemModifier",
+            "id": 52,
+            "modified_attribute_id": 166,
+            "modifying_attribute_id": 177,
+            "modifying_effect_id": null,
+            "operator": 2
+        },
+        {
+            "domain": "charID",
+            "eve_dogma_effect_id": 306,
+            "func": "ItemModifier",
+            "id": 53,
+            "modified_attribute_id": 165,
+            "modifying_attribute_id": 176,
+            "modifying_effect_id": null,
+            "operator": 2
+        },
+        {
+            "domain": "charID",
+            "eve_dogma_effect_id": 308,
+            "func": "ItemModifier",
+            "id": 54,
+            "modified_attribute_id": 168,
+            "modifying_attribute_id": 179,
+            "modifying_effect_id": null,
+            "operator": 2
+        },
+        {
+            "domain": "charID",
+            "eve_dogma_effect_id": 310,
+            "func": "ItemModifier",
+            "id": 55,
+            "modified_attribute_id": 167,
+            "modifying_attribute_id": 178,
+            "modifying_effect_id": null,
+            "operator": 2
+        },
+        {
+            "domain": "shipID",
+            "eve_dogma_effect_id": 394,
+            "func": "ItemModifier",
+            "id": 56,
+            "modified_attribute_id": 37,
+            "modifying_attribute_id": 315,
+            "modifying_effect_id": null,
+            "operator": 6
+        },
+        {
+            "domain": "charID",
+            "eve_dogma_effect_id": 1244,
+            "func": "ItemModifier",
+            "id": 57,
+            "modified_attribute_id": 445,
+            "modifying_attribute_id": 447,
+            "modifying_effect_id": null,
+            "operator": 2
+        },
+        {
+            "domain": "charID",
+            "eve_dogma_effect_id": 1261,
+            "func": "LocationGroupModifier",
+            "id": 58,
+            "modified_attribute_id": 315,
+            "modifying_attribute_id": 802,
+            "modifying_effect_id": null,
+            "operator": 0
+        },
+        {
+            "domain": "charID",
+            "eve_dogma_effect_id": 1262,
+            "func": "LocationGroupModifier",
+            "id": 59,
+            "modified_attribute_id": 803,
+            "modifying_attribute_id": 447,
+            "modifying_effect_id": null,
+            "operator": 0
+        }
+    ],
     "EveFaction": [
         {
             "corporation_id": 1000035,
@@ -473,6 +1067,478 @@
             "published": false,
             "radius": 100000.0,
             "volume": 1.0
+        }
+    ],
+    "EveTypeDogmaAttribute": [
+        {
+            "eve_dogma_attribute_id": 161,
+            "eve_type_id": 19540,
+            "id": 229,
+            "value": 1.0
+        },
+        {
+            "eve_dogma_attribute_id": 802,
+            "eve_type_id": 19540,
+            "id": 230,
+            "value": 1.15
+        },
+        {
+            "eve_dogma_attribute_id": 4,
+            "eve_type_id": 19540,
+            "id": 231,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 38,
+            "eve_type_id": 19540,
+            "id": 232,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 422,
+            "eve_type_id": 19540,
+            "id": 233,
+            "value": 2.0
+        },
+        {
+            "eve_dogma_attribute_id": 331,
+            "eve_type_id": 19540,
+            "id": 234,
+            "value": 1.0
+        },
+        {
+            "eve_dogma_attribute_id": 162,
+            "eve_type_id": 19540,
+            "id": 235,
+            "value": 1.0
+        },
+        {
+            "eve_dogma_attribute_id": 175,
+            "eve_type_id": 19540,
+            "id": 236,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 176,
+            "eve_type_id": 19540,
+            "id": 237,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 177,
+            "eve_type_id": 19540,
+            "id": 238,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 178,
+            "eve_type_id": 19540,
+            "id": 239,
+            "value": 4.0
+        },
+        {
+            "eve_dogma_attribute_id": 179,
+            "eve_type_id": 19540,
+            "id": 240,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 277,
+            "eve_type_id": 19540,
+            "id": 241,
+            "value": 2.0
+        },
+        {
+            "eve_dogma_attribute_id": 182,
+            "eve_type_id": 19540,
+            "id": 242,
+            "value": 3411.0
+        },
+        {
+            "eve_dogma_attribute_id": 633,
+            "eve_type_id": 19540,
+            "id": 243,
+            "value": 9.0
+        },
+        {
+            "eve_dogma_attribute_id": 315,
+            "eve_type_id": 19540,
+            "id": 244,
+            "value": 0.5
+        },
+        {
+            "eve_dogma_attribute_id": 447,
+            "eve_type_id": 19540,
+            "id": 245,
+            "value": 0.01
+        },
+        {
+            "eve_dogma_attribute_id": 161,
+            "eve_type_id": 19551,
+            "id": 246,
+            "value": 1.0
+        },
+        {
+            "eve_dogma_attribute_id": 802,
+            "eve_type_id": 19551,
+            "id": 247,
+            "value": 1.15
+        },
+        {
+            "eve_dogma_attribute_id": 4,
+            "eve_type_id": 19551,
+            "id": 248,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 38,
+            "eve_type_id": 19551,
+            "id": 249,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 422,
+            "eve_type_id": 19551,
+            "id": 250,
+            "value": 2.0
+        },
+        {
+            "eve_dogma_attribute_id": 331,
+            "eve_type_id": 19551,
+            "id": 251,
+            "value": 2.0
+        },
+        {
+            "eve_dogma_attribute_id": 162,
+            "eve_type_id": 19551,
+            "id": 252,
+            "value": 1.0
+        },
+        {
+            "eve_dogma_attribute_id": 175,
+            "eve_type_id": 19551,
+            "id": 253,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 176,
+            "eve_type_id": 19551,
+            "id": 254,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 177,
+            "eve_type_id": 19551,
+            "id": 255,
+            "value": 4.0
+        },
+        {
+            "eve_dogma_attribute_id": 178,
+            "eve_type_id": 19551,
+            "id": 256,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 179,
+            "eve_type_id": 19551,
+            "id": 257,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 277,
+            "eve_type_id": 19551,
+            "id": 258,
+            "value": 2.0
+        },
+        {
+            "eve_dogma_attribute_id": 182,
+            "eve_type_id": 19551,
+            "id": 259,
+            "value": 3411.0
+        },
+        {
+            "eve_dogma_attribute_id": 633,
+            "eve_type_id": 19551,
+            "id": 260,
+            "value": 9.0
+        },
+        {
+            "eve_dogma_attribute_id": 315,
+            "eve_type_id": 19551,
+            "id": 261,
+            "value": 0.625
+        },
+        {
+            "eve_dogma_attribute_id": 447,
+            "eve_type_id": 19551,
+            "id": 262,
+            "value": 0.02
+        },
+        {
+            "eve_dogma_attribute_id": 161,
+            "eve_type_id": 19553,
+            "id": 263,
+            "value": 1.0
+        },
+        {
+            "eve_dogma_attribute_id": 802,
+            "eve_type_id": 19553,
+            "id": 264,
+            "value": 1.15
+        },
+        {
+            "eve_dogma_attribute_id": 4,
+            "eve_type_id": 19553,
+            "id": 265,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 38,
+            "eve_type_id": 19553,
+            "id": 266,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 422,
+            "eve_type_id": 19553,
+            "id": 267,
+            "value": 2.0
+        },
+        {
+            "eve_dogma_attribute_id": 331,
+            "eve_type_id": 19553,
+            "id": 268,
+            "value": 3.0
+        },
+        {
+            "eve_dogma_attribute_id": 162,
+            "eve_type_id": 19553,
+            "id": 269,
+            "value": 1.0
+        },
+        {
+            "eve_dogma_attribute_id": 175,
+            "eve_type_id": 19553,
+            "id": 270,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 176,
+            "eve_type_id": 19553,
+            "id": 271,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 177,
+            "eve_type_id": 19553,
+            "id": 272,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 178,
+            "eve_type_id": 19553,
+            "id": 273,
+            "value": 0.0
+        },
+        {
+            "eve_dogma_attribute_id": 179,
+            "eve_type_id": 19553,
+            "id": 274,
+            "value": 4.0
+        },
+        {
+            "eve_dogma_attribute_id": 277,
+            "eve_type_id": 19553,
+            "id": 275,
+            "value": 3.0
+        },
+        {
+            "eve_dogma_attribute_id": 182,
+            "eve_type_id": 19553,
+            "id": 276,
+            "value": 3411.0
+        },
+        {
+            "eve_dogma_attribute_id": 633,
+            "eve_type_id": 19553,
+            "id": 277,
+            "value": 9.0
+        },
+        {
+            "eve_dogma_attribute_id": 315,
+            "eve_type_id": 19553,
+            "id": 278,
+            "value": 0.75
+        },
+        {
+            "eve_dogma_attribute_id": 447,
+            "eve_type_id": 19553,
+            "id": 279,
+            "value": 0.03
+        }
+    ],
+    "EveTypeDogmaEffect": [
+        {
+            "eve_dogma_effect_id": 302,
+            "eve_type_id": 19540,
+            "id": 133,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 304,
+            "eve_type_id": 19540,
+            "id": 134,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 306,
+            "eve_type_id": 19540,
+            "id": 135,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 308,
+            "eve_type_id": 19540,
+            "id": 136,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 310,
+            "eve_type_id": 19540,
+            "id": 137,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 394,
+            "eve_type_id": 19540,
+            "id": 138,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 1244,
+            "eve_type_id": 19540,
+            "id": 139,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 1261,
+            "eve_type_id": 19540,
+            "id": 140,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 1262,
+            "eve_type_id": 19540,
+            "id": 141,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 302,
+            "eve_type_id": 19551,
+            "id": 142,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 304,
+            "eve_type_id": 19551,
+            "id": 143,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 306,
+            "eve_type_id": 19551,
+            "id": 144,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 308,
+            "eve_type_id": 19551,
+            "id": 145,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 310,
+            "eve_type_id": 19551,
+            "id": 146,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 394,
+            "eve_type_id": 19551,
+            "id": 147,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 1244,
+            "eve_type_id": 19551,
+            "id": 148,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 1261,
+            "eve_type_id": 19551,
+            "id": 149,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 1262,
+            "eve_type_id": 19551,
+            "id": 150,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 302,
+            "eve_type_id": 19553,
+            "id": 151,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 304,
+            "eve_type_id": 19553,
+            "id": 152,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 306,
+            "eve_type_id": 19553,
+            "id": 153,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 308,
+            "eve_type_id": 19553,
+            "id": 154,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 310,
+            "eve_type_id": 19553,
+            "id": 155,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 394,
+            "eve_type_id": 19553,
+            "id": 156,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 1244,
+            "eve_type_id": 19553,
+            "id": 157,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 1261,
+            "eve_type_id": 19553,
+            "id": 158,
+            "is_default": false
+        },
+        {
+            "eve_dogma_effect_id": 1262,
+            "eve_type_id": 19553,
+            "id": 159,
+            "is_default": false
         }
     ]
 }
