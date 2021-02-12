@@ -9,6 +9,7 @@ from django.utils.timezone import now
 
 from eveuniverse.models import EveEntity, EveSolarSystem, EveType, EveMarketPrice
 
+from allianceauth.eveonline.models import EveAllianceInfo
 from allianceauth.tests.auth_utils import AuthUtils
 
 from . import create_memberaudit_character, add_memberaudit_character_to_user
@@ -122,8 +123,14 @@ class TestCharacterManagerUserHasAccess(TestCase):
         cls.character_1003 = create_memberaudit_character(1003)
         cls.character_1101 = create_memberaudit_character(1101)
         cls.character_1102 = create_memberaudit_character(1102)
+        cls.character_1102.is_shared = True
+        cls.character_1102.save()
         cls.character_1103 = add_memberaudit_character_to_user(
             cls.character_1002.character_ownership.user, 1103
+        )
+        cls.member_state = AuthUtils.get_member_state()
+        cls.member_state.member_alliances.add(
+            EveAllianceInfo.objects.get(alliance_id=3001)
         )
 
     def test_user_owning_character_has_access(self):
@@ -257,15 +264,16 @@ class TestCharacterManagerUserHasAccess(TestCase):
     def test_recruiter_access(self):
         """
         when user has recruiter permission
-        then include own character plus shared characters
+        then include own character plus shared characters from members
         """
-        user = self.character_1102.character_ownership.user
+        user = self.character_1001.character_ownership.user
         user = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.view_shared_characters", user
         )
         result_qs = Character.objects.user_has_access(user=user)
         self.assertSetEqual(
-            queryset_pks(result_qs), {self.character_1002.pk, self.character_1102.pk}
+            queryset_pks(result_qs),
+            {self.character_1001.pk, self.character_1002.pk, self.character_1102.pk},
         )
 
 
