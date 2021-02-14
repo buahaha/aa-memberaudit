@@ -1302,25 +1302,27 @@ def character_skill_set_details(
         current_str = "-"
         result = ""
 
-        if cs is not None:
+        if cs:
             current_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[cs.active_skill_level]
 
-        if cs is None:
-            result = "fas fa-times boolean-icon-false"
-        elif (
-            skill.recommended_level is not None
-            and cs.active_skill_level >= skill.recommended_level
-        ):
+        if skill.recommended_level:
             recommended_level_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[
                 skill.recommended_level
             ]
-            result = "fas fa-check-double boolean-icon-true"
-        elif (
-            skill.required_level is not None
-            and cs.active_skill_level >= skill.required_level
-        ):
+
+        if skill.required_level:
             required_level_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[skill.required_level]
-            result = "fas fa-check boolean-icon-true"
+
+        if not cs:
+            result = "fas fa-times boolean-icon-false"
+        else:
+            if (
+                skill.recommended_level
+                and cs.active_skill_level >= skill.recommended_level
+            ):
+                result = "fas fa-check-double text-success"
+            elif skill.required_level and cs.active_skill_level >= skill.required_level:
+                result = "fas fa-check text-warning"
 
         out_data.append(
             {

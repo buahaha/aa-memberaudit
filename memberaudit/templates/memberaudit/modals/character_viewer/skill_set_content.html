@@ -3,13 +3,20 @@
 
 <div class="modal-content">
     <div class="modal-header">
+
         <dl class="dl-horizontal">
             <dt><img width="64" height="64" src="{{ ship_url }}" /></dt>
             <dd>
                 <h4 id="myModalLabel">{{ name }}</h4>
             </dd>
         </dl>
+
+        <p>{% translate 'Required' %}&nbsp;<span class="fas fa-check text-warning"></span>
+            &nbsp;&nbsp;{% translate 'Recommended' %}&nbsp;<span class="fas fa-check-double text-success"></span>
+        </p>
+
     </div>
+
     <div class="modal-body">
 
         <table class="table table-striped table-width-fix" id="skill_set_details">
@@ -30,7 +37,7 @@
                     <td class="text-center">{{ skill.required }}</td>
                     <td class="text-center">{{ skill.recommended }}</td>
                     <td class="text-center">{{ skill.current }}</td>
-                    <td class="{{ skill.result }}" />
+                    <td class="{{ skill.result }}"></td>
                 </tr>
                 {% endfor %}
 
