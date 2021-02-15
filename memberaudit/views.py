@@ -67,6 +67,10 @@ DEFAULT_ICON_SIZE = 32
 ICON_SIZE_64 = 64
 CHARACTER_VIEWER_DEFAULT_TAB = "mails"
 SKILL_SET_DEFAULT_ICON_TYPE_ID = 3327
+ICON_FAILED = "fas fa-times boolean-icon-false"
+ICON_PARTIAL = "fas fa-check text-warning"
+ICON_FULL = "fas fa-check-double text-success"
+ICON_MET_ALL_REQUIRED = "fas fa-check text-success"
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -1300,7 +1304,8 @@ def character_skill_set_details(
         recommended_level_str = "-"
         required_level_str = "-"
         current_str = "-"
-        result = ""
+        result_icon = ICON_FAILED
+        met_required = True
 
         if cs:
             current_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[cs.active_skill_level]
@@ -1314,15 +1319,24 @@ def character_skill_set_details(
             required_level_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[skill.required_level]
 
         if not cs:
-            result = "fas fa-times boolean-icon-false"
+            result_icon = ICON_FAILED
+            met_required = False
         else:
             if (
+                skill.required_level
+                and not skill.recommended_level
+                and cs.active_skill_level >= skill.required_level
+            ):
+                result_icon = ICON_FULL
+            elif (
                 skill.recommended_level
                 and cs.active_skill_level >= skill.recommended_level
             ):
-                result = "fas fa-check-double text-success"
+                result_icon = ICON_FULL
             elif skill.required_level and cs.active_skill_level >= skill.required_level:
-                result = "fas fa-check text-warning"
+                result_icon = ICON_PARTIAL
+            else:
+                met_required = False
 
         out_data.append(
             {
@@ -1330,15 +1344,27 @@ def character_skill_set_details(
                 "required": required_level_str,
                 "recommended": recommended_level_str,
                 "current": current_str,
-                "result": result,
+                "result_icon": result_icon,
+                "met_required": met_required,
             }
         )
+
+    met_all_required = True
+    for data in out_data:
+        if not data["met_required"]:
+            met_all_required = False
+            break
 
     out_data = sorted(out_data, key=lambda k: (k["name"].lower()))
     context = {
         "name": skill_set.name,
         "ship_url": url,
         "skills": out_data,
+        "met_all_required": met_all_required,
+        "icon_failed": ICON_FAILED,
+        "icon_partial": ICON_PARTIAL,
+        "icon_full": ICON_FULL,
+        "icon_met_all_required": ICON_MET_ALL_REQUIRED,
     }
 
     return render(

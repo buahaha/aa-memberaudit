@@ -3,18 +3,25 @@
 
 <div class="modal-content">
     <div class="modal-header">
-
-        <dl class="dl-horizontal">
-            <dt><img width="64" height="64" src="{{ ship_url }}" /></dt>
-            <dd>
-                <h4 id="myModalLabel">{{ name }}</h4>
-            </dd>
-        </dl>
-
-        <p>{% translate 'Required' %}&nbsp;<span class="fas fa-check text-warning"></span>
-            &nbsp;&nbsp;{% translate 'Recommended' %}&nbsp;<span class="fas fa-check-double text-success"></span>
-        </p>
-
+        <div style="display: flex; flex-wrap: nowrap;">
+            <div style="margin-right: 1rem;">
+                <p class="text-center">
+                    <img width="64" height="64" src="{{ ship_url }}" />
+                </p>
+            </div>
+            <div style="margin-right: 1rem; margin-left: 1rem; flex-grow: 1;">
+                <div class="row">
+                    <h4 id="myModalLabel">{{ name }}</h4>
+                </div>
+                <div class="row">
+                    {% if met_all_required %}
+                    <p><span class="{{ icon_met_all_required }}"></span>&nbsp;{% translate 'You meet all the required skills.' %}</p>
+                    {% else %}
+                    <p><span class="{{ icon_failed }}"></span>&nbsp;{% translate 'You do not meet the skill requirements' %}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="modal-body">
@@ -37,12 +44,21 @@
                     <td class="text-center">{{ skill.required }}</td>
                     <td class="text-center">{{ skill.recommended }}</td>
                     <td class="text-center">{{ skill.current }}</td>
-                    <td class="{{ skill.result }}"></td>
+                    <td class="{{ skill.result_icon }}"></td>
                 </tr>
                 {% endfor %}
 
             </tbody>
         </table>
+        <div>
+            <p class="text-muted">Legend:</p>
+            <p class="text-muted"><span class="{{ icon_failed }}"></span>&nbsp;
+                {% translate 'Below minimum requirements' %}</p>
+            <p class="text-muted"><span class="{{ icon_partial }}"></span>&nbsp;
+                {% translate 'Above required, but below recommended level' %}</p>
+            <p class="text-muted"><span class="{{ icon_full }}"></span>&nbsp;
+                {% translate 'At/Above recommended level' %}</p>
+        </div>
     </div>
     <div class="modal-footer">
         <button type="button" class="btn btn-default" data-dismiss="modal">
