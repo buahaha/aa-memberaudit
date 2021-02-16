@@ -6,737 +6,753 @@
 {% load evelinks %}
 
 {% block details %}
-    <div class="row">
-        <!-- Side bar -->
-        <div class="col-md-2 col-md-push-10">
-            {% include 'memberaudit/partials/character_viewer/sidebar.html' %}
-        </div>
+<div class="row">
+    <!-- Side bar -->
+    <div class="col-md-2 col-md-push-10">
+        {% include 'memberaudit/partials/character_viewer/sidebar.html' %}
+    </div>
 
-        <!-- Main panel-->
-        <div class="col-md-10 col-md-pull-2">
-            {% include 'memberaudit/partials/character_viewer/overview.html' %}
+    <!-- Main panel-->
+    <div class="col-md-10 col-md-pull-2">
+        {% include 'memberaudit/partials/character_viewer/overview.html' %}
 
-            <!-- Details sub panel -->
-            <div>
-                {% include 'memberaudit/partials/character_viewer/tabs_navigation.html' %}
+        <!-- Details sub panel -->
+        <div>
+            {% include 'memberaudit/partials/character_viewer/tabs_navigation.html' %}
 
-                <div class="panel panel-default panel-tabs">
-                    <div class="panel-body">
-                        <!-- Tab panes -->
-                        <div class="tab-content">
-                            {% include 'memberaudit/partials/character_viewer/tabs/assets.html' %}
-                            {% include 'memberaudit/partials/character_viewer/tabs/contacts.html' %}
-                            {% include 'memberaudit/partials/character_viewer/tabs/character_bio.html' %}
-                            {% include 'memberaudit/partials/character_viewer/tabs/contracts.html' %}
-                            {% include 'memberaudit/partials/character_viewer/tabs/corporation_history.html' %}
-                            {% include 'memberaudit/partials/character_viewer/tabs/skill_sets.html' %}
-                            {% include 'memberaudit/partials/character_viewer/tabs/implants.html' %}
-                            {% include 'memberaudit/partials/character_viewer/tabs/jump_clones.html' %}
-                            {% include 'memberaudit/partials/character_viewer/tabs/loyalty.html' %}
-                            {% include 'memberaudit/partials/character_viewer/tabs/mails.html' %}
-                            {% include 'memberaudit/partials/character_viewer/tabs/skills.html' %}
-                            {% include 'memberaudit/partials/character_viewer/tabs/skill_queue.html' %}
-                            {% include 'memberaudit/partials/character_viewer/tabs/wallet_journal.html' %}
-                            {% include 'memberaudit/partials/character_viewer/tabs/wallet_transactions.html' %}
-                        </div>
+            <div class="panel panel-default panel-tabs">
+                <div class="panel-body">
+                    <!-- Tab panes -->
+                    <div class="tab-content">
+                        {% include 'memberaudit/partials/character_viewer/tabs/assets.html' %}
+                        {% include 'memberaudit/partials/character_viewer/tabs/contacts.html' %}
+                        {% include 'memberaudit/partials/character_viewer/tabs/character_bio.html' %}
+                        {% include 'memberaudit/partials/character_viewer/tabs/contracts.html' %}
+                        {% include 'memberaudit/partials/character_viewer/tabs/corporation_history.html' %}
+                        {% include 'memberaudit/partials/character_viewer/tabs/skill_sets.html' %}
+                        {% include 'memberaudit/partials/character_viewer/tabs/implants.html' %}
+                        {% include 'memberaudit/partials/character_viewer/tabs/jump_clones.html' %}
+                        {% include 'memberaudit/partials/character_viewer/tabs/loyalty.html' %}
+                        {% include 'memberaudit/partials/character_viewer/tabs/mails.html' %}
+                        {% include 'memberaudit/partials/character_viewer/tabs/skills.html' %}
+                        {% include 'memberaudit/partials/character_viewer/tabs/skill_queue.html' %}
+                        {% include 'memberaudit/partials/character_viewer/tabs/wallet_journal.html' %}
+                        {% include 'memberaudit/partials/character_viewer/tabs/wallet_transactions.html' %}
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    {% include 'memberaudit/modals/character_viewer/asset_container.html' %}
-    {% include 'memberaudit/modals/character_viewer/contract.html' %}
-    {% include 'memberaudit/modals/character_viewer/mail.html' %}
+{% include 'memberaudit/modals/character_viewer/asset_container.html' %}
+{% include 'memberaudit/modals/character_viewer/contract.html' %}
+{% include 'memberaudit/modals/character_viewer/mail.html' %}
+{% include 'memberaudit/modals/character_viewer/character_skill_set_details.html' %}
+
 {% endblock details %}
 
 {% block extra_javascript %}
-    {% include 'bundles/datatables-js.html' %}
+{% include 'bundles/datatables-js.html' %}
 
-    <script type="application/javascript" src="{% static 'memberaudit/vendor/datatables/plugins/dataTables.rowGroup.min.js' %}"></script>
+<script type="application/javascript"
+    src="{% static 'memberaudit/vendor/datatables/plugins/dataTables.rowGroup.min.js' %}"></script>
 
-    {% include 'bundles/moment-js.html' with locale=True %}
+{% include 'bundles/moment-js.html' with locale=True %}
 
-    <script type="application/javascript" src="{% static 'memberaudit/vendor/datatables/plugins/datetime.js' %}"></script>
-    <script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
+<script type="application/javascript" src="{% static 'memberaudit/vendor/datatables/plugins/datetime.js' %}"></script>
+<script type="application/javascript" src="{% static 'js/filterDropDown/filterDropDown.min.js' %}"></script>
 
-    <script type="application/javascript">
-        const DATETIME_FORMAT = 'YYYY-MMM-DD<br>HH:mm'
-        const DATETIME_FORMAT_2 = 'YYYY-MMM-DD HH:mm'
-        const COOKIE_LAST_TAB_ID = "memberaudit_last_tab_id"
-        const COOKIE_LAST_TAB_HOURS = 2
+<script type="application/javascript">
+    const DATETIME_FORMAT = 'YYYY-MMM-DD<br>HH:mm'
+    const DATETIME_FORMAT_2 = 'YYYY-MMM-DD HH:mm'
+    const COOKIE_LAST_TAB_ID = "memberaudit_last_tab_id"
+    const COOKIE_LAST_TAB_HOURS = 2
 
-        function title(text) {
-            return text.replace(/(^\w|\s\w)/g, m => m.toUpperCase());
+    function title(text) {
+        return text.replace(/(^\w|\s\w)/g, m => m.toUpperCase());
+    }
+
+    function bool_to_icon(value) {
+        if (value === true) {
+            return '<i class="fas fa-check boolean-icon-true"></i>';
         }
+        else if (value === false) {
+            return '<i class="fas fa-times boolean-icon-false"></i>';
+        }
+        else {
+            return '<i class="far fa-question-circle"></i>';
+        }
+    }
 
-        function bool_to_icon(value) {
-            if (value === true) {
-                return '<i class="fas fa-check boolean-icon-true"></i>';
+    function setCookie(cname, cvalue, exhours) {
+        var d = new Date();
+        d.setTime(d.getTime() + (exhours * 60 * 60 * 1000));
+        var expires = "expires=" + d.toUTCString();
+        document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+    }
+
+    function getCookie(cname) {
+        var name = cname + "=";
+        var decodedCookie = decodeURIComponent(document.cookie);
+        var ca = decodedCookie.split(';');
+        for (var i = 0; i < ca.length; i++) {
+            var c = ca[i];
+            while (c.charAt(0) == ' ') {
+                c = c.substring(1);
             }
-            else if (value === false) {
-                return '<i class="fas fa-times boolean-icon-false"></i>';
+
+            if (c.indexOf(name) == 0) {
+                return c.substring(name.length, c.length);
+            }
+        }
+        return "";
+    }
+
+    $(document).ready(function () {
+        /* show last selected tab or default */
+        var tabId = "{{show_tab}}"
+        if (tabId != "") {
+            setCookie(COOKIE_LAST_TAB_ID, tabId, 1)
+        }
+        else {
+            tabId = getCookie(COOKIE_LAST_TAB_ID)
+            if (tabId == "") tabId = "mail"
+        }
+        $('a[href="#' + tabId + '"]').tab("show")
+
+        /* remember last selected tab */
+        $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+            var selectedTabId = $(e.target).attr("href").substr(1)
+            setCookie(COOKIE_LAST_TAB_ID, selectedTabId, COOKIE_LAST_TAB_HOURS)
+        });
+
+        /* Assets */
+        $('#tab_assets').DataTable({
+            ajax: {
+                url: "{% url 'memberaudit:character_assets_data' character.pk %}",
+                dataSrc: '',
+                cache: false
+            },
+            columns: [
+                { data: 'location' },
+                {
+                    data: 'name',
+                    render: {
+                        _: 'display',
+                        sort: 'sort'
+                    }
+                },
+                {
+                    data: 'quantity',
+                    render: $.fn.dataTable.render.number(',', '.', 0)
+                },
+                { data: 'group' },
+                {
+                    data: 'volume',
+                    render: $.fn.dataTable.render.number(',', '.', 2)
+                },
+                {
+                    data: 'price',
+                    render: $.fn.dataTable.render.number(',', '.', 2)
+                },
+                {
+                    data: 'total',
+                    render: $.fn.dataTable.render.number(',', '.', 2)
+                },
+                { data: 'actions' },
+
+                /* hidden columns */
+                { data: 'region' },
+                { data: 'solar_system' },
+                { data: 'is_ship' },
+            ],
+            order: [[0, "asc"], [1, "asc"], [2, "asc"]],
+            rowGroup: {
+                dataSrc: 'location',
+                className: 'table-group'
+            },
+            columnDefs: [
+                { "orderable": false, "targets": [1, 7] },
+                { "visible": false, "targets": [0, 8, 9, 10] }
+            ],
+            filterDropDown: {
+                columns: [
+                    {
+                        idx: 8,
+                        title: "{% translate 'Region' %}"
+                    },
+                    {
+                        idx: 9,
+                        title: "{% translate 'Solar System' %}"
+                    },
+                    {
+                        idx: 0
+                    },
+                    {
+                        idx: 10,
+                        title: "{% translate 'Ship?' %}"
+                    },
+                ],
+                autoSize: false,
+                bootstrap: true
+            },
+            footerCallback: function (row, data, start, end, display) {
+                var api = this.api(), data;
+
+                // Remove the formatting to get integer data for summation
+                var intVal = function (i) {
+                    return typeof i === 'string' ?
+                        i.replace(/[\$,]/g, '') * 1 :
+                        typeof i === 'number' ?
+                            i : 0;
+                };
+
+                // Total over all pages
+                var total = api
+                    .column(6)
+                    .data()
+                    .reduce(function (a, b) {
+                        return intVal(a) + intVal(b);
+                    }, 0);
+
+                // Update footer
+                $(api.column(6).footer()).html(
+                    total.toLocaleString()
+                );
+            }
+        });
+
+        $('#modalCharacterAssetContainer').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget)
+            var ajax_children_url = button.data('ajax_children_url');
+            $("#modalCharacterAssetContainerContent").load(ajax_children_url)
+        });
+
+        /* Contacts */
+        $('#tab_contacts').DataTable({
+            "paging": true,
+            ajax: {
+                url: "{% url 'memberaudit:character_contacts_data' character.pk %}",
+                dataSrc: '',
+                cache: false
+            },
+            columns: [
+                { data: 'level' },
+                {
+                    data: 'name',
+                    render: {
+                        _: 'display',
+                        sort: 'sort'
+                    }
+                },
+                { data: 'type' },
+                { data: 'standing' },
+                { data: 'is_watched' },
+                { data: 'is_blocked' },
+
+                /* hidden */
+                { data: 'is_watched_str' },
+                { data: 'is_blocked_str' },
+                { data: 'is_npc_str' },
+            ],
+            order: [[3, "desc"], [0, "asc"], [1, "asc"]],
+            rowGroup: {
+                dataSrc: 'level',
+                className: 'table-group'
+            },
+            columnDefs: [
+                {
+                    "visible": false, "targets": [0, 6, 7, 8]
+                },
+                {
+                    /* render bools as icon */
+                    "render": function (data, type, row, meta) {
+                        if (type === 'display') {
+                            return bool_to_icon(data)
+                        }
+                        else {
+                            return data;
+                        }
+                    },
+                    "targets": [4, 5]
+                }
+            ],
+            filterDropDown: {
+                columns: [
+                    {
+                        idx: 0
+                    },
+                    {
+                        idx: 2
+                    },
+                    {
+                        idx: 8,
+                        title: "{% translate 'NPC?' %}"
+                    },
+                    {
+                        idx: 6,
+                        title: "{% translate 'Watched?' %}"
+                    },
+                    {
+                        idx: 7,
+                        title: "{% translate 'Blocked?' %}"
+                    }
+                ],
+                autoSize: false,
+                bootstrap: true
+            }
+        });
+
+        /* Contracts */
+        $('#tab_contracts').DataTable({
+            ajax: {
+                url: "{% url 'memberaudit:character_contracts_data' character.pk %}",
+                dataSrc: ''
+            },
+            columns: [
+                { data: 'summary' },
+                { data: 'type' },
+                { data: 'from' },
+                { data: 'to' },
+                { data: 'status' },
+                {
+                    data: 'date_issued',
+                    render: $.fn.dataTable.render.moment(moment.ISO_8601, DATETIME_FORMAT)
+                },
+                { data: 'time_left' },
+                { data: 'info' },
+                { data: 'actions' },
+            ],
+            order: [[5, "desc"]],
+            columnDefs: [
+                { "orderable": false, "targets": [8] }
+            ],
+            filterDropDown: {
+                columns: [
+                    {
+                        idx: 1
+                    },
+                    {
+                        idx: 4
+                    }
+                ],
+                autoSize: false,
+                bootstrap: true
+            }
+        });
+
+        $('#modalCharacterContract').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget)
+            var ajax_contract_detail = button.data('ajax_contract_detail');
+            $("#modalCharacterContractContent").load(ajax_contract_detail)
+        });
+
+        /* Corporation History */
+        $('#div_corporation_history').load("{% url 'memberaudit:character_corporation_history' character.pk %}")
+
+
+        /* Clones */
+        $('#tab_jump_clones').DataTable({
+            ajax: {
+                url: "{% url 'memberaudit:character_jump_clones_data' character.pk %}",
+                dataSrc: '',
+                cache: false
+            },
+            columns: [
+                { data: 'region' },
+                { data: 'solar_system' },
+                { data: 'location' },
+                { data: 'implants' }
+            ],
+            order: [[0, "asc"], [1, "asc"]],
+            columnDefs: [
+                { "orderable": false, "targets": [3] }
+            ],
+        });
+
+        /* Clones */
+        $('#tab_implants').DataTable({
+            ajax: {
+                url: "{% url 'memberaudit:character_implants_data' character.pk %}",
+                dataSrc: '',
+                cache: false
+            },
+            columns: [
+                {
+                    data: 'implant',
+                    render: {
+                        _: 'display',
+                        sort: 'sort'
+                    }
+                },
+            ],
+            order: [[0, "asc"]],
+            paging: false,
+            searching: false,
+            info: false
+        });
+
+        /* Loyalty */
+        $('#tab_loyalty').DataTable({
+            ajax: {
+                url: "{% url 'memberaudit:character_loyalty_data' character.pk %}",
+                dataSrc: '',
+                cache: false
+            },
+            columns: [
+                {
+                    data: 'corporation',
+                    render: {
+                        _: 'display',
+                        sort: 'sort'
+                    }
+                },
+                {
+                    data: 'loyalty_points',
+                    render: $.fn.dataTable.render.number(',', '.', 0)
+                },
+            ],
+            order: [[0, "asc"]],
+        });
+
+        /* Mails */
+        var table = $('#tab_mails').DataTable({
+            ajax: {
+                url: "{% url 'memberaudit:character_mail_headers_by_label_data' character.pk 1 %}",
+                dataSrc: '',
+                cache: true
+            },
+            columns: [
+                {
+                    data: 'sent',
+                    render: $.fn.dataTable.render.moment(moment.ISO_8601, DATETIME_FORMAT)
+                },
+                { data: 'from' },
+                { data: 'to' },
+                { data: 'subject' },
+                { data: 'action' },
+            ],
+            order: [[0, "desc"]],
+            columnDefs: [
+                { "orderable": false, "targets": [4] }
+            ],
+            createdRow: function (row, data, dataIndex) {
+                if (!data['is_read']) {
+                    $(row).addClass('info');
+                }
+            }
+        });
+
+        /* Show mails when AJAX loading has finished */
+        table.on('xhr', function () {
+            table.columns.adjust().draw();
+            $("#div_mails_loader").hide();
+            $("#div_mails_main").show();
+        });
+
+        /* reload mails when a label is selected*/
+        $(".pillMailLabel").on("click", function (event) {
+            var element = $(event.currentTarget);
+            var labelId = element.data('label-id');
+            var listId = element.data('list-id');
+
+            // remove active class from all pills
+            // and make current pill active
+            $(".pillMailLabel").removeClass("active");
+            element.addClass("active");
+
+            // reactive loader
+            $("#div_mails_main").hide();
+            $("#div_mails_loader").show();
+
+            // reload data table for selected label
+            if (listId != undefined) {
+                var url2 = "{% url 'memberaudit:character_mail_headers_by_list_data' character.pk 0 %}".replace("/0/", "/" + listId + "/");
             }
             else {
-                return '<i class="far fa-question-circle"></i>';
+                var url2 = "{% url 'memberaudit:character_mail_headers_by_label_data' character.pk 0 %}".replace("/0/", "/" + labelId + "/");
             }
-        }
-
-        function setCookie(cname, cvalue, exhours) {
-            var d = new Date();
-            d.setTime(d.getTime() + (exhours*60*60*1000));
-            var expires = "expires="+ d.toUTCString();
-            document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
-        }
-
-        function getCookie(cname) {
-            var name = cname + "=";
-            var decodedCookie = decodeURIComponent(document.cookie);
-            var ca = decodedCookie.split(';');
-            for(var i = 0; i <ca.length; i++) {
-                var c = ca[i];
-                while (c.charAt(0) == ' ') {
-                    c = c.substring(1);
-                }
-
-                if (c.indexOf(name) == 0) {
-                    return c.substring(name.length, c.length);
-                }
-            }
-            return "";
-        }
-
-        $(document).ready(function () {
-            /* show last selected tab or default */
-            var tabId = "{{show_tab}}"
-            if (tabId != "") {
-                setCookie(COOKIE_LAST_TAB_ID, tabId, 1)
-            }
-            else {
-                tabId = getCookie(COOKIE_LAST_TAB_ID)
-                if (tabId == "") tabId = "mail"
-            }
-            $('a[href="#' + tabId + '"]').tab("show")
-
-            /* remember last selected tab */
-            $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
-                var selectedTabId = $(e.target).attr("href").substr(1)
-                setCookie(COOKIE_LAST_TAB_ID, selectedTabId, COOKIE_LAST_TAB_HOURS)
-            });
-
-            /* Assets */
-            $('#tab_assets').DataTable({
-                ajax: {
-                    url: "{% url 'memberaudit:character_assets_data' character.pk %}",
-                    dataSrc: '',
-                    cache: false
-                },
-                columns: [
-                    { data: 'location' },
-                    { data: 'name',
-                        render: {
-                            _: 'display',
-                            sort: 'sort'
-                        }
-                    },
-                    {
-                        data: 'quantity',
-                        render: $.fn.dataTable.render.number( ',', '.', 0 )
-                    },
-                    { data: 'group' },
-                    {
-                        data: 'volume',
-                        render: $.fn.dataTable.render.number( ',', '.', 2 )
-                    },
-                    {
-                        data: 'price',
-                        render: $.fn.dataTable.render.number( ',', '.', 2 )
-                    },
-                    {
-                        data: 'total',
-                        render: $.fn.dataTable.render.number( ',', '.', 2 )
-                    },
-                    { data: 'actions' },
-
-                    /* hidden columns */
-                    { data: 'region' },
-                    { data: 'solar_system' },
-                    { data: 'is_ship' },
-                ],
-                order: [[0, "asc"], [1, "asc"], [2, "asc"]],
-                rowGroup: {
-                    dataSrc: 'location',
-                    className: 'table-group'
-                },
-                columnDefs: [
-                    { "orderable": false, "targets": [ 1, 7 ] },
-                    { "visible": false, "targets": [ 0, 8, 9, 10 ] }
-                ],
-                filterDropDown: {
-                    columns: [
-                        {
-                            idx: 8,
-                            title: "{% translate 'Region' %}"
-                        },
-                        {
-                            idx: 9,
-                            title: "{% translate 'Solar System' %}"
-                        },
-                        {
-                            idx: 0
-                        },
-                        {
-                            idx: 10,
-                            title: "{% translate 'Ship?' %}"
-                        },
-                    ],
-                    autoSize: false,
-                    bootstrap: true
-                },
-                footerCallback: function ( row, data, start, end, display ) {
-                    var api = this.api(), data;
-
-                    // Remove the formatting to get integer data for summation
-                    var intVal = function ( i ) {
-                        return typeof i === 'string' ?
-                            i.replace(/[\$,]/g, '')*1 :
-                            typeof i === 'number' ?
-                                i : 0;
-                    };
-
-                    // Total over all pages
-                    var total = api
-                        .column( 6 )
-                        .data()
-                        .reduce( function (a, b) {
-                            return intVal(a) + intVal(b);
-                        }, 0 );
-
-                    // Update footer
-                    $( api.column( 6 ).footer() ).html(
-                        total.toLocaleString()
-                    );
-                }
-            });
-
-            $('#modalCharacterAssetContainer').on('show.bs.modal', function(event) {
-                var button = $(event.relatedTarget)
-                var ajax_children_url = button.data('ajax_children_url');
-                $("#modalCharacterAssetContainerContent").load(ajax_children_url)
-            });
-
-            /* Contacts */
-            $('#tab_contacts').DataTable({
-                ajax: {
-                    url: "{% url 'memberaudit:character_contacts_data' character.pk %}",
-                    dataSrc: '',
-                    cache: false
-                },
-                columns: [
-                    { data: 'level' },
-                    {
-                        data: 'name',
-                        render: {
-                            _: 'display',
-                            sort: 'sort'
-                        }
-                    },
-                    { data: 'type' },
-                    { data: 'standing' },
-                    { data: 'is_watched' },
-                    { data: 'is_blocked' },
-
-                    /* hidden */
-                    { data: 'is_watched_str' },
-                    { data: 'is_blocked_str' },
-                    { data: 'is_npc_str' },
-                ],
-                order: [[3, "desc"], [0, "asc"], [1, "asc"]],
-                rowGroup: {
-                    dataSrc: 'level',
-                    className: 'table-group'
-                },
-                columnDefs: [
-                    {
-                        "visible": false, "targets": [0, 6, 7, 8]
-                    },
-                    {
-                        /* render bools as icon */
-                        "render": function ( data, type, row, meta ) {
-                            if (type === 'display') {
-                                return bool_to_icon(data)
-                            }
-                            else {
-                                return data;
-                            }
-                        },
-                        "targets": [4, 5]
-                    }
-                ],
-                filterDropDown: {
-                    columns: [
-                        {
-                            idx: 0
-                        },
-                        {
-                            idx: 2
-                        },
-                        {
-                            idx: 8,
-                            title: "{% translate 'NPC?' %}"
-                        },
-                        {
-                            idx: 6,
-                            title: "{% translate 'Watched?' %}"
-                        },
-                        {
-                            idx: 7,
-                            title: "{% translate 'Blocked?' %}"
-                        }
-                    ],
-                    autoSize: false,
-                    bootstrap: true
-                }
-            });
-
-            /* Contracts */
-            $('#tab_contracts').DataTable({
-                ajax: {
-                    url: "{% url 'memberaudit:character_contracts_data' character.pk %}",
-                    dataSrc: ''
-                },
-                columns: [
-                    { data: 'summary' },
-                    { data: 'type' },
-                    { data: 'from' },
-                    { data: 'to' },
-                    { data: 'status' },
-                    {
-                        data: 'date_issued',
-                        render: $.fn.dataTable.render.moment( moment.ISO_8601, DATETIME_FORMAT )
-                    },
-                    { data: 'time_left' },
-                    { data: 'info' },
-                    { data: 'actions' },
-                ],
-                order: [[5, "desc"]],
-                columnDefs: [
-                    { "orderable": false, "targets": [ 8 ] }
-                ],
-                filterDropDown: {
-                    columns: [
-                        {
-                            idx: 1
-                        },
-                        {
-                            idx: 4
-                        }
-                    ],
-                    autoSize: false,
-                    bootstrap: true
-                }
-            });
-
-            $('#modalCharacterContract').on('show.bs.modal', function(event) {
-                var button = $(event.relatedTarget)
-                var ajax_contract_detail = button.data('ajax_contract_detail');
-                $("#modalCharacterContractContent").load(ajax_contract_detail)
-            });
-
-            /* Corporation History */
-            $('#div_corporation_history').load("{% url 'memberaudit:character_corporation_history' character.pk %}")
-
-
-            /* Clones */
-            $('#tab_jump_clones').DataTable({
-                ajax: {
-                    url: "{% url 'memberaudit:character_jump_clones_data' character.pk %}",
-                    dataSrc: '',
-                    cache: false
-                },
-                columns: [
-                    { data: 'region' },
-                    { data: 'solar_system' },
-                    { data: 'location' },
-                    { data: 'implants' }
-                ],
-                order: [[0, "asc"], [1, "asc"]],
-                columnDefs: [
-                    { "orderable": false, "targets": [ 3 ] }
-                ],
-            });
-
-            /* Clones */
-            $('#tab_implants').DataTable({
-                ajax: {
-                    url: "{% url 'memberaudit:character_implants_data' character.pk %}",
-                    dataSrc: '',
-                    cache: false
-                },
-                columns: [
-                    {
-                        data: 'implant',
-                        render: {
-                            _: 'display',
-                            sort: 'sort'
-                        }
-                    },
-                ],
-                order: [[0, "asc"]],
-                paging: false,
-                searching: false,
-                info: false
-            });
-
-            /* Loyalty */
-            $('#tab_loyalty').DataTable({
-                ajax: {
-                    url: "{% url 'memberaudit:character_loyalty_data' character.pk %}",
-                    dataSrc: '',
-                    cache: false
-                },
-                columns: [
-                    {
-                        data: 'corporation',
-                        render: {
-                            _: 'display',
-                            sort: 'sort'
-                        }
-                    },
-                    {
-                        data: 'loyalty_points',
-                        render: $.fn.dataTable.render.number( ',', '.', 0 )
-                    },
-                ],
-                order: [[0, "asc"]],
-            });
-
-            /* Mails */
-            var table = $('#tab_mails').DataTable({
-                ajax: {
-                    url: "{% url 'memberaudit:character_mail_headers_by_label_data' character.pk 1 %}",
-                    dataSrc: '',
-                    cache: true
-                },
-                columns: [
-                    {
-                        data: 'sent',
-                        render: $.fn.dataTable.render.moment(moment.ISO_8601, DATETIME_FORMAT)
-                    },
-                    { data: 'from' },
-                    { data: 'to' },
-                    { data: 'subject' },
-                    { data: 'action' },
-                ],
-                order: [[0, "desc"]],
-                columnDefs: [
-                    { "orderable": false, "targets": [ 4 ] }
-                ],
-                createdRow: function( row, data, dataIndex ) {
-                    if ( !data['is_read'] ) {
-                        $(row).addClass( 'info' );
-                    }
-                }
-            });
-
-            /* Show mails when AJAX loading has finished */
-            table.on( 'xhr', function () {
-                table.columns.adjust().draw();
-                $("#div_mails_loader").hide();
-                $("#div_mails_main").show();
-            } );
-
-            /* reload mails when a label is selected*/
-            $(".pillMailLabel").on("click", function (event) {
-                var element = $(event.currentTarget);
-                var labelId = element.data('label-id');
-                var listId = element.data('list-id');
-
-                // remove active class from all pills
-                // and make current pill active
-                $(".pillMailLabel").removeClass("active");
-                element.addClass("active");
-
-                // reactive loader
-                $("#div_mails_main").hide();
-                $("#div_mails_loader").show();
-
-                // reload data table for selected label
-                if (listId!=undefined) {
-                    var url2 = "{% url 'memberaudit:character_mail_headers_by_list_data' character.pk 0 %}".replace("/0/", "/" + listId + "/");
-                }
-                else {
-                    var url2 = "{% url 'memberaudit:character_mail_headers_by_label_data' character.pk 0 %}".replace("/0/", "/" + labelId + "/");
-                }
-                table.ajax.url( url2 ).load();
-
-            });
-
-            $('#modalCharacterMail').on('show.bs.modal', function(event) {
-                var button = $(event.relatedTarget)
-                var ajax_mail_body = button.data('ajax_mail_body');
-                var modal = $(this);
-
-                // reactive loader
-                modal.find("#div_mail_body_main").hide();
-                modal.find("#div_mail_body_loader").show();
-                modal.find('.modal-title').text("{% translate 'Loading...' %}");
-
-                $.get(
-                    ajax_mail_body,
-                    function(data, status) {
-                        modal.find('.modal-title').html(data.subject);
-                        modal.find('#mail_from').html(data.from);
-                        modal.find('#mail_to').html(data.to);
-                        modal.find('#mail_sent').html(
-                            moment(data.sent).format(DATETIME_FORMAT_2)
-                        );
-                        modal.find('#mail_body').html(data.body);
-                        // disable loader
-                        modal.find("#div_mail_body_main").show();
-                        modal.find("#div_mail_body_loader").hide();
-                });
-            })
-
-            /* Skillqueue */
-            $('#tab_skillqueue').DataTable({
-                ajax: {
-                    url: "{% url 'memberaudit:character_skillqueue_data' character.pk %}",
-                    dataSrc: '',
-                    cache: false
-                },
-                columns: [
-                    { data: 'skill' },
-                    { data: 'finished',
-                        render: {
-                            _: 'display',
-                            sort: 'sort'
-                        }
-                    },
-                    { data: 'position' },
-                ],
-                order: [[0, "asc"]],
-                createdRow: function( row, data, dataIndex ) {
-                    if ( data['is_active'] ) {
-                        $(row).addClass( 'info' );
-                    }
-                },
-                paging: false,
-                ordering: false,
-                info: false
-            });
-
-            /* Skill Sets */
-            $('#tab_skill_sets').DataTable({
-                ajax: {
-                    url: "{% url 'memberaudit:character_skill_sets_data' character.pk %}",
-                    dataSrc: '',
-                    cache: false
-                },
-                columns: [
-                    { data: 'group' },
-                    { data: 'skill_set' },
-                    {
-                        data: 'has_required',
-                        render: function ( data, type, row, meta ) {
-                            if (type === 'display') {
-                                return bool_to_icon(data)
-                            }
-                            else {
-                                return data;
-                            }
-                        }
-                    },
-                    { data: 'failed_required_skills' },
-                    { data: 'failed_recommended_skills' },
-
-                    /* hidden columns */
-                    { data: 'has_required_str' },
-                    { data: 'is_doctrine_str' }
-                ],
-                order: [[0, "asc"], [1, "asc"]],
-                rowGroup: {
-                    dataSrc: 'group',
-                    className: 'table-group'
-                },
-                columnDefs: [
-                    { "visible": false, "targets": [ 0, 5, 6 ] },
-                    { "orderable": false, "targets": [ 3 ] }
-
-                ],
-                filterDropDown: {
-                    columns: [
-                        {
-                            idx: 0,
-                            title: "{% translate 'Group' %}"
-                        },
-                        {
-                            idx: 5,
-                            title: "{% translate 'Required Skills?' %}"
-                        },
-                        {
-                            idx: 6,
-                            title: "{% translate 'Doctrine?' %}"
-                        }
-                    ],
-                    autoSize: false,
-                    bootstrap: true
-                }
-            });
-
-            /* Skills */
-            $('#tab_skills').DataTable({
-                ajax: {
-                    url: "{% url 'memberaudit:character_skills_data' character.pk %}",
-                    dataSrc: '',
-                    cache: false
-                },
-                columns: [
-                    { data: 'group' },
-                    { data: 'skill_name' },
-                    { data: 'level_str' },
-                ],
-                order: [[0, "asc"], [1, "asc"]],
-                rowGroup: {
-                    dataSrc: 'group',
-                    className: 'table-group'
-                },
-                columnDefs: [
-                    { "visible": false, "targets": [0, 2] }
-                ],
-                filterDropDown: {
-                    columns: [
-                        {
-                            idx: 2,
-                            title: "{% translate 'Level' %}"
-                        }
-                    ],
-                    autoSize: false,
-                    bootstrap: true
-                }
-            });
-
-            /* Wallet Journal */
-            $('#tab_wallet_journal').DataTable({
-                ajax: {
-                    url: "{% url 'memberaudit:character_wallet_journal_data' character.pk %}",
-                    dataSrc: '',
-                    cache: false
-                },
-                columns: [
-                    {
-                        data: 'date',
-                        render: $.fn.dataTable.render.moment( moment.ISO_8601, DATETIME_FORMAT )
-                    },
-                    { data: 'ref_type' },
-                    { data: 'first_party' },
-                    { data: 'second_party' },
-                    {
-                        data: 'amount',
-                        render: function ( data, type, row, meta ) {
-                            value = data.toLocaleString()
-                            if ( data < 0 ) {
-                                return '<span class="text-danger">' + value + '</span>';
-                            } else {
-                                return '<span class="text-success">' + value + '</span>';
-                            }
-                        }
-                    },
-
-                    {
-                        data: 'balance',
-                        render: $.fn.dataTable.render.number( ',', '.', 0 )
-                    },
-                    { data: 'description' },
-                ],
-                order: [[0, "desc"]],
-                filterDropDown: {
-                    columns: [
-                        {
-                            idx: 1
-                        },
-                        {
-                            idx: 2
-                        },
-                        {
-                            idx: 3
-                        }
-                    ],
-                    autoSize: false,
-                    bootstrap: true
-                }
-            });
-
-            /* Wallet Transactions */
-            $('#tab_wallet_transactions').DataTable({
-                ajax: {
-                    url: "{% url 'memberaudit:character_wallet_transactions_data' character.pk %}",
-                    dataSrc: '',
-                    cache: false
-                },
-                columns: [
-                    {
-                        data: 'date',
-                        render: $.fn.dataTable.render.moment( moment.ISO_8601, DATETIME_FORMAT )
-                    },
-                    {
-                        data: 'quantity',
-                        render: $.fn.dataTable.render.number( ',', '.', 0 )
-                    },
-                    { data: 'type' },
-                    {
-                        data: 'unit_price',
-                        render: $.fn.dataTable.render.number( ',', '.', 2 )
-                    },
-                    {
-                        data: 'total',
-                        render: function ( data, type, row, meta ) {
-                            value = data.toLocaleString()
-                            if ( row['is_buy'] ) {
-                                return '<span class="text-danger">' + value + '</span>';
-                            } else {
-                                return '<span class="text-success">' + value + '</span>';
-                            }
-                        }
-                    },
-                    { data: 'client' },
-                    { data: 'location' },
-                    /* hidden */
-                    { data: 'buy_or_sell' },
-
-                ],
-                order: [[0, "desc"]],
-                columnDefs: [
-                    { "visible": false, "targets": [ 7 ] }
-                ],
-                filterDropDown: {
-                    columns: [
-                        {
-                            idx: 7,
-                            title: "{% trans 'Buy and Sell' %}"
-                        },
-                        {
-                            idx: 5
-                        },
-                        {
-                            idx: 6
-                        }
-                    ],
-                    autoSize: false,
-                    bootstrap: true
-                }
-            });
+            table.ajax.url(url2).load();
 
         });
-    </script>
+
+        $('#modalCharacterMail').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget)
+            var ajax_mail_body = button.data('ajax_mail_body');
+            var modal = $(this);
+
+            // reactive loader
+            modal.find("#div_mail_body_main").hide();
+            modal.find("#div_mail_body_loader").show();
+            modal.find('.modal-title').text("{% translate 'Loading...' %}");
+
+            $.get(
+                ajax_mail_body,
+                function (data, status) {
+                    modal.find('.modal-title').html(data.subject);
+                    modal.find('#mail_from').html(data.from);
+                    modal.find('#mail_to').html(data.to);
+                    modal.find('#mail_sent').html(
+                        moment(data.sent).format(DATETIME_FORMAT_2)
+                    );
+                    modal.find('#mail_body').html(data.body);
+                    // disable loader
+                    modal.find("#div_mail_body_main").show();
+                    modal.find("#div_mail_body_loader").hide();
+                });
+        })
+
+        /* Skillqueue */
+        $('#tab_skillqueue').DataTable({
+            ajax: {
+                url: "{% url 'memberaudit:character_skillqueue_data' character.pk %}",
+                dataSrc: '',
+                cache: false
+            },
+            columns: [
+                { data: 'skill' },
+                {
+                    data: 'finished',
+                    render: {
+                        _: 'display',
+                        sort: 'sort'
+                    }
+                },
+                { data: 'position' },
+            ],
+            order: [[0, "asc"]],
+            createdRow: function (row, data, dataIndex) {
+                if (data['is_active']) {
+                    $(row).addClass('info');
+                }
+            },
+            paging: false,
+            ordering: false,
+            info: false
+        });
+
+        /* Skill Sets */
+        $('#tab_skill_sets').DataTable({
+            ajax: {
+                url: "{% url 'memberaudit:character_skill_sets_data' character.pk %}",
+                dataSrc: '',
+                cache: false
+            },
+            columns: [
+                { data: 'group' },
+                { data: 'skill_set' },
+                {
+                    data: 'has_required',
+                    render: function (data, type, row, meta) {
+                        if (type === 'display') {
+                            return bool_to_icon(data)
+                        }
+                        else {
+                            return data;
+                        }
+                    }
+                },
+                { data: 'failed_required_skills' },
+                { data: 'failed_recommended_skills' },
+                { data: 'action' },
+
+                /* hidden columns */
+                { data: 'has_required_str' },
+                { data: 'is_doctrine_str' },
+
+            ],
+            order: [[0, "asc"], [1, "asc"]],
+            rowGroup: {
+                dataSrc: 'group',
+                className: 'table-group'
+            },
+            columnDefs: [
+                { "visible": false, "targets": [0, 6, 7] },
+                { "orderable": false, "targets": [3, 5] }
+            ],
+            filterDropDown: {
+                columns: [
+                    {
+                        idx: 0,
+                        title: "{% translate 'Group' %}"
+                    },
+                    {
+                        idx: 6,
+                        title: "{% translate 'Required Skills?' %}"
+                    },
+                    {
+                        idx: 7,
+                        title: "{% translate 'Doctrine?' %}"
+                    }
+                ],
+                autoSize: false,
+                bootstrap: true
+            }
+        });
+
+        $('#modalCharacterSkillSetDetails').on('show.bs.modal', function (event) {
+            var button = $(event.relatedTarget)
+            var ajax_skill_set_detail = button.data('ajax_skill_set_detail');
+            $("#modalCharacterSkillSetContents").load(ajax_skill_set_detail)
+
+        });
+
+
+        /* Skills */
+        $('#tab_skills').DataTable({
+            ajax: {
+                url: "{% url 'memberaudit:character_skills_data' character.pk %}",
+                dataSrc: '',
+                cache: false
+            },
+            columns: [
+                { data: 'group' },
+                { data: 'skill_name' },
+                { data: 'level_str' },
+            ],
+            order: [[0, "asc"], [1, "asc"]],
+            rowGroup: {
+                dataSrc: 'group',
+                className: 'table-group'
+            },
+            columnDefs: [
+                { "visible": false, "targets": [0, 2] }
+            ],
+            filterDropDown: {
+                columns: [
+                    {
+                        idx: 2,
+                        title: "{% translate 'Level' %}"
+                    }
+                ],
+                autoSize: false,
+                bootstrap: true
+            }
+        });
+
+        /* Wallet Journal */
+        $('#tab_wallet_journal').DataTable({
+            ajax: {
+                url: "{% url 'memberaudit:character_wallet_journal_data' character.pk %}",
+                dataSrc: '',
+                cache: false
+            },
+            columns: [
+                {
+                    data: 'date',
+                    render: $.fn.dataTable.render.moment(moment.ISO_8601, DATETIME_FORMAT)
+                },
+                { data: 'ref_type' },
+                { data: 'first_party' },
+                { data: 'second_party' },
+                {
+                    data: 'amount',
+                    render: function (data, type, row, meta) {
+                        value = data.toLocaleString()
+                        if (data < 0) {
+                            return '<span class="text-danger">' + value + '</span>';
+                        } else {
+                            return '<span class="text-success">' + value + '</span>';
+                        }
+                    }
+                },
+
+                {
+                    data: 'balance',
+                    render: $.fn.dataTable.render.number(',', '.', 0)
+                },
+                { data: 'description' },
+            ],
+            order: [[0, "desc"]],
+            filterDropDown: {
+                columns: [
+                    {
+                        idx: 1
+                    },
+                    {
+                        idx: 2
+                    },
+                    {
+                        idx: 3
+                    }
+                ],
+                autoSize: false,
+                bootstrap: true
+            }
+        });
+
+        /* Wallet Transactions */
+        $('#tab_wallet_transactions').DataTable({
+            ajax: {
+                url: "{% url 'memberaudit:character_wallet_transactions_data' character.pk %}",
+                dataSrc: '',
+                cache: false
+            },
+            columns: [
+                {
+                    data: 'date',
+                    render: $.fn.dataTable.render.moment(moment.ISO_8601, DATETIME_FORMAT)
+                },
+                {
+                    data: 'quantity',
+                    render: $.fn.dataTable.render.number(',', '.', 0)
+                },
+                { data: 'type' },
+                {
+                    data: 'unit_price',
+                    render: $.fn.dataTable.render.number(',', '.', 2)
+                },
+                {
+                    data: 'total',
+                    render: function (data, type, row, meta) {
+                        value = data.toLocaleString()
+                        if (row['is_buy']) {
+                            return '<span class="text-danger">' + value + '</span>';
+                        } else {
+                            return '<span class="text-success">' + value + '</span>';
+                        }
+                    }
+                },
+                { data: 'client' },
+                { data: 'location' },
+                /* hidden */
+                { data: 'buy_or_sell' },
+
+            ],
+            order: [[0, "desc"]],
+            columnDefs: [
+                { "visible": false, "targets": [7] }
+            ],
+            filterDropDown: {
+                columns: [
+                    {
+                        idx: 7,
+                        title: "{% trans 'Buy and Sell' %}"
+                    },
+                    {
+                        idx: 5
+                    },
+                    {
+                        idx: 6
+                    }
+                ],
+                autoSize: false,
+                bootstrap: true
+            }
+        });
+
+    });
+</script>
 {% endblock extra_javascript %}
 
 {% block extra_css %}
-    {% include 'bundles/datatables-css.html' %}
-    <link rel="stylesheet" href="{% static 'memberaudit/vendor/datatables/plugins/rowGroup.dataTables.min.css' %}" type="text/css">
-    <link rel="stylesheet" href="{% static 'memberaudit/css/global.css' %}" type="text/css">
-    <link rel="stylesheet" href="{% static 'memberaudit/css/memberaudit.css' %}" type="text/css">
-    <link rel="stylesheet" href="{% static 'memberaudit/css/character_viewer.css' %}" type="text/css">
+{% include 'bundles/datatables-css.html' %}
+<link rel="stylesheet" href="{% static 'memberaudit/vendor/datatables/plugins/rowGroup.dataTables.min.css' %}"
+    type="text/css">
+<link rel="stylesheet" href="{% static 'memberaudit/css/global.css' %}" type="text/css">
+<link rel="stylesheet" href="{% static 'memberaudit/css/memberaudit.css' %}" type="text/css">
+<link rel="stylesheet" href="{% static 'memberaudit/css/character_viewer.css' %}" type="text/css">
 {% endblock extra_css %}
 
 {% block extra_script %}

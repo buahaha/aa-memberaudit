@@ -70,6 +70,7 @@ from ..views import (
     character_mail_headers_by_list_data,
     character_mail_data,
     character_skills_data,
+    character_skill_set_details,
     character_skillqueue_data,
     character_wallet_journal_data,
     character_wallet_transactions_data,
@@ -131,6 +132,8 @@ class TestViewsBase(TestCase):
         cls.structure_1 = Location.objects.get(id=1000000000001)
         cls.skill_type_1 = EveType.objects.get(id=24311)
         cls.skill_type_2 = EveType.objects.get(id=24312)
+        cls.skill_type_3 = EveType.objects.get(id=24313)
+        cls.skill_type_4 = EveType.objects.get(id=24314)
 
 
 class TestCharacterAssets(TestViewsBase):
@@ -861,6 +864,83 @@ class TestViewsOther(TestViewsBase):
         self.assertEqual(row["skill_set_name"], "Ship 1")
         self.assertTrue(row["has_required"])
         self.assertEqual(row["failed_required_skills"], "-")
+
+    def test_skill_set_details(self):
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=self.skill_type_1,
+            active_skill_level=4,
+            skillpoints_in_skill=10,
+            trained_skill_level=4,
+        )
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=self.skill_type_2,
+            active_skill_level=2,
+            skillpoints_in_skill=10,
+            trained_skill_level=2,
+        )
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=self.skill_type_3,
+            active_skill_level=4,
+            skillpoints_in_skill=10,
+            trained_skill_level=4,
+        )
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=self.skill_type_4,
+            active_skill_level=3,
+            skillpoints_in_skill=10,
+            trained_skill_level=3,
+        )
+
+        skill_set_1 = SkillSet.objects.create(name="skill set")
+        SkillSetSkill.objects.create(
+            skill_set=skill_set_1,
+            eve_type=self.skill_type_1,
+            required_level=3,
+            recommended_level=5,
+        )
+        SkillSetSkill.objects.create(
+            skill_set=skill_set_1,
+            eve_type=self.skill_type_2,
+            required_level=None,
+            recommended_level=3,
+        )
+        SkillSetSkill.objects.create(
+            skill_set=skill_set_1,
+            eve_type=self.skill_type_3,
+            required_level=3,
+            recommended_level=None,
+        )
+        SkillSetSkill.objects.create(
+            skill_set=skill_set_1,
+            eve_type=self.skill_type_4,
+            required_level=None,
+            recommended_level=None,
+        )
+
+        request = self.factory.get(
+            reverse(
+                "memberaudit:character_skill_set_details",
+                args=[self.character.pk, skill_set_1.pk],
+            )
+        )
+
+        request.user = self.user
+        response = character_skill_set_details(
+            request, self.character.pk, skill_set_1.pk
+        )
+        self.assertEqual(response.status_code, 200)
+
+        text = response_content_to_str(response.content)
+
+        self.assertIn(skill_set_1.name, text)
+        self.assertIn(self.skill_type_1.name, text)
+        self.assertIn(self.skill_type_2.name, text)
+        self.assertIn(self.skill_type_3.name, text)
+        self.assertIn(self.skill_type_4.name, text)
 
 
 class TestCharacterDataViewsOther(TestViewsBase):

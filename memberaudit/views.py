@@ -40,6 +40,8 @@ from .models import (
     General,
     Location,
     SkillSetGroup,
+    SkillSet,
+    SkillSetSkill,
 )
 from app_utils.logging import LoggerAddTag
 from app_utils.messages import messages_plus
@@ -59,11 +61,16 @@ from .app_settings import MEMBERAUDIT_APP_NAME
 MY_DATETIME_FORMAT = "Y-M-d H:i"
 DATETIME_FORMAT = "%Y-%b-%d %H:%M"
 MAIL_LABEL_ID_ALL_MAILS = 0
-MAP_SKILL_LEVEL_ARABIC_TO_ROMAN = {1: "I", 2: "II", 3: "III", 4: "IV", 5: "V"}
+MAP_SKILL_LEVEL_ARABIC_TO_ROMAN = {0: "-", 1: "I", 2: "II", 3: "III", 4: "IV", 5: "V"}
 UNGROUPED_SKILL_SET = gettext_lazy("[Ungrouped]")
 DEFAULT_ICON_SIZE = 32
+ICON_SIZE_64 = 64
 CHARACTER_VIEWER_DEFAULT_TAB = "mails"
 SKILL_SET_DEFAULT_ICON_TYPE_ID = 3327
+ICON_FAILED = "fas fa-times boolean-icon-false"
+ICON_PARTIAL = "fas fa-check text-warning"
+ICON_FULL = "fas fa-check-double text-success"
+ICON_MET_ALL_REQUIRED = "fas fa-check text-success"
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -1202,6 +1209,17 @@ def character_skill_sets_data(
             if failed_recommended_skills is not None
             else None
         )
+        ajax_children_url = reverse(
+            "memberaudit:character_skill_set_details",
+            args=[character.pk, check.skill_set_id],
+        )
+
+        actions_html = (
+            '<button type="button" class="btn btn-primary" '
+            'data-toggle="modal" data-target="#modalCharacterSkillSetDetails" '
+            f"data-ajax_skill_set_detail={ ajax_children_url }>"
+            '<i class="fas fa-search"></i></button>'
+        )
 
         return {
             "id": check.id,
@@ -1217,6 +1235,7 @@ def character_skill_sets_data(
             ),
             "has_recommended": has_recommended,
             "has_recommended_str": yesnonone_str(has_recommended),
+            "action": actions_html,
         }
 
     def compile_failed_skills(failed_skills, level_name) -> Optional[list]:
@@ -1258,6 +1277,106 @@ def character_skill_sets_data(
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
+def character_skill_set_details(
+    request, character_pk: int, character: Character, skill_set_pk: int
+) -> HttpResponse:
+
+    skill_set = SkillSet.objects.get(id=skill_set_pk)
+    skill_set_skills = SkillSetSkill.objects.filter(skill_set_id=skill_set_pk)
+
+    out_data = list()
+
+    url = (
+        skill_set.ship_type.icon_url(ICON_SIZE_64)
+        if skill_set.ship_type
+        else eveimageserver.type_icon_url(
+            SKILL_SET_DEFAULT_ICON_TYPE_ID, size=ICON_SIZE_64
+        )
+    )
+
+    for skill in skill_set_skills:
+        cs = (
+            character.skills.select_related("eve_type")
+            .filter(eve_type_id=skill.eve_type_id)
+            .first()
+        )
+
+        recommended_level_str = "-"
+        required_level_str = "-"
+        current_str = "-"
+        result_icon = ICON_FAILED
+        met_required = True
+
+        if cs:
+            current_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[cs.active_skill_level]
+
+        if skill.recommended_level:
+            recommended_level_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[
+                skill.recommended_level
+            ]
+
+        if skill.required_level:
+            required_level_str = MAP_SKILL_LEVEL_ARABIC_TO_ROMAN[skill.required_level]
+
+        if not cs:
+            result_icon = ICON_FAILED
+            met_required = False
+        else:
+            if (
+                skill.required_level
+                and not skill.recommended_level
+                and cs.active_skill_level >= skill.required_level
+            ):
+                result_icon = ICON_FULL
+            elif (
+                skill.recommended_level
+                and cs.active_skill_level >= skill.recommended_level
+            ):
+                result_icon = ICON_FULL
+            elif skill.required_level and cs.active_skill_level >= skill.required_level:
+                result_icon = ICON_PARTIAL
+            else:
+                met_required = False
+
+        out_data.append(
+            {
+                "name": skill.eve_type.name,
+                "required": required_level_str,
+                "recommended": recommended_level_str,
+                "current": current_str,
+                "result_icon": result_icon,
+                "met_required": met_required,
+            }
+        )
+
+    met_all_required = True
+    for data in out_data:
+        if not data["met_required"]:
+            met_all_required = False
+            break
+
+    out_data = sorted(out_data, key=lambda k: (k["name"].lower()))
+    context = {
+        "name": skill_set.name,
+        "ship_url": url,
+        "skills": out_data,
+        "met_all_required": met_all_required,
+        "icon_failed": ICON_FAILED,
+        "icon_partial": ICON_PARTIAL,
+        "icon_full": ICON_FULL,
+        "icon_met_all_required": ICON_MET_ALL_REQUIRED,
+    }
+
+    return render(
+        request,
+        "memberaudit/modals/character_viewer/skill_set_content.html",
+        context,
+    )
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
 def character_skills_data(
     request, character_pk: int, character: Character
 ) -> JsonResponse:
@@ -1272,7 +1391,7 @@ def character_skills_data(
                 {
                     "group": skill.eve_type.eve_group.name,
                     "skill": skill.eve_type.name,
-                    "skill_name": skill_name,
+                    "skill_name": f"{skill_name} - {skill.eve_type_id}",
                     "level": skill.active_skill_level,
                     "level_str": level_str,
                 }

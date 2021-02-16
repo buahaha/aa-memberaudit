@@ -1,6 +1,7 @@
 from django.test import TestCase
 
 from eveuniverse.tools.testdata import create_testdata, ModelSpec
+from eveuniverse.models import EveUniverseEntityModel
 
 from . import eveuniverse_test_data_filename
 
@@ -22,6 +23,8 @@ class CreateEveUniverseTestData(TestCase):
                     20185,
                     24311,
                     24312,
+                    24313,
+                    24314,
                     35832,
                     35835,
                     52678,
@@ -34,7 +37,7 @@ class CreateEveUniverseTestData(TestCase):
                     19551,
                     19553,
                 ],
-                include_children=True,
+                enabled_sections=[EveUniverseEntityModel.LOAD_DOGMAS],
             ),
         ]
         create_testdata(testdata_spec, eveuniverse_test_data_filename())
