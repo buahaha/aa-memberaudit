@@ -1,5 +1,4 @@
 /* Common styles for all pages of this app */
-
 @media all {
     .icon-plus-name {
         padding-left: 2em;
@@ -31,8 +30,17 @@
         width: 100% !important;
     }
 }
+
+/* Skill Details Modal
+------------------------------------------------------------------------------------- */
+@media all {
+    .aa-memberaudit .skillset-description {
+        margin-bottom: 2rem;
+    }
+}
+
 /* DataTables
---------------------------------------------------------------------------------------------------------------------- */
+------------------------------------------------------------------------------------- */
 @media all {
     .dataTables_wrapper > .form-inline {
         margin-bottom: 1rem;
