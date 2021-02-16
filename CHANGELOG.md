@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.2.0] - 2021-02-16
+
 ### Added
 
-- Report for corporation compliance
+- New details window for skill sets showing in detail which skills need to be trained
+- New report for corporation compliance
+- Additional filters for the user compliance report
+
+### Changed
+
+- Moved utils into it's own distribution package: allianceauth-app-utils
+
+Thank you @gray_73 for your contribution to this release.
 
 ## [1.1.1] - 2021-01-29
 
