@@ -9,11 +9,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [1.2.0] - 2021-02-16
 
+### Fixed
+
+- Do not show corporations of guest in corporation compliance report
+
 ### Added
 
 - New details window for skill sets showing in detail which skills need to be trained
 - New report for corporation compliance
-- Additional filters for the user compliance report
+- Additional filters for the character finder
 
 ### Changed
 

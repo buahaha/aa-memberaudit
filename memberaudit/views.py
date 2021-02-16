@@ -23,7 +23,7 @@ from django.utils.translation import gettext_lazy, gettext
 from esi.decorators import token_required
 from eveuniverse.core import eveimageserver
 
-from allianceauth.authentication.models import CharacterOwnership
+from allianceauth.authentication.models import CharacterOwnership, get_guest_state_pk
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
 
@@ -1687,7 +1687,9 @@ def user_compliance_report_data(request) -> JsonResponse:
 @permission_required("memberaudit.reports_access")
 def corporation_compliance_report_data(request) -> JsonResponse:
     relevant_user_ids = list(
-        General.accessible_users(request.user).values_list("id", flat=True)
+        General.accessible_users(request.user)
+        .exclude(profile__state__pk=get_guest_state_pk())
+        .values_list("id", flat=True)
     )
     corporations = (
         EveCharacter.objects.select_related(

@@ -12,6 +12,7 @@ from django.urls import reverse
 
 from eveuniverse.models import EveSolarSystem, EveType, EveEntity, EveMarketPrice
 
+from allianceauth.authentication.models import State
 from allianceauth.eveonline.models import EveAllianceInfo
 from allianceauth.tests.auth_utils import AuthUtils
 
@@ -23,6 +24,7 @@ from . import (
     create_memberaudit_character,
     add_memberaudit_character_to_user,
     add_auth_character_to_user,
+    create_user_from_evecharacter,
 )
 from ..models import (
     Character,
@@ -1705,21 +1707,25 @@ class TestCorporationComplianceReportTestData(TestCase):
         cls.factory = RequestFactory()
         load_eveuniverse()
         load_entities()
+        # given
+        member_state = State.objects.get(name="Member")
+        member_state.member_alliances.add(EveAllianceInfo.objects.get(alliance_id=3001))
         cls.character_1001 = create_memberaudit_character(1001)
         cls.character_1002 = create_memberaudit_character(1002)
         cls.character_1003 = create_memberaudit_character(1003)
         add_auth_character_to_user(cls.character_1003.character_ownership.user, 1101)
         add_auth_character_to_user(cls.character_1003.character_ownership.user, 1102)
+        cls.user_1103 = create_user_from_evecharacter(1103)[0]
         cls.user = cls.character_1001.character_ownership.user
         cls.user = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.reports_access", cls.user
         )
+        cls.user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_everything", cls.user
+        )
 
     def test_should_return_full_list(self):
         # given
-        self.user = AuthUtils.add_permission_to_user_by_name(
-            "memberaudit.view_everything", self.user
-        )
         request = self.factory.get(
             reverse("memberaudit:corporation_compliance_report_data")
         )
