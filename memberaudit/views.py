@@ -1358,6 +1358,7 @@ def character_skill_set_details(
     out_data = sorted(out_data, key=lambda k: (k["name"].lower()))
     context = {
         "name": skill_set.name,
+        "description": skill_set.description,
         "ship_url": url,
         "skills": out_data,
         "met_all_required": met_all_required,
