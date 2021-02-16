@@ -1,0 +1,19 @@
+{% load i18n %}
+
+<div role="tabpanel" class="tab-pane" id="corporation_compliance">
+    <div class="table-responsive">
+        <table class="table table-striped table-width-fix" id="tab_corporation_compliance">
+            <thead>
+                <tr>
+                    <th>{% translate 'Organization' %}</th>
+                    <th>{% translate 'Total Users' %}</th>
+                    <th>{% translate 'Total Characters' %}</th>
+                    <th>{% translate 'Compliance %' %}</th>
+                </tr>
+            </thead>
+
+            <tbody></tbody>
+        </table>
+    </div>
+    <p class="text-muted">Color code: <span class="text-success">fully compliant</span> | <span class="text-warning">partly compliant</span> | <span class="text-danger">not compliant</span></p>
+</div>

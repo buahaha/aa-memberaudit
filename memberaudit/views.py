@@ -1614,7 +1614,7 @@ def reports(request) -> HttpResponse:
 
 @login_required
 @permission_required("memberaudit.reports_access")
-def compliance_report_data(request) -> JsonResponse:
+def user_compliance_report_data(request) -> JsonResponse:
     users_and_character_counts = (
         General.accessible_users(request.user)
         .annotate(total_chars=Count("character_ownerships__character", distinct=True))
@@ -1680,6 +1680,90 @@ def compliance_report_data(request) -> JsonResponse:
         )
 
     return JsonResponse(user_data, safe=False)
+
+
+@login_required
+@permission_required("memberaudit.reports_access")
+def corporation_compliance_report_data(request) -> JsonResponse:
+    relevant_user_ids = list(
+        General.accessible_users(request.user).values_list("id", flat=True)
+    )
+    corporations = (
+        EveCharacter.objects.select_related(
+            "userprofile",
+            "userprofile__user__character_ownerships__character",
+            "userprofile__user__character_ownerships",
+        )
+        .filter(userprofile__in=relevant_user_ids)
+        .values(
+            "corporation_id",
+            "corporation_name",
+            "alliance_id",
+            "alliance_name",
+            "alliance_ticker",
+        )
+        .annotate(mains_count=Count("userprofile", distinct=True))
+        .annotate(
+            characters_count=Count(
+                "userprofile__user__character_ownerships__character", distinct=True
+            )
+        )
+        .annotate(
+            unregistered_count=Count(
+                "userprofile__user__character_ownerships",
+                filter=Q(
+                    userprofile__user__character_ownerships__memberaudit_character=None
+                ),
+                distinct=True,
+            )
+        )
+    )
+    data = list()
+    for corporation in corporations:
+        organization_name = "{}{}".format(
+            corporation["corporation_name"],
+            f" [{corporation['alliance_ticker']}]"
+            if corporation["alliance_ticker"]
+            else "",
+        )
+        alliance_name = (
+            corporation["alliance_name"] if corporation["alliance_name"] else ""
+        )
+        compliance_p = (
+            round(
+                (corporation["characters_count"] - corporation["unregistered_count"])
+                / corporation["characters_count"]
+                * 100
+            )
+            if corporation["characters_count"] > 0
+            else 0
+        )
+        is_compliant = compliance_p == 100
+        data.append(
+            {
+                "id": corporation["corporation_id"],
+                "organization_html": {
+                    "display": bootstrap_icon_plus_name_html(
+                        icon_url=eveimageserver.corporation_logo_url(
+                            corporation_id=corporation["corporation_id"],
+                            size=DEFAULT_ICON_SIZE,
+                        ),
+                        name=organization_name,
+                    ),
+                    "sort": corporation["corporation_name"],
+                },
+                "corporation_name": corporation["corporation_name"],
+                "alliance_name": alliance_name,
+                "mains_count": corporation["mains_count"],
+                "characters_count": corporation["characters_count"],
+                "unregistered_count": corporation["unregistered_count"],
+                "compliance_percent": compliance_p,
+                "is_compliant": is_compliant,
+                "is_partly_compliant": compliance_p >= 85,
+                "is_compliant_str": yesno_str(is_compliant),
+            }
+        )
+    return JsonResponse(data, safe=False)
 
 
 @login_required

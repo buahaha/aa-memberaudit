@@ -128,17 +128,22 @@ urlpatterns = [
         views.character_wallet_transactions_data,
         name="character_wallet_transactions_data",
     ),
-    path("reports", views.reports, name="reports"),
-    path(
-        "compliance_report_data",
-        views.compliance_report_data,
-        name="compliance_report_data",
-    ),
     path("character_finder", views.character_finder, name="character_finder"),
     path(
         "character_finder_data",
         views.character_finder_data,
         name="character_finder_data",
+    ),
+    path("reports", views.reports, name="reports"),
+    path(
+        "user_compliance_report_data",
+        views.user_compliance_report_data,
+        name="user_compliance_report_data",
+    ),
+    path(
+        "corporation_compliance_report_data",
+        views.corporation_compliance_report_data,
+        name="corporation_compliance_report_data",
     ),
     path(
         "skill_sets_report_data",

@@ -75,7 +75,8 @@ from ..views import (
     character_wallet_journal_data,
     character_wallet_transactions_data,
     character_finder_data,
-    compliance_report_data,
+    user_compliance_report_data,
+    corporation_compliance_report_data,
     skill_sets_report_data,
     remove_character,
     character_finder,
@@ -1575,7 +1576,7 @@ class TestUnshareCharacter(TestCase):
         self.assertTrue(Character.objects.get(pk=self.character_1001.pk).is_shared)
 
 
-class TestComplianceReportData(TestCase):
+class TestUserComplianceReportTestData(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
@@ -1598,9 +1599,9 @@ class TestComplianceReportData(TestCase):
         AuthUtils.create_user("John Doe")  # this user should not show up in view
 
     def _execute_request(self) -> dict:
-        request = self.factory.get(reverse("memberaudit:compliance_report_data"))
+        request = self.factory.get(reverse("memberaudit:user_compliance_report_data"))
         request.user = self.user
-        response = compliance_report_data(request)
+        response = user_compliance_report_data(request)
         self.assertEqual(response.status_code, 200)
         return json_response_to_python_dict(response)
 
@@ -1679,9 +1680,9 @@ class TestComplianceReportData(TestCase):
         user = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.view_everything", user
         )
-        request = self.factory.get(reverse("memberaudit:compliance_report_data"))
+        request = self.factory.get(reverse("memberaudit:user_compliance_report_data"))
         request.user = user
-        response = compliance_report_data(request)
+        response = user_compliance_report_data(request)
         self.assertEqual(response.status_code, 200)
         result = json_response_to_python_dict(response)
         self.assertSetEqual(
@@ -1695,6 +1696,56 @@ class TestComplianceReportData(TestCase):
                 user.pk,
             },
         )
+
+
+class TestCorporationComplianceReportTestData(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.factory = RequestFactory()
+        load_eveuniverse()
+        load_entities()
+        cls.character_1001 = create_memberaudit_character(1001)
+        cls.character_1002 = create_memberaudit_character(1002)
+        cls.character_1003 = create_memberaudit_character(1003)
+        add_auth_character_to_user(cls.character_1003.character_ownership.user, 1101)
+        add_auth_character_to_user(cls.character_1003.character_ownership.user, 1102)
+        cls.user = cls.character_1001.character_ownership.user
+        cls.user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.reports_access", cls.user
+        )
+
+    def test_should_return_full_list(self):
+        # given
+        self.user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_everything", self.user
+        )
+        request = self.factory.get(
+            reverse("memberaudit:corporation_compliance_report_data")
+        )
+        request.user = self.user
+        # when
+        response = corporation_compliance_report_data(request)
+        # then
+        self.assertEqual(response.status_code, 200)
+        result = json_response_to_python_dict(response)
+        self.assertSetEqual(set(result.keys()), {2001, 2002})
+        row = result[2001]
+        self.assertEqual(row["corporation_name"], "Wayne Technologies")
+        self.assertEqual(row["mains_count"], 2)
+        self.assertEqual(row["characters_count"], 2)
+        self.assertEqual(row["unregistered_count"], 0)
+        self.assertEqual(row["compliance_percent"], 100)
+        self.assertTrue(row["is_compliant"])
+        self.assertTrue(row["is_partly_compliant"])
+        row = result[2002]
+        self.assertEqual(row["corporation_name"], "Wayne Food")
+        self.assertEqual(row["mains_count"], 1)
+        self.assertEqual(row["characters_count"], 3)
+        self.assertEqual(row["unregistered_count"], 2)
+        self.assertEqual(row["compliance_percent"], 33)
+        self.assertFalse(row["is_compliant"])
+        self.assertFalse(row["is_partly_compliant"])
 
 
 class TestSkillSetReportData(TestCase):
