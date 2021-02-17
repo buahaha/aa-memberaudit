@@ -377,7 +377,7 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         EveCharacter.objects.select_related(
             "character_ownership__memberaudit_character"
         )
-        .filter(character_ownership__user=request.user)
+        .filter(character_ownership__user=character.character_ownership.user)
         .order_by("character_name")
         .annotate(
             memberaudit_character_pk=F("character_ownership__memberaudit_character")
