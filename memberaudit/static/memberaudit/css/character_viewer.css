@@ -218,6 +218,13 @@
         margin: 0.2rem 0;
     }
 
+    .sidebar_character_disabled {
+        margin: 0.2rem 0;
+        display: block;
+        padding: 0.2rem 0.4rem;
+        text-decoration: none;
+    }
+
     .sidebar_character > a {
         display: block;
         padding: 0.2rem 0.4rem;

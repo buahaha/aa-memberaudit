@@ -7,21 +7,19 @@
     <div class="panel-heading">Characters</div>
     <div class="panel-body">
         <ul class="sidebar_characters">
-            {% for character in registered_characters %}
-                <li class="sidebar_character character-{{ character.pk }}{% if auth_character.character_name == character.name %} active{% endif %}">
-                    <a href="{% url 'memberaudit:character_viewer' character.pk %}">
-                        <img height="20" width="20" src="{{ character.character_id|character_portrait_url:32 }}"/>
-                        <span>{{ character.name }}</span>
+            {% for character in all_characters %}
+                {% if character.memberaudit_character_pk %}
+                    <li class="sidebar_character character-{{ character.memberaudit_character_pk }}{% if auth_character.character_name == character.character_name %} active{% endif %}">
+                        <a href="{% url 'memberaudit:character_viewer' character.memberaudit_character_pk %}">
+                            {% include "memberaudit/partials/character_viewer/sidebar_character.html" %}
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="sidebar_character_disabled">
+                        {% include "memberaudit/partials/character_viewer/sidebar_character.html" %}
+                    </li>
+                {% endif %}
 
-                        {% if character.character_id == main_character_id %}
-                            &nbsp;<i class="fas fa-crown" title="{% translate 'Main character' %}"></i>
-                        {% endif %}
-
-                        {% if character.is_shared %}
-                            &nbsp;<i class="far fa-eye" title="Currently shared with recruiters"></i>
-                        {% endif %}
-                    </a>
-                </li>
             {% endfor %}
         </ul>
     </div>

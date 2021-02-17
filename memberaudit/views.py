@@ -358,14 +358,12 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
             "label_id", "name", unread_count_2=F("unread_count")
         )
     )
-
     total_unread_count = sum(
         [obj["unread_count_2"] for obj in mail_labels if obj["unread_count_2"]]
     )
     total_unread_count += sum(
         [obj["unread_count"] for obj in mailing_lists if obj["unread_count"]]
     )
-
     mail_labels.append(
         {
             "label_id": MAIL_LABEL_ID_ALL_MAILS,
@@ -374,18 +372,19 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         }
     )
 
-    # registered characters
-    registered_characters = list(
-        Character.objects.select_related(
-            "character_ownership", "character_ownership__character"
+    # list of all characters owned by this user for sidebar
+    all_characters = (
+        EveCharacter.objects.select_related(
+            "character_ownership__memberaudit_character"
         )
-        .filter(character_ownership__user=character.character_ownership.user)
-        .order_by("character_ownership__character__character_name")
+        .filter(character_ownership__user=request.user)
+        .order_by("character_name")
+        .annotate(
+            memberaudit_character_pk=F("character_ownership__memberaudit_character")
+        )
+        .annotate(is_shared=F("character_ownership__memberaudit_character__is_shared"))
         .values(
-            "pk",
-            "is_shared",
-            name=F("character_ownership__character__character_name"),
-            character_id=F("character_ownership__character__character_id"),
+            "character_id", "character_name", "memberaudit_character_pk", "is_shared"
         )
     )
 
@@ -434,7 +433,7 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
         "mailing_lists": mailing_lists,
         "main": main,
         "main_character_id": main_character.character_id if main_character else None,
-        "registered_characters": registered_characters,
+        "all_characters": all_characters,
         "show_tab": request.GET.get("tab", ""),
         "last_updates": last_updates,
         "character_assets_total": character_assets_total,
