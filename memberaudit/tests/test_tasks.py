@@ -78,6 +78,7 @@ class TestRegularUpdates(TestCase):
         self.assertFalse(mock_update_all_characters.apply_async.called)
 
 
+@patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 99, 60))
 class TestOtherTasks(TestCase):
     @patch(TASKS_PATH + ".EveMarketPrice.objects.update_from_esi")
     def test_update_market_prices(self, mock_update_from_esi):
@@ -664,6 +665,7 @@ class TestUpdateCharacter(TestCase):
         self.assertTrue(self.character_1001.is_update_status_ok())
 
 
+@patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 99, 60))
 @patch(TASKS_PATH + ".MEMBERAUDIT_LOG_UPDATE_STATS", False)
 @patch(MODELS_PATH + ".character.MEMBERAUDIT_DATA_RETENTION_LIMIT", None)
 @patch(MODELS_PATH + ".character.esi")
@@ -686,6 +688,7 @@ class TestUpdateAllCharacters(TestCase):
         self.assertTrue(self.character_1001.is_update_status_ok())
 
 
+@patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 99, 60))
 @patch(TASKS_PATH + ".Location.objects.structure_update_or_create_esi")
 class TestUpdateStructureEsi(TestCase):
     @classmethod
@@ -725,6 +728,7 @@ class TestUpdateStructureEsi(TestCase):
             update_structure_esi(id=1000000000001, token_pk=self.token.pk)
 
 
+@patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 99, 60))
 @patch(TASKS_PATH + ".MailEntity.objects.update_or_create_esi")
 class TestUpdateMailEntityEsi(TestCase):
     def test_normal(self, mock_update_or_create_esi):
@@ -750,6 +754,7 @@ class TestUpdateMailEntityEsi(TestCase):
             update_mail_entity_esi(1001)
 
 
+@patch(TASKS_PATH + ".fetch_esi_status", lambda: EsiStatus(True, 99, 60))
 @override_settings(CELERY_ALWAYS_EAGER=True)
 class TestUpdateCharactersDoctrines(TestCase):
     @classmethod
