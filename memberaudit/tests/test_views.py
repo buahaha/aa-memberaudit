@@ -1585,15 +1585,14 @@ class TestUserComplianceReportTestData(TestCase):
         cls.factory = RequestFactory()
         load_eveuniverse()
         load_entities()
+        # given
         state = AuthUtils.get_member_state()
         state.member_alliances.add(EveAllianceInfo.objects.get(alliance_id=3001))
-
         cls.character_1001 = create_memberaudit_character(1001)
         cls.character_1002 = create_memberaudit_character(1002)
         cls.character_1003 = create_memberaudit_character(1003)
         cls.character_1101 = create_memberaudit_character(1101)
-        cls.character_1102 = create_memberaudit_character(1102)
-
+        cls.user_1103 = create_user_from_evecharacter(1103)[0]
         cls.user = cls.character_1001.character_ownership.user
         cls.user = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.reports_access", cls.user
@@ -1611,34 +1610,7 @@ class TestUserComplianceReportTestData(TestCase):
         result = self._execute_request()
         self.assertSetEqual(set(result.keys()), set())
 
-    def test_corporation_permission(self):
-        self.user = AuthUtils.add_permission_to_user_by_name(
-            "memberaudit.view_same_corporation", self.user
-        )
-        result = self._execute_request()
-        self.assertSetEqual(
-            set(result.keys()),
-            {
-                self.character_1001.character_ownership.user.pk,
-                self.character_1002.character_ownership.user.pk,
-            },
-        )
-
-    def test_alliance_permission(self):
-        self.user = AuthUtils.add_permission_to_user_by_name(
-            "memberaudit.view_same_alliance", self.user
-        )
-        result = self._execute_request()
-        self.assertSetEqual(
-            set(result.keys()),
-            {
-                self.character_1001.character_ownership.user.pk,
-                self.character_1002.character_ownership.user.pk,
-                self.character_1003.character_ownership.user.pk,
-            },
-        )
-
-    def test_view_everything_permission(self):
+    def test_should_return_non_guests_only(self):
         self.user = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.view_everything", self.user
         )
@@ -1649,8 +1621,6 @@ class TestUserComplianceReportTestData(TestCase):
                 self.character_1001.character_ownership.user.pk,
                 self.character_1002.character_ownership.user.pk,
                 self.character_1003.character_ownership.user.pk,
-                self.character_1101.character_ownership.user.pk,
-                self.character_1102.character_ownership.user.pk,
             },
         )
 
@@ -1671,34 +1641,6 @@ class TestUserComplianceReportTestData(TestCase):
         self.assertEqual(result_1002["total_chars"], 2)
         self.assertEqual(result_1002["unregistered_chars"], 1)
 
-    def test_user_without_main(self):
-        user = AuthUtils.create_user("Donald Duck")
-        user = AuthUtils.add_permission_to_user_by_name(
-            "memberaudit.basic_access", user
-        )
-        user = AuthUtils.add_permission_to_user_by_name(
-            "memberaudit.reports_access", user
-        )
-        user = AuthUtils.add_permission_to_user_by_name(
-            "memberaudit.view_everything", user
-        )
-        request = self.factory.get(reverse("memberaudit:user_compliance_report_data"))
-        request.user = user
-        response = user_compliance_report_data(request)
-        self.assertEqual(response.status_code, 200)
-        result = json_response_to_python_dict(response)
-        self.assertSetEqual(
-            set(result.keys()),
-            {
-                self.character_1001.character_ownership.user.pk,
-                self.character_1002.character_ownership.user.pk,
-                self.character_1003.character_ownership.user.pk,
-                self.character_1101.character_ownership.user.pk,
-                self.character_1102.character_ownership.user.pk,
-                user.pk,
-            },
-        )
-
 
 class TestCorporationComplianceReportTestData(TestCase):
     @classmethod
@@ -1711,10 +1653,20 @@ class TestCorporationComplianceReportTestData(TestCase):
         member_state = State.objects.get(name="Member")
         member_state.member_alliances.add(EveAllianceInfo.objects.get(alliance_id=3001))
         cls.character_1001 = create_memberaudit_character(1001)
+        add_auth_character_to_user(cls.character_1001.character_ownership.user, 1107)
         cls.character_1002 = create_memberaudit_character(1002)
+        add_memberaudit_character_to_user(
+            cls.character_1002.character_ownership.user, 1104
+        )
+        add_auth_character_to_user(cls.character_1002.character_ownership.user, 1105)
+        add_auth_character_to_user(cls.character_1002.character_ownership.user, 1106)
         cls.character_1003 = create_memberaudit_character(1003)
-        add_auth_character_to_user(cls.character_1003.character_ownership.user, 1101)
-        add_auth_character_to_user(cls.character_1003.character_ownership.user, 1102)
+        add_memberaudit_character_to_user(
+            cls.character_1003.character_ownership.user, 1101
+        )
+        add_memberaudit_character_to_user(
+            cls.character_1003.character_ownership.user, 1102
+        )
         cls.user_1103 = create_user_from_evecharacter(1103)[0]
         cls.user = cls.character_1001.character_ownership.user
         cls.user = AuthUtils.add_permission_to_user_by_name(
@@ -1739,19 +1691,19 @@ class TestCorporationComplianceReportTestData(TestCase):
         row = result[2001]
         self.assertEqual(row["corporation_name"], "Wayne Technologies")
         self.assertEqual(row["mains_count"], 2)
-        self.assertEqual(row["characters_count"], 2)
-        self.assertEqual(row["unregistered_count"], 0)
-        self.assertEqual(row["compliance_percent"], 100)
-        self.assertTrue(row["is_compliant"])
-        self.assertTrue(row["is_partly_compliant"])
+        self.assertEqual(row["characters_count"], 6)
+        self.assertEqual(row["unregistered_count"], 3)
+        self.assertEqual(row["compliance_percent"], 50)
+        self.assertFalse(row["is_compliant"])
+        self.assertFalse(row["is_partly_compliant"])
         row = result[2002]
         self.assertEqual(row["corporation_name"], "Wayne Food")
         self.assertEqual(row["mains_count"], 1)
         self.assertEqual(row["characters_count"], 3)
-        self.assertEqual(row["unregistered_count"], 2)
-        self.assertEqual(row["compliance_percent"], 33)
-        self.assertFalse(row["is_compliant"])
-        self.assertFalse(row["is_partly_compliant"])
+        self.assertEqual(row["unregistered_count"], 0)
+        self.assertEqual(row["compliance_percent"], 100)
+        self.assertTrue(row["is_compliant"])
+        self.assertTrue(row["is_partly_compliant"])
 
 
 class TestSkillSetReportData(TestCase):
@@ -1785,6 +1737,7 @@ class TestSkillSetReportData(TestCase):
         cls.skill_type_2 = EveType.objects.get(id=24312)
 
         AuthUtils.create_user("John Doe")  # this user should not show up in view
+        cls.character_1103 = create_memberaudit_character(1103)
 
     def test_normal(self):
         def make_data_id(doctrine: SkillSetGroup, character: Character) -> str:
@@ -1852,6 +1805,7 @@ class TestSkillSetReportData(TestCase):
         self.character_1001.update_skill_sets()
         self.character_1002.update_skill_sets()
         self.character_1101.update_skill_sets()
+        self.character_1103.update_skill_sets()
 
         request = self.factory.get(reverse("memberaudit:skill_sets_report_data"))
         request.user = self.user
@@ -1860,6 +1814,9 @@ class TestSkillSetReportData(TestCase):
         self.assertEqual(response.status_code, 200)
         data = json_response_to_python_dict(response)
         self.assertEqual(len(data), 9)
+
+        mains = {x["main"] for x in data.values()}
+        self.assertSetEqual(mains, {"Bruce Wayne", "Clark Kent"})
 
         row = data[make_data_id(doctrine_1, self.character_1001)]
         self.assertEqual(row["group"], "Alpha")
@@ -1894,21 +1851,21 @@ class TestSkillSetReportData(TestCase):
         self.assertEqual(row["main"], "Clark Kent")
         self.assertTrue(multi_assert_in(["Ship 3"], row["has_required"]))
 
-    def test_can_handle_user_without_main(self):
-        character = create_memberaudit_character(1102)
-        user = character.character_ownership.user
-        user.profile.main_character = None
-        user.profile.save()
+    # def test_can_handle_user_without_main(self):
+    #     character = create_memberaudit_character(1102)
+    #     user = character.character_ownership.user
+    #     user.profile.main_character = None
+    #     user.profile.save()
 
-        ship_1 = SkillSet.objects.create(name="Ship 1")
-        SkillSetSkill.objects.create(
-            skill_set=ship_1, eve_type=self.skill_type_1, required_level=3
-        )
-        doctrine_1 = SkillSetGroup.objects.create(name="Alpha")
-        doctrine_1.skill_sets.add(ship_1)
+    #     ship_1 = SkillSet.objects.create(name="Ship 1")
+    #     SkillSetSkill.objects.create(
+    #         skill_set=ship_1, eve_type=self.skill_type_1, required_level=3
+    #     )
+    #     doctrine_1 = SkillSetGroup.objects.create(name="Alpha")
+    #     doctrine_1.skill_sets.add(ship_1)
 
-        request = self.factory.get(reverse("memberaudit:skill_sets_report_data"))
-        request.user = self.user
-        response = skill_sets_report_data(request)
-        data = json_response_to_python_dict(response)
-        self.assertEqual(len(data), 4)
+    #     request = self.factory.get(reverse("memberaudit:skill_sets_report_data"))
+    #     request.user = self.user
+    #     response = skill_sets_report_data(request)
+    #     data = json_response_to_python_dict(response)
+    #     self.assertEqual(len(data), 4)

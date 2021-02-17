@@ -44,6 +44,7 @@
                             sort: 'sort'
                         }
                     },
+                    { data: 'state' },
                     {
                         data: 'organization',
                         render: {
@@ -59,24 +60,30 @@
                     { data: 'corporation_name' },
                 ],
                 columnDefs: [
-                    { "visible": false, "targets": [ 5, 6 ] },
+                    { "visible": false, "targets": [ 6, 7 ] },
                 ],
                 order: [ [ 0, "asc" ] ],
                 filterDropDown: {
                     columns: [
                         {
-                            idx: 5,
-                            title: "{% translate 'Alliance' %}"
+                            idx: 1,
+                            title: "{% translate 'State' %}"
                         },
                         {
                             idx: 6,
+                            title: "{% translate 'Alliance' %}"
+                        },
+                        {
+                            idx: 7,
                             title: "{% translate 'Corporation' %}"
                         },
                         {
-                            idx: 2
+                            idx: 3,
+                            title: "{% translate 'Registered?' %}"
                         },
                         {
-                            idx: 3
+                            idx: 4,
+                            title: "{% translate 'Compliant?' %}"
                         }
                     ],
                     bootstrap: true
@@ -162,6 +169,7 @@
                 columns: [
                     { data: 'group' },
                     { data: 'main_html' },
+                    { data: 'state' },
                     { data: 'organization_html' },
                     { data: 'character_html' },
                     { data: 'has_required' },
@@ -172,13 +180,13 @@
                     { data: 'has_required_str' },
                     { data: 'is_doctrine_str' },
                 ],
-                order: [[0, "asc"], [1, "asc"], [3, "asc"]],
+                order: [[0, "asc"], [1, "asc"], [4, "asc"]],
                 rowGroup: {
                     dataSrc: 'group',
                     className: 'table-group'
                 },
                 columnDefs: [
-                    { "visible": false, "targets": [0, 5, 6, 7, 8] }
+                    { "visible": false, "targets": [0, 6, 7, 8, 9] }
                 ],
                 filterDropDown: {
                     columns: [
@@ -187,19 +195,23 @@
                             title: "{% translate 'Groups' %}"
                         },
                         {
-                            idx: 5,
-                            title: "{% translate 'Alliance' %}"
+                            idx: 2,
+                            title: "{% translate 'State' %}"
                         },
                         {
                             idx: 6,
-                            title: "{% translate 'Corporation' %}"
+                            title: "{% translate 'Alliance' %}"
                         },
                         {
                             idx: 7,
-                            title: "{% translate 'Required Skills?' %}"
+                            title: "{% translate 'Corporation' %}"
                         },
                         {
                             idx: 8,
+                            title: "{% translate 'Required Skills?' %}"
+                        },
+                        {
+                            idx: 9,
                             title: "{% translate 'Doctrine?' %}"
                         }
                     ],

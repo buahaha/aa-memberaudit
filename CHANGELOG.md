@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
-## [1.2.0] - 2021-02-16
+### Added
 
-### Fixed
+- Added state information to user compliance and skill set reports
+
+### Changed
 
 - Do not show corporations of guest in corporation compliance report
+- Do not show guests in user compliance report
+- Do not show guests in skill set reports
+
+## [1.2.0] - 2021-02-16
 
 ### Added
 

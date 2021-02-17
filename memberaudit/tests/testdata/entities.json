@@ -53,6 +53,34 @@
             "corporation_id": 2103,
             "corporation_name": "Suicide Squad",
             "corporation_ticker": "SS"
+        },
+        {
+            "character_id": 1104,
+            "character_name": "Ben Turner",
+            "corporation_id": 2103,
+            "corporation_name": "Suicide Squad",
+            "corporation_ticker": "SS"
+        },
+        {
+            "character_id": 1105,
+            "character_name": "Leah Wasserman",
+            "corporation_id": 2103,
+            "corporation_name": "Suicide Squad",
+            "corporation_ticker": "SS"
+        },
+        {
+            "character_id": 1106,
+            "character_name": "Eve Eden",
+            "corporation_id": 2103,
+            "corporation_name": "Suicide Squad",
+            "corporation_ticker": "SS"
+        },
+        {
+            "character_id": 1107,
+            "character_name": "Christopher Weiss",
+            "corporation_id": 2103,
+            "corporation_name": "Suicide Squad",
+            "corporation_ticker": "SS"
         }
     ],
     "EveEntity": [

@@ -1618,6 +1618,7 @@ def reports(request) -> HttpResponse:
 def user_compliance_report_data(request) -> JsonResponse:
     users_and_character_counts = (
         General.accessible_users(request.user)
+        .exclude(profile__state__pk=get_guest_state_pk())
         .annotate(total_chars=Count("character_ownerships__character", distinct=True))
         .annotate(
             unregistered_chars=Count(
@@ -1626,9 +1627,8 @@ def user_compliance_report_data(request) -> JsonResponse:
                 distinct=True,
             )
         )
-        .select_related("profile__main_character")
+        .select_related("profile__main_character", "profile__state")
     )
-
     user_data = list()
     for user in users_and_character_counts:
         if user.profile.main_character:
@@ -1644,7 +1644,6 @@ def user_compliance_report_data(request) -> JsonResponse:
             alliance_name = (
                 main_character.alliance_name if main_character.alliance_name else ""
             )
-
             is_compliant = user.unregistered_chars == 0
         else:
             main_name = user.username
@@ -1657,7 +1656,6 @@ def user_compliance_report_data(request) -> JsonResponse:
             is_compliant = False
 
         is_registered = user.unregistered_chars < user.total_chars
-
         user_data.append(
             {
                 "id": user.pk,
@@ -1669,6 +1667,7 @@ def user_compliance_report_data(request) -> JsonResponse:
                     "display": organization_html,
                     "sort": corporation_name,
                 },
+                "state": user.profile.state.name,
                 "corporation_name": corporation_name,
                 "alliance_name": alliance_name,
                 "total_chars": user.total_chars,
@@ -1679,7 +1678,6 @@ def user_compliance_report_data(request) -> JsonResponse:
                 "compliance_str": yesno_str(is_compliant),
             }
         )
-
     return JsonResponse(user_data, safe=False)
 
 
@@ -1705,6 +1703,7 @@ def corporation_compliance_report_data(request) -> JsonResponse:
             "alliance_name",
             "alliance_ticker",
         )
+        .distinct()
         .annotate(mains_count=Count("userprofile", distinct=True))
         .annotate(
             characters_count=Count(
@@ -1826,6 +1825,7 @@ def skill_sets_report_data(request) -> JsonResponse:
             "group": group.name_plus if group else UNGROUPED_SKILL_SET,
             "main": main_name,
             "main_html": main_html,
+            "state": user.profile.state.name,
             "organization_html": organization_html,
             "corporation": main_corporation,
             "alliance": main_alliance,
@@ -1837,20 +1837,20 @@ def skill_sets_report_data(request) -> JsonResponse:
         }
 
     data = list()
-
+    relevant_user_ids = list(
+        General.accessible_users(request.user).exclude(
+            profile__state__pk=get_guest_state_pk()
+        )
+    )
     character_qs = (
-        Character.objects.select_related("character_ownership__user")
-        .select_related(
+        Character.objects.select_related(
             "character_ownership__user",
             "character_ownership__user__profile__main_character",
             "character_ownership__character",
         )
         .prefetch_related("skill_set_checks")
-        .filter(
-            character_ownership__user__in=list(General.accessible_users(request.user))
-        )
+        .filter(character_ownership__user__in=relevant_user_ids)
     )
-
     my_select_related = "skill_set", "skill_set__ship_type"
     for group in SkillSetGroup.objects.all():
         for character in character_qs:
