@@ -594,10 +594,9 @@
         $('#modalCharacterSkillSetDetails').on('show.bs.modal', function (event) {
             var button = $(event.relatedTarget)
             var ajax_skill_set_detail = button.data('ajax_skill_set_detail');
+
             $("#modalCharacterSkillSetContents").load(ajax_skill_set_detail)
-
         });
-
 
         /* Skills */
         $('#tab_skills').DataTable({
@@ -657,7 +656,6 @@
                         }
                     }
                 },
-
                 {
                     data: 'balance',
                     render: $.fn.dataTable.render.number(',', '.', 0)
