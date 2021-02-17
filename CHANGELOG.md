@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Do not show guests in user compliance report
 - Do not show guests in skill set reports
 
+### Fixed
+
+- Unaccessible characters in sidebar link to "no permission" page.
+
 ## [1.2.0] - 2021-02-16
 
 ### Added

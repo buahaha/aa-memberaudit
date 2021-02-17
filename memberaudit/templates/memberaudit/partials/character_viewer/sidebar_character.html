@@ -2,12 +2,14 @@
 {% load evelinks %}
 
 <img height="20" width="20" src="{{ character.character_id|character_portrait_url:32 }}"/>
-<span {% if not character.memberaudit_character_pk %}class="text-muted" title="{% translate 'Not registered' %}"{% endif%}>{{ character.character_name }}</span>
+<span
+    {% if not character.memberaudit_character_pk %}class="text-muted"{% endif%}>{{ character.character_name }}
 
-{% if character.character_id == main_character_id %}
-    &nbsp;<i class="fas fa-crown" title="{% translate 'Main character' %}"></i>
-{% endif %}
+    {% if character.character_id == main_character_id %}
+        &nbsp;<i class="fas fa-crown" title="{% translate 'Main character' %}"></i>
+    {% endif %}
 
-{% if character.is_shared %}
-    &nbsp;<i class="far fa-eye" title="{% translate 'Currently shared with recruiters' %}"></i>
-{% endif %}
+    {% if character.is_shared %}
+        &nbsp;<i class="far fa-eye" title="{% translate 'Currently shared with recruiters' %}"></i>
+    {% endif %}
+</span>

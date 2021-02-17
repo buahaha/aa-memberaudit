@@ -373,6 +373,11 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
     )
 
     # list of all characters owned by this user for sidebar
+    accessible_characters = set(
+        Character.objects.user_has_access(user=request.user).values_list(
+            "pk", flat=True
+        )
+    )
     all_characters = (
         EveCharacter.objects.select_related(
             "character_ownership__memberaudit_character"
@@ -387,6 +392,15 @@ def character_viewer(request, character_pk: int, character: Character) -> HttpRe
             "character_id", "character_name", "memberaudit_character_pk", "is_shared"
         )
     )
+    all_characters = [
+        {
+            **obj,
+            **{
+                "has_access": (obj["memberaudit_character_pk"] in accessible_characters)
+            },
+        }
+        for obj in all_characters
+    ]
 
     # assets total value
     character_assets_total = (

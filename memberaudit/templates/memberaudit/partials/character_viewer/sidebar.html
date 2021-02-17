@@ -8,7 +8,7 @@
     <div class="panel-body">
         <ul class="sidebar_characters">
             {% for character in all_characters %}
-                {% if character.memberaudit_character_pk %}
+                {% if character.memberaudit_character_pk and character.has_access%}
                     <li class="sidebar_character character-{{ character.memberaudit_character_pk }}{% if auth_character.character_name == character.character_name %} active{% endif %}">
                         <a href="{% url 'memberaudit:character_viewer' character.memberaudit_character_pk %}">
                             {% include "memberaudit/partials/character_viewer/sidebar_character.html" %}
