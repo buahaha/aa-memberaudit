@@ -13,7 +13,7 @@ from django.urls import reverse
 from eveuniverse.models import EveSolarSystem, EveType, EveEntity, EveMarketPrice
 
 from allianceauth.authentication.models import State
-from allianceauth.eveonline.models import EveAllianceInfo
+from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 from allianceauth.tests.auth_utils import AuthUtils
 
 from .testdata.load_eveuniverse import load_eveuniverse
@@ -1652,6 +1652,9 @@ class TestCorporationComplianceReportTestData(TestCase):
         # given
         member_state = State.objects.get(name="Member")
         member_state.member_alliances.add(EveAllianceInfo.objects.get(alliance_id=3001))
+        member_state.member_corporations.add(
+            EveCorporationInfo.objects.get(corporation_id=2110)
+        )
         cls.character_1001 = create_memberaudit_character(1001)
         add_auth_character_to_user(cls.character_1001.character_ownership.user, 1107)
         cls.character_1002 = create_memberaudit_character(1002)
@@ -1672,22 +1675,26 @@ class TestCorporationComplianceReportTestData(TestCase):
         cls.user = AuthUtils.add_permission_to_user_by_name(
             "memberaudit.reports_access", cls.user
         )
-        cls.user = AuthUtils.add_permission_to_user_by_name(
-            "memberaudit.view_everything", cls.user
-        )
+        cls.character_1110 = create_memberaudit_character(1110)
 
-    def test_should_return_full_list(self):
-        # given
+    def _corporation_compliance_report_data(self, user):
         request = self.factory.get(
             reverse("memberaudit:corporation_compliance_report_data")
         )
-        request.user = self.user
-        # when
+        request.user = user
         response = corporation_compliance_report_data(request)
-        # then
         self.assertEqual(response.status_code, 200)
-        result = json_response_to_python_dict(response)
-        self.assertSetEqual(set(result.keys()), {2001, 2002})
+        return json_response_to_python_dict(response)
+
+    def test_should_return_full_list(self):
+        # given
+        self.user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_everything", self.user
+        )
+        # when
+        result = self._corporation_compliance_report_data(self.user)
+        # then
+        self.assertSetEqual(set(result.keys()), {2001, 2002, 2110})
         row = result[2001]
         self.assertEqual(row["corporation_name"], "Wayne Technologies")
         self.assertEqual(row["mains_count"], 2)
@@ -1704,6 +1711,16 @@ class TestCorporationComplianceReportTestData(TestCase):
         self.assertEqual(row["compliance_percent"], 100)
         self.assertTrue(row["is_compliant"])
         self.assertTrue(row["is_partly_compliant"])
+
+    def test_should_return_my_corporation_only(self):
+        # given
+        self.user = AuthUtils.add_permission_to_user_by_name(
+            "memberaudit.view_same_corporation", self.user
+        )
+        # when
+        result = self._corporation_compliance_report_data(self.user)
+        # then
+        self.assertSetEqual(set(result.keys()), {2001})
 
 
 class TestSkillSetReportData(TestCase):

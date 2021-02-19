@@ -7,19 +7,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.2.1] - 2021-02-18
+
 ### Added
 
-- Added state information to user compliance and skill set reports
+- Added user state information to user compliance and skill set reports
 
 ### Changed
 
-- Do not show corporations of guest in corporation compliance report
-- Do not show guests in user compliance report
-- Do not show guests in skill set reports
-
-### Fixed
-
-- Unaccessible characters in sidebar link to "no permission" page.
+- Removed guests from user compliance report
+- Removed guests from corporations compliance reports
+- Removed guests from skill set reports
+- Character sidebar now also shows unregistered characters
+- Clicking on unaccessible characters in the character sidebar on longer links to a "no permission" page; instead the link has been removed.
 
 ## [1.2.0] - 2021-02-16
 

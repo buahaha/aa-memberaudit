@@ -81,6 +81,13 @@
             "corporation_id": 2103,
             "corporation_name": "Suicide Squad",
             "corporation_ticker": "SS"
+        },
+        {
+            "character_id": 1110,
+            "character_name": "Phil Coulson",
+            "corporation_id": 2110,
+            "corporation_name": "Shield",
+            "corporation_ticker": "SH"
         }
     ],
     "EveEntity": [
