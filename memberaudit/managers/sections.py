@@ -1133,3 +1133,23 @@ class CharacterWalletTransactionManager(models.Manager):
             self.bulk_create(entries, batch_size=MEMBERAUDIT_BULK_METHODS_BATCH_SIZE)
 
         EveEntity.objects.bulk_update_new_esi()
+
+
+class CharacterAttributesManager(models.Manager):
+    def update_for_character(self, character, attribute_data):
+        self.update_or_create(
+            character=character,
+            defaults={
+                "accrued_remap_cooldown_date": attribute_data.get(
+                    "accrued_remap_cooldown_date"
+                ),
+                "last_remap_date": attribute_data.get("last_remap_date"),
+                "bonus_remaps": attribute_data.get("bonus_remaps"),
+                "charisma": attribute_data.get("charisma"),
+                "intelligence": attribute_data.get("intelligence"),
+                "memory": attribute_data.get("memory"),
+                "perception": attribute_data.get("perception"),
+                "willpower": attribute_data.get("willpower"),
+            },
+        )
+        EveEntity.objects.bulk_update_new_esi()

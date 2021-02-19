@@ -50,6 +50,7 @@ from ..models import (
     SkillSetSkill,
     Location,
     MailEntity,
+    CharacterAttributes,
 )
 from ..models.character import data_retention_cutoff
 from .testdata.esi_client_stub import esi_client_stub
@@ -2894,3 +2895,66 @@ class TestMailEntity(NoSocketsTestCase):
             id=9887, category=MailEntity.Category.CORPORATION
         )
         self.assertEqual(obj.external_url(), "")
+
+
+@patch(MODELS_PATH + ".character.esi")
+class TestCharacterUpdateAttributes(TestCharacterUpdateBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+
+    def test_create(self, mock_esi):
+        """can load attributes from test data"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_attributes()
+        self.assertEqual(
+            self.character_1001.attributes.accrued_remap_cooldown_date,
+            parse_datetime("2016-10-24T09:00:00Z"),
+        )
+
+        self.assertEqual(
+            self.character_1001.attributes.last_remap_date,
+            parse_datetime("2016-10-24T09:00:00Z"),
+        )
+
+        self.assertEqual(self.character_1001.attributes.charisma, 16)
+        self.assertEqual(self.character_1001.attributes.intelligence, 17)
+        self.assertEqual(self.character_1001.attributes.memory, 18)
+        self.assertEqual(self.character_1001.attributes.perception, 19)
+        self.assertEqual(self.character_1001.attributes.willpower, 20)
+
+    def test_update(self, mock_esi):
+        """can create attributes from scratch"""
+        mock_esi.client = esi_client_stub
+
+        CharacterAttributes.objects.create(
+            character=self.character_1001,
+            accrued_remap_cooldown_date="2020-10-24T09:00:00Z",
+            last_remap_date="2020-10-24T09:00:00Z",
+            bonus_remaps=4,
+            charisma=102,
+            intelligence=103,
+            memory=104,
+            perception=105,
+            willpower=106,
+        )
+
+        self.character_1001.update_attributes()
+        self.character_1001.attributes.refresh_from_db()
+
+        self.assertEqual(
+            self.character_1001.attributes.accrued_remap_cooldown_date,
+            parse_datetime("2016-10-24T09:00:00Z"),
+        )
+
+        self.assertEqual(
+            self.character_1001.attributes.last_remap_date,
+            parse_datetime("2016-10-24T09:00:00Z"),
+        )
+
+        self.assertEqual(self.character_1001.attributes.charisma, 16)
+        self.assertEqual(self.character_1001.attributes.intelligence, 17)
+        self.assertEqual(self.character_1001.attributes.memory, 18)
+        self.assertEqual(self.character_1001.attributes.perception, 19)
+        self.assertEqual(self.character_1001.attributes.willpower, 20)

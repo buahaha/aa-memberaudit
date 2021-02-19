@@ -81,6 +81,7 @@ class Character(models.Model):
         WALLET_BALLANCE = "wallet_balance", _("wallet balance")
         WALLET_JOURNAL = "wallet_journal", _("wallet journal")
         WALLET_TRANSACTIONS = "wallet_transactions", _("wallet transactions")
+        ATTRIBUTES = "attributes", _("attributes")
 
         @classmethod
         def method_name(cls, section: str) -> str:
@@ -125,6 +126,7 @@ class Character(models.Model):
         UpdateSection.WALLET_BALLANCE: 2,
         UpdateSection.WALLET_JOURNAL: 2,
         UpdateSection.WALLET_TRANSACTIONS: 2,
+        UpdateSection.ATTRIBUTES: 3,
     }
 
     character_ownership = models.OneToOneField(
@@ -1061,6 +1063,27 @@ class Character(models.Model):
             "esi-universe.read_structures.v1",
             "esi-wallet.read_character_wallet.v1",
         ]
+
+    @fetch_token_for_character("esi-skills.read_skills.v1")
+    def update_attributes(self, token: Token, force_update: bool = False):
+        """update the character's attributes"""
+        logger.info("%s: Fetching attributes from ESI", self)
+        from .sections import CharacterAttributes
+
+        attribute_data = esi.client.Attributes.get_characters_character_id_attributes(
+            character_id=self.character_ownership.character.character_id,
+            token=token.valid_access_token(),
+        ).results()
+        if MEMBERAUDIT_DEVELOPER_MODE:
+            self._store_list_to_disk(attribute_data, "attributes")
+
+        if force_update or self.has_section_changed(
+            section=self.UpdateSection.ATTRIBUTES, content=attribute_data
+        ):
+            CharacterAttributes.objects.update_for_character(self, attribute_data)
+
+        else:
+            logger.info("%s: Attributes have not changed", self)
 
 
 class CharacterUpdateStatus(models.Model):

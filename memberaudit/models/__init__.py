@@ -34,4 +34,5 @@ from .sections import (  # noqa: F401
     CharacterWalletBalance,
     CharacterWalletJournalEntry,
     CharacterWalletTransaction,
+    CharacterAttributes,
 )

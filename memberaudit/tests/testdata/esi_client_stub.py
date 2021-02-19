@@ -156,6 +156,12 @@ _endpoints = [
         "character_id",
         needs_token=True,
     ),
+    EsiEndpoint(
+        "Attributes",
+        "get_characters_character_id_attributes",
+        "character_id",
+        needs_token=True,
+    ),
 ]
 
 esi_client_stub = EsiClientStub(load_test_data(), endpoints=_endpoints)
