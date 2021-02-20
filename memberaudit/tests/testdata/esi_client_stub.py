@@ -157,7 +157,7 @@ _endpoints = [
         needs_token=True,
     ),
     EsiEndpoint(
-        "Attributes",
+        "Skills",
         "get_characters_character_id_attributes",
         "character_id",
         needs_token=True,
