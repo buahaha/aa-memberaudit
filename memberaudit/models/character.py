@@ -1070,7 +1070,7 @@ class Character(models.Model):
         logger.info("%s: Fetching attributes from ESI", self)
         from .sections import CharacterAttributes
 
-        attribute_data = esi.client.Attributes.get_characters_character_id_attributes(
+        attribute_data = esi.client.Skills.get_characters_character_id_attributes(
             character_id=self.character_ownership.character.character_id,
             token=token.valid_access_token(),
         ).results()
