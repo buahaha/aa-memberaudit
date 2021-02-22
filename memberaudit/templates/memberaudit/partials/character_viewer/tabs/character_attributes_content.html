@@ -1,0 +1,38 @@
+{% load i18n %}
+{% load static %}
+
+<div class="row">
+    <div class="col-xs-12 col-sm-4">
+        <ul class="list-group">
+            <li class="list-group-item">
+                <img src="{% static 'memberaudit/images/perception.png' %}" title="Perception">
+                {% translate 'Perception' %}<span class="badge">{{ character_attributes.perception }}&nbsp;{% translate 'points' %}</span>
+            </li>
+            <li class="list-group-item">
+                <img src="{% static 'memberaudit/images/memory.png' %}" title="Memory">
+                {% translate 'Memory' %}<span class="badge">{{ character_attributes.memory }}&nbsp;{% translate 'points' %}</span>
+            </li>
+            <li class="list-group-item">
+                <img src="{% static 'memberaudit/images/willpower.png' %}" title="Willpower">
+                {% translate 'Willpower' %}<span class="badge">{{ character_attributes.willpower }}&nbsp;{% translate 'points' %}</span>
+            </li>
+            <li class="list-group-item">
+                <img src="{% static 'memberaudit/images/charisma.png' %}" title="Charisma">
+                {% translate 'Charisma' %}<span class="badge">{{ character_attributes.charisma }}&nbsp;{% translate 'points' %}</span>
+            </li>
+            <li class="list-group-item">
+                <img src="{% static 'memberaudit/images/intelligence.png' %}" title="Intelligence">
+                {% translate 'Intelligence' %}<span class="badge">{{ character_attributes.intelligence }}&nbsp;{% translate 'points' %}</span>
+            </li>
+        </ul>
+    </div>
+
+    <div class="col-xs-12 col-sm-8">
+        <p>
+            {% translate 'Neutral Remap Available:' %}&nbsp;&nbsp;&nbsp;{{ character_attributes.last_remap_date|date:'M d, Y' }}
+        </p>
+        <p>
+            {% translate 'Bonus Remaps Available:' %}&nbsp;&nbsp;&nbsp;{{ character_attributes.bonus_remaps }}
+        </p>
+    </div>
+</div>

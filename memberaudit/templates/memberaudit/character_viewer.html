@@ -25,6 +25,7 @@
                     <!-- Tab panes -->
                     <div class="tab-content">
                         {% include 'memberaudit/partials/character_viewer/tabs/assets.html' %}
+                        {% include 'memberaudit/partials/character_viewer/tabs/character_attributes.html' %}
                         {% include 'memberaudit/partials/character_viewer/tabs/contacts.html' %}
                         {% include 'memberaudit/partials/character_viewer/tabs/character_bio.html' %}
                         {% include 'memberaudit/partials/character_viewer/tabs/contracts.html' %}
@@ -351,6 +352,8 @@
         /* Corporation History */
         $('#div_corporation_history').load("{% url 'memberaudit:character_corporation_history' character.pk %}")
 
+        /* Character Attributes */
+        $('#div_character_attributes').load("{% url 'memberaudit:character_attribute_data' character.pk %}")
 
         /* Clones */
         $('#tab_jump_clones').DataTable({

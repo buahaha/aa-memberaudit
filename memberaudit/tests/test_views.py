@@ -49,6 +49,7 @@ from ..models import (
     SkillSetSkill,
     Location,
     MailEntity,
+    CharacterAttributes,
 )
 from app_utils.testing import generate_invalid_pk
 from ..views import (
@@ -85,6 +86,7 @@ from ..views import (
     reports,
     share_character,
     unshare_character,
+    character_attribute_data,
 )
 
 MODULE_PATH = "memberaudit.views"
@@ -944,6 +946,29 @@ class TestViewsOther(TestViewsBase):
         self.assertIn(self.skill_type_2.name, text)
         self.assertIn(self.skill_type_3.name, text)
         self.assertIn(self.skill_type_4.name, text)
+
+    def test_character_attribute_data(self):
+        CharacterAttributes.objects.create(
+            character=self.character,
+            last_remap_date="2020-10-24T09:00:00Z",
+            bonus_remaps=3,
+            charisma=100,
+            intelligence=101,
+            memory=102,
+            perception=103,
+            willpower=104,
+        )
+
+        request = self.factory.get(
+            reverse(
+                "memberaudit:character_attribute_data",
+                args=[self.character.pk],
+            )
+        )
+
+        request.user = self.user
+        response = character_attribute_data(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
 
 
 class TestCharacterDataViewsOther(TestViewsBase):

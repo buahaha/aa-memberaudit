@@ -1391,6 +1391,27 @@ def character_skill_set_details(
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
+def character_attribute_data(
+    request, character_pk: int, character: Character
+) -> HttpResponse:
+
+    try:
+        character_attributes = character.attributes
+    except ObjectDoesNotExist:
+        character_attributes = None
+
+    context = {"character_attributes": character_attributes}
+
+    return render(
+        request,
+        "memberaudit/partials/character_viewer/tabs/character_attributes_content.html",
+        context,
+    )
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
 def character_skills_data(
     request, character_pk: int, character: Character
 ) -> JsonResponse:

@@ -1,0 +1,15 @@
+{% load i18n %}
+{% load static %}
+
+<div role="tabpanel" class="tab-pane" id="attributes">
+
+     <div id="div_character_attributes">
+        {% if NIGHT_MODE %}
+            <img src="{% static 'memberaudit/images/Spinner-1s-64px-dark.gif' %}"/>
+        {% else %}
+            <img src="{% static 'memberaudit/images/Spinner-1s-64px-light.gif' %}"/>
+        {% endif %}
+    </div>
+    <br>
+    {% include 'memberaudit/partials/character_viewer/tabs/last_updated.html' with update_section=last_updates.attributes %}
+</div>
