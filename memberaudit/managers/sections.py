@@ -1152,4 +1152,3 @@ class CharacterAttributesManager(models.Manager):
                 "willpower": attribute_data.get("willpower"),
             },
         )
-        EveEntity.objects.bulk_update_new_esi()
