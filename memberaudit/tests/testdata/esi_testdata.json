@@ -617,6 +617,18 @@
                     "training_start_sp": 50
                 }
             ]
+        },
+        "get_characters_character_id_attributes": {
+            "1001": {
+                "accrued_remap_cooldown_date": "2016-10-24T09:00:00Z",
+                "last_remap_date": "2016-10-24T09:00:00Z",
+                "bonus_remaps": 3,
+                "charisma": 16,
+                "intelligence": 17,
+                "memory": 18,
+                "perception": 19,
+                "willpower": 20
+            }
         }
     },
     "Universe": {

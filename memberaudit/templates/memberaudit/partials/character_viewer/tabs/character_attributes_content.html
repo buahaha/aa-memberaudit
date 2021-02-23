@@ -1,0 +1,64 @@
+{% load i18n %}
+{% load static %}
+
+<div class="row">
+    <div class="col-xs-12 col-lg-4">
+        <table class="table table-striped table-width-fix">
+            <tr>
+                <td>
+                    <img src="{% static 'memberaudit/images/perception.png' %}" title="Perception">
+                    {% translate 'Perception' %}
+                </td>
+                <td style="vertical-align: middle;">
+                    <span class="badge">{{ character_attributes.perception }}&nbsp;{% translate 'points' %}</span>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <img src="{% static 'memberaudit/images/memory.png' %}" title="Memory">
+                    {% translate 'Memory' %}
+                </td>
+                <td style="vertical-align: middle;">
+                    <span class="badge ">{{ character_attributes.memory }}&nbsp;{% translate 'points' %}</span>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <img src="{% static 'memberaudit/images/willpower.png' %}" title="Willpower">
+                    {% translate 'Willpower' %}
+                </td>
+                <td style="vertical-align: middle;">
+                    <span class="badge">{{ character_attributes.willpower }}&nbsp;{% translate 'points' %}</span>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <img src="{% static 'memberaudit/images/intelligence.png' %}" title="Intelligence">
+                    {% translate 'Intelligence' %}
+                </td>
+                <td style="vertical-align: middle;">
+                    <span class="badge">{{ character_attributes.intelligence }}&nbsp;{% translate 'points' %}</span>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <img src="{% static 'memberaudit/images/charisma.png' %}" title="Charisma">
+                    {% translate 'Charisma' %}
+                </td>
+                <td style="vertical-align: middle;">
+                    <span class="badge">{{ character_attributes.memory }}&nbsp;{% translate 'points' %}</span>
+                </td>
+            </tr>
+
+        </table>
+    </div>
+
+    <div class="col-xs-12 col-lg-8">
+        <p>
+            <b>{% translate 'Neural Remap Available:' %}</b>&nbsp;&nbsp;&nbsp;{{ character_attributes.last_remap_date|date:'F d, Y' }}
+        </p>
+        <p>
+            <b>{% translate 'Bonus Remaps Available:' %}</b>&nbsp;&nbsp;&nbsp;{{ character_attributes.bonus_remaps }}
+        </p>
+    </div>
+</div>

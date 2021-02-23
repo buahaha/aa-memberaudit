@@ -155,4 +155,9 @@ urlpatterns = [
         views.character_skill_set_details,
         name="character_skill_set_details",
     ),
+    path(
+        "character_attributes_data/<int:character_pk>",
+        views.character_attribute_data,
+        name="character_attribute_data",
+    ),
 ]
