@@ -27,6 +27,13 @@
                         <p><span class="{{ icon_failed }}"></span>&nbsp;{% translate 'You do not meet the skill requirements' %}</p>
                     {% endif %}
                 </div>
+                <div class="row">
+                    <p><b>{% translate 'Time to complete required:' %}</b>&nbsp;{{ time_to_required }}</p>
+                </div>
+                <div class="row">
+                    <p><b>{% translate 'Time to complete recommended:' %}</b>&nbsp;{{ time_to_recommended }}</p>
+                </div>
+
             </div>
         </div>
     </div>

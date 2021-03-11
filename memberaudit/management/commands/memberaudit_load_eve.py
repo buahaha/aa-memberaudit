@@ -35,7 +35,7 @@ class Command(BaseCommand):
             str(EVE_CATEGORY_ID_MODULE),
             "--category_id",
             str(EVE_CATEGORY_ID_CHARGE),
-            "--category_id",
+            "--category_id_with_dogma",
             str(EVE_CATEGORY_ID_SKILL),
             "--category_id",
             str(EVE_CATEGORY_ID_DRONE),

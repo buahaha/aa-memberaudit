@@ -7,6 +7,8 @@ from django.db import models
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 
+from math import trunc
+
 from eveuniverse.models import (
     EveAncestry,
     EveBloodline,
@@ -46,7 +48,7 @@ from ..managers.sections import (
 from app_utils.logging import LoggerAddTag
 from .constants import CURRENCY_MAX_DECIMALS, CURRENCY_MAX_DIGITS, NAMES_MAX_LENGTH
 from .character import Character
-from .general import Location
+from .general import Location, SkillSetSkill
 
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
@@ -895,6 +897,24 @@ class CharacterSkillSetCheck(models.Model):
         "SkillSetSkill", related_name="failed_recommended_skill_set_checks"
     )
 
+    @property
+    def total_required(self) -> int:
+        total = list()
+        for skill in self.failed_required_skills.all():
+            total.append(self._calculate_minutes(skill, skill.skill_points_to_required))
+
+        return sum(total)
+
+    @property
+    def total_recommended(self) -> int:
+        total = list()
+        for skill in self.failed_recommended_skills.all():
+            total.append(
+                self._calculate_minutes(skill, skill.skill_points_to_recommended)
+            )
+
+        return sum(total)
+
     objects = CharacterSkillSetCheckManager()
 
     class Meta:
@@ -908,6 +928,28 @@ class CharacterSkillSetCheck(models.Model):
 
     def __str__(self) -> str:
         return f"{self.character}-{self.skill_set}"
+
+    def _calculate_minutes(
+        self, skill: SkillSetSkill, skill_points_to_level: int
+    ) -> int:
+        cs = (
+            self.character.skills.select_related("eve_type")
+            .filter(eve_type_id=skill.eve_type_id)
+            .first()
+        )
+
+        if cs and cs.skillpoints_in_skill:
+            character_skill_points = cs.skillpoints_in_skill
+        else:
+            character_skill_points = 0
+
+        primary = getattr(self.character.attributes, skill.primary_attribute)
+        secondary = getattr(self.character.attributes, skill.secondary_attribute)
+
+        return trunc(
+            (skill_points_to_level - character_skill_points)
+            / (primary + (0.5 * secondary))
+        )
 
     @property
     def can_fly(self) -> bool:

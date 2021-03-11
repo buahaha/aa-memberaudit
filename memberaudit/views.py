@@ -1,4 +1,6 @@
 import datetime as dt
+
+from memberaudit.models.sections import CharacterSkillSetCheck
 import humanize
 from typing import Optional, Tuple
 
@@ -1287,6 +1289,12 @@ def character_skill_sets_data(
     return JsonResponse(data, safe=False)
 
 
+def _convertToDaysHoursMinutes(mintues: int):
+    hours, mins = divmod(mintues, 60)
+    days, hours = divmod(hours, 24)
+    return f"{ days } D, { hours } H, { mins } M"
+
+
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
@@ -1295,7 +1303,11 @@ def character_skill_set_details(
 ) -> HttpResponse:
 
     skill_set = SkillSet.objects.get(id=skill_set_pk)
-    skill_set_skills = SkillSetSkill.objects.filter(skill_set_id=skill_set_pk)
+    skill_set_skills = (
+        SkillSetSkill.objects.select_related("eve_type")
+        .prefetch_related("eve_type__dogma_attributes")
+        .filter(skill_set_id=skill_set_pk)
+    )
 
     out_data = list()
 
@@ -1368,6 +1380,16 @@ def character_skill_set_details(
             met_all_required = False
             break
 
+    character_skill_set_check = CharacterSkillSetCheck.objects.get(
+        character=character, skill_set_id=skill_set_pk
+    )
+    time_to_required = _convertToDaysHoursMinutes(
+        character_skill_set_check.total_required
+    )
+    time_to_recommended = _convertToDaysHoursMinutes(
+        character_skill_set_check.total_recommended
+    )
+
     out_data = sorted(out_data, key=lambda k: (k["name"].lower()))
     context = {
         "name": skill_set.name,
@@ -1379,6 +1401,8 @@ def character_skill_set_details(
         "icon_partial": ICON_PARTIAL,
         "icon_full": ICON_FULL,
         "icon_met_all_required": ICON_MET_ALL_REQUIRED,
+        "time_to_required": time_to_required,
+        "time_to_recommended": time_to_recommended,
     }
 
     return render(

@@ -8,7 +8,15 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from eveuniverse.models import EveEntity, EveSolarSystem, EveType
+from math import trunc, sqrt
+
+from eveuniverse.models import (
+    EveEntity,
+    EveSolarSystem,
+    EveType,
+    EveDogmaAttribute,
+    EveTypeDogmaAttribute,
+)
 
 from allianceauth.eveonline.evelinks import dotlan, evewho
 from allianceauth.services.hooks import get_extension_logger
@@ -293,6 +301,50 @@ class SkillSetSkill(models.Model):
         blank=True,
         validators=[MinValueValidator(1), MaxValueValidator(5)],
     )
+
+    @property
+    def primary_attribute(self) -> str:
+        return EveDogmaAttribute.objects.get(
+            id=self.eve_type.dogma_attributes.get(
+                eve_dogma_attribute__name="primaryAttribute"
+            ).value
+        ).name
+
+    @property
+    def secondary_attribute(self) -> str:
+        return EveDogmaAttribute.objects.get(
+            id=self.eve_type.dogma_attributes.get(
+                eve_dogma_attribute__name="secondaryAttribute"
+            ).value
+        ).name
+
+    @property
+    def training_time_multiplyer(self):
+        return EveTypeDogmaAttribute.objects.get(
+            eve_type_id=self.eve_type_id, eve_dogma_attribute_id=275
+        ).value
+
+    @property
+    def skill_points_to_required(self) -> int:
+        if self.required_level:
+            return trunc(
+                250
+                * self.training_time_multiplyer
+                * sqrt(32) ** (self.required_level - 1)
+            )
+        else:
+            return 0
+
+    @property
+    def skill_points_to_recommended(self) -> int:
+        if self.recommended_level:
+            return trunc(
+                250
+                * self.training_time_multiplyer
+                * sqrt(32) ** (self.recommended_level - 1)
+            )
+        else:
+            return 0
 
     class Meta:
         constraints = [
