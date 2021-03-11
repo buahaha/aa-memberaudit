@@ -1,5 +1,6 @@
 import datetime as dt
 import json
+from memberaudit.models.sections import CharacterSkillSetCheck
 from unittest.mock import patch
 
 import pytz
@@ -907,6 +908,11 @@ class TestViewsOther(TestViewsBase):
             required_level=3,
             recommended_level=5,
         )
+
+        CharacterSkillSetCheck.objects.create(
+            character=self.character, skill_set=skill_set_1
+        )
+
         SkillSetSkill.objects.create(
             skill_set=skill_set_1,
             eve_type=self.skill_type_2,
