@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Changed
+
+- Disabled fetching EveAncestry objects since current ESI bug is causing HTTP errors
+
 ## [1.2.1] - 2021-02-18
 
 ### Added

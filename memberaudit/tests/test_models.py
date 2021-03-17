@@ -3,7 +3,6 @@ import json
 import hashlib
 from unittest.mock import patch, Mock
 
-from bravado.exception import HTTPInternalServerError
 from pytz import UTC
 
 from django.core.exceptions import ValidationError
@@ -11,17 +10,12 @@ from django.test import TestCase, override_settings
 from django.utils.dateparse import parse_datetime
 from django.utils.timezone import now, make_aware
 
-from eveuniverse.models import (
-    EveEntity,
-    EveSolarSystem,
-    EveType,
-    EveMarketPrice,
-    EveAncestry,
-)
+from eveuniverse.models import EveEntity, EveSolarSystem, EveType, EveMarketPrice
 from esi.models import Token
 from esi.errors import TokenError
 
 from allianceauth.tests.auth_utils import AuthUtils
+from app_utils.testing import NoSocketsTestCase
 
 from . import (
     create_memberaudit_character,
@@ -30,7 +24,7 @@ from . import (
     add_memberaudit_character_to_user,
 )
 from ..core.xml_converter import eve_xml_to_html
-from ..helpers import EsiStatus, get_or_create_esi_or_none
+from ..helpers import EsiStatus
 from ..models import (
     Character,
     CharacterContact,
@@ -54,11 +48,10 @@ from ..models import (
 )
 from ..models.character import data_retention_cutoff
 from .testdata.esi_client_stub import esi_client_stub
-from .testdata.esi_test_tools import BravadoResponseStub
 from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
 from .testdata.load_locations import load_locations
-from app_utils.testing import NoSocketsTestCase
+
 
 MODELS_PATH = "memberaudit.models"
 MANAGERS_PATH = "memberaudit.managers"
@@ -1414,40 +1407,40 @@ class TestCharacterUpdateCharacterDetails(TestCharacterUpdateBase):
         self.character_1001.details.refresh_from_db()
         self.assertEqual(self.character_1001.details.name, "Bruce Wayne")
 
-    @patch(MANAGERS_PATH + ".sections.get_or_create_esi_or_none")
-    def test_esi_ancestry_bug(
-        self, mock_get_or_create_esi_or_none, mock_esi, mock_eve_xml_to_html
-    ):
-        """when esi ancestry endpoint returns http error then ignore it and carry on"""
+    # @patch(MANAGERS_PATH + ".sections.get_or_create_esi_or_none")
+    # def test_esi_ancestry_bug(
+    #     self, mock_get_or_create_esi_or_none, mock_esi, mock_eve_xml_to_html
+    # ):
+    #     """when esi ancestry endpoint returns http error then ignore it and carry on"""
 
-        def my_get_or_create_esi_or_none(prop_name: str, dct: dict, Model: type):
-            if issubclass(Model, EveAncestry):
-                raise HTTPInternalServerError(
-                    response=BravadoResponseStub(500, "Test exception")
-                )
-            return get_or_create_esi_or_none(prop_name=prop_name, dct=dct, Model=Model)
+    #     def my_get_or_create_esi_or_none(prop_name: str, dct: dict, Model: type):
+    #         if issubclass(Model, EveAncestry):
+    #             raise HTTPInternalServerError(
+    #                 response=BravadoResponseStub(500, "Test exception")
+    #             )
+    #         return get_or_create_esi_or_none(prop_name=prop_name, dct=dct, Model=Model)
 
-        mock_esi.client = esi_client_stub
-        mock_eve_xml_to_html.side_effect = lambda x: eve_xml_to_html(x)
-        mock_get_or_create_esi_or_none.side_effect = my_get_or_create_esi_or_none
+    #     mock_esi.client = esi_client_stub
+    #     mock_eve_xml_to_html.side_effect = lambda x: eve_xml_to_html(x)
+    #     mock_get_or_create_esi_or_none.side_effect = my_get_or_create_esi_or_none
 
-        self.character_1001.update_character_details()
-        self.assertIsNone(self.character_1001.details.eve_ancestry)
-        self.assertEqual(
-            self.character_1001.details.birthday, parse_datetime("2015-03-24T11:37:00Z")
-        )
-        self.assertEqual(self.character_1001.details.eve_bloodline_id, 1)
-        self.assertEqual(self.character_1001.details.corporation, self.corporation_2001)
-        self.assertEqual(self.character_1001.details.description, "Scio me nihil scire")
-        self.assertEqual(
-            self.character_1001.details.gender, CharacterDetails.GENDER_MALE
-        )
-        self.assertEqual(self.character_1001.details.name, "Bruce Wayne")
-        self.assertEqual(self.character_1001.details.eve_race.id, 1)
-        self.assertEqual(
-            self.character_1001.details.title, "All round pretty awesome guy"
-        )
-        self.assertTrue(mock_eve_xml_to_html.called)
+    #     self.character_1001.update_character_details()
+    #     self.assertIsNone(self.character_1001.details.eve_ancestry)
+    #     self.assertEqual(
+    #         self.character_1001.details.birthday, parse_datetime("2015-03-24T11:37:00Z")
+    #     )
+    #     self.assertEqual(self.character_1001.details.eve_bloodline_id, 1)
+    #     self.assertEqual(self.character_1001.details.corporation, self.corporation_2001)
+    #     self.assertEqual(self.character_1001.details.description, "Scio me nihil scire")
+    #     self.assertEqual(
+    #         self.character_1001.details.gender, CharacterDetails.GENDER_MALE
+    #     )
+    #     self.assertEqual(self.character_1001.details.name, "Bruce Wayne")
+    #     self.assertEqual(self.character_1001.details.eve_race.id, 1)
+    #     self.assertEqual(
+    #         self.character_1001.details.title, "All round pretty awesome guy"
+    #     )
+    #     self.assertTrue(mock_eve_xml_to_html.called)
 
 
 @patch(MODELS_PATH + ".character.esi")

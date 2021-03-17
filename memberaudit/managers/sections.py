@@ -1,7 +1,5 @@
 from typing import Dict, List
 
-from bravado.exception import HTTPInternalServerError
-
 from django.db import models, transaction
 from django.db.models import Case, F, ExpressionWrapper, Value, When
 
@@ -455,13 +453,7 @@ class CharacterDetailsManager(models.Manager):
 
         # Workaround because of ESI issue #1264
         # TODO: Remove once issue is fixed
-        try:
-            eve_ancestry = get_or_create_esi_or_none(
-                "ancestry_id", details, EveAncestry
-            )
-        except HTTPInternalServerError:
-            eve_ancestry = None
-
+        eve_ancestry = get_or_none("ancestry_id", details, EveAncestry)
         self.update_or_create(
             character=character,
             defaults={

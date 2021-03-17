@@ -1081,7 +1081,6 @@ class Character(models.Model):
             section=self.UpdateSection.ATTRIBUTES, content=attribute_data
         ):
             CharacterAttributes.objects.update_for_character(self, attribute_data)
-
         else:
             logger.info("%s: Attributes have not changed", self)
 

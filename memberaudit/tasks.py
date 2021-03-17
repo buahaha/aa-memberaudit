@@ -1,3 +1,4 @@
+import inspect
 import random
 from typing import Optional
 
@@ -276,7 +277,8 @@ def update_character_section(
     if not kwargs:
         kwargs = {}
 
-    if hasattr(update_method, "force_update"):
+    method_signature = inspect.signature(update_method)
+    if "force_update" in method_signature.parameters:
         kwargs["force_update"] = force_update
 
     _character_update_with_error_logging(*args, **kwargs)
