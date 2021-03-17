@@ -24,7 +24,7 @@ logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 def get_or_create_esi_or_none(
     prop_name: str, dct: dict, Model: type
 ) -> Optional[models.Model]:
-    """tries to create a new eveuniverse object from a dictionary entry
+    """Gets or creates a new eveuniverse object from a dictionary entry.
 
     return the object on success or None
     """
@@ -39,10 +39,7 @@ def get_or_create_esi_or_none(
 def get_or_create_or_none(
     prop_name: str, dct: dict, Model: type
 ) -> Optional[models.Model]:
-    """tries to create a new Django object from a dictionary entry
-
-    return the object on success or None
-    """
+    """Get or creates a Django object from a dictionary entry or returns None."""
     if dct.get(prop_name):
         obj, _ = Model.objects.get_or_create(id=dct.get(prop_name))
     else:
@@ -52,10 +49,8 @@ def get_or_create_or_none(
 
 
 def get_or_none(prop_name: str, dct: dict, Model: type) -> Optional[models.Model]:
-    """tries to create a new Django object from a dictionary entry
-
-    return the object on success or None
-    """
+    """Gets a new Django object from a dictionary entry
+    or returns None if it does not exist."""
     id = dct.get(prop_name)
     if id:
         try:
