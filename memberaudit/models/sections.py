@@ -7,7 +7,6 @@ from django.db import models
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
 
-from math import trunc
 
 from eveuniverse.models import (
     EveAncestry,
@@ -897,21 +896,19 @@ class CharacterSkillSetCheck(models.Model):
         "SkillSetSkill", related_name="failed_recommended_skill_set_checks"
     )
 
-    @property
     def total_required(self) -> int:
-        total = list()
-        for skill in self.failed_required_skills.all():
-            total.append(self._calculate_minutes(skill, skill.skill_points_to_required))
+        total = [
+            self._calculate_minutes(skill, skill.skill_points_to_required)
+            for skill in self.failed_required_skills.all()
+        ]
 
         return sum(total)
 
-    @property
     def total_recommended(self) -> int:
-        total = list()
-        for skill in self.failed_recommended_skills.all():
-            total.append(
-                self._calculate_minutes(skill, skill.skill_points_to_recommended)
-            )
+        total = [
+            self._calculate_minutes(skill, skill.skill_points_to_recommended)
+            for skill in self.failed_recommended_skills.all()
+        ]
 
         return sum(total)
 
@@ -943,10 +940,12 @@ class CharacterSkillSetCheck(models.Model):
         else:
             character_skill_points = 0
 
-        primary = getattr(self.character.attributes, skill.primary_attribute)
-        secondary = getattr(self.character.attributes, skill.secondary_attribute)
+        primary = getattr(self.character.attributes, skill.eve_type.primary_attribute())
+        secondary = getattr(
+            self.character.attributes, skill.eve_type.secondary_attribute()
+        )
 
-        return trunc(
+        return int(
             (skill_points_to_level - character_skill_points)
             / (primary + (0.5 * secondary))
         )

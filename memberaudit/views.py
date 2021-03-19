@@ -56,6 +56,7 @@ from app_utils.views import (
     yesno_str,
     yesnonone_str,
 )
+from app_utils.datetime import timeuntil_str
 
 from .app_settings import MEMBERAUDIT_APP_NAME
 
@@ -1289,7 +1290,7 @@ def character_skill_sets_data(
     return JsonResponse(data, safe=False)
 
 
-def _convertToDaysHoursMinutes(mintues: int):
+def _convert_to_days_hours_minutes(mintues: int):
     hours, mins = divmod(mintues, 60)
     days, hours = divmod(hours, 24)
     return f"{ days } D, { hours } H, { mins } M"
@@ -1383,11 +1384,13 @@ def character_skill_set_details(
     character_skill_set_check = CharacterSkillSetCheck.objects.get(
         character=character, skill_set_id=skill_set_pk
     )
-    time_to_required = _convertToDaysHoursMinutes(
-        character_skill_set_check.total_required
+
+    time_to_required = timeuntil_str(
+        dt.timedelta(minutes=character_skill_set_check.total_required()),
     )
-    time_to_recommended = _convertToDaysHoursMinutes(
-        character_skill_set_check.total_recommended
+
+    time_to_recommended = timeuntil_str(
+        dt.timedelta(minutes=character_skill_set_check.total_recommended()),
     )
 
     out_data = sorted(out_data, key=lambda k: (k["name"].lower()))

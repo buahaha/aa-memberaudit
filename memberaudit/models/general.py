@@ -214,6 +214,29 @@ class EveShipType(EveType):
 class EveSkillType(EveType):
     """Subset of EveType for all skill types"""
 
+    def primary_attribute(self) -> str:
+        return EveDogmaAttribute.objects.get(
+            id=self.dogma_attributes.get(
+                eve_dogma_attribute__name="primaryAttribute"
+            ).value
+        ).name
+
+    def secondary_attribute(self) -> str:
+        return EveDogmaAttribute.objects.get(
+            id=self.dogma_attributes.get(
+                eve_dogma_attribute__name="secondaryAttribute"
+            ).value
+        ).name
+
+    @property
+    def training_time_multiplyer(self):
+        return EveTypeDogmaAttribute.objects.get(
+            eve_type_id=self.id,
+            eve_dogma_attribute_id=EveDogmaAttribute.objects.get(
+                name="skillTimeConstant"
+            ).id,
+        ).value
+
     class Meta:
         proxy = True
 
@@ -303,33 +326,11 @@ class SkillSetSkill(models.Model):
     )
 
     @property
-    def primary_attribute(self) -> str:
-        return EveDogmaAttribute.objects.get(
-            id=self.eve_type.dogma_attributes.get(
-                eve_dogma_attribute__name="primaryAttribute"
-            ).value
-        ).name
-
-    @property
-    def secondary_attribute(self) -> str:
-        return EveDogmaAttribute.objects.get(
-            id=self.eve_type.dogma_attributes.get(
-                eve_dogma_attribute__name="secondaryAttribute"
-            ).value
-        ).name
-
-    @property
-    def training_time_multiplyer(self):
-        return EveTypeDogmaAttribute.objects.get(
-            eve_type_id=self.eve_type_id, eve_dogma_attribute_id=275
-        ).value
-
-    @property
     def skill_points_to_required(self) -> int:
         if self.required_level:
             return trunc(
                 250
-                * self.training_time_multiplyer
+                * self.eve_type.training_time_multiplyer
                 * sqrt(32) ** (self.required_level - 1)
             )
         else:
@@ -340,7 +341,7 @@ class SkillSetSkill(models.Model):
         if self.recommended_level:
             return trunc(
                 250
-                * self.training_time_multiplyer
+                * self.eve_type.training_time_multiplyer
                 * sqrt(32) ** (self.recommended_level - 1)
             )
         else:
