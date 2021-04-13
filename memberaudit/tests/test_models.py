@@ -21,6 +21,8 @@ from eveuniverse.models import (
 from esi.models import Token
 from esi.errors import TokenError
 
+from app_utils.datetime import timeuntil_str
+
 from allianceauth.tests.auth_utils import AuthUtils
 
 from . import (
@@ -51,6 +53,7 @@ from ..models import (
     Location,
     MailEntity,
     CharacterAttributes,
+    CharacterSkillSetCheck,
 )
 from ..models.character import data_retention_cutoff
 from .testdata.esi_client_stub import esi_client_stub
@@ -2245,6 +2248,33 @@ class TestCharacterUpdateSkillSets(NoSocketsTestCase):
         cls.character = create_memberaudit_character(1001)
         cls.skill_type_1 = EveType.objects.get(id=24311)
         cls.skill_type_2 = EveType.objects.get(id=24312)
+
+    def test_time_to_complete_required(self):
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=self.skill_type_1,
+            active_skill_level=5,
+            skillpoints_in_skill=10,
+            trained_skill_level=5,
+        )
+
+        skill_set = SkillSet.objects.create(name="Ship 1")
+        SkillSetSkill.objects.create(
+            skill_set=skill_set, eve_type=self.skill_type_1, required_level=5
+        )
+
+        self.character.update_skill_sets()
+
+        character_skill_set_check = CharacterSkillSetCheck.objects.get(
+            character=self, skill_set_id=skill_set.pk
+        )
+
+        time_to_required = timeuntil_str(
+            dt.timedelta(minutes=character_skill_set_check.total_required()),
+            show_seconds=False,
+        )
+
+        self.assertEqual(time_to_required, "10h 20m")
 
     def test_has_all_skills(self):
         CharacterSkill.objects.create(

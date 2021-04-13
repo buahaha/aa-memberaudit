@@ -1387,10 +1387,12 @@ def character_skill_set_details(
 
     time_to_required = timeuntil_str(
         dt.timedelta(minutes=character_skill_set_check.total_required()),
+        show_seconds=False,
     )
 
     time_to_recommended = timeuntil_str(
         dt.timedelta(minutes=character_skill_set_check.total_recommended()),
+        show_seconds=False,
     )
 
     out_data = sorted(out_data, key=lambda k: (k["name"].lower()))
