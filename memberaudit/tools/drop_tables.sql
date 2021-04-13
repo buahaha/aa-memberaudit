@@ -31,6 +31,7 @@ DROP TABLE IF EXISTS memberaudit_characterskillpoints;
 DROP TABLE IF EXISTS memberaudit_characterskillqueueentry;
 DROP TABLE IF EXISTS memberaudit_characterupdatestatus;
 DROP TABLE IF EXISTS memberaudit_characterwalletbalance;
+DROP TABLE IF EXISTS memberaudit_characterwallettransaction;
 DROP TABLE IF EXISTS memberaudit_characterwalletjournalentry;
 DROP TABLE IF EXISTS memberaudit_doctrine;
 DROP TABLE IF EXISTS memberaudit_doctrine_ships;
