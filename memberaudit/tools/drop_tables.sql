@@ -2,6 +2,7 @@
 SET FOREIGN_KEY_CHECKS=0;
 DROP TABLE IF EXISTS memberaudit_character;
 DROP TABLE IF EXISTS memberaudit_characterasset;
+DROP TABLE IF EXISTS memberaudit_characterattributes;
 DROP TABLE IF EXISTS memberaudit_charactercontact;
 DROP TABLE IF EXISTS memberaudit_charactercontact_labels;
 DROP TABLE IF EXISTS memberaudit_charactercontactlabel;
@@ -31,8 +32,8 @@ DROP TABLE IF EXISTS memberaudit_characterskillpoints;
 DROP TABLE IF EXISTS memberaudit_characterskillqueueentry;
 DROP TABLE IF EXISTS memberaudit_characterupdatestatus;
 DROP TABLE IF EXISTS memberaudit_characterwalletbalance;
-DROP TABLE IF EXISTS memberaudit_characterwallettransaction;
 DROP TABLE IF EXISTS memberaudit_characterwalletjournalentry;
+DROP TABLE IF EXISTS memberaudit_characterwallettransaction;
 DROP TABLE IF EXISTS memberaudit_doctrine;
 DROP TABLE IF EXISTS memberaudit_doctrine_ships;
 DROP TABLE IF EXISTS memberaudit_doctrineship;

@@ -1,33 +1,43 @@
 import datetime as dt
-import humanize
 from typing import Optional, Tuple
 
-from django.core.exceptions import ObjectDoesNotExist
-from django.contrib.auth.decorators import login_required, permission_required
-from django.db import transaction, models
-from django.db.models import Count, F, Max, Q, Sum
-from django.http import (
-    JsonResponse,
-    HttpResponse,
-    HttpResponseNotFound,
-    HttpResponseForbidden,
-)
-from django.shortcuts import render, redirect
-from django.urls import reverse
-from django.utils.timesince import timeuntil
-from django.utils.html import format_html
-from django.utils.safestring import mark_safe
-from django.utils.timezone import now
-from django.utils.translation import gettext_lazy, gettext
-
-from esi.decorators import token_required
-from eveuniverse.core import eveimageserver
-
+import humanize
 from allianceauth.authentication.models import CharacterOwnership, get_guest_state_pk
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
+from app_utils.logging import LoggerAddTag
+from app_utils.messages import messages_plus
+from app_utils.views import (
+    bootstrap_icon_plus_name_html,
+    bootstrap_label_html,
+    fontawesome_link_button_html,
+    link_html,
+    no_wrap_html,
+    yesno_str,
+    yesnonone_str,
+)
+from django.contrib.auth.decorators import login_required, permission_required
+from django.core.exceptions import ObjectDoesNotExist
+from django.db import models, transaction
+from django.db.models import Count, F, Max, Q, Sum
+from django.http import (
+    HttpResponse,
+    HttpResponseForbidden,
+    HttpResponseNotFound,
+    JsonResponse,
+)
+from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
+from django.utils.timesince import timeuntil
+from django.utils.timezone import now
+from django.utils.translation import gettext, gettext_lazy
+from esi.decorators import token_required
+from eveuniverse.core import eveimageserver
 
-from . import tasks, __title__
+from . import __title__, tasks
+from .app_settings import MEMBERAUDIT_APP_NAME
 from .constants import EVE_CATEGORY_ID_SHIP
 from .decorators import fetch_character_if_allowed
 from .helpers import eve_solar_system_to_html
@@ -39,23 +49,10 @@ from .models import (
     CharacterMail,
     General,
     Location,
-    SkillSetGroup,
     SkillSet,
+    SkillSetGroup,
     SkillSetSkill,
 )
-from app_utils.logging import LoggerAddTag
-from app_utils.messages import messages_plus
-from app_utils.views import (
-    bootstrap_icon_plus_name_html,
-    bootstrap_label_html,
-    fontawesome_link_button_html,
-    no_wrap_html,
-    link_html,
-    yesno_str,
-    yesnonone_str,
-)
-
-from .app_settings import MEMBERAUDIT_APP_NAME
 
 # module constants
 MY_DATETIME_FORMAT = "Y-M-d H:i"
@@ -556,7 +553,7 @@ def character_assets_data(
 @fetch_character_if_allowed()
 def character_asset_container(
     request, character_pk: int, character: Character, parent_asset_pk: int
-) -> JsonResponse:
+) -> HttpResponse:
     try:
         parent_asset = character.assets.select_related(
             "location", "eve_type", "eve_type__eve_group"
