@@ -8,6 +8,11 @@ import json
 import os
 from typing import Any, Optional
 
+from allianceauth.authentication.models import CharacterOwnership
+from allianceauth.services.hooks import get_extension_logger
+from app_utils.datetime import datetime_round_hour
+from app_utils.helpers import chunks
+from app_utils.logging import LoggerAddTag
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
@@ -15,34 +20,25 @@ from django.db import models
 from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
-
-from esi.models import Token
 from esi.errors import TokenError
-
+from esi.models import Token
 from eveuniverse.models import EveEntity, EveType
-
-from allianceauth.authentication.models import CharacterOwnership
-from allianceauth.services.hooks import get_extension_logger
 
 from .. import __title__
 from ..app_settings import (
-    MEMBERAUDIT_MAX_MAILS,
+    MEMBERAUDIT_DATA_RETENTION_LIMIT,
     MEMBERAUDIT_DEVELOPER_MODE,
+    MEMBERAUDIT_MAX_MAILS,
+    MEMBERAUDIT_UPDATE_STALE_OFFSET,
     MEMBERAUDIT_UPDATE_STALE_RING_1,
     MEMBERAUDIT_UPDATE_STALE_RING_2,
     MEMBERAUDIT_UPDATE_STALE_RING_3,
-    MEMBERAUDIT_UPDATE_STALE_OFFSET,
-    MEMBERAUDIT_DATA_RETENTION_LIMIT,
 )
 from ..core.xml_converter import eve_xml_to_html
 from ..decorators import fetch_token_for_character
 from ..managers.character import CharacterManager, CharacterUpdateStatusManager
 from ..providers import esi
-from app_utils.datetime import datetime_round_hour
-from app_utils.helpers import chunks
-from app_utils.logging import LoggerAddTag
 from .general import Location
-
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -951,7 +947,9 @@ class Character(models.Model):
             incoming_ids = set(skills_list.keys())
             existing_ids = set(self.skills.values_list("eve_type_id", flat=True))
             new_ids = incoming_ids.difference(existing_ids)
-            EveType.objects.bulk_get_or_create_esi(ids=new_ids)
+            EveType.objects.bulk_get_or_create_esi(
+                ids=new_ids, enabled_sections=[EveType.Section.DOGMAS]
+            )
 
     @fetch_token_for_character("esi-wallet.read_character_wallet.v1")
     def update_wallet_balance(self, token):
