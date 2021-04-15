@@ -90,7 +90,81 @@
             "position_z": 7.960999000649318e+16
         }
     ],
+    "EveTypeDogmaAttribute": [
+        {
+            "id": 16765,
+            "value": 14,
+            "eve_dogma_attribute_id": 275,
+            "eve_type_id": 24311
+        },
+        {
+            "id": 16766,
+            "value": 167,
+            "eve_dogma_attribute_id": 180,
+            "eve_type_id": 24311
+        },
+        {
+            "id": 16767,
+            "value": 168,
+            "eve_dogma_attribute_id": 181,
+            "eve_type_id": 24311
+        },
+        {
+            "id": 16784,
+            "value": 14,
+            "eve_dogma_attribute_id": 275,
+            "eve_type_id": 24312
+        },
+        {
+            "id": 16785,
+            "value": 167,
+            "eve_dogma_attribute_id": 180,
+            "eve_type_id": 24312
+        },
+        {
+            "id": 16786,
+            "value": 168,
+            "eve_dogma_attribute_id": 181,
+            "eve_type_id": 24312
+        }
+    ],
     "EveDogmaAttribute": [
+        {
+            "default_value": 0.0,
+            "description": "Only refers to another dogma attribute.",
+            "display_name": "Primary attribute",
+            "eve_unit_id": 119,
+            "high_is_good": true,
+            "icon_id": null,
+            "id": 180,
+            "name": "primaryAttribute",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "Only refers to another dogma attribute.",
+            "display_name": "Secondary attribute",
+            "eve_unit_id": 119,
+            "high_is_good": true,
+            "icon_id": null,
+            "id": 181,
+            "name": "secondaryAttribute",
+            "published": true,
+            "stackable": true
+        },
+        {
+            "default_value": 0.0,
+            "description": "This attribute is a multiplier to the number of skill points required to train. Skill points required to train a skill = 250 * skillTimeConstant * sqrt(32)^(skillLevel - 1)",
+            "display_name": "Training time multiplier",
+            "eve_unit_id": 104,
+            "high_is_good": true,
+            "icon_id": 1392,
+            "id": 275,
+            "name": "skillTimeConstant",
+            "published": true,
+            "stackable": true
+        },
         {
             "default_value": 0.0,
             "description": "Integer that describes the types mass",
@@ -1069,7 +1143,25 @@
             "volume": 1.0
         }
     ],
-    "EveTypeDogmaAttribute": [
+    "24311": [
+        {
+            "eve_dogma_attribute_id": 180,
+            "eve_type_id": 24311,
+            "id": 16766,
+            "value": 167
+        },
+        {
+            "eve_dogma_attribute_id": 181,
+            "eve_type_id": 24311,
+            "id": 16767,
+            "value": 168
+        },
+        {
+            "eve_dogma_attribute_id": 275,
+            "eve_type_id": 24311,
+            "id": 16765,
+            "value": 14
+        },
         {
             "eve_dogma_attribute_id": 161,
             "eve_type_id": 19540,

@@ -1455,7 +1455,7 @@ def character_skills_data(
                 {
                     "group": skill.eve_type.eve_group.name,
                     "skill": skill.eve_type.name,
-                    "skill_name": f"{skill_name} - {skill.eve_type_id}",
+                    "skill_name": f"{skill_name}",
                     "level": skill.active_skill_level,
                     "level_str": level_str,
                 }

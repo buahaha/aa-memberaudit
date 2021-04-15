@@ -2238,6 +2238,7 @@ class TestCharacterUpdateSkills(TestCharacterUpdateBase):
         self.assertEqual(skill.active_skill_level, 3)
 
 
+@patch(MODELS_PATH + ".character.esi")
 class TestCharacterUpdateSkillSets(NoSocketsTestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -2249,32 +2250,59 @@ class TestCharacterUpdateSkillSets(NoSocketsTestCase):
         cls.skill_type_1 = EveType.objects.get(id=24311)
         cls.skill_type_2 = EveType.objects.get(id=24312)
 
-    def test_time_to_complete_required(self):
+    def test_time_to_complete_required(self, mock_esi):
+
+        mock_esi.client = esi_client_stub
+
         CharacterSkill.objects.create(
             character=self.character,
             eve_type=self.skill_type_1,
-            active_skill_level=5,
-            skillpoints_in_skill=10,
-            trained_skill_level=5,
+            active_skill_level=1,
+            skillpoints_in_skill=0,
+            trained_skill_level=1,
+        )
+        CharacterSkill.objects.create(
+            character=self.character,
+            eve_type=self.skill_type_2,
+            active_skill_level=3,
+            skillpoints_in_skill=100000,
+            trained_skill_level=3,
         )
 
-        skill_set = SkillSet.objects.create(name="Ship 1")
+        print(f"skill2:{self.skill_type_2}")
+
+        skill_set = SkillSet.objects.create(name="Carrier")
         SkillSetSkill.objects.create(
-            skill_set=skill_set, eve_type=self.skill_type_1, required_level=5
+            skill_set=skill_set,
+            eve_type=self.skill_type_1,
+            required_level=3,
+            recommended_level=4,
         )
-
+        SkillSetSkill.objects.create(
+            skill_set=skill_set,
+            eve_type=self.skill_type_2,
+            required_level=3,
+            recommended_level=4,
+        )
+        self.character.update_attributes()
         self.character.update_skill_sets()
 
         character_skill_set_check = CharacterSkillSetCheck.objects.get(
-            character=self, skill_set_id=skill_set.pk
+            character=self.character, skill_set_id=skill_set.pk
         )
 
         time_to_required = timeuntil_str(
             dt.timedelta(minutes=character_skill_set_check.total_required()),
             show_seconds=False,
         )
+        time_to_recommended = timeuntil_str(
+            dt.timedelta(minutes=character_skill_set_check.total_recommended()),
+            show_seconds=False,
+        )
 
-        self.assertEqual(time_to_required, "10h 20m")
+        self.assertEqual(time_to_required, "2d 16h 22m")
+
+        self.assertEqual(time_to_recommended, "27d 22h 45m")
 
     def test_has_all_skills(self):
         CharacterSkill.objects.create(
