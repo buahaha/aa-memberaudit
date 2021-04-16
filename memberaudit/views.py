@@ -1270,7 +1270,11 @@ def character_skill_sets_data(
 
     data = list()
     try:
-        for check in character.skill_set_checks.filter(skill_set__is_visible=True):
+        for check in character.skill_set_checks.filter(
+            skill_set__is_visible=True
+        ).select_related(
+            "skill_set", "skill_set__ship_type", "skill_set__ship_type__eve_group"
+        ):
             if not check.skill_set.groups.exists():
                 data.append(create_data_row(check, None))
             else:
