@@ -1,8 +1,8 @@
 import os
+
 from setuptools import find_packages, setup
 
 from memberaudit import __version__
-
 
 # read the contents of your README file
 this_directory = os.path.abspath(os.path.dirname(__file__))
@@ -43,8 +43,8 @@ setup(
         "allianceauth>=2.8.0",
         "celery-once>=2.0.1",
         "django-esi>=2.0.4",
-        "django-eveuniverse>=0.7.4",
-        "allianceauth-app-utils",
+        "django-eveuniverse>=0.8.0",
+        "allianceauth-app-utils>=1.2",
         "humanize",
         "requests",
     ],
