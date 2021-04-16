@@ -1528,19 +1528,16 @@ def character_finder(request) -> HttpResponse:
 @permission_required("memberaudit.finder_access")
 def character_finder_data(request) -> JsonResponse:
     character_list = list()
-    for character in (
-        Character.objects.user_has_access(user=request.user)
-        .select_related(
-            "character_ownership__character",
-            "character_ownership__user",
-            "character_ownership__user__profile__main_character",
-            "character_ownership__user__profile__state",
-        )
-        .prefetch_related(
-            "location",
-            "location__eve_solar_system",
-            "location__eve_solar_system__eve_constellation__eve_region",
-        )
+    for character in Character.objects.user_has_access(
+        user=request.user
+    ).select_related(
+        "character_ownership__character",
+        "character_ownership__user",
+        "character_ownership__user__profile__main_character",
+        "character_ownership__user__profile__state",
+        "location__location",
+        "location__eve_solar_system",
+        "location__eve_solar_system__eve_constellation__eve_region",
     ):
         auth_character = character.character_ownership.character
         character_viewer_url = reverse(
