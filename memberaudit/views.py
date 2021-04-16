@@ -35,6 +35,7 @@ from django.utils.timezone import now
 from django.utils.translation import gettext, gettext_lazy
 from esi.decorators import token_required
 from eveuniverse.core import eveimageserver
+from eveuniverse.models import EveType
 
 from . import __title__, tasks
 from .app_settings import MEMBERAUDIT_APP_NAME
@@ -904,7 +905,10 @@ def character_implants_data(
             "eve_type__dogma_attributes"
         ):
             implant_html = bootstrap_icon_plus_name_html(
-                implant.eve_type.icon_url(DEFAULT_ICON_SIZE), implant.eve_type.name
+                implant.eve_type.icon_url(
+                    DEFAULT_ICON_SIZE, variant=EveType.IconVariant.REGULAR
+                ),
+                implant.eve_type.name,
             )
             try:
                 slot_num = int(
@@ -998,7 +1002,9 @@ def character_jump_clones_data(
                 implants_data.append(
                     {
                         "name": obj.eve_type.name,
-                        "icon_url": obj.eve_type.icon_url(DEFAULT_ICON_SIZE),
+                        "icon_url": obj.eve_type.icon_url(
+                            DEFAULT_ICON_SIZE, variant=EveType.IconVariant.REGULAR
+                        ),
                         "slot_num": slot_num,
                     }
                 )
@@ -1196,7 +1202,9 @@ def character_skill_sets_data(
             group_name = UNGROUPED_SKILL_SET
 
         url = (
-            check.skill_set.ship_type.icon_url(DEFAULT_ICON_SIZE)
+            check.skill_set.ship_type.icon_url(
+                DEFAULT_ICON_SIZE, variant=EveType.IconVariant.REGULAR
+            )
             if check.skill_set.ship_type
             else eveimageserver.type_icon_url(
                 SKILL_SET_DEFAULT_ICON_TYPE_ID, size=DEFAULT_ICON_SIZE
@@ -1301,7 +1309,7 @@ def character_skill_set_details(
     out_data = list()
 
     url = (
-        skill_set.ship_type.icon_url(ICON_SIZE_64)
+        skill_set.ship_type.icon_url(ICON_SIZE_64, variant=EveType.IconVariant.REGULAR)
         if skill_set.ship_type
         else eveimageserver.type_icon_url(
             SKILL_SET_DEFAULT_ICON_TYPE_ID, size=ICON_SIZE_64
@@ -1806,7 +1814,7 @@ def corporation_compliance_report_data(request) -> JsonResponse:
 @login_required
 @permission_required("memberaudit.reports_access")
 def skill_sets_report_data(request) -> JsonResponse:
-    def create_data_row(group) -> dict:
+    def create_data_row(group, character) -> dict:
         user = character.character_ownership.user
         auth_character = character.character_ownership.character
         main_character = user.profile.main_character
@@ -1841,7 +1849,9 @@ def skill_sets_report_data(request) -> JsonResponse:
         group_pk = group.pk if group else 0
         has_required = [
             bootstrap_icon_plus_name_html(
-                obj.skill_set.ship_type.icon_url(DEFAULT_ICON_SIZE)
+                obj.skill_set.ship_type.icon_url(
+                    DEFAULT_ICON_SIZE, variant=EveType.IconVariant.REGULAR
+                )
                 if obj.skill_set.ship_type
                 else eveimageserver.type_icon_url(
                     SKILL_SET_DEFAULT_ICON_TYPE_ID, size=DEFAULT_ICON_SIZE
@@ -1886,7 +1896,11 @@ def skill_sets_report_data(request) -> JsonResponse:
         .prefetch_related("skill_set_checks")
         .filter(character_ownership__user__in=relevant_user_ids)
     )
-    my_select_related = "skill_set", "skill_set__ship_type"
+    my_select_related = (
+        "skill_set",
+        "skill_set__ship_type",
+        # "skill_set__ship_type__eve_group",
+    )
     for group in SkillSetGroup.objects.all():
         for character in character_qs:
             skill_set_qs = (
@@ -1894,17 +1908,21 @@ def skill_sets_report_data(request) -> JsonResponse:
                 .filter(skill_set__groups=group, failed_required_skills__isnull=True)
                 .order_by("skill_set__name")
             )
-            data.append(create_data_row(group))
+            data.append(create_data_row(group, character))
 
     for character in character_qs:
         if (
-            character.skill_set_checks.select_related(*my_select_related)
+            character.skill_set_checks.select_related("skill_set")
             .filter(skill_set__groups__isnull=True)
             .exists()
         ):
-            skill_set_qs = character.skill_set_checks.filter(
-                skill_set__groups__isnull=True, failed_required_skills__isnull=True
-            ).order_by("skill_set__name")
-            data.append(create_data_row(None))
+            skill_set_qs = (
+                character.skill_set_checks.select_related(*my_select_related)
+                .filter(
+                    skill_set__groups__isnull=True, failed_required_skills__isnull=True
+                )
+                .order_by("skill_set__name")
+            )
+            data.append(create_data_row(None, character))
 
     return JsonResponse(data, safe=False)
