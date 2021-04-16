@@ -475,12 +475,11 @@ def character_assets_data(
                 "eve_type",
                 "eve_type__eve_group",
                 "eve_type__eve_group__eve_category",
-                "location",
+                "location__eve_solar_system",
                 "location__eve_solar_system__eve_constellation__eve_region",
             )
             .filter(location__isnull=False)
         )
-
     except ObjectDoesNotExist:
         return HttpResponseNotFound()
 
@@ -489,16 +488,15 @@ def character_assets_data(
             "item_id", flat=True
         )
     )
-
     location_counts = {
         obj["id"]: obj["items_count"]
         for obj in (
-            Location.objects.filter(characterasset__character=character)
+            Location.objects.select_related("characterasset__character")
+            .filter(characterasset__character=character)
             .annotate(items_count=Count("characterasset"))
             .values("id", "items_count")
         )
     }
-
     for asset in asset_qs:
         if asset.location.eve_solar_system:
             region = asset.location.eve_solar_system.eve_constellation.eve_region.name
