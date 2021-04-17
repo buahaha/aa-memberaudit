@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.3.0] - 2021-04-17
+
+### Added
+
+- Show attributes for characters
+
 ### Changed
 
-- Disabled fetching EveAncestry objects since current ESI bug is causing HTTP errors
+- Disabled fetching EveAncestry objects since current ESI bug is causing HTTP errors. See also: https://github.com/esi/esi-issues/issues/1264
+- Performance tuning for various view queries
+
+### Fixed
+
+- Added missing tables to drop_tables SQL
 
 ## [1.2.1] - 2021-02-18
 
