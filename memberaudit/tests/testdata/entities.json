@@ -88,6 +88,13 @@
             "corporation_id": 2110,
             "corporation_name": "Shield",
             "corporation_ticker": "SH"
+        },
+        {
+            "character_id": 1111,
+            "character_name": "Daisy Johnson",
+            "corporation_id": 2110,
+            "corporation_name": "Shield",
+            "corporation_ticker": "SH"
         }
     ],
     "EveEntity": [

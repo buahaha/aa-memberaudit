@@ -15,7 +15,17 @@ from .. import __title__
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
 
+class CharacterQuerySet(models.QuerySet):
+    def eve_character_ids(self) -> set:
+        return set(
+            self.values_list("character_ownership__character__character_id", flat=True)
+        )
+
+
 class CharacterManager(ObjectCacheMixin, models.Manager):
+    def get_queryset(self) -> models.QuerySet:
+        return CharacterQuerySet(self.model, using=self._db)
+
     def unregistered_characters_of_user_count(self, user: User) -> int:
         return CharacterOwnership.objects.filter(
             user=user, memberaudit_character__isnull=True
