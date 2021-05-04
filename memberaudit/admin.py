@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.forms.models import BaseInlineFormSet
+from django.shortcuts import redirect, render
 from django.utils.html import format_html
 from eveuniverse.models import EveType
 
@@ -119,6 +120,13 @@ class CharacterAdmin(admin.ModelAdmin):
     search_fields = ["character_ownership__character__character_name"]
     exclude = ("mailing_lists",)
 
+    def get_actions(self, request):
+        """Remove the default delete action from the drop-down."""
+        actions = super().get_actions(request)
+        if "delete_selected" in actions:
+            del actions["delete_selected"]
+        return actions
+
     def _character_pic(self, obj):
         character = obj.character_ownership.character
         return format_html(
@@ -178,18 +186,41 @@ class CharacterAdmin(admin.ModelAdmin):
         return None
 
     actions = [
-        "update_character",
+        "delete_characters",
+        "update_characters",
         "update_assets",
         "update_location",
         "update_online_status",
     ]
 
-    def update_character(self, request, queryset):
+    def delete_characters(self, request, queryset):
+        if "apply" in request.POST:
+            for obj in queryset:
+                tasks.delete_character.delay(character_pk=obj.pk)
+            self.message_user(
+                request,
+                f"Started deleting {queryset.count()} character(s). "
+                "This can take a minute.",
+            )
+            return redirect(request.get_full_path())
+        else:
+            return render(
+                request,
+                "admin/confirm_character_deletion.html",
+                {
+                    "title": "Are you sure you want to delete these characters?",
+                    "queryset": queryset.all(),
+                },
+            )
+
+    delete_characters.short_description = "Delete selected characters"
+
+    def update_characters(self, request, queryset):
         for obj in queryset:
-            tasks.update_character.delay(character_pk=obj.pk, force_update=True)
+            tasks.update_characters.delay(character_pk=obj.pk, force_update=True)
             self.message_user(request, f"Started updating character: {obj}. ")
 
-    update_character.short_description = "Update selected characters from EVE server"
+    update_characters.short_description = "Update selected characters from EVE server"
 
     def update_assets(self, request, queryset):
         for obj in queryset:

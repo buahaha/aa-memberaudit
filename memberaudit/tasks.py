@@ -1016,3 +1016,11 @@ def update_characters_skill_checks(force_update: bool = False) -> None:
                 },
                 priority=DEFAULT_TASK_PRIORITY,
             )
+
+
+@shared_task(**TASK_DEFAULT_KWARGS)
+def delete_character(character_pk) -> None:
+    """Delete a member audit character"""
+    character = Character.objects.get(pk=character_pk)
+    logger.info("%s: Deleting character", character)
+    character.delete()

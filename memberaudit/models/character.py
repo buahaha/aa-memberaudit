@@ -166,6 +166,10 @@ class Character(models.Model):
         except AttributeError:
             return False
 
+    @cached_property
+    def name(self) -> str:
+        return self.character_ownership.character.character_name
+
     def user_is_owner(self, user: User) -> bool:
         """Return True if the given user is owner of this character"""
         return self.character_ownership.user == user
