@@ -7,14 +7,16 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.3.1] - 2021-05-04
+
 ### Changed
 
-- Permissions `view_same_corporation` and `view_same_alliance` now mean **all** corporations / alliances the user's characters belong to. Not only the main character.
-- Make badges fit into the menu
+- Permissions `view_same_corporation` and `view_same_alliance` will now give access to other characters from **all** corporations / alliances the user's characters belong to. Not only the main character.
 
 ### Fixed
 
 - Trying to delete a character from the admin site results in timeouts.
+- Make badges fit into the menu
 
 ## [1.3.0] - 2021-04-17
 
