@@ -95,6 +95,26 @@
             "corporation_id": 2110,
             "corporation_name": "Shield",
             "corporation_ticker": "SH"
+        },
+        {
+            "character_id": 1121,
+            "character_name": "Grant Ward",
+            "corporation_id": 2120,
+            "corporation_name": "Operations",
+            "corporation_ticker": "OP",
+            "alliance_id": 3121,
+            "alliance_name": "Hydra",
+            "alliance_ticker": "HYD"
+        },
+        {
+            "character_id": 1122,
+            "character_name": "Leo Fitz",
+            "corporation_id": 2121,
+            "corporation_name": "Tech",
+            "corporation_ticker": "TC",
+            "alliance_id": 3121,
+            "alliance_name": "Hydra",
+            "alliance_ticker": "HYD"
         }
     ],
     "EveEntity": [

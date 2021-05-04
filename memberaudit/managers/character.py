@@ -6,6 +6,7 @@ from django.db import models
 from django.db.models import Avg, Count, ExpressionWrapper, F, Max, Min
 
 from allianceauth.authentication.models import CharacterOwnership
+from allianceauth.eveonline.models import EveCharacter
 from allianceauth.services.hooks import get_extension_logger
 from app_utils.caching import ObjectCacheMixin
 from app_utils.logging import LoggerAddTag
@@ -40,26 +41,32 @@ class CharacterManager(ObjectCacheMixin, models.Manager):
         ):
             qs = self.all()
         else:
-            qs = self.select_related(
-                "character_ownership__user",
-            ).filter(character_ownership__user=user)
+            qs = self.filter(character_ownership__user=user)
             if (
                 user.has_perm("memberaudit.characters_access")
                 and user.has_perm("memberaudit.view_same_alliance")
                 and user.profile.main_character.alliance_id
             ):
-                qs = qs | self.select_related(
-                    "character_ownership__user__profile__main_character"
-                ).filter(
-                    character_ownership__user__profile__main_character__alliance_id=user.profile.main_character.alliance_id
+                user_alliance_ids = set(
+                    EveCharacter.objects.filter(
+                        character_ownership__user=user
+                    ).values_list("alliance_id", flat=True)
+                )
+                qs = qs | self.filter(
+                    character_ownership__user__profile__main_character__alliance_id__in=(
+                        user_alliance_ids
+                    )
                 )
             elif user.has_perm("memberaudit.characters_access") and user.has_perm(
                 "memberaudit.view_same_corporation"
             ):
-                qs = qs | self.select_related(
-                    "character_ownership__user__profile__main_character"
-                ).filter(
-                    character_ownership__user__profile__main_character__corporation_id=user.profile.main_character.corporation_id
+                user_corporation_ids = set(
+                    EveCharacter.objects.filter(
+                        character_ownership__user=user
+                    ).values_list("corporation_id", flat=True)
+                )
+                qs = qs | self.filter(
+                    character_ownership__user__profile__main_character__corporation_id__in=user_corporation_ids
                 )
 
             if user.has_perm("memberaudit.view_shared_characters"):

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Changed
+
+- Permissions `view_same_corporation` and `view_same_alliance` now include all corporations / alliances the user's characters belong to. Not only the main character.
+
 ## [1.3.0] - 2021-04-17
 
 ### Added
