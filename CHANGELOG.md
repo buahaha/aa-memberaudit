@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Changed
 
-- Permissions `view_same_corporation` and `view_same_alliance` now include all corporations / alliances the user's characters belong to. Not only the main character.
+- Permissions `view_same_corporation` and `view_same_alliance` now mean **all** corporations / alliances the user's characters belong to. Not only the main character.
+- Make badges fit into the menu
 
 ## [1.3.0] - 2021-04-17
 
