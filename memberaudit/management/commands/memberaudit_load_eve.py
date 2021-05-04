@@ -1,6 +1,9 @@
 import logging
+
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
+
+from app_utils.logging import LoggerAddTag
 
 from ... import __title__
 from ...constants import (
@@ -14,8 +17,6 @@ from ...constants import (
     EVE_CATEGORY_ID_SKILL,
     EVE_CATEGORY_ID_STRUCTURE,
 )
-from app_utils.logging import LoggerAddTag
-
 
 logger = LoggerAddTag(logging.getLogger(__name__), __title__)
 

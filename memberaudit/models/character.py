@@ -15,34 +15,31 @@ from django.db import models
 from django.utils.functional import cached_property
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
-
-from esi.models import Token
 from esi.errors import TokenError
-
+from esi.models import Token
 from eveuniverse.models import EveEntity, EveType
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.services.hooks import get_extension_logger
+from app_utils.datetime import datetime_round_hour
+from app_utils.helpers import chunks
+from app_utils.logging import LoggerAddTag
 
 from .. import __title__
 from ..app_settings import (
-    MEMBERAUDIT_MAX_MAILS,
+    MEMBERAUDIT_DATA_RETENTION_LIMIT,
     MEMBERAUDIT_DEVELOPER_MODE,
+    MEMBERAUDIT_MAX_MAILS,
+    MEMBERAUDIT_UPDATE_STALE_OFFSET,
     MEMBERAUDIT_UPDATE_STALE_RING_1,
     MEMBERAUDIT_UPDATE_STALE_RING_2,
     MEMBERAUDIT_UPDATE_STALE_RING_3,
-    MEMBERAUDIT_UPDATE_STALE_OFFSET,
-    MEMBERAUDIT_DATA_RETENTION_LIMIT,
 )
 from ..core.xml_converter import eve_xml_to_html
 from ..decorators import fetch_token_for_character
 from ..managers.character import CharacterManager, CharacterUpdateStatusManager
 from ..providers import esi
-from app_utils.datetime import datetime_round_hour
-from app_utils.helpers import chunks
-from app_utils.logging import LoggerAddTag
 from .general import Location
-
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 

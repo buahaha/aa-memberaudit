@@ -1,14 +1,15 @@
 import logging
-from django.core.management.base import BaseCommand
 
+from django.core.management.base import BaseCommand
 from esi.models import Token
+
 from allianceauth.authentication.models import CharacterOwnership
+from app_utils.logging import LoggerAddTag
 
 from ... import __title__
-from . import get_input
 from ...models import Character, Location, MailEntity
 from ...tasks import update_all_characters
-from app_utils.logging import LoggerAddTag
+from . import get_input
 
 logger = LoggerAddTag(logging.getLogger(__name__), __title__)
 

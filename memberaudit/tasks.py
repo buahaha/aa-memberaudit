@@ -2,33 +2,28 @@ import inspect
 import random
 from typing import Optional
 
-from celery import shared_task, chain
-
-from bravado.exception import (
-    HTTPBadGateway,
-    HTTPGatewayTimeout,
-    HTTPServiceUnavailable,
-)
+from bravado.exception import HTTPBadGateway, HTTPGatewayTimeout, HTTPServiceUnavailable
+from celery import chain, shared_task
 
 from django.db import transaction
 from django.utils.timezone import now
-
 from esi.models import Token
 from eveuniverse.models import EveEntity, EveMarketPrice
 
 from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
+from app_utils.logging import LoggerAddTag
 
 from . import __title__
 from .app_settings import (
     MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
     MEMBERAUDIT_LOG_UPDATE_STATS,
     MEMBERAUDIT_TASKS_MAX_ASSETS_PER_PASS,
+    MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT,
     MEMBERAUDIT_TASKS_TIME_LIMIT,
     MEMBERAUDIT_UPDATE_STALE_RING_2,
-    MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT,
 )
-from .helpers import EsiOffline, EsiErrorLimitExceeded, fetch_esi_status
+from .helpers import EsiErrorLimitExceeded, EsiOffline, fetch_esi_status
 from .models import (
     Character,
     CharacterAsset,
@@ -38,8 +33,6 @@ from .models import (
     Location,
     MailEntity,
 )
-from app_utils.logging import LoggerAddTag
-
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 

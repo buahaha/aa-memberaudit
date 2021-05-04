@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Disabled fetching EveAncestry objects since current ESI bug is causing HTTP errors. See also: https://github.com/esi/esi-issues/issues/1264
 - Performance tuning for various view queries
 
+Big thanks to @gray_73 for the feature contribution!
+
 ### Fixed
 
 - Added missing tables to drop_tables SQL

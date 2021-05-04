@@ -1,4 +1,4 @@
-from django.test import TestCase, RequestFactory
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from ..templatetags.memberaudit import navactive_2

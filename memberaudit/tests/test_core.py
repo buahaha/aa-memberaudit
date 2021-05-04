@@ -1,13 +1,12 @@
 from unittest.mock import Mock, patch
 
 from allianceauth.eveonline.evelinks import dotlan, evewho
+from app_utils.testing import NoSocketsTestCase
 
+from ..core.xml_converter import eve_xml_to_html
 from .testdata.esi_client_stub import load_test_data
 from .testdata.load_entities import load_entities
 from .testdata.load_eveuniverse import load_eveuniverse
-from ..core.xml_converter import eve_xml_to_html
-from app_utils.testing import NoSocketsTestCase
-
 
 MODULE_PATH = "memberaudit.core.xml_converter"
 

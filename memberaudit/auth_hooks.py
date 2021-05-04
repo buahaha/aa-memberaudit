@@ -1,13 +1,13 @@
-from allianceauth.services.hooks import MenuItemHook, UrlHook
 from allianceauth import hooks
+from allianceauth.services.hooks import MenuItemHook, UrlHook
 
 from . import urls
-from .models import Character
 from .app_settings import MEMBERAUDIT_APP_NAME, MEMBERAUDIT_BASE_URL
+from .models import Character
 
 
 class MemberauditMenuItem(MenuItemHook):
-    """ This class ensures only authorized users will see the menu entry """
+    """This class ensures only authorized users will see the menu entry"""
 
     def __init__(self):
         # setup menu entry for sidebar

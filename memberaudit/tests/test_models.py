@@ -1,32 +1,26 @@
 import datetime as dt
-import json
 import hashlib
-from unittest.mock import patch, Mock
+import json
+from unittest.mock import Mock, patch
 
 from pytz import UTC
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase, override_settings
 from django.utils.dateparse import parse_datetime
-from django.utils.timezone import now, make_aware
-
-from eveuniverse.models import EveEntity, EveSolarSystem, EveType, EveMarketPrice
-from esi.models import Token
+from django.utils.timezone import make_aware, now
 from esi.errors import TokenError
+from esi.models import Token
+from eveuniverse.models import EveEntity, EveMarketPrice, EveSolarSystem, EveType
 
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import NoSocketsTestCase
 
-from . import (
-    create_memberaudit_character,
-    create_user_from_evecharacter,
-    scope_names_set,
-    add_memberaudit_character_to_user,
-)
 from ..core.xml_converter import eve_xml_to_html
 from ..helpers import EsiStatus
 from ..models import (
     Character,
+    CharacterAttributes,
     CharacterContact,
     CharacterContactLabel,
     CharacterContract,
@@ -39,19 +33,23 @@ from ..models import (
     CharacterSkillqueueEntry,
     CharacterUpdateStatus,
     CharacterWalletJournalEntry,
-    SkillSetGroup,
-    SkillSet,
-    SkillSetSkill,
     Location,
     MailEntity,
-    CharacterAttributes,
+    SkillSet,
+    SkillSetGroup,
+    SkillSetSkill,
 )
 from ..models.character import data_retention_cutoff
+from . import (
+    add_memberaudit_character_to_user,
+    create_memberaudit_character,
+    create_user_from_evecharacter,
+    scope_names_set,
+)
 from .testdata.esi_client_stub import esi_client_stub
-from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
+from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_locations import load_locations
-
 
 MODELS_PATH = "memberaudit.models"
 MANAGERS_PATH = "memberaudit.managers"

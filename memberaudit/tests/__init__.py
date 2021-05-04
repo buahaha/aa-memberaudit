@@ -1,15 +1,14 @@
 from typing import Tuple
 
 from django.contrib.auth.models import User
-
 from esi.models import Token
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.eveonline.models import EveCharacter
 from allianceauth.tests.auth_utils import AuthUtils
+from app_utils.testing import add_character_to_user
 
 from ..models import Character
-from app_utils.testing import add_character_to_user
 
 
 def create_user_from_evecharacter(character_id: int) -> Tuple[User, CharacterOwnership]:

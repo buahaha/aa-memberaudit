@@ -2,20 +2,7 @@ import datetime as dt
 from typing import Optional, Tuple
 
 import humanize
-from allianceauth.authentication.models import CharacterOwnership, get_guest_state_pk
-from allianceauth.eveonline.models import EveCharacter
-from allianceauth.services.hooks import get_extension_logger
-from app_utils.logging import LoggerAddTag
-from app_utils.messages import messages_plus
-from app_utils.views import (
-    bootstrap_icon_plus_name_html,
-    bootstrap_label_html,
-    fontawesome_link_button_html,
-    link_html,
-    no_wrap_html,
-    yesno_str,
-    yesnonone_str,
-)
+
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models, transaction
@@ -36,6 +23,21 @@ from django.utils.translation import gettext, gettext_lazy
 from esi.decorators import token_required
 from eveuniverse.core import eveimageserver
 from eveuniverse.models import EveType
+
+from allianceauth.authentication.models import CharacterOwnership, get_guest_state_pk
+from allianceauth.eveonline.models import EveCharacter
+from allianceauth.services.hooks import get_extension_logger
+from app_utils.logging import LoggerAddTag
+from app_utils.messages import messages_plus
+from app_utils.views import (
+    bootstrap_icon_plus_name_html,
+    bootstrap_label_html,
+    fontawesome_link_button_html,
+    link_html,
+    no_wrap_html,
+    yesno_str,
+    yesnonone_str,
+)
 
 from . import __title__, tasks
 from .app_settings import MEMBERAUDIT_APP_NAME

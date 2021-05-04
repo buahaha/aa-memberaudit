@@ -4,13 +4,7 @@ import requests_mock
 
 from django.test import TestCase
 
-from ..helpers import (
-    fetch_esi_status,
-    EsiStatus,
-    EsiOffline,
-    EsiErrorLimitExceeded,
-)
-
+from ..helpers import EsiErrorLimitExceeded, EsiOffline, EsiStatus, fetch_esi_status
 
 MODULE_PATH = "memberaudit.helpers"
 

@@ -4,7 +4,6 @@ from unittest.mock import patch
 from django.test import override_settings
 from django.urls import reverse
 from django.utils.timezone import now
-
 from django_webtest import WebTest
 from eveuniverse.models import EveEntity, EveType
 
@@ -20,17 +19,16 @@ from ..models import (
     Location,
     MailEntity,
 )
-
-from .testdata.esi_client_stub import esi_client_stub
-from .testdata.load_eveuniverse import load_eveuniverse
-from .testdata.load_entities import load_entities
-from .testdata.load_locations import load_locations
 from . import (
-    create_memberaudit_character,
     add_auth_character_to_user,
-    create_user_from_evecharacter,
     add_memberaudit_character_to_user,
+    create_memberaudit_character,
+    create_user_from_evecharacter,
 )
+from .testdata.esi_client_stub import esi_client_stub
+from .testdata.load_entities import load_entities
+from .testdata.load_eveuniverse import load_eveuniverse
+from .testdata.load_locations import load_locations
 
 MODELS_PATH = "memberaudit.models"
 TASKS_PATH = "memberaudit.tasks"

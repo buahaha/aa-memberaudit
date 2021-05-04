@@ -5,7 +5,7 @@ Tools for building unit tests with django-esi
 from collections import namedtuple
 from typing import Any, List
 
-from bravado.exception import HTTPNotFound, HTTPInternalServerError
+from bravado.exception import HTTPInternalServerError, HTTPNotFound
 
 from django.utils.dateparse import parse_datetime
 

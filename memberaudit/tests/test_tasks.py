@@ -6,33 +6,33 @@ from celery.exceptions import Retry as CeleryRetry
 
 from django.test import TestCase, override_settings
 from django.utils.timezone import now
-
 from esi.models import Token
 from eveuniverse.models import EveSolarSystem, EveType
 
-from . import create_memberaudit_character
-from ..helpers import EsiOffline, EsiErrorLimitExceeded, EsiStatus
-from ..models import Character, CharacterUpdateStatus, Location, CharacterAsset
+from app_utils.testing import generate_invalid_pk
+
+from ..helpers import EsiErrorLimitExceeded, EsiOffline, EsiStatus
+from ..models import Character, CharacterAsset, CharacterUpdateStatus, Location
 from ..tasks import (
     run_regular_updates,
     update_all_characters,
     update_character,
-    update_structure_esi,
     update_character_assets,
-    update_characters_skill_checks,
-    update_character_mails,
     update_character_contacts,
     update_character_contracts,
+    update_character_mails,
     update_character_wallet_journal,
-    update_market_prices,
+    update_characters_skill_checks,
     update_mail_entity_esi,
+    update_market_prices,
+    update_structure_esi,
 )
-from .testdata.esi_client_stub import esi_client_stub, esi_client_error_stub
-from .testdata.load_eveuniverse import load_eveuniverse
-from .testdata.load_entities import load_entities
-from .testdata.load_locations import load_locations
+from . import create_memberaudit_character
+from .testdata.esi_client_stub import esi_client_error_stub, esi_client_stub
 from .testdata.esi_test_tools import BravadoResponseStub
-from app_utils.testing import generate_invalid_pk
+from .testdata.load_entities import load_entities
+from .testdata.load_eveuniverse import load_eveuniverse
+from .testdata.load_locations import load_locations
 
 MODELS_PATH = "memberaudit.models"
 MANAGERS_PATH = "memberaudit.managers"

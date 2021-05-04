@@ -1,13 +1,13 @@
 from unittest.mock import patch
 
-from django.test import TestCase, RequestFactory
 from django.contrib.admin.sites import AdminSite
+from django.test import RequestFactory, TestCase
 
-from . import create_user_from_evecharacter
 from ..admin import SkillSetAdmin, SkillSetShipTypeFilter
-from ..models import SkillSet, EveShipType
-from .testdata.load_eveuniverse import load_eveuniverse
+from ..models import EveShipType, SkillSet
+from . import create_user_from_evecharacter
 from .testdata.load_entities import load_entities
+from .testdata.load_eveuniverse import load_eveuniverse
 
 MODULE_PATH = "memberaudit.admin"
 

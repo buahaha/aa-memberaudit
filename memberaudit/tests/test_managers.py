@@ -1,18 +1,17 @@
 import datetime as dt
-from unittest.mock import patch, Mock
+from unittest.mock import Mock, patch
 
-from bravado.exception import HTTPNotFound, HTTPForbidden, HTTPUnauthorized
+from bravado.exception import HTTPForbidden, HTTPNotFound, HTTPUnauthorized
 
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.utils.timezone import now
-
-from eveuniverse.models import EveEntity, EveSolarSystem, EveType, EveMarketPrice
+from eveuniverse.models import EveEntity, EveMarketPrice, EveSolarSystem, EveType
 
 from allianceauth.eveonline.models import EveAllianceInfo
 from allianceauth.tests.auth_utils import AuthUtils
+from app_utils.testing import NoSocketsTestCase, queryset_pks
 
-from . import create_memberaudit_character, add_memberaudit_character_to_user
 from ..helpers import EsiStatus
 from ..models import (
     Character,
@@ -22,13 +21,12 @@ from ..models import (
     Location,
     MailEntity,
 )
+from . import add_memberaudit_character_to_user, create_memberaudit_character
 from .testdata.esi_client_stub import esi_client_stub
 from .testdata.esi_test_tools import BravadoResponseStub
-from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_entities import load_entities
+from .testdata.load_eveuniverse import load_eveuniverse
 from .testdata.load_locations import load_locations
-from app_utils.testing import NoSocketsTestCase, queryset_pks
-
 
 MODELS_PATH = "memberaudit.models"
 MANAGERS_PATH = "memberaudit.managers"

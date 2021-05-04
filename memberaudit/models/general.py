@@ -2,16 +2,17 @@
 Top level models
 """
 
-from django.contrib.auth.models import User, Permission
+from django.contrib.auth.models import Permission, User
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
-
 from eveuniverse.models import EveEntity, EveSolarSystem, EveType
 
 from allianceauth.eveonline.evelinks import dotlan, evewho
 from allianceauth.services.hooks import get_extension_logger
+from app_utils.django import users_with_permission
+from app_utils.logging import LoggerAddTag
 
 from .. import __title__
 from ..managers.general import (
@@ -20,8 +21,6 @@ from ..managers.general import (
     LocationManager,
     MailEntityManager,
 )
-from app_utils.logging import LoggerAddTag
-from app_utils.django import users_with_permission
 from .constants import NAMES_MAX_LENGTH
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)

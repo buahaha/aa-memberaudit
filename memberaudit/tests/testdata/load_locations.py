@@ -1,6 +1,6 @@
-import os
 import inspect
 import json
+import os
 
 from eveuniverse.models import EveEntity
 

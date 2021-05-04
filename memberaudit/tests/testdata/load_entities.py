@@ -1,6 +1,6 @@
-import os
 import inspect
 import json
+import os
 
 from eveuniverse.models import (
     EveConstellation,
@@ -12,11 +12,10 @@ from eveuniverse.models import (
 )
 
 from allianceauth.eveonline.models import (
+    EveAllianceInfo,
     EveCharacter,
     EveCorporationInfo,
-    EveAllianceInfo,
 )
-
 
 _currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 

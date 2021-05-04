@@ -1,8 +1,3 @@
 # flake8: noqa
 
-from .main import (
-    EsiClientStub,
-    EsiEndpoint,
-    BravadoResponseStub,
-    BravadoOperationStub,
-)
+from .main import BravadoOperationStub, BravadoResponseStub, EsiClientStub, EsiEndpoint

@@ -2,11 +2,10 @@
 Character sections models
 """
 
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.timezone import now
 from django.utils.translation import gettext_lazy as _
-
 from eveuniverse.models import (
     EveAncestry,
     EveBloodline,
@@ -18,6 +17,7 @@ from eveuniverse.models import (
 )
 
 from allianceauth.services.hooks import get_extension_logger
+from app_utils.logging import LoggerAddTag
 
 from .. import __title__
 from ..core.xml_converter import eve_xml_to_html
@@ -26,15 +26,15 @@ from ..managers.sections import (
     CharacterAttributesManager,
     CharacterContactLabelManager,
     CharacterContactManager,
-    CharacterContractManager,
     CharacterContractBidManager,
     CharacterContractItemManager,
+    CharacterContractManager,
     CharacterCorporationHistoryManager,
     CharacterDetailsManager,
     CharacterImplantManager,
+    CharacterJumpCloneManager,
     CharacterLocationManager,
     CharacterLoyaltyEntryManager,
-    CharacterJumpCloneManager,
     CharacterMailLabelManager,
     CharacterMailManager,
     CharacterSkillManager,
@@ -43,11 +43,9 @@ from ..managers.sections import (
     CharacterWalletJournalEntryManager,
     CharacterWalletTransactionManager,
 )
-from app_utils.logging import LoggerAddTag
-from .constants import CURRENCY_MAX_DECIMALS, CURRENCY_MAX_DIGITS, NAMES_MAX_LENGTH
 from .character import Character
+from .constants import CURRENCY_MAX_DECIMALS, CURRENCY_MAX_DIGITS, NAMES_MAX_LENGTH
 from .general import Location
-
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -1094,7 +1092,7 @@ class CharacterWalletTransaction(models.Model):
 
 
 class CharacterAttributes(models.Model):
-    """ The training attributes of the character """
+    """The training attributes of the character"""
 
     character = models.OneToOneField(
         Character,

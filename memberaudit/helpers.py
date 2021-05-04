@@ -4,19 +4,17 @@ from typing import Optional
 
 import requests
 
-
 from django.db import models
 from django.utils.html import format_html
-
 from eveuniverse.models import EveSolarSystem
+
 from allianceauth.eveonline.evelinks import dotlan
 from allianceauth.services.hooks import get_extension_logger
-
-from . import __title__, __version__
-from .app_settings import MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD
 from app_utils.logging import LoggerAddTag
 from app_utils.views import link_html
 
+from . import __title__, __version__
+from .app_settings import MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 

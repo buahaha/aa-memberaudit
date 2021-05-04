@@ -1,10 +1,8 @@
 from typing import Dict, List
 
 from django.db import models, transaction
-from django.db.models import Case, F, ExpressionWrapper, Value, When
-
+from django.db.models import Case, ExpressionWrapper, F, Value, When
 from esi.models import Token
-
 from eveuniverse.models import (
     EveAncestry,
     EveBloodline,
@@ -16,13 +14,12 @@ from eveuniverse.models import (
 )
 
 from allianceauth.services.hooks import get_extension_logger
-
-from .. import __title__
-from ..core.xml_converter import eve_xml_to_html
-from ..app_settings import MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
-from ..helpers import get_or_create_or_none, get_or_create_esi_or_none, get_or_none
 from app_utils.logging import LoggerAddTag
 
+from .. import __title__
+from ..app_settings import MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
+from ..core.xml_converter import eve_xml_to_html
+from ..helpers import get_or_create_esi_or_none, get_or_create_or_none, get_or_none
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 

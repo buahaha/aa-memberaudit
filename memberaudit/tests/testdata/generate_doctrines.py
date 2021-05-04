@@ -3,11 +3,11 @@
 This is a standalone scripts that generates test doctrines complete with ships and skills
 """
 
-from datetime import timedelta
 import inspect
 import json
 import os
 import sys
+from datetime import timedelta
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 myauth_dir = (
@@ -18,8 +18,8 @@ sys.path.insert(0, myauth_dir)
 
 
 import django
-from django.db import transaction
 from django.apps import apps
+from django.db import transaction
 from django.utils.timezone import now
 
 # init and setup django project
@@ -30,7 +30,8 @@ if not apps.is_installed("memberaudit"):
     raise RuntimeError("The app memberaudit is not installed")
 
 from eveuniverse.models import EveType
-from memberaudit.models import SkillSetGroup, SkillSet, SkillSetSkill
+
+from memberaudit.models import SkillSet, SkillSetGroup, SkillSetSkill
 
 
 def get_or_create_esi_or_none(EveModel, id) -> object:

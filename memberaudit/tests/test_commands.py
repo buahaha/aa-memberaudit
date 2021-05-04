@@ -1,15 +1,18 @@
 from io import StringIO
 
+from django.core.management import call_command
+
+from app_utils.testing import NoSocketsTestCase
+
+from ..models import Character
+from . import add_auth_character_to_user, create_user_from_evecharacter
+from .testdata.load_entities import load_entities
+
 # from esi.models import Token
 
-from django.core.management import call_command
 
 # from allianceauth.authentication.models import CharacterOwnership
 
-from . import create_user_from_evecharacter, add_auth_character_to_user
-from ..models import Character
-from .testdata.load_entities import load_entities
-from app_utils.testing import NoSocketsTestCase
 
 PACKAGE_PATH = "memberaudit.management.commands"
 

@@ -1,29 +1,28 @@
 import datetime as dt
 from typing import Iterable, Tuple
 
+from bravado.exception import HTTPForbidden, HTTPUnauthorized
+
 from django.db import models
 from django.utils.timezone import now
-
-from bravado.exception import HTTPUnauthorized, HTTPForbidden
 from esi.models import Token
 from eveuniverse.models import EveEntity, EveSolarSystem, EveType
 
 from allianceauth.services.hooks import get_extension_logger
+from app_utils.logging import LoggerAddTag
 
 from .. import __title__
-from ..constants import (
-    EVE_TYPE_ID_SOLAR_SYSTEM,
-    EVE_CATEGORY_ID_SKILL,
-    EVE_CATEGORY_ID_SHIP,
-)
 from ..app_settings import (
-    MEMBERAUDIT_LOCATION_STALE_HOURS,
     MEMBERAUDIT_BULK_METHODS_BATCH_SIZE,
+    MEMBERAUDIT_LOCATION_STALE_HOURS,
+)
+from ..constants import (
+    EVE_CATEGORY_ID_SHIP,
+    EVE_CATEGORY_ID_SKILL,
+    EVE_TYPE_ID_SOLAR_SYSTEM,
 )
 from ..helpers import fetch_esi_status
 from ..providers import esi
-from app_utils.logging import LoggerAddTag
-
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -194,10 +193,8 @@ class LocationManager(models.Manager):
         )
 
     def _structure_update_or_create_esi_async(self, id: int, token: Token):
-        from ..tasks import (
-            update_structure_esi as task_update_structure_esi,
-            DEFAULT_TASK_PRIORITY,
-        )
+        from ..tasks import DEFAULT_TASK_PRIORITY
+        from ..tasks import update_structure_esi as task_update_structure_esi
 
         id = int(id)
         location, created = self.get_or_create(id=id)
@@ -348,10 +345,8 @@ class MailEntityManager(models.Manager):
             return self._update_or_create_esi_async(id=id)
 
     def _update_or_create_esi_async(self, id: int) -> Tuple[models.Model, bool]:
-        from ..tasks import (
-            update_mail_entity_esi as task_update_mail_entity_esi,
-            DEFAULT_TASK_PRIORITY,
-        )
+        from ..tasks import DEFAULT_TASK_PRIORITY
+        from ..tasks import update_mail_entity_esi as task_update_mail_entity_esi
 
         id = int(id)
         obj, created = self.get_or_create(

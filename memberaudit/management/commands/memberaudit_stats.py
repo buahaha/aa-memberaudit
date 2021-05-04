@@ -1,11 +1,13 @@
 import json
 import logging
+
 from django.core.management.base import BaseCommand
 from django.core.serializers.json import DjangoJSONEncoder
 
+from app_utils.logging import LoggerAddTag
+
 from ... import __title__
 from ...models import CharacterUpdateStatus
-from app_utils.logging import LoggerAddTag
 
 logger = LoggerAddTag(logging.getLogger(__name__), __title__)
 

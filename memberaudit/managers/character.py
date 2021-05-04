@@ -3,15 +3,14 @@ from math import floor
 
 from django.contrib.auth.models import User
 from django.db import models
-from django.db.models import Avg, Count, F, ExpressionWrapper, Max, Min
+from django.db.models import Avg, Count, ExpressionWrapper, F, Max, Min
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.services.hooks import get_extension_logger
-
-from .. import __title__
 from app_utils.caching import ObjectCacheMixin
 from app_utils.logging import LoggerAddTag
 
+from .. import __title__
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 
@@ -62,17 +61,18 @@ class CharacterManager(ObjectCacheMixin, models.Manager):
 class CharacterUpdateStatusManager(models.Manager):
     def statistics(self) -> dict:
         """returns detailed statistics about the last update run and the app"""
+        from django.conf import settings as auth_settings
+
+        from .. import app_settings
         from ..models import (
             Character,
             CharacterAsset,
-            CharacterMail,
-            CharacterContract,
             CharacterContact,
+            CharacterContract,
+            CharacterMail,
             SkillSet,
             SkillSetGroup,
         )
-        from .. import app_settings
-        from django.conf import settings as auth_settings
 
         def root_task_id_or_none(obj):
             try:

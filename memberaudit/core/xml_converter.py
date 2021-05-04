@@ -2,14 +2,13 @@ import ast
 import re
 
 from django.utils.safestring import mark_safe
-
 from eveuniverse.models import EveEntity
+
 from allianceauth.eveonline.evelinks import dotlan, evewho
 from allianceauth.services.hooks import get_extension_logger
-
-from .. import __title__
 from app_utils.logging import LoggerAddTag
 
+from .. import __title__
 
 logger = LoggerAddTag(get_extension_logger(__name__), __title__)
 

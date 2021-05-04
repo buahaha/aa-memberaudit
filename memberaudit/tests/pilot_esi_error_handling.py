@@ -23,7 +23,8 @@ if not apps.is_installed("memberaudit"):
     raise RuntimeError("The app memberaudit is not installed")
 
 import random
-from memberaudit.models import Location, Character
+
+from memberaudit.models import Character, Location
 
 print("Trying to resolve multiple random structure IDs...")
 character = Character.objects.first()

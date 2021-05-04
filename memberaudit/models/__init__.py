@@ -1,3 +1,4 @@
+from .character import Character, CharacterUpdateStatus  # noqa: F401
 from .general import (  # noqa: F401
     EveShipType,
     EveSkillType,
@@ -8,9 +9,9 @@ from .general import (  # noqa: F401
     SkillSetGroup,
     SkillSetSkill,
 )
-from .character import Character, CharacterUpdateStatus  # noqa: F401
 from .sections import (  # noqa: F401
     CharacterAsset,
+    CharacterAttributes,
     CharacterContact,
     CharacterContactLabel,
     CharacterContract,
@@ -23,16 +24,15 @@ from .sections import (  # noqa: F401
     CharacterJumpCloneImplant,
     CharacterLocation,
     CharacterLoyaltyEntry,
-    CharacterMailUnreadCount,
     CharacterMail,
     CharacterMailLabel,
+    CharacterMailUnreadCount,
     CharacterOnlineStatus,
     CharacterSkill,
-    CharacterSkillqueueEntry,
     CharacterSkillpoints,
+    CharacterSkillqueueEntry,
     CharacterSkillSetCheck,
     CharacterWalletBalance,
     CharacterWalletJournalEntry,
     CharacterWalletTransaction,
-    CharacterAttributes,
 )

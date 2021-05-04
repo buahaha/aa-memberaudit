@@ -2,9 +2,9 @@ from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.forms.models import BaseInlineFormSet
 from django.utils.html import format_html
-
 from eveuniverse.models import EveType
 
+from . import tasks
 from .constants import EVE_CATEGORY_ID_SHIP
 from .models import (
     Character,
@@ -12,11 +12,10 @@ from .models import (
     EveShipType,
     EveSkillType,
     Location,
-    SkillSetGroup,
     SkillSet,
+    SkillSetGroup,
     SkillSetSkill,
 )
-from . import tasks
 
 
 class EveUniverseEntityModelAdmin(admin.ModelAdmin):

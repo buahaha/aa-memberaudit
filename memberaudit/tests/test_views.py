@@ -6,37 +6,28 @@ import pytz
 
 from django.contrib.auth.models import Group
 from django.http import JsonResponse
-from django.test import TestCase, RequestFactory
-from django.utils.timezone import now
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
-
-from eveuniverse.models import EveSolarSystem, EveType, EveEntity, EveMarketPrice
+from django.utils.timezone import now
+from eveuniverse.models import EveEntity, EveMarketPrice, EveSolarSystem, EveType
 
 from allianceauth.authentication.models import State
 from allianceauth.eveonline.models import EveAllianceInfo, EveCorporationInfo
 from allianceauth.tests.auth_utils import AuthUtils
+from app_utils.testing import generate_invalid_pk
 
-from .testdata.load_eveuniverse import load_eveuniverse
-from .testdata.load_entities import load_entities
-from .testdata.load_locations import load_locations
-
-from . import (
-    create_memberaudit_character,
-    add_memberaudit_character_to_user,
-    add_auth_character_to_user,
-    create_user_from_evecharacter,
-)
 from ..models import (
     Character,
     CharacterAsset,
+    CharacterAttributes,
     CharacterContact,
     CharacterContract,
     CharacterContractItem,
     CharacterCorporationHistory,
     CharacterImplant,
-    CharacterLocation,
     CharacterJumpClone,
     CharacterJumpCloneImplant,
+    CharacterLocation,
     CharacterLoyaltyEntry,
     CharacterMail,
     CharacterMailLabel,
@@ -44,50 +35,57 @@ from ..models import (
     CharacterSkillqueueEntry,
     CharacterWalletJournalEntry,
     CharacterWalletTransaction,
-    SkillSetGroup,
-    SkillSet,
-    SkillSetSkill,
     Location,
     MailEntity,
-    CharacterAttributes,
+    SkillSet,
+    SkillSetGroup,
+    SkillSetSkill,
 )
-from app_utils.testing import generate_invalid_pk
 from ..views import (
-    index,
-    launcher,
-    character_viewer,
-    character_assets_data,
     character_asset_container,
     character_asset_container_data,
+    character_assets_data,
+    character_attribute_data,
     character_contacts_data,
-    character_contracts_data,
     character_contract_details,
     character_contract_items_included_data,
     character_contract_items_requested_data,
+    character_contracts_data,
     character_corporation_history,
-    character_skill_sets_data,
+    character_finder,
+    character_finder_data,
     character_implants_data,
     character_jump_clones_data,
     character_loyalty_data,
+    character_mail_data,
     character_mail_headers_by_label_data,
     character_mail_headers_by_list_data,
-    character_mail_data,
-    character_skills_data,
     character_skill_set_details,
+    character_skill_sets_data,
     character_skillqueue_data,
+    character_skills_data,
+    character_viewer,
     character_wallet_journal_data,
     character_wallet_transactions_data,
-    character_finder_data,
-    user_compliance_report_data,
     corporation_compliance_report_data,
-    skill_sets_report_data,
+    index,
+    launcher,
     remove_character,
-    character_finder,
     reports,
     share_character,
+    skill_sets_report_data,
     unshare_character,
-    character_attribute_data,
+    user_compliance_report_data,
 )
+from . import (
+    add_auth_character_to_user,
+    add_memberaudit_character_to_user,
+    create_memberaudit_character,
+    create_user_from_evecharacter,
+)
+from .testdata.load_entities import load_entities
+from .testdata.load_eveuniverse import load_eveuniverse
+from .testdata.load_locations import load_locations
 
 MODULE_PATH = "memberaudit.views"
 
