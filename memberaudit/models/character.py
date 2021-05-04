@@ -166,6 +166,10 @@ class Character(models.Model):
         except AttributeError:
             return False
 
+    @cached_property
+    def name(self) -> str:
+        return self.character_ownership.character.character_name
+
     def user_is_owner(self, user: User) -> bool:
         """Return True if the given user is owner of this character"""
         return self.character_ownership.user == user
@@ -179,22 +183,7 @@ class Character(models.Model):
         elif user.has_perm("memberaudit.view_shared_characters") and self.is_shared:
             return True
         elif user.has_perm("memberaudit.characters_access"):
-            if user.has_perm("memberaudit.view_everything"):
-                return True
-            elif (
-                user.has_perm("memberaudit.view_same_alliance")
-                and user.profile.main_character.alliance_id
-                and user.profile.main_character.alliance_id
-                == self.character_ownership.user.profile.main_character.alliance_id
-            ):
-                return True
-            elif (
-                user.has_perm("memberaudit.view_same_corporation")
-                and user.profile.main_character.corporation_id
-                == self.character_ownership.user.profile.main_character.corporation_id
-            ):
-                return True
-
+            return Character.objects.user_has_access(user).filter(pk=self.pk).exists()
         return False
 
     def is_update_status_ok(self) -> bool:

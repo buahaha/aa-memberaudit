@@ -14,6 +14,7 @@ from app_utils.testing import generate_invalid_pk
 from ..helpers import EsiErrorLimitExceeded, EsiOffline, EsiStatus
 from ..models import Character, CharacterAsset, CharacterUpdateStatus, Location
 from ..tasks import (
+    delete_character,
     run_regular_updates,
     update_all_characters,
     update_character,
@@ -769,3 +770,19 @@ class TestUpdateCharactersDoctrines(TestCase):
     def test_normal(self, mock_update_skill_sets):
         update_characters_skill_checks()
         self.assertTrue(mock_update_skill_sets.called)
+
+
+@override_settings(CELERY_ALWAYS_EAGER=True)
+class TestDeleteCharacter(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_entities()
+
+    def test_should_delete_a_character(self):
+        # given
+        character_1001 = create_memberaudit_character(1001)
+        # when
+        delete_character.delay(character_1001.pk)
+        # then
+        self.assertFalse(Character.objects.filter(pk=character_1001.pk).exists())

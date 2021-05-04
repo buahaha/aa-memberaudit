@@ -32,6 +32,11 @@
         border-top-right-radius: 0%;
     }
 
+    /* make badge fit into navs */
+    .badge-nav {
+        font-size: 12px;
+    }
+
     /* Datatables row group headers */
     .template-light-mode .table > tbody > .table-group > td {
         background-color: rgb(105, 105, 105);

@@ -10,7 +10,7 @@ from eveuniverse.models import EveEntity, EveMarketPrice, EveSolarSystem, EveTyp
 
 from allianceauth.eveonline.models import EveAllianceInfo
 from allianceauth.tests.auth_utils import AuthUtils
-from app_utils.testing import NoSocketsTestCase, queryset_pks
+from app_utils.testing import NoSocketsTestCase
 
 from ..helpers import EsiStatus
 from ..models import (
@@ -109,6 +109,18 @@ class TestCharacterMailLabelManager(TestCharacterUpdateBase):
         self.assertDictEqual(labels, dict())
 
 
+class TestCharacterManager(TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        load_entities()
+        cls.character_1001 = create_memberaudit_character(1001)
+        cls.character_1002 = create_memberaudit_character(1002)
+
+    def test_should_return_set_of_eve_character_ids(self):
+        self.assertSetEqual(Character.objects.all().eve_character_ids(), {1001, 1002})
+
+
 class TestCharacterManagerUserHasAccess(TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -126,6 +138,14 @@ class TestCharacterManagerUserHasAccess(TestCase):
         cls.character_1103 = add_memberaudit_character_to_user(
             cls.character_1002.character_ownership.user, 1103
         )
+        cls.character_1110 = add_memberaudit_character_to_user(
+            cls.character_1001.character_ownership.user, 1110
+        )
+        cls.character_1111 = create_memberaudit_character(1111)
+        cls.character_1121 = add_memberaudit_character_to_user(
+            cls.character_1001.character_ownership.user, 1121
+        )
+        cls.character_1122 = create_memberaudit_character(1122)
         cls.member_state = AuthUtils.get_member_state()
         cls.member_state.member_alliances.add(
             EveAllianceInfo.objects.get(alliance_id=3001)
@@ -139,7 +159,7 @@ class TestCharacterManagerUserHasAccess(TestCase):
         result_qs = Character.objects.user_has_access(
             user=self.character_1001.character_ownership.user
         )
-        self.assertSetEqual(queryset_pks(result_qs), {self.character_1001.pk})
+        self.assertSetEqual(result_qs.eve_character_ids(), {1001, 1110, 1121})
 
     def test_view_own_corporation_1(self):
         """
@@ -151,12 +171,12 @@ class TestCharacterManagerUserHasAccess(TestCase):
             "memberaudit.view_same_corporation", user
         )
         result_qs = Character.objects.user_has_access(user=user)
-        self.assertSetEqual(queryset_pks(result_qs), {self.character_1001.pk})
+        self.assertSetEqual(result_qs.eve_character_ids(), {1001, 1110, 1121})
 
     def test_view_own_corporation_2(self):
         """
         when user has permission to view own corporation and characters_access
-        then include characters of corporations members only (mains + alts)
+        then include characters of corporations members (mains + alts)
         """
         user = self.character_1001.character_ownership.user
         user = AuthUtils.add_permission_to_user_by_name(
@@ -167,8 +187,7 @@ class TestCharacterManagerUserHasAccess(TestCase):
         )
         result_qs = Character.objects.user_has_access(user=user)
         self.assertSetEqual(
-            queryset_pks(result_qs),
-            {self.character_1001.pk, self.character_1002.pk, self.character_1103.pk},
+            result_qs.eve_character_ids(), {1001, 1002, 1103, 1110, 1111, 1121}
         )
 
     def test_view_own_alliance_1a(self):
@@ -181,12 +200,12 @@ class TestCharacterManagerUserHasAccess(TestCase):
             "memberaudit.view_same_alliance", user
         )
         result_qs = Character.objects.user_has_access(user=user)
-        self.assertSetEqual(queryset_pks(result_qs), {self.character_1001.pk})
+        self.assertSetEqual(result_qs.eve_character_ids(), {1001, 1110, 1121})
 
     def test_view_own_alliance_1b(self):
         """
         when user has permission to view own alliance and characters_access
-        then include characters of alliance members only (mains + alts)
+        then include characters of alliance members (mains + alts)
         """
         user = self.character_1001.character_ownership.user
         user = AuthUtils.add_permission_to_user_by_name(
@@ -197,13 +216,7 @@ class TestCharacterManagerUserHasAccess(TestCase):
         )
         result_qs = Character.objects.user_has_access(user=user)
         self.assertSetEqual(
-            queryset_pks(result_qs),
-            {
-                self.character_1001.pk,
-                self.character_1002.pk,
-                self.character_1003.pk,
-                self.character_1103.pk,
-            },
+            result_qs.eve_character_ids(), {1001, 1002, 1003, 1103, 1110, 1121, 1122}
         )
 
     def test_view_own_alliance_2(self):
@@ -220,7 +233,7 @@ class TestCharacterManagerUserHasAccess(TestCase):
             "memberaudit.characters_access", user
         )
         result_qs = Character.objects.user_has_access(user=user)
-        self.assertSetEqual(queryset_pks(result_qs), {self.character_1102.pk})
+        self.assertSetEqual(result_qs.eve_character_ids(), {1102})
 
     def test_view_everything_1(self):
         """
@@ -232,7 +245,7 @@ class TestCharacterManagerUserHasAccess(TestCase):
             "memberaudit.view_everything", user
         )
         result_qs = Character.objects.user_has_access(user=user)
-        self.assertSetEqual(queryset_pks(result_qs), {self.character_1001.pk})
+        self.assertSetEqual(result_qs.eve_character_ids(), {1001, 1110, 1121})
 
     def test_view_everything_2(self):
         """
@@ -248,15 +261,8 @@ class TestCharacterManagerUserHasAccess(TestCase):
         )
         result_qs = Character.objects.user_has_access(user=user)
         self.assertSetEqual(
-            queryset_pks(result_qs),
-            {
-                self.character_1001.pk,
-                self.character_1002.pk,
-                self.character_1003.pk,
-                self.character_1101.pk,
-                self.character_1102.pk,
-                self.character_1103.pk,
-            },
+            result_qs.eve_character_ids(),
+            {1001, 1002, 1003, 1101, 1102, 1103, 1110, 1111, 1121, 1122},
         )
 
     def test_recruiter_access(self):
@@ -270,8 +276,7 @@ class TestCharacterManagerUserHasAccess(TestCase):
         )
         result_qs = Character.objects.user_has_access(user=user)
         self.assertSetEqual(
-            queryset_pks(result_qs),
-            {self.character_1001.pk, self.character_1002.pk, self.character_1102.pk},
+            result_qs.eve_character_ids(), {1001, 1002, 1102, 1110, 1121}
         )
 
 

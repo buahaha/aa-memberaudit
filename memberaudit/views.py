@@ -973,7 +973,7 @@ def character_jump_clones_data(
                 "location__eve_solar_system",
                 "location__eve_solar_system__eve_constellation__eve_region",
             )
-            .prefetch_related("implants")
+            .prefetch_related("implants", "implants__eve_type__dogma_attributes")
             .all()
         ):
             if not jump_clone.location.is_empty:
@@ -987,16 +987,14 @@ def character_jump_clones_data(
                 region = "-"
 
             implants_data = list()
-            for obj in jump_clone.implants.select_related("eve_type").prefetch_related(
-                "eve_type__dogma_attributes"
-            ):
+            for obj in jump_clone.implants.all():
+                dogma_attributes = {
+                    attribute.eve_dogma_attribute_id: attribute.value
+                    for attribute in obj.eve_type.dogma_attributes.all()
+                }
                 try:
-                    slot_num = int(
-                        obj.eve_type.dogma_attributes.get(
-                            eve_dogma_attribute_id=331
-                        ).value
-                    )
-                except (ObjectDoesNotExist, AttributeError):
+                    slot_num = int(dogma_attributes[331])
+                except (KeyError, TypeError):
                     slot_num = 0
 
                 implants_data.append(
