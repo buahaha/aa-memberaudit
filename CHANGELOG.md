@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.3.2] - 2021-05-18
+
 ### Fixed
 
 - Trying to fetch deleted mail results in 404s repeatedly (#94)
