@@ -295,7 +295,13 @@ When switching to thread based workers please also make sure to setup measure to
 
 ### ESI connection pool
 
-If you have more than 10 workers you also need to increase the connection pool for django-esi accordingly. See [here](https://gitlab.com/allianceauth/django-esi/-/blob/master/esi/app_settings.py#L32) for the corresponding setting.
+If you have more than 10 workers you also need to increase the connection pool for django-esi accordingly. You can do this by adding the following line to your local settings (e.g. for 20 workers):
+
+```python
+ESI_CONNECTION_POOL_MAXSIZE = 20
+```
+
+See [here](https://gitlab.com/allianceauth/django-esi/-/blob/master/esi/app_settings.py#L36) for the corresponding setting in django-esi.
 
 ### Celery priorities
 
