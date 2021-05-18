@@ -117,7 +117,7 @@ Make sure you are in the virtual environment (venv) of your Alliance Auth instal
 pip install aa-memberaudit
 ```
 
-### Step 2a - Configure Auth settings
+### Step 2 - Configure Auth settings
 
 Configure your Auth settings (`local.py`) as follows:
 
@@ -132,29 +132,6 @@ CELERYBEAT_SCHEDULE['memberaudit_run_regular_updates'] = {
 ```
 
 - Optional: Add additional settings if you want to change any defaults. See [Settings](#settings) for the full list.
-
-### Step 2b - Configure celery settings
-
-To remove clutter from your log file we recommend to change the default log message for successful tasks, so that results are no longer shown in the log.
-
-For that make the following changes to your `celery.py`:
-
-Add a new import at the top:
-
-```python
-from celery.app import trace
-```
-
-Add these lines the bottom of the file for the new log config:
-
-```python
-# Remove result from default log message on task success
-trace.LOG_SUCCESS = "Task %(name)s[%(id)s] succeeded in %(runtime)ss"
-```
-
-> **Hint**<br>This change is recommended, but not strictly required to run Member Audit.
-
-> **Note**<br>If accepted this change may also become part of the standard Auth configuration. See also this [merge request](https://gitlab.com/allianceauth/allianceauth/-/merge_requests/1273/diffs).
 
 ### Step 3 - Finalize App installation
 
