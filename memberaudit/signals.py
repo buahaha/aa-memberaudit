@@ -1,10 +1,10 @@
+from django.db.models.signals import pre_save
 from django.dispatch import receiver
 
-from django.db.models.signals import pre_save
-
-from .models import ComplianceGroup
 from allianceauth.authentication.models import UserProfile
 from allianceauth.services.hooks import get_extension_logger
+
+from .models import ComplianceGroup
 
 logger = get_extension_logger(__name__)
 

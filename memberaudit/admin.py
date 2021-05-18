@@ -10,9 +10,9 @@ from .constants import EVE_CATEGORY_ID_SHIP
 from .models import (
     Character,
     CharacterUpdateStatus,
+    ComplianceGroup,
     EveShipType,
     EveSkillType,
-    ComplianceGroup,
     Location,
     SkillSet,
     SkillSetGroup,

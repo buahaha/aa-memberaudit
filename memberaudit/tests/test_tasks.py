@@ -10,6 +10,7 @@ from django.utils.timezone import now
 from esi.models import Token
 from eveuniverse.models import EveSolarSystem, EveType
 
+from allianceauth.authentication.models import CharacterOwnership, State
 from allianceauth.tests.auth_utils import AuthUtils
 from app_utils.testing import generate_invalid_pk
 
@@ -17,11 +18,9 @@ from ..helpers import EsiErrorLimitExceeded, EsiOffline, EsiStatus
 from ..models import (
     Character,
     CharacterAsset,
-    CharacterOwnership,
     CharacterUpdateStatus,
     ComplianceGroup,
     Location,
-    State,
 )
 from ..tasks import (
     delete_character,
