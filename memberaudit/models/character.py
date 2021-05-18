@@ -8,6 +8,8 @@ import json
 import os
 from typing import Any, Optional
 
+from bravado.exception import HTTPNotFound
+
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
@@ -829,11 +831,18 @@ class Character(models.Model):
     @fetch_token_for_character("esi-mail.read_mail.v1")
     def update_mail_body(self, token: Token, mail: models.Model) -> None:
         logger.debug("%s: Fetching body from ESI for mail ID %s", self, mail.mail_id)
-        mail_body = esi.client.Mail.get_characters_character_id_mail_mail_id(
-            character_id=self.character_ownership.character.character_id,
-            mail_id=mail.mail_id,
-            token=token.valid_access_token(),
-        ).result()
+        try:
+            mail_body = esi.client.Mail.get_characters_character_id_mail_mail_id(
+                character_id=self.character_ownership.character.character_id,
+                mail_id=mail.mail_id,
+                token=token.valid_access_token(),
+            ).result()
+        except HTTPNotFound:
+            logger.info(
+                "%s: Mail %s was deleted in game. Removing mail header.", self, mail
+            )
+            mail.delete()
+            return
         mail.body = mail_body.get("body", "")
         mail.save()
         eve_xml_to_html(mail.body)  # resolve names early

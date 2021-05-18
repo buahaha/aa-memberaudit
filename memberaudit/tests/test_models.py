@@ -3,6 +3,7 @@ import hashlib
 import json
 from unittest.mock import Mock, patch
 
+from bravado.exception import HTTPNotFound
 from pytz import UTC
 
 from django.core.exceptions import ValidationError
@@ -14,6 +15,7 @@ from esi.models import Token
 from eveuniverse.models import EveEntity, EveMarketPrice, EveSolarSystem, EveType
 
 from allianceauth.tests.auth_utils import AuthUtils
+from app_utils.esi_testing import BravadoResponseStub
 from app_utils.testing import NoSocketsTestCase
 
 from ..core.xml_converter import eve_xml_to_html
@@ -1986,8 +1988,8 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
             {2, 3},
         )
 
-    def test_update_mail_body_1(self, mock_esi):
-        """can update mail body"""
+    def test_should_update_existing_mail_body(self, mock_esi):
+        # given
         mock_esi.client = esi_client_stub
         sender, _ = MailEntity.objects.update_or_create_from_eve_entity_id(id=1002)
         mail = CharacterMail.objects.create(
@@ -2006,15 +2008,15 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
             id=9001, category=MailEntity.Category.MAILING_LIST, name="Dummy 2"
         )
         mail.recipients.add(recipient_1001, recipient_9001)
-
+        # when
         self.character_1001.update_mail_body(mail)
-
+        # then
         obj = self.character_1001.mails.get(mail_id=1)
         self.assertEqual(obj.body, "blah blah blah")
 
     @patch(MODELS_PATH + ".character.eve_xml_to_html")
-    def test_update_mail_body_2(self, mock_eve_xml_to_html, mock_esi):
-        """can update mail body"""
+    def test_should_update_mail_body_from_scratch(self, mock_eve_xml_to_html, mock_esi):
+        # given
         mock_esi.client = esi_client_stub
         mock_eve_xml_to_html.side_effect = lambda x: eve_xml_to_html(x)
         sender, _ = MailEntity.objects.update_or_create_from_eve_entity_id(id=1002)
@@ -2028,12 +2030,38 @@ class TestCharacterUpdateMails(TestCharacterUpdateBase):
         )
         recipient_1, _ = MailEntity.objects.update_or_create_from_eve_entity_id(id=1001)
         mail.recipients.add(recipient_1)
-
+        # when
         self.character_1001.update_mail_body(mail)
-
+        # then
         obj = self.character_1001.mails.get(mail_id=2)
         self.assertTrue(obj.body)
         self.assertTrue(mock_eve_xml_to_html.called)
+
+    def test_should_delete_mail_header_when_fetching_body_returns_404(self, mock_esi):
+        # given
+        mock_esi.client.Mail.get_characters_character_id_mail_mail_id.side_effect = (
+            HTTPNotFound(response=BravadoResponseStub(404, "Test"))
+        )
+        sender, _ = MailEntity.objects.update_or_create_from_eve_entity_id(id=1002)
+        mail = CharacterMail.objects.create(
+            character=self.character_1001,
+            mail_id=1,
+            sender=sender,
+            subject="Mail 1",
+            is_read=False,
+            timestamp=parse_datetime("2015-09-30T16:07:00Z"),
+        )
+        recipient_1001, _ = MailEntity.objects.update_or_create_from_eve_entity_id(
+            id=1001
+        )
+        recipient_9001 = MailEntity.objects.create(
+            id=9001, category=MailEntity.Category.MAILING_LIST, name="Dummy 2"
+        )
+        mail.recipients.add(recipient_1001, recipient_9001)
+        # when
+        self.character_1001.update_mail_body(mail)
+        # then
+        self.assertFalse(self.character_1001.mails.filter(mail_id=1).exists())
 
 
 @patch(MODELS_PATH + ".character.esi")
