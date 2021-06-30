@@ -8,8 +8,8 @@ from django_webtest import WebTest
 from eveuniverse.models import EveEntity, EveType
 
 from allianceauth.tests.auth_utils import AuthUtils
+from app_utils.esi import EsiStatus
 
-from ..helpers import EsiStatus
 from ..models import (
     CharacterAsset,
     CharacterContract,

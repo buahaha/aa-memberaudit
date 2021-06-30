@@ -9,9 +9,9 @@ from django.utils.timezone import now
 from esi.models import Token
 from eveuniverse.models import EveSolarSystem, EveType
 
+from app_utils.esi import EsiErrorLimitExceeded, EsiOffline, EsiStatus
 from app_utils.testing import generate_invalid_pk
 
-from ..helpers import EsiErrorLimitExceeded, EsiOffline, EsiStatus
 from ..models import Character, CharacterAsset, CharacterUpdateStatus, Location
 from ..tasks import (
     delete_character,

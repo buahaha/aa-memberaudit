@@ -10,9 +10,9 @@ from eveuniverse.models import EveEntity, EveMarketPrice, EveSolarSystem, EveTyp
 
 from allianceauth.eveonline.models import EveAllianceInfo
 from allianceauth.tests.auth_utils import AuthUtils
+from app_utils.esi import EsiStatus
 from app_utils.testing import NoSocketsTestCase
 
-from ..helpers import EsiStatus
 from ..models import (
     Character,
     CharacterAsset,

@@ -15,11 +15,11 @@ from esi.models import Token
 from eveuniverse.models import EveEntity, EveMarketPrice, EveSolarSystem, EveType
 
 from allianceauth.tests.auth_utils import AuthUtils
+from app_utils.esi import EsiStatus
 from app_utils.esi_testing import BravadoResponseStub
 from app_utils.testing import NoSocketsTestCase
 
 from ..core.xml_converter import eve_xml_to_html
-from ..helpers import EsiStatus
 from ..models import (
     Character,
     CharacterAttributes,

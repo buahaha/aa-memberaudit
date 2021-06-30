@@ -12,6 +12,7 @@ from eveuniverse.models import EveEntity, EveMarketPrice
 
 from allianceauth.services.hooks import get_extension_logger
 from allianceauth.services.tasks import QueueOnce
+from app_utils.esi import EsiErrorLimitExceeded, EsiOffline, fetch_esi_status
 from app_utils.logging import LoggerAddTag
 
 from . import __title__
@@ -23,7 +24,6 @@ from .app_settings import (
     MEMBERAUDIT_TASKS_TIME_LIMIT,
     MEMBERAUDIT_UPDATE_STALE_RING_2,
 )
-from .helpers import EsiErrorLimitExceeded, EsiOffline, fetch_esi_status
 from .models import (
     Character,
     CharacterAsset,

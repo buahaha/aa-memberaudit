@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Changed
+
+- Use improved `fetch_esi_status()` from app_utils
+
 ### Fixed
 
 - Trying to update a character on admin site gives error 500
