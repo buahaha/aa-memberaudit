@@ -217,7 +217,7 @@ class CharacterAdmin(admin.ModelAdmin):
 
     def update_characters(self, request, queryset):
         for obj in queryset:
-            tasks.update_characters.delay(character_pk=obj.pk, force_update=True)
+            tasks.update_character.delay(character_pk=obj.pk, force_update=True)
             self.message_user(request, f"Started updating character: {obj}. ")
 
     update_characters.short_description = "Update selected characters from EVE server"
