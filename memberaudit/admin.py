@@ -114,6 +114,7 @@ class CharacterAdmin(admin.ModelAdmin):
     list_select_related = (
         "character_ownership__user",
         "character_ownership__user__profile__main_character",
+        "character_ownership__user__profile__state",
         "character_ownership__character",
     )
     ordering = ["character_ownership__character__character_name"]
@@ -217,7 +218,7 @@ class CharacterAdmin(admin.ModelAdmin):
 
     def update_characters(self, request, queryset):
         for obj in queryset:
-            tasks.update_characters.delay(character_pk=obj.pk, force_update=True)
+            tasks.update_character.delay(character_pk=obj.pk, force_update=True)
             self.message_user(request, f"Started updating character: {obj}. ")
 
     update_characters.short_description = "Update selected characters from EVE server"

@@ -2,14 +2,15 @@ from unittest.mock import patch
 
 from django.contrib.admin.sites import AdminSite
 from django.test import RequestFactory, TestCase
+from django.urls import reverse
 
-from ..admin import SkillSetAdmin, SkillSetShipTypeFilter
-from ..models import EveShipType, SkillSet
-from . import create_user_from_evecharacter
+from ..admin import CharacterAdmin, SkillSetAdmin, SkillSetShipTypeFilter
+from ..models import Character, EveShipType, SkillSet
+from . import create_memberaudit_character, create_user_from_evecharacter
 from .testdata.load_entities import load_entities
 from .testdata.load_eveuniverse import load_eveuniverse
 
-MODULE_PATH = "memberaudit.admin"
+ADMIN_PATH = "memberaudit.admin"
 
 
 class MockRequest(object):
@@ -27,7 +28,7 @@ class TestSkillSetAdmin(TestCase):
         load_entities()
         cls.user, _ = create_user_from_evecharacter(1001)
 
-    @patch(MODULE_PATH + ".tasks.update_characters_skill_checks")
+    @patch(ADMIN_PATH + ".tasks.update_characters_skill_checks")
     def test_save_model(self, mock_update_characters_skill_checks):
         ship = SkillSet.objects.create(name="Dummy")
         request = MockRequest(self.user)
@@ -36,7 +37,7 @@ class TestSkillSetAdmin(TestCase):
 
         self.assertTrue(mock_update_characters_skill_checks.delay.called)
 
-    @patch(MODULE_PATH + ".tasks.update_characters_skill_checks")
+    @patch(ADMIN_PATH + ".tasks.update_characters_skill_checks")
     def test_delete_model(self, mock_update_characters_skill_checks):
         ship = SkillSet.objects.create(name="Dummy")
         request = MockRequest(self.user)
@@ -79,3 +80,29 @@ class TestSkillSetAdmin(TestCase):
         queryset = changelist.get_queryset(request)
         expected = {ss_1}
         self.assertSetEqual(set(queryset), expected)
+
+
+class TestCharacterAdmin(TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.factory = RequestFactory()
+        cls.modeladmin = CharacterAdmin(model=Character, admin_site=AdminSite())
+        load_eveuniverse()
+        load_entities()
+        cls.character = create_memberaudit_character(1001)
+        cls.user = cls.character.character_ownership.user
+
+    @patch(ADMIN_PATH + ".CharacterAdmin.message_user")
+    @patch(ADMIN_PATH + ".tasks.update_character")
+    def test_should_update_characters(
+        self, mock_task_update_character, mock_message_user
+    ):
+        # given
+        request = self.factory.get(reverse("admin:memberaudit_character_changelist"))
+        queryset = Character.objects.all()
+        # when
+        self.modeladmin.update_characters(request, queryset)
+        # then
+        self.assertEqual(mock_task_update_character.delay.call_count, 1)
+        self.assertTrue(mock_message_user.called)

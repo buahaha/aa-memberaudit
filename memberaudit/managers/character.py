@@ -23,10 +23,7 @@ class CharacterQuerySet(models.QuerySet):
         )
 
 
-class CharacterManager(ObjectCacheMixin, models.Manager):
-    def get_queryset(self) -> models.QuerySet:
-        return CharacterQuerySet(self.model, using=self._db)
-
+class CharacterManagerBase(ObjectCacheMixin, models.Manager):
     def unregistered_characters_of_user_count(self, user: User) -> int:
         return CharacterOwnership.objects.filter(
             user=user, memberaudit_character__isnull=True
@@ -73,6 +70,9 @@ class CharacterManager(ObjectCacheMixin, models.Manager):
                 qs = qs | self.filter(is_shared=True)
 
         return qs
+
+
+CharacterManager = CharacterManagerBase.from_queryset(CharacterQuerySet)
 
 
 class CharacterUpdateStatusManager(models.Manager):
