@@ -7,9 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.3.3] - 2021-06-30
+
 ### Changed
 
-- Use improved `fetch_esi_status()` from app_utils
+- Will no longer run updates during the daily downtime
 
 ### Fixed
 
