@@ -114,6 +114,7 @@ class CharacterAdmin(admin.ModelAdmin):
     list_select_related = (
         "character_ownership__user",
         "character_ownership__user__profile__main_character",
+        "character_ownership__user__profile__state",
         "character_ownership__character",
     )
     ordering = ["character_ownership__character__character_name"]
