@@ -226,9 +226,17 @@ class TestCharacterFetchToken(TestCase):
         self.assertIsInstance(token, Token)
         self.assertIn("esi-mail.read_mail.v1", scope_names_set(token))
 
-    def test_exceptions_if_not_found(self):
+    @patch(MODELS_PATH + ".character.notify_throttled")
+    def test_should_raise_exception_and_notify_user_if_not_found(
+        self, mock_notify_throttled
+    ):
+        # when
         with self.assertRaises(TokenError):
             self.character.fetch_token("invalid_scope")
+        # then
+        self.assertTrue(mock_notify_throttled.called)
+        _, kwargs = mock_notify_throttled.call_args
+        self.assertEqual(kwargs["user"], self.character.character_ownership.user)
 
 
 class TestCharacterSkillQueue(NoSocketsTestCase):

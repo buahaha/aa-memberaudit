@@ -23,12 +23,14 @@ from eveuniverse.models import EveEntity, EveType
 
 from allianceauth.authentication.models import CharacterOwnership
 from allianceauth.services.hooks import get_extension_logger
+from app_utils.allianceauth import notify_throttled
 from app_utils.datetime import datetime_round_hour
 from app_utils.helpers import chunks
 from app_utils.logging import LoggerAddTag
 
 from .. import __title__
 from ..app_settings import (
+    MEMBERAUDIT_APP_NAME,
     MEMBERAUDIT_DATA_RETENTION_LIMIT,
     MEMBERAUDIT_DEVELOPER_MODE,
     MEMBERAUDIT_MAX_MAILS,
@@ -323,18 +325,28 @@ class Character(models.Model):
         Exceptions:
         - TokenError: If no valid token can be found
         """
+        user = self.character_ownership.user
+        character = self.character_ownership.character
         token = (
             Token.objects.prefetch_related("scopes")
-            .filter(
-                user=self.character_ownership.user,
-                character_id=self.character_ownership.character.character_id,
-            )
+            .filter(user=user, character_id=character.character_id)
             .require_scopes(scopes if scopes else self.get_esi_scopes())
             .require_valid()
             .first()
         )
         if not token:
-            raise TokenError("Could not find a matching token")
+            message_id = f"{__title__}-fetch_token-{self.pk}-TokenError"
+            title = f"{__title__}: Invalid or missing token for {character}"
+            message = (
+                f"{MEMBERAUDIT_APP_NAME} could not find a valid token for your "
+                f"character {character}.\n"
+                f"Please re-add that character to {MEMBERAUDIT_APP_NAME} "
+                "at your earliest convenience to update your token."
+            )
+            notify_throttled(
+                message_id=message_id, user=user, title=title, message=message
+            )
+            raise TokenError(f"Could not find a matching token for {self}")
 
         return token
 

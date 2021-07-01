@@ -44,7 +44,7 @@ setup(
         "celery-once>=2.0.1",
         "django-esi>=2.0.4",
         "django-eveuniverse>=0.8.0",
-        "allianceauth-app-utils>=1.6",
+        "allianceauth-app-utils>=1.7",
         "humanize",
         "requests",
     ],
