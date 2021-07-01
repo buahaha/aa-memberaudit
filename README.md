@@ -333,6 +333,7 @@ Note that all settings are optional and the app will use the documented default 
 
 Name | Description | Default
 -- | -- | --
+`APP_UTILS_NOTIFY_THROTTLED_TIMEOUT`| Timeout for throttled notifications in seconds. This defines how often throttled user notifications are send. | (see [Settings](https://allianceauth-app-utils.readthedocs.io/en/latest/settings.html) for App Utils})
 `MEMBERAUDIT_APP_NAME`| Name of this app as shown in the Auth sidebar. | `'Member Audit'`
 `MEMBERAUDIT_DATA_RETENTION_LIMIT`| Maximum number of days to keep historical data for mails, contracts and wallets. Minimum is 7 day. `None` will turn it off. | `360`
 `MEMBERAUDIT_ESI_ERROR_LIMIT_THRESHOLD`| ESI error limit remain threshold. The number of remaining errors is counted down from 100 as errors occur. Because multiple tasks may request the value simultaneously and get the same response, the threshold must be above 0 to prevent the API from shutting down with a 420 error | `25`

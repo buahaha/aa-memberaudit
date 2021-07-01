@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+## [1.4.0] - 2021-07-01
+
+### Added
+
+- Will now send daily reminder notifications to users if their character tokens become invalid.
+
 ## [1.3.3] - 2021-06-30
 
 ### Changed
