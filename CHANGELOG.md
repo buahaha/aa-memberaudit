@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [Unreleased] - yyyy-mm-dd
 
+### Added
+
+- Fetches roles for characters. You must update your app to request the `esi-characters.read_corporation_roles.v1` scope.
+
 ## [1.4.0] - 2021-07-01
 
 ### Added

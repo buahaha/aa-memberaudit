@@ -31,6 +31,7 @@ from ..models import (
     CharacterLoyaltyEntry,
     CharacterMail,
     CharacterMailLabel,
+    CharacterRole,
     CharacterSkill,
     CharacterSkillqueueEntry,
     CharacterWalletJournalEntry,
@@ -60,6 +61,7 @@ from ..views import (
     character_mail_data,
     character_mail_headers_by_label_data,
     character_mail_headers_by_list_data,
+    character_roles_data,
     character_skill_set_details,
     character_skill_sets_data,
     character_skillqueue_data,
@@ -1068,6 +1070,23 @@ class TestCharacterDataViewsOther(TestViewsBase):
         row = data[0]
         self.assertEqual(row["corporation"]["sort"], "Lexcorp")
         self.assertEqual(row["loyalty_points"], 99)
+
+    def test_character_roles_data(self):
+        CharacterRole.objects.create(
+            character=self.character, location="hq", role="Director"
+        )
+        request = self.factory.get(
+            reverse("memberaudit:character_roles_data", args=[self.character.pk])
+        )
+        request.user = self.user
+        response = character_roles_data(request, self.character.pk)
+        self.assertEqual(response.status_code, 200)
+        data: dict = json_response_to_python(response)
+        self.assertCountEqual(
+            ["Universal", "Base", "Headquarters", "Other"], list(data.keys())
+        )
+        self.assertEqual(len(data.keys()), 4)
+        self.assertIn("Director", data["Headquarters"])
 
     def test_character_skills_data(self):
         CharacterSkill.objects.create(

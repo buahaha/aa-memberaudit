@@ -842,6 +842,29 @@ class CharacterMailLabelManager(models.Manager):
         )
 
 
+class CharacterRoleManager(models.Manager):
+    @transaction.atomic()
+    def update_for_character(self, character: models.Model, token: Token, roles):
+        to_remove = list(
+            self.filter(character=character).values_list("location", "role")
+        )
+        to_add = []
+        for location, role_list in roles.items():
+            location = location[6:]  # strip off "roles_"
+            for role in role_list:
+                if (location, role) in to_remove:
+                    # if we already have the role, don't remove it
+                    to_remove.remove((location, role))
+                else:
+                    # if we don't have the role, prepare to add it
+                    to_add.append(
+                        self.model(character=character, role=role, location=location)
+                    )
+        self.bulk_create(to_add)
+        for (location, role) in to_remove:
+            self.filter(character=character, location=location, role=role).delete()
+
+
 class CharacterSkillqueueEntryManager(models.Manager):
     def update_for_character(self, character: models.Model, skillqueue):
         # TODO: Replace delete + create with create + update

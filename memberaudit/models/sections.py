@@ -37,6 +37,7 @@ from ..managers.sections import (
     CharacterLoyaltyEntryManager,
     CharacterMailLabelManager,
     CharacterMailManager,
+    CharacterRoleManager,
     CharacterSkillManager,
     CharacterSkillqueueEntryManager,
     CharacterSkillSetCheckManager,
@@ -794,6 +795,91 @@ class CharacterOnlineStatus(models.Model):
 
     def __str__(self) -> str:
         return str(self.character)
+
+
+class CharacterRole(models.Model):
+    LOCATIONS = (
+        ("base", "Base"),
+        ("hq", "Headquarters"),
+        ("other", "Other"),
+        ("", "Universal"),
+    )
+
+    ROLES = (
+        ("Director", "Director"),
+        ("Personnel_Manager", "Personnel Manager"),
+        ("Accountant", "Accountant"),
+        ("Security_Officer", "Security Officer"),
+        ("Factory_Manager", "Factory Manager"),
+        ("Station_Manager", "Station Manager"),
+        ("Auditor", "Auditor"),
+        ("Hangar_Take_1", "Hangar Take 1"),
+        ("Hangar_Take_2", "Hangar Take 2"),
+        ("Hangar_Take_3", "Hangar Take 3"),
+        ("Hangar_Take_4", "Hangar Take 4"),
+        ("Hangar_Take_5", "Hangar Take 5"),
+        ("Hangar_Take_6", "Hangar Take 6"),
+        ("Hangar_Take_7", "Hangar Take 7"),
+        ("Hangar_Query_1", "Hangar Query 1"),
+        ("Hangar_Query_2", "Hangar Query 2"),
+        ("Hangar_Query_3", "Hangar Query 3"),
+        ("Hangar_Query_4", "Hangar Query 4"),
+        ("Hangar_Query_5", "Hangar Query 5"),
+        ("Hangar_Query_6", "Hangar Query 6"),
+        ("Hangar_Query_7", "Hangar Query 7"),
+        ("Account_Take_1", "Account Take 1"),
+        ("Account_Take_2", "Account Take 2"),
+        ("Account_Take_3", "Account Take 3"),
+        ("Account_Take_4", "Account Take 4"),
+        ("Account_Take_5", "Account Take 5"),
+        ("Account_Take_6", "Account Take 6"),
+        ("Account_Take_7", "Account Take 7"),
+        ("Diplomat", "Diplomat"),
+        ("Config_Equipment", "Config Equipment"),
+        ("Container_Take_1", "Container Take 1"),
+        ("Container_Take_2", "Container Take 2"),
+        ("Container_Take_3", "Container Take 3"),
+        ("Container_Take_4", "Container Take 4"),
+        ("Container_Take_5", "Container Take 5"),
+        ("Container_Take_6", "Container Take 6"),
+        ("Container_Take_7", "Container Take 7"),
+        ("Rent_Office", "Rent Office"),
+        ("Rent_Factory_Facility", "Rent Factory Facility"),
+        ("Rent_Research_Facility", "Rent Research Facility"),
+        ("Junior_Accountant", "Junior Accountant"),
+        ("Config_Starbase_Equipment", "Config Starbase Equipment"),
+        ("Trader", "Trader"),
+        ("Communications_Officer", "Communications Officer"),
+        ("Contract_Manager", "Contract Manager"),
+        ("Starbase_Defense_Operator", "Starbase Defense Operator"),
+        ("Starbase_Fuel_Technician", "Starbase Fuel Technician"),
+        ("Fitting_Manager", "Fitting Manager"),
+    )
+    character = models.ForeignKey(
+        Character,
+        on_delete=models.CASCADE,
+        related_name="roles",
+        related_query_name="role",
+    )
+
+    location = models.CharField(
+        max_length=5,
+        choices=LOCATIONS,
+        default="",
+        help_text="Location, if the role is specific to one. If blank, the role is generally applicable.",
+    )
+    role = models.CharField(max_length=25, choices=ROLES)
+
+    objects: CharacterRoleManager = CharacterRoleManager()
+
+    class Meta:
+        default_permissions = ()
+        constraints = [
+            models.UniqueConstraint(
+                fields=["character", "location", "role"],
+                name="functional_pk_characterrole",
+            )
+        ]
 
 
 class CharacterSkill(models.Model):

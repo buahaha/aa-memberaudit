@@ -2166,6 +2166,24 @@ class TestCharacterUpdateOnlineStatus(TestCharacterUpdateBase):
 
 
 @patch(MODELS_PATH + ".character.esi")
+class TestCharacterUpdateRoles(TestCharacterUpdateBase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+
+    def test_update_roles(self, mock_esi):
+        """can update roles"""
+        mock_esi.client = esi_client_stub
+
+        self.character_1001.update_roles()
+        self.assertEqual(len(self.character_1001.roles.all()), 192)
+
+        self.assertIn(
+            "Director", self.character_1001.roles.values_list("role", flat=True)
+        )
+
+
+@patch(MODELS_PATH + ".character.esi")
 class TestCharacterUpdateSkills(TestCharacterUpdateBase):
     @classmethod
     def setUpClass(cls) -> None:

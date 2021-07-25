@@ -76,6 +76,7 @@ class Character(models.Model):
         LOYALTY = "loyalty", _("loyalty")
         MAILS = "mails", _("mails")
         ONLINE_STATUS = "online_status", _("online status")
+        ROLES = "roles", _("roles")
         SKILLS = "skills", _("skills")
         SKILL_QUEUE = "skill_queue", _("skill queue")
         SKILL_SETS = "skill_sets", _("skill sets")
@@ -123,6 +124,7 @@ class Character(models.Model):
         UpdateSection.MAILS: 2,
         UpdateSection.ONLINE_STATUS: 1,
         UpdateSection.SKILLS: 2,
+        UpdateSection.ROLES: 1,
         UpdateSection.SKILL_QUEUE: 1,
         UpdateSection.WALLET_BALLANCE: 2,
         UpdateSection.WALLET_JOURNAL: 2,
@@ -880,6 +882,21 @@ class Character(models.Model):
             },
         )
 
+    @fetch_token_for_character("esi-characters.read_corporation_roles.v1")
+    def update_roles(self, token, force_update: bool = False):
+        """Update the character's roles"""
+        from .sections import CharacterRole
+
+        logger.info("%s: Fetching roles from ESI", self)
+        token = token.valid_access_token()
+        roles = esi.client.Character.get_characters_character_id_roles(
+            character_id=self.character_ownership.character.character_id,
+            token=token,
+        ).results()
+        CharacterRole.objects.update_for_character(
+            character=self, token=token, roles=roles
+        )
+
     @fetch_token_for_character("esi-skills.read_skillqueue.v1")
     def update_skill_queue(self, token: Token, force_update: bool = False):
         """update the character's skill queue"""
@@ -1040,6 +1057,7 @@ class Character(models.Model):
             "esi-characters.read_agents_research.v1",
             "esi-characters.read_blueprints.v1",
             "esi-characters.read_contacts.v1",
+            "esi-characters.read_corporation_roles.v1",
             "esi-characters.read_fatigue.v1",
             "esi-characters.read_fw_stats.v1",
             "esi-characters.read_loyalty.v1",

@@ -1137,6 +1137,27 @@ def character_mail_data(
 @login_required
 @permission_required("memberaudit.basic_access")
 @fetch_character_if_allowed()
+def character_roles_data(
+    request, character_pk: int, character: Character
+) -> JsonResponse:
+    data = list()
+    try:
+        for role in character.roles.all():
+            data.append(
+                {
+                    "role": role.get_role_display(),
+                    "location": role.get_location_display(),
+                }
+            )
+    except ObjectDoesNotExist:
+        pass
+
+    return JsonResponse(data, safe=False)
+
+
+@login_required
+@permission_required("memberaudit.basic_access")
+@fetch_character_if_allowed()
 def character_skillqueue_data(
     request, character_pk: int, character: Character
 ) -> JsonResponse:

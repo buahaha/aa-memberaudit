@@ -28,6 +28,7 @@ from .sections import (  # noqa: F401
     CharacterMailLabel,
     CharacterMailUnreadCount,
     CharacterOnlineStatus,
+    CharacterRole,
     CharacterSkill,
     CharacterSkillpoints,
     CharacterSkillqueueEntry,

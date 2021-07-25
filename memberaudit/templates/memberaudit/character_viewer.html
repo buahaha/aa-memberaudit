@@ -506,6 +506,34 @@
                 });
         })
 
+        /* Roles */
+        $('#tab_roles').DataTable({
+            ajax: {
+                url: "{% url 'memberaudit:character_role_data' character.pk %}",
+                dataSrc: '',
+                cache: false
+            },
+            columns: [
+                { data: 'location' },
+                {
+                    data: 'role',
+                },
+            ],
+            order: [[0, "desc"],[1, "asc"]],
+            filterDropDown: {
+                columns: [
+                    {
+                        idx: 0
+                    },
+                    {
+                        idx: 1
+                    }
+                ],
+                autoSize: false,
+                bootstrap: true
+            }
+        });
+
         /* Skillqueue */
         $('#tab_skillqueue').DataTable({
             ajax: {

@@ -239,7 +239,6 @@ def update_character(self, character_pk: int, force_update: bool = False) -> boo
                 self.request.id,
             ),
         ).apply_async(priority=DEFAULT_TASK_PRIORITY)
-
     return True
 
 
@@ -874,6 +873,16 @@ def update_contract_bids_esi(self, character_pk: int, contract_pk: int):
     )
     contract = CharacterContract.objects.get(pk=contract_pk)
     character.update_contract_bids(contract)
+
+
+@shared_task(**TASK_ESI_KWARGS)
+def update_character_roles_esi(self, character_pk: int, contract_pk: int):
+    """Task for updating character roles"""
+    _retry_if_esi_is_down(self)
+    character = Character.objects.get_cached(
+        pk=character_pk, timeout=MEMBERAUDIT_TASKS_OBJECT_CACHE_TIMEOUT
+    )
+    character.update_roles()
 
 
 # special tasks for updating wallet
