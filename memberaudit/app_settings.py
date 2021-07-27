@@ -64,6 +64,9 @@ MEMBERAUDIT_DATA_RETENTION_LIMIT = clean_setting(
     "MEMBERAUDIT_DATA_RETENTION_LIMIT", default_value=360, min_value=7
 )
 
+
+MEMBERAUDIT_FETCH_ROLES = clean_setting("MEMBERAUDIT_FETCH_ROLES", False)
+
 ####################
 # Internal settings
 

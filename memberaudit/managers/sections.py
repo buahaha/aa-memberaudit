@@ -17,7 +17,7 @@ from allianceauth.services.hooks import get_extension_logger
 from app_utils.logging import LoggerAddTag
 
 from .. import __title__
-from ..app_settings import MEMBERAUDIT_BULK_METHODS_BATCH_SIZE
+from ..app_settings import MEMBERAUDIT_BULK_METHODS_BATCH_SIZE, MEMBERAUDIT_FETCH_ROLES
 from ..core.xml_converter import eve_xml_to_html
 from ..helpers import get_or_create_esi_or_none, get_or_create_or_none, get_or_none
 
@@ -844,7 +844,12 @@ class CharacterMailLabelManager(models.Manager):
 
 class CharacterRoleManager(models.Manager):
     @transaction.atomic()
-    def update_for_character(self, character: models.Model, token: Token, roles):
+    def update_for_character(
+        self, character: models.Model, token: Token, roles
+    ) -> None:
+        if not MEMBERAUDIT_FETCH_ROLES:
+            self.filter(character=character).delete()
+            return
         to_remove = list(
             self.filter(character=character).values_list("location", "role")
         )
