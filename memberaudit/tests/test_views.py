@@ -1081,12 +1081,19 @@ class TestCharacterDataViewsOther(TestViewsBase):
         request.user = self.user
         response = character_roles_data(request, self.character.pk)
         self.assertEqual(response.status_code, 200)
-        data: dict = json_response_to_python(response)
-        self.assertCountEqual(
-            ["Universal", "Base", "Headquarters", "Other"], list(data.keys())
+        data = json_response_to_python(response)
+        self.assertEqual(
+            data,
+            [
+                {
+                    "role": "Director",
+                    "hq": True,
+                    "": False,
+                    "other": False,
+                    "base": False,
+                }
+            ],
         )
-        self.assertEqual(len(data.keys()), 4)
-        self.assertIn("Director", data["Headquarters"])
 
     def test_character_skills_data(self):
         CharacterSkill.objects.create(

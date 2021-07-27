@@ -263,6 +263,7 @@ Name | Description | Type
 `finder_access`| Can access character finder features for accessing characters from others | Feature
 `reports_access`| Can access reports features for seeing reports and analytics. | Feature
 `characters_access`| Can access characters owned by others. | Feature
+`view_roles`| Can access role data | Feature
 `view_shared_characters`| All characters, which have been marked as shared & can access these characters | Feature & Scope
 `view_same_corporation`| All mains - incl. their alts -  of the same corporations the user's characters belong to | Scope
 `view_same_alliance`| All mains - incl. their alts -  of the same alliances the user's characters belong to | Scope

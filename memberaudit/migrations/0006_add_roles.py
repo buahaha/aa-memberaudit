@@ -11,6 +11,28 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        migrations.AlterModelOptions(
+            name="general",
+            options={
+                "default_permissions": (),
+                "managed": False,
+                "permissions": (
+                    (
+                        "basic_access",
+                        "Can access this app, register, and view own characters",
+                    ),
+                    ("share_characters", "Can share his/her characters"),
+                    ("finder_access", "Can access character finder feature"),
+                    ("reports_access", "Can access reports feature"),
+                    ("characters_access", "Can view characters owned by others"),
+                    ("view_roles", "Can view characters roles"),
+                    ("view_shared_characters", "Can view shared characters"),
+                    ("view_same_corporation", "Can view corporation characters"),
+                    ("view_same_alliance", "Can view alliance characters"),
+                    ("view_everything", "Can view all characters"),
+                ),
+            },
+        ),
         migrations.AlterField(
             model_name="characterupdatestatus",
             name="section",

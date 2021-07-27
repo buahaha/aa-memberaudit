@@ -41,6 +41,7 @@ class General(models.Model):
             ("finder_access", "Can access character finder feature"),
             ("reports_access", "Can access reports feature"),
             ("characters_access", "Can view characters owned by others"),
+            ("view_roles", "Can view characters roles"),
             ("view_shared_characters", "Can view shared characters"),
             ("view_same_corporation", "Can view corporation characters"),
             ("view_same_alliance", "Can view alliance characters"),

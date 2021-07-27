@@ -2165,7 +2165,9 @@ class TestCharacterUpdateOnlineStatus(TestCharacterUpdateBase):
         self.assertEqual(self.character_1001.online_status.logins, 9001)
 
 
+@override_settings(CELERY_ALWAYS_EAGER=True)
 @patch(MODELS_PATH + ".character.esi")
+@patch(MANAGERS_PATH + ".sections.MEMBERAUDIT_FETCH_ROLES", True)
 class TestCharacterUpdateRoles(TestCharacterUpdateBase):
     @classmethod
     def setUpClass(cls) -> None:

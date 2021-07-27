@@ -17,6 +17,9 @@
     <li role="presentation"><a href="#clones" aria-controls="clones" role="tab" data-toggle="tab">{% translate 'Jump Clones' %}</a></li>
     <li role="presentation"><a href="#loyalty" aria-controls="loyalty" role="tab" data-toggle="tab">{% translate 'Loyalty' %}</a></li>
     <li role="presentation"><a href="#mail" aria-controls="mail" role="tab" data-toggle="tab">{% translate 'Mails' %}</a></li>
+    {% if perms.memberaudit.view_roles %}
+    <li role="presentation"><a href="#roles" aria-controls="skillqueue" role="tab" data-toggle="tab">{% translate 'Roles' %}</a></li>
+    {% endif %}
     <li role="presentation"><a href="#skillqueue" aria-controls="skillqueue" role="tab" data-toggle="tab">{% translate 'Skill Queue' %}</a></li>
     <li role="presentation"><a href="#skill_sets" aria-controls="skill_sets" role="tab" data-toggle="tab">{% translate 'Skill Sets' %}</a></li>
     <li role="presentation"><a href="#skills" aria-controls="skills" role="tab" data-toggle="tab">{% translate 'Skills' %}</a></li>

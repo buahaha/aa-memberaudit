@@ -50,6 +50,7 @@ from .models import (
     CharacterContract,
     CharacterContractItem,
     CharacterMail,
+    CharacterRole,
     General,
     Location,
     SkillSet,
@@ -1140,19 +1141,22 @@ def character_mail_data(
 def character_roles_data(
     request, character_pk: int, character: Character
 ) -> JsonResponse:
-    data = list()
+    roles_map = dict()
     try:
         for role in character.roles.all():
-            data.append(
-                {
-                    "role": role.get_role_display(),
-                    "location": role.get_location_display(),
-                }
-            )
+            role_name = role.get_role_display()
+            # Everything gets initialized to false if we don't already have it
+            vals = roles_map.get(role_name) or {
+                loc_id: False for loc_id, loc_name in CharacterRole.LOCATIONS
+            }
+            vals[role.location] = True
+            roles_map[role_name] = vals
     except ObjectDoesNotExist:
         pass
+    # Squish our map
+    result = [{"role": name, **vals} for name, vals in roles_map.items()]
 
-    return JsonResponse(data, safe=False)
+    return JsonResponse(result, safe=False)
 
 
 @login_required

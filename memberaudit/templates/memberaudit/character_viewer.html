@@ -35,6 +35,9 @@
                         {% include 'memberaudit/partials/character_viewer/tabs/jump_clones.html' %}
                         {% include 'memberaudit/partials/character_viewer/tabs/loyalty.html' %}
                         {% include 'memberaudit/partials/character_viewer/tabs/mails.html' %}
+                        {% if perms.memberaudit.view_roles %}
+                            {% include 'memberaudit/partials/character_viewer/tabs/roles.html' %}
+                        {% endif %}
                         {% include 'memberaudit/partials/character_viewer/tabs/skills.html' %}
                         {% include 'memberaudit/partials/character_viewer/tabs/skill_queue.html' %}
                         {% include 'memberaudit/partials/character_viewer/tabs/wallet_journal.html' %}
@@ -506,20 +509,30 @@
                 });
         })
 
+        {% if perms.memberaudit.view_roles %}
         /* Roles */
         $('#tab_roles').DataTable({
             ajax: {
-                url: "{% url 'memberaudit:character_role_data' character.pk %}",
+                url: "{% url 'memberaudit:character_roles_data' character.pk %}",
                 dataSrc: '',
                 cache: false
             },
             columns: [
-                { data: 'location' },
+                { data: 'name' },
                 {
-                    data: 'role',
+                    data: '',
+                },
+                {
+                    data: 'hq',
+                },
+                {
+                    data: 'base',
+                },
+                {
+                    data: 'other',
                 },
             ],
-            order: [[0, "desc"],[1, "asc"]],
+            order: [[0, "asc"]],
             filterDropDown: {
                 columns: [
                     {
@@ -527,13 +540,39 @@
                     },
                     {
                         idx: 1
+                    },
+                    {
+                        idx: 2
+                    },
+                    {
+                        idx: 3
+                    },
+                    {
+                        idx: 4
                     }
                 ],
                 autoSize: false,
                 bootstrap: true
-            }
+            },
+            columnDefs: [
+                {
+                    render: function (data, type, row) {
+                        if (type === "display") {
+                            if (data) {
+                                return '<span class="fas fa-check-circle text-success" aria-label="Yes"></span>';
+                            } else {
+                                return '<span class="fas fa-times-circle text-danger" aria-label="No"></span>';
+                            }
+                        }
+
+                        return data;
+                    },
+                    targets: [1,2,3,4],
+                },
+            ]
         });
 
+        {% endif %}
         /* Skillqueue */
         $('#tab_skillqueue').DataTable({
             ajax: {
